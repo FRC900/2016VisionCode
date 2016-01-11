@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+   <FileVersion major="1" minor="6" />
+   <Project>
+      <Option title="vo" />
+      <Option makefile_is_custom="1" />
+      <Option compiler="gcc" />
+      <Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\usr\;CMake Files\..\..\..\..\usr\share\;CMake Files\..\..\..\..\usr\share\OpenCV\;" />
+      <Build>
+      <Target title="all">
+         <Option working_dir="/home/ubuntu/2015-Vision-Lab/mono-vo" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 all" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="rebuild_cache">
+         <Option working_dir="/home/ubuntu/2015-Vision-Lab/mono-vo" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 rebuild_cache" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="vo">
+         <Option output="/home/ubuntu/2015-Vision-Lab/mono-vo/vo" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="/home/ubuntu/2015-Vision-Lab/mono-vo" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add directory="/usr/include" />
+            <Add directory="/usr/include/arm-linux-gnueabihf" />
+            <Add directory="/usr/include/arm-linux-gnueabihf/c++/4.8" />
+            <Add directory="/usr/include/c++/4.8" />
+            <Add directory="/usr/include/c++/4.8/backward" />
+            <Add directory="/usr/include/opencv" />
+            <Add directory="/usr/lib/gcc/arm-linux-gnueabihf/4.8/include" />
+            <Add directory="/usr/lib/gcc/arm-linux-gnueabihf/4.8/include-fixed" />
+            <Add directory="/usr/local/include" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 vo" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="vo/fast">
+         <Option output="/home/ubuntu/2015-Vision-Lab/mono-vo/vo" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="/home/ubuntu/2015-Vision-Lab/mono-vo" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add directory="/usr/include" />
+            <Add directory="/usr/include/arm-linux-gnueabihf" />
+            <Add directory="/usr/include/arm-linux-gnueabihf/c++/4.8" />
+            <Add directory="/usr/include/c++/4.8" />
+            <Add directory="/usr/include/c++/4.8/backward" />
+            <Add directory="/usr/include/opencv" />
+            <Add directory="/usr/lib/gcc/arm-linux-gnueabihf/4.8/include" />
+            <Add directory="/usr/lib/gcc/arm-linux-gnueabihf/4.8/include-fixed" />
+            <Add directory="/usr/local/include" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 vo/fast" />
+            <CompileFile command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="/usr/bin/make -f &quot;/home/ubuntu/2015-Vision-Lab/mono-vo/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      </Build>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/calib.cpp">
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/ptsetreg.cpp">
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/visodo.cpp">
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/vo_features.h">
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\" />
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/../../../../usr/share/OpenCV/OpenCVConfig-version.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\usr\share\OpenCV\" />
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/../../../../usr/share/OpenCV/OpenCVConfig.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\usr\share\OpenCV\" />
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/../../../../usr/share/OpenCV/OpenCVModules.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\usr\share\OpenCV\" />
+      </Unit>
+      <Unit filename="/home/ubuntu/2015-Vision-Lab/mono-vo/../../../../usr/share/OpenCV/OpenCVModules-release.cmake">
+          <Option virtualFolder="CMake Files\..\..\..\..\usr\share\OpenCV\" />
+      </Unit>
+   </Project>
+</CodeBlocks_project_file>
