@@ -24,6 +24,12 @@ vec2img
 gaTesting
 recognize
 C920VideoCap
+CaffeBatchPrediction
+CaffePrediction
+display
+opencv_createsamples_color
+scalefactor
+vo
 iteration_data.dat
 *.stackdump
 

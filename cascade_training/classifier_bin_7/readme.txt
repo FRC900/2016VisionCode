@@ -1,1 +1,0 @@
-Larger input set of positives and negatives. Taking forever to train.

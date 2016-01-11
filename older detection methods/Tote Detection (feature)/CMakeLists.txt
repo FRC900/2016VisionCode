@@ -1,6 +1,0 @@
-cmake_minimum_required(VERSION 2.8)
-project( recognize )
-find_package( OpenCV REQUIRED )
-include_directories( ${OpenCV_INCLUDE_DIRS} )
-add_executable( recognize recognize.cpp )
-target_link_libraries( recognize ${OpenCV_LIBS} )
