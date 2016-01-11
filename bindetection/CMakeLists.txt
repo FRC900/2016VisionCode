@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project( test )
+project( zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
@@ -15,13 +15,13 @@ find_package( OpenCV REQUIRED )
 find_package (Threads)
 include_directories( ${OpenCV_INCLUDE_DIRS} galib247 ../C920VideoCap ../networktables/include)
 
-add_executable( test test.cpp objdetect.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp )
+add_executable( zv test.cpp objdetect.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp )
 IF(CYGWIN)
    find_library (LibNT networktables PATH ../networktables/lib-x86_64-cygwin )
 ELSE()
    find_library (LibNT networktables PATH ../networktables/lib-${CMAKE_LIBRARY_ARCHITECTURE} )
 ENDIF()
-target_link_libraries( test ${OpenCV_LIBS} ${LibNT} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( zv ${OpenCV_LIBS} ${LibNT} ${CMAKE_THREAD_LIBS_INIT} )
 
 # Code to test for bugs in GPU classifier code. Think this is fixed
 # so for now don't build this code

@@ -29,6 +29,7 @@ CaffePrediction
 display
 scalefactor
 vo
+zv
 iteration_data.dat
 *.stackdump
 
