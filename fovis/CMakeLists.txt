@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 2.8)
+project( fovis_zed_test )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} /usr/local/include /usr/local/include/eigen3 )
+add_executable( fovis_zed_test fovis_testing.cpp zedin.cpp )
+target_link_libraries( fovis_zed_test ${OpenCV_LIBS} /usr/local/lib/libfovis.so )
