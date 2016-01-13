@@ -21,22 +21,17 @@ ZedIn::ZedIn()
 
 bool ZedIn::getNextFrame(cv::Mat &frame,bool pause,bool left)
 {
-   if (!pause)
-   {
-      zed->grab(sl::zed::RAW);
-      if(left) {
-      	imageGPU = zed->getView_gpu(sl::zed::STEREO_LEFT);
-      }else{
+	zed->grab(sl::zed::RAW);
+	if(left) {
+	imageGPU = zed->getView_gpu(sl::zed::STEREO_LEFT);
+	}else{
 	imageGPU = zed->getView_gpu(sl::zed::STEREO_RIGHT);
-      }
-      cv::Mat imageCPU(height, width, CV_8UC4);
-      depthMat = zed->retrieveMeasure(sl::zed::MEASURE::DEPTH);
-      cudaMemcpy2D((uchar*) imageCPU.data, imageCPU.step, (Npp8u*) imageGPU.data, imageGPU.step, imageGPU.getWidthByte(), imageGPU.height, cudaMemcpyDeviceToHost);
-      cvtColor(imageCPU,imageCPU,CV_RGBA2RGB);
-      frame = imageCPU.clone();
-   }else{
-      frame = _frame.clone();
-   }
+	}
+	cv::Mat imageCPU(height, width, CV_8UC4);
+	depthMat = zed->retrieveMeasure(sl::zed::MEASURE::DEPTH);
+	cudaMemcpy2D((uchar*) imageCPU.data, imageCPU.step, (Npp8u*) imageGPU.data, imageGPU.step, imageGPU.getWidthByte(), imageGPU.height, cudaMemcpyDeviceToHost);
+	cvtColor(imageCPU,imageCPU,CV_RGBA2RGB);
+	frame = imageCPU.clone();
    return true;
 }
 
@@ -54,9 +49,8 @@ bool ZedIn::getNormalDepth(bool pause, cv::Mat &frame) {
 	return true;
 }
 
-bool ZedIn::getDepth(bool pause, cv::Mat &frame) {
-	frame = depthMat;
-	return true;
+uchar* ZedIn::getDepthData(bool pause) {
+	return depthMat.data;
 }
 
 

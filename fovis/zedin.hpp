@@ -23,15 +23,16 @@
 #include "npp.h"
 #include "device_functions.h"
 
-#include "videoin_c920.hpp"
+//#include "videoin_c920.hpp"
 
-class ZedIn: public VideoIn
+class ZedIn
 {
    public:
 	ZedIn();
         bool getNextFrame(bool pause, cv::Mat &frame);
 	bool getNextFrame(cv::Mat &frame,bool pause,bool left);
 	double getDepthPoint(int x, int y);
+	uchar* getDepthData(bool pause);
 	bool getNormalDepth(bool pause, cv::Mat &frame);
 	int width;
 	int height;
