@@ -479,7 +479,6 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 		IplImage *savedSrc = data->src;
 		IplImage *hsv;
 
-
 		/* convert bgcolor/bgthreshold into array of component BGR values */
 		for ( n = 0; n < data->src->nChannels; n++ )
 		{
@@ -536,6 +535,12 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
             }
         }
 
+		if (hsv)
+		{
+		   data->src  = savedSrc;
+		   cvReleaseImage( &hsv );
+		}
+
         /* extend borders of source image */
         cvErode( data->src, data->erode, 0, 1 );
         cvDilate( data->src, data->dilate, 0, 1 );
@@ -562,23 +567,18 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 						if( de >= dd && de > bgthresholds[n] )
 						{
 							for ( m = 0; m < data->src->nChannels; m++ )
-							psrc[m] = perode[m];
+							   psrc[m] = perode[m];
 						}
 						if( dd > de && dd > bgthresholds[n] )
 						{
 							for ( m = 0; m < data->src->nChannels; m++ )
-							psrc[m] = pdilate[m];
+							   psrc[m] = pdilate[m];
 						}
 					}
                 }
             }
         }
 
-		if (hsv)
-		{
-		   data->src  = savedSrc;
-		   cvReleaseImage( &hsv );
-		}
 
         data->img     = cvCreateImage( cvSize( data->src->width + 2 * data->dx,
                                                data->src->height + 2 * data->dy ),

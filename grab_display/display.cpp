@@ -65,7 +65,7 @@ bool FindRect(Mat &frame, Rect &output)
         findContours( btrack, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
         for( size_t i = 0; i < hierarchy.size(); i++ )
         {
-            if(hierarchy[i][3] >= 0 && boundingRect(contours[i]).area() > 1000)
+            if(hierarchy[i][3] >= 0 && boundingRect(contours[i]).area() > 2000)
             {
                 points = contours[i];
                 break;
