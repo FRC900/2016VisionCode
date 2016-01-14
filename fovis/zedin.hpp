@@ -29,13 +29,15 @@ class ZedIn
 {
    public:
 	ZedIn();
-        bool getNextFrame(bool pause, cv::Mat &frame);
-	bool getNextFrame(cv::Mat &frame,bool pause,bool left);
+        bool getNextFrame(cv::Mat &frame);
+	bool getNextFrame(cv::Mat &frame,bool left);
 	double getDepthPoint(int x, int y);
-	uchar* getDepthData(bool pause);
-	bool getNormalDepth(bool pause, cv::Mat &frame);
+	uchar* getDepthData();
+	bool getNormalDepth(cv::Mat &frame);
 	int width;
 	int height;
+	sl::zed::CamParameters getCameraParams(bool left);
+	sl::zed::StereoParameters getStereoParams();
    private:
 	sl::zed::Mat depthMat;
 	sl::zed::Camera* zed;
@@ -43,5 +45,8 @@ class ZedIn
 	sl::zed::Mat depthGPU;
 	cv::Mat depthCPU;
 	cv::Mat imageCPU;
+	sl::zed::CamParameters leftCamParams;
+	sl::zed::CamParameters rightCamParams;
+	sl::zed::StereoParameters* stereoParams;
 };
 

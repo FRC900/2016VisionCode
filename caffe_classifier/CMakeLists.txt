@@ -22,5 +22,5 @@ find_library (LibCaffe caffe PATH  /home/marshall/caffe/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
-cuda_add_executable( CaffeBatchPrediction CaffeBatchPrediction.cpp fast_nms.cpp scalefactor.cpp main.cpp )
+cuda_add_executable( CaffeBatchPrediction CaffeBatchPrediction.cpp fast_nms.cpp scalefactor.cpp main.cpp detect.cpp )
 target_link_libraries( CaffeBatchPrediction ${OpenCV_LIBS} ${LibCaffe} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} )

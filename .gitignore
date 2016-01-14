@@ -31,6 +31,7 @@ scalefactor
 vo
 zv
 iteration_data.dat
+fovis_zed_test
 *.stackdump
 
 # Metadata
@@ -41,6 +42,7 @@ iteration_data.dat
 *~
 *.bak
 *.sw[op]
+x
 
 # Cmake stuff
 CMakeCache.txt
