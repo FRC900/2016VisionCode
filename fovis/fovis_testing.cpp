@@ -44,6 +44,10 @@ int main() {
   rgb_params.cx = cap.getCameraParams(leftCamera).cx; //get camera intrinsic parameters from zed function
   rgb_params.cy = cap.getCameraParams(leftCamera).cy;
 
+  cout << rgb_params.fx << endl;
+cout << rgb_params.fy<< endl;
+cout << rgb_params.cx << endl;
+cout << rgb_params.cy << endl;
   // TODO change this later so we can adjust options
   fovis::VisualOdometryOptions options = fovis::VisualOdometry::getDefaultOptions();
   options["max-pyramid-level"] = "3"; //default 3
@@ -63,10 +67,12 @@ int main() {
     int pixelCounter = 0;
     for(int y = 0; y < cap.height; y++) {
         for(int x = 0; x < cap.width; x++) {
-	    depthImageFloat[pixelCounter] = cap.getDepthPoint(x,y);
+	    depthImageFloat[pixelCounter] = (cap.getDepthPoint(x,y) > 0.0 ? cap.getDepthPoint(x,y) : 0.0);
 	    pixelCounter++;
             }
         }
+
+    cout << cap.getDepthPoint(10, cap.height - 10) << endl;
     depthSource.setDepthImage(depthImageFloat);
 
     cvtColor(frame,frame,CV_BGR2GRAY);
@@ -79,8 +85,8 @@ int main() {
 
     odom->processFrame(pt, &depthSource);
 	
-    //if(odom->getReferenceFrame()->getNumDetectedKeypoints() == odom->getTargetFrame()->getNumDetectedKeypoints()) //this might false positive but not sure if that's important
-	//cout << "reference frame reset" << endl;
+    if(odom->getChangeReferenceFrames())
+	cout << "reference frame reset" << endl;
     Eigen::Isometry3d motion_estimate = odom->getMotionEstimate(); //estimate motion
     Eigen::Isometry3d cam_to_local = odom->getPose();
 
