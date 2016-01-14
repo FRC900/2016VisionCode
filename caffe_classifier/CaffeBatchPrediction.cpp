@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <opencv2/imgproc/imgproc.hpp>
+
 #include <opencv2/gpu/gpu.hpp>
 
 #include "CaffeBatchPrediction.hpp"

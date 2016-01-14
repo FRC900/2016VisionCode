@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include "CaffeBatchPrediction.hpp"
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
@@ -73,15 +74,34 @@ int main(int argc, char *argv[])
    // image will be scaled so that these min and max sizes
    // line up with the classifier input size.  Other scales will
    // fill in the range between those two end points.
-   cv::Size minSize(100,100);
+   cv::Size minSize(20,20);
    cv::Size maxSize(700,700);
    std::vector<cv::Rect> rectsOut;
    detectMultiscale<cv::gpu::GpuMat>(model_file, trained_file, mean_file, label_file, inputImg, minSize, maxSize, rectsOut);
+#if 0 // enable me for hard negative mining
+   for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
+   {
+std::stringstream s;
+std::size_t found = file.find_last_of("/\\");
+s << file.substr(found+1);
+s << "_";
+s << it->x;
+s << "_";
+s << it->y;
+s << "_";
+s << it->width;
+s << "_";
+s << it->height;
+s << ".png";
+std::cout << s.str() << std::endl;
+imwrite(s.str().c_str(), inputImg(*it));
+   }
+#endif
    #if 1
    namedWindow("Image", cv::WINDOW_AUTOSIZE);
    for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
    {
-      std::cout << *it << std::endl;
+      //std::cout << *it << std::endl;
       rectangle(inputImg, *it, cv::Scalar(0,0,255));
    }
    //std::vector<cv::Rect> filteredRects;
@@ -121,7 +141,7 @@ void detectMultiscale(const std::string &model_file,
    std::vector<int> scalesOut;
 
    generateInitialWindows(inputImg, minSize, maxSize, wsize, scaledimages, rects, scales);
-   runDetection(classifier, scaledimages, rects, scales, .9, "bin", rectsOut, scalesOut);
+   runDetection(classifier, scaledimages, rects, scales, .9, "ball", rectsOut, scalesOut);
    for(size_t i = 0; i < rectsOut.size(); i++)
    {
       float scale = scaledimages[scalesOut[i]].second;
@@ -164,7 +184,7 @@ void generateInitialWindows(
    MatT(input).convertTo(f32Img, CV_32FC3);
 
    // Create array of scaled images
-   scalefactor(f32Img, cv::Size(wsize,wsize), minSize, maxSize, 1.35, scaledimages);
+   scalefactor(f32Img, cv::Size(wsize,wsize), minSize, maxSize, 1.05, scaledimages);
 
    // Main loop.  Look at each scaled image in turn
    for (size_t scale = 0; scale < scaledimages.size(); ++scale)
