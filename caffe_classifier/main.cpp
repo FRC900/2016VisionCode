@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include "CaffeBatchPrediction.hpp"
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
@@ -39,16 +40,17 @@ int main(int argc, char *argv[])
    // image will be scaled so that these min and max sizes
    // line up with the classifier input size.  Other scales will
    // fill in the range between those two end points.
-   cv::Size minSize(100,100);
+   cv::Size minSize(20,20);
    cv::Size maxSize(700,700);
    std::vector<cv::Rect> rectsOut;
+
    NNDetect<cv::gpu::GpuMat> detect(model_file, trained_file, mean_file, label_file);
    detect.detectMultiscale(inputImg, minSize, maxSize, rectsOut);
    #if 1
    namedWindow("Image", cv::WINDOW_AUTOSIZE);
    for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
    {
-      std::cout << *it << std::endl;
+      //std::cout << *it << std::endl;
       rectangle(inputImg, *it, cv::Scalar(0,0,255));
    }
    //std::vector<cv::Rect> filteredRects;
@@ -64,5 +66,4 @@ int main(int argc, char *argv[])
 #endif
    return 0;
 }
-
 
