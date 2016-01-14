@@ -44,8 +44,6 @@ bool ZedIn::getNextFrame(cv::Mat &frame,bool left)
 	}
 	cv::Mat imageCPU(height, width, CV_8UC4);
 	depthMat = zed->retrieveMeasure(sl::zed::MEASURE::DEPTH);
-        cout << depthMat.step / 4 << endl;
-        cout << width << " " << height << " " << depthMat.width << " " << depthMat.height << endl;
 	cudaMemcpy2D((uchar*) imageCPU.data, imageCPU.step, (Npp8u*) imageGPU.data, imageGPU.step, imageGPU.getWidthByte(), imageGPU.height, cudaMemcpyDeviceToHost);
 	cvtColor(imageCPU,imageCPU,CV_RGBA2RGB);
 	frame = imageCPU.clone();
