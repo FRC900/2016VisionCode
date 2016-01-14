@@ -539,6 +539,9 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 		{
 		   data->src  = savedSrc;
 		   cvReleaseImage( &hsv );
+		   cvErode( data->mask, data->mask, 0, 3 ); // Increase the size of the mask by a small amount
+		                                            // to remove a small edge of chroma-key color that
+					  							    // seems to surround the images we're working with
 		}
 
         /* extend borders of source image */
