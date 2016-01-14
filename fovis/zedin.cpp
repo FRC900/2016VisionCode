@@ -17,9 +17,24 @@ ZedIn::ZedIn()
 	}
 	width = zed->getImageSize().width;
 	height = zed->getImageSize().height;
+	stereoParams = zed->getParameters();
+	leftCamParams = stereoParams->LeftCam;
+	rightCamParams = stereoParams->RightCam;
 }
 
-bool ZedIn::getNextFrame(cv::Mat &frame,bool pause,bool left)
+sl::zed::CamParameters ZedIn::getCameraParams(bool left) {
+	if(left) {
+	return leftCamParams;			
+	} else {
+	return rightCamParams;
+	}
+}
+
+sl::zed::StereoParameters ZedIn::getStereoParams() {
+	return *stereoParams;
+	}
+
+bool ZedIn::getNextFrame(cv::Mat &frame,bool left)
 {
 	zed->grab(sl::zed::RAW);
 	if(left) {
@@ -35,12 +50,12 @@ bool ZedIn::getNextFrame(cv::Mat &frame,bool pause,bool left)
    return true;
 }
 
-bool ZedIn::getNextFrame(bool pause, cv::Mat &frame) {
-	return getNextFrame(frame,pause,true);
+bool ZedIn::getNextFrame(cv::Mat &frame) {
+	return getNextFrame(frame,true);
 	
 }
 
-bool ZedIn::getNormalDepth(bool pause, cv::Mat &frame) {
+bool ZedIn::getNormalDepth(cv::Mat &frame) {
 	//zed->grab(sl::zed::FULL);
 	frame = Mat(height, width, CV_8UC4);
 	depthGPU = zed->normalizeMeasure_gpu(sl::zed::MEASURE::DEPTH);
@@ -49,7 +64,7 @@ bool ZedIn::getNormalDepth(bool pause, cv::Mat &frame) {
 	return true;
 }
 
-uchar* ZedIn::getDepthData(bool pause) {
+uchar* ZedIn::getDepthData() {
 	return depthMat.data;
 }
 
