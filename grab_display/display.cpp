@@ -393,14 +393,15 @@ int main(int argc, char *argv[]) {
             findContours( btrack_cp, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
             for( size_t i = 0; i < hierarchy.size(); i++ )
             {
-                if(hierarchy[i][3] >= 0 && boundingRect(contours[i]).area() > 1000)
+                if(hierarchy[i][3] >= 0 && boundingRect(contours[i]).area() > 10000)
                 {
                     contour_index = i;
                     break;
                 }
             }
+	    if(contours.size() == 0 || contour_index >= contours.size()) continue;
             drawContours(btrack, contours, contour_index, Scalar(255), CV_FILLED);
-            int dilation_type = MORPH_RECT;
+	    int dilation_type = MORPH_RECT;
             int dilation_size = 1;
             Mat element = getStructuringElement( dilation_type,
                                              Size( 2*dilation_size + 1, 2*dilation_size+1 ),

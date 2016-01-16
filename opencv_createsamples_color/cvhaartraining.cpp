@@ -1458,7 +1458,6 @@ void icvGetBackgroundImage( CvBackgroundData* data,
 
 	if ( data->filename == NULL )
 	{
-
 		for (int r = 0; r < img->rows; r++ )
 			for (int c = 0; c < img->cols; c++ )
 				for (int n = 0; n < ((img->type >> 3) & 0x7) + 1; n++ )

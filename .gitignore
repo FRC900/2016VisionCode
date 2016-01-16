@@ -32,6 +32,8 @@ vo
 zv
 iteration_data.dat
 fovis_zed_test
+GenInitNegFromVideo
+GenInitNegFromFile
 *.stackdump
 
 # Metadata
