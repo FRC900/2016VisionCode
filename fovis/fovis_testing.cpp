@@ -44,10 +44,12 @@ int main() {
   rgb_params.cx = cap.getCameraParams(leftCamera).cx; //get camera intrinsic parameters from zed function
   rgb_params.cy = cap.getCameraParams(leftCamera).cy;
 
-  cout << rgb_params.fx << endl;
-cout << rgb_params.fy<< endl;
-cout << rgb_params.cx << endl;
-cout << rgb_params.cy << endl;
+  /*cout << rgb_params.fx << endl;
+  cout << rgb_params.fy<< endl;
+  cout << rgb_params.cx << endl;
+  cout << rgb_params.cy << endl; */
+
+
   // TODO change this later so we can adjust options
   fovis::VisualOdometryOptions options = fovis::VisualOdometry::getDefaultOptions();
   options["max-pyramid-level"] = "3"; //default 3
@@ -65,14 +67,19 @@ cout << rgb_params.cy << endl;
     cap.getNextFrame(frame,leftCamera);
 
     int pixelCounter = 0;
+    float depthPoint;
     for(int y = 0; y < cap.height; y++) {
         for(int x = 0; x < cap.width; x++) {
-	    depthImageFloat[pixelCounter] = (cap.getDepthPoint(x,y) > 0.0 ? cap.getDepthPoint(x,y) : 0.0);
+	    depthPoint = cap.getDepthPoint(x,y);
+	    if(depthPoint <= 0) {
+		depthImageFloat[pixelCounter] = NAN;		
+	    }
+	    else {
+		depthImageFloat[pixelCounter] = depthPoint;
+	    }
 	    pixelCounter++;
             }
         }
-
-    cout << cap.getDepthPoint(10, cap.height - 10) << endl;
     depthSource.setDepthImage(depthImageFloat);
 
     cvtColor(frame,frame,CV_BGR2GRAY);
@@ -90,7 +97,7 @@ cout << rgb_params.cy << endl;
     Eigen::Isometry3d motion_estimate = odom->getMotionEstimate(); //estimate motion
     Eigen::Isometry3d cam_to_local = odom->getPose();
 
-    std::cout << isometryToString(motion_estimate) << endl; //print out the pose
+    std::cout << isometryToString(cam_to_local) << endl; //print out the pose
     waitKey(5);
     }
 }
