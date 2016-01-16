@@ -17,20 +17,26 @@
 using namespace std;
 using namespace cv;
 
+int g_h_max = 197;
+int g_h_min = 102;
+int g_s_max = 255;
+int g_s_min = 72;
+int g_v_max = 208;
+int g_v_min = 0;
 int Brightness = 128,
     Contrast = 128,
     Saturation = 128,
     Sharpness = 128,
-    Gain = 1,
-    Focus = 1,
-    BacklightCompensation = 0,
-    WhiteBalanceTemperature = 0;
+    Gain = 20,
+    Focus = 20,
+    BacklightCompensation = 20,
+    WhiteBalanceTemperature = 20;
 v4l2::C920Camera camera;
 cv::Mat frame;
 
 int main(int argc, char* argv[]) {
    fprintf(stdout, "Preparing to open camera.\n");
-   camera.Open("/dev/video0");
+   camera.Open("/dev/video1");
    if (!camera.IsOpen()) {
       fprintf(stderr, "Unable to open camera.\n");
       return -1;
@@ -54,14 +60,14 @@ int main(int argc, char* argv[]) {
 
    camera.ChangeCaptureSize(v4l2::CAPTURE_SIZE_800x600);
    camera.ChangeCaptureFPS(v4l2::CAPTURE_FPS_30);
-   camera.GetBrightness(Brightness);
+   /*camera.GetBrightness(Brightness);
    camera.GetContrast(Contrast);
    camera.GetSaturation(Saturation);
    camera.GetSharpness(Sharpness);
    camera.GetGain(Gain);
    camera.GetBacklightCompensation(BacklightCompensation);
    camera.GetWhiteBalanceTemperature(WhiteBalanceTemperature);
-   ++WhiteBalanceTemperature;
+   ++WhiteBalanceTemperature;*/
 #if 0
    camera.GetFocus(Focus);
    ++Focus;
@@ -100,6 +106,11 @@ int main(int argc, char* argv[]) {
 	 outputVideo << frame;
 	 if (!batch)
 	    imshow( "Detect", frame);
+		Mat btrack;
+	     inRange(frame, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), btrack);
+		Mat element= getStructuringElement(MORPH_RECT, Size(5, 5), Point(2, 2));
+		dilate(btrack, btrack, element);
+		imshow("Tracking", btrack);
       } else {
 	 fprintf(stderr, "Unable to grab frame from camera.\n");
       }
