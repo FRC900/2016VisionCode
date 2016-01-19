@@ -26,15 +26,16 @@ bool DetectState::update(void)
 
 	// Create a new CPU or GPU classifier based on the
 	// user's selection
-	if (gpu_)
-		detector_ = new GPU_CascadeDetect(name.c_str());
-	else
-		detector_ = new CPU_CascadeDetect(name.c_str());
+	//if (gpu_)
+	//	detector_ = new GPU_CascadeDetect(name.c_str());
+	//else
+        vector<string> files = classifierIO_.getClassifierFiles();
+		detector_ = new GPU_NNDetect(files[0],files[1],files[2],files[3]);
 
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )
 	{
-		cerr << "Error loading " << name << endl; 
+		cerr << "Error loading " << name << endl;
 		return false;
 	}
 	reload_ = false;

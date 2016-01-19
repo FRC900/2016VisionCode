@@ -25,6 +25,7 @@
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
 #include "zedin.hpp"
+#include "objdetect.hpp"
 
 using namespace std;
 using namespace cv;
@@ -41,7 +42,7 @@ void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string
 string getVideoOutName(bool raw = true);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, NetworkTable *netTable, bool dateAndTime);
 
-void drawRects(Mat image,vector<Rect> detectRects) 
+void drawRects(Mat image,vector<Rect> detectRects)
 {
     for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
 	{
@@ -65,7 +66,7 @@ void drawRects(Mat image,vector<Rect> detectRects)
 }
 
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
-{ 
+{
    for (vector<TrackedObjectDisplay>::const_iterator it = displayList.begin(); it != displayList.end(); ++it)
    {
 	  if (it->ratio >= 0.15)
@@ -73,7 +74,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 		 const int roundAngTo = 2;
 		 const int roundDistTo = 2;
 
-		 // Color moves from red to green (via brown, yuck) 
+		 // Color moves from red to green (via brown, yuck)
 		 // as the detected ratio goes up
 		 Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
 		 // Highlight detected target
@@ -103,14 +104,14 @@ void checkDuplicate (vector<Rect> detectRects) {
 							if(detectRects[i].y < detectRects[j].y) {
 							lowestYVal = detectRects[i]; //higher rectangle
 							indexHighest = j;
-						} else {	
+						} else {
 							lowestYVal = detectRects[j]; //higher rectangle
 							indexHighest = i;
 					}
 					if(intersection.y > lowestYVal.y) {
 						//cout << "found intersection" << endl;
 						detectRects.erase(detectRects.begin()+indexHighest);
-					}				
+					}
 				}
 			}
 		}
@@ -124,7 +125,7 @@ int main( int argc, const char** argv )
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
 	int frameDisplayFrequency = 1;
-   
+
 	// Read through command line args, extract
 	// cmd line parameters and input filename
 	Args args;
@@ -148,7 +149,7 @@ int main( int argc, const char** argv )
 
 	// Minimum size of a bin at ~30 feet distance
 	// TODO : Verify this once camera is calibrated
-	if (args.ds)	
+	if (args.ds)
 	   minDetectSize = cap->width() * 0.07;
 	else
 	   minDetectSize = cap->width() * 0.195;
@@ -169,7 +170,7 @@ int main( int argc, const char** argv )
 	TrackedObjectList binTrackingList(24.0, cap->width());
 
 	NetworkTable::SetClientMode();
-	NetworkTable::SetIPAddress("10.9.0.2"); 
+	NetworkTable::SetIPAddress("10.9.0.2");
 	NetworkTable *netTable = NetworkTable::GetTable("VisionTable");
 	const size_t netTableArraySize = 7; // 7 bins?
 	NumberArray netTableArray;
@@ -187,11 +188,11 @@ int main( int argc, const char** argv )
 	FrameTicker frameTicker;
 
 	DetectState detectState(
-		  ClassifierIO(args.classifierBaseDir, args.classifierDirNum, args.classifierStageNum), 
+		  ClassifierIO(args.classifierBaseDir, args.classifierDirNum, args.classifierStageNum),
 		  gpu::getCudaEnabledDeviceCount() > 0);
 	// Start of the main loop
 	//  -- grab a frame
-	//  -- update the angle of tracked objects 
+	//  -- update the angle of tracked objects
 	//  -- do a cascade detect on the current frame
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
@@ -223,7 +224,7 @@ int main( int argc, const char** argv )
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
-		detectState.detector()->Detect(frame, detectRects); 
+		detectState.detector()->Detect(frame, detectRects);
 		checkDuplicate(detectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
@@ -251,7 +252,7 @@ int main( int argc, const char** argv )
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
 
-		// Draw tracking info on display if 
+		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frDispFreq frames)
@@ -284,7 +285,7 @@ int main( int argc, const char** argv )
 		// For args.batch mode, only update every frameTicksLength frames to
 		// avoid printing too much stuff
 	    if (frameTicker.valid() &&
-			( (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) || 
+			( (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) ||
 			  ( args.batchMode && ((cap->frameCounter() % 50) == 0))))
 	    {
 			stringstream ss;
@@ -351,14 +352,14 @@ int main( int argc, const char** argv )
 			{
 				stringstream ss;
 				ss << cap->frameCounter() << '/' << frames;
-				putText(frame, ss.str(), 
-				        Point(frame.cols - 15 * ss.str().length(), 20), 
+				putText(frame, ss.str(),
+				        Point(frame.cols - 15 * ss.str().length(), 20),
 						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			}
 
 			// Display current classifier under test
-			putText(frame, detectState.print(), 
-			        Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN, 
+			putText(frame, detectState.print(),
+			        Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
 					1.5, Scalar(0,0,255));
 
 			// Display crosshairs so we can line up the camera
@@ -367,7 +368,7 @@ int main( int argc, const char** argv )
 			   line (frame, Point(frame.cols/2, 0) , Point(frame.cols/2, frame.rows), Scalar(255,255,0));
 			   line (frame, Point(0, frame.rows/2) , Point(frame.cols, frame.rows/2), Scalar(255,255,0));
 			}
-			
+
 			// Main call to display output for this frame after all
 			// info has been written on it.
 			imshow( windowName, frame );
@@ -377,12 +378,12 @@ int main( int argc, const char** argv )
 			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, netTable, false);
 
 			char c = waitKey(5);
-			if ((c == 'c') || (c == 'q') || (c == 27)) 
+			if ((c == 'c') || (c == 'q') || (c == 27))
 			{ // exit
 				if (netTable->IsConnected())
 					NetworkTable::Shutdown();
 				return 0;
-			} 
+			}
 			else if( c == ' ') { pause = !pause; }
 			else if( c == 'f')  // advance to next frame
 			{
@@ -522,7 +523,7 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui)
 {
    // Digit, but no dot (meaning no file extension)? Open camera
-		if (fileName.length() == 0 || 
+		if (fileName.length() == 0 ||
 						((fileName.find('.') == string::npos) && isdigit(fileName[0])))
 		{
 				stringstream ss;
@@ -545,7 +546,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 
 				}else{
 						ss << "Zed Camera ";
-				} 
+				}
 				ss << camera;
 				windowName = ss.str();
 				capPath    = getDateTimeString();
@@ -584,7 +585,7 @@ string getVideoOutName(bool raw)
 	struct tm * timeinfo;
 	time (&rawtime);
 	timeinfo = localtime (&rawtime);
-	do 
+	do
 	{
 		ss.str(string(""));
 		ss.clear();
@@ -616,4 +617,3 @@ void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat 
    }
    textWriter.write(outputVideo);
 }
-

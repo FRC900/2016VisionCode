@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/gpu/gpu.hpp>
+#include "detect.hpp"
 
 #include <vector>
 
@@ -13,12 +14,12 @@
 class ObjDetect
 {
    public :
-      ObjDetect() : init_(false) {} //pass in value of false to cascadeLoaded
+      ObjDetect() : init_(false) {} //pass in value of false to cascadeLoadedGPU_CascadeDetect
       virtual ~ObjDetect() {}       //empty destructor
-      virtual void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects) = 0; //pure virtual function, must be defined by CPU and GPU detect
-      virtual void Detect(const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects) 
+     // virtual void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects) = 0; //pure virtual function, must be defined by CPU and GPU detect
+      virtual void Detect(const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects)
       {
-	 imageRects.clear();
+	  imageRects.clear();
       }
       bool initialized(void)
       {
@@ -30,7 +31,7 @@ class ObjDetect
 };
 
 // CPU version of cascade classifier
-class CPU_CascadeDetect : public ObjDetect
+/*class CPU_CascadeDetect : public ObjDetect
 {
    public :
       CPU_CascadeDetect(const char *cascadeName) : ObjDetect() // call default constructor of base class
@@ -53,40 +54,52 @@ class CPU_CascadeDetect : public ObjDetect
    private :
       cv::CascadeClassifier classifier_;
 };
-
-// CPU version of cascade classifier. Pretty much the same interface 
-// as the CPU version, but with an added method to handle data 
+*/
+// CPU version of cascade classifier. Pretty much the same interface
+// as the CPU version, but with an added method to handle data
 // which is already moved to a GpuMat
-class GPU_CascadeDetect : public ObjDetect
+class GPU_NNDetect : public ObjDetect
 {
    public :
-      GPU_CascadeDetect(const char *cascadeName) : ObjDetect()
+      GPU_NNDetect(const std::string &model_file,
+  		const std::string &trained_file,
+  		const std::string &mean_file,
+  		const std::string &label_file):	ObjDetect(),
+        classifier_(model_file,
+    		trained_file,
+    		mean_file,
+    		label_file)
       {
-	 struct stat statbuf;
+	/* struct stat statbuf;
 	 if (stat(cascadeName, &statbuf) != 0)
 	 {
 	    std::cerr << "Can not open classifier input " << cascadeName << std::endl;
 	    std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
 	    return;
+
 	 }
+
 	 init_ = classifier_.load(cascadeName);
+     */
       }
-      ~GPU_CascadeDetect(void)
+
+      ~GPU_NNDetect(void)
       {
-	 classifier_.release();
+	// classifier_.release();
       }
       void Detect (const cv::Mat          &frame,        std::vector<cv::Rect> &imageRects);
-      void Detect (const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects);
+      //void Detect (const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects);
 
    private :
-      cv::gpu::CascadeClassifier_GPU classifier_;
+      NNDetect classifier_;
+
 
       // Declare GPU Mat elements once here instead of every single
       // call to the functions which use them
-      cv::gpu::GpuMat frameEq;
-      cv::gpu::GpuMat frameGray;
-      cv::gpu::GpuMat detectResultsGPU;
-      cv::gpu::GpuMat uploadFrame;
+      //cv::gpu::GpuMat frameEq;
+      //cv::gpu::GpuMat frameGray;
+      //cv::gpu::GpuMat detectResultsGPU;
+      //cv::gpu::GpuMat uploadFrame;
 };
 
 extern int scale;
