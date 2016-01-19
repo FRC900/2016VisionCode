@@ -72,6 +72,7 @@ int main() {
   fovis::VisualOdometry* odom = new fovis::VisualOdometry(&rect, options);
 
   Mat frame;
+  Mat depthFrame;
   float* depthImageFloat = new float[cap.width * cap.height];
   fovis::DepthImage depthSource(rgb_params, cap.width, cap.height);
   clock_t startTime;
@@ -94,6 +95,8 @@ int main() {
 	    pixelCounter++;
             }
         }
+    depthFrame = Mat(cap.width, cap.height, CV_32FC1, depthImageFloat);
+
     depthSource.setDepthImage(depthImageFloat);
 
     cvtColor(frame,frame,CV_BGR2GRAY);
