@@ -3,6 +3,9 @@
 #include <string.h>
 #include <signal.h>
 
+#include <cstdio>
+#include <ctime>
+
 #include <iostream>
 #include <string>
 #include <fovis/fovis.hpp>
@@ -18,6 +21,8 @@ using namespace std;
 using namespace cv;
 
 bool leftCamera = false;
+int numThreads = 8;
+
 
 string isometryToString(const Eigen::Isometry3d& m)
 {
@@ -33,6 +38,11 @@ string isometryToString(const Eigen::Isometry3d& m)
 
 
 int main() {
+
+  omp_set_num_threads(numThreads);
+  Eigen::setNbThreads(numThreads);
+  cout << "Using " << Eigen::nbThreads() << " threads" << endl;
+
   ZedIn cap;
   fovis::CameraIntrinsicsParameters rgb_params;
   memset(&rgb_params,0,sizeof(rgb_params));
@@ -55,15 +65,20 @@ int main() {
   options["max-pyramid-level"] = "3"; //default 3
   options["feature-search-window"] = "25"; //default 25
   options["use-subpixel-refinement"] = "true"; //default true
+  options["feature-window-size"] = "9"; //default 9
+  options["target-pixels-per-feature"] = "250"; //default 250
 
   fovis::Rectification rect(rgb_params);
   fovis::VisualOdometry* odom = new fovis::VisualOdometry(&rect, options);
 
   Mat frame;
+  Mat depthFrame;
   float* depthImageFloat = new float[cap.width * cap.height];
   fovis::DepthImage depthSource(rgb_params, cap.width, cap.height);
+  clock_t startTime;
   while(1)
     {
+    startTime = clock();
     cap.getNextFrame(frame,leftCamera);
 
     int pixelCounter = 0;
@@ -80,6 +95,8 @@ int main() {
 	    pixelCounter++;
             }
         }
+    depthFrame = Mat(cap.width, cap.height, CV_32FC1, depthImageFloat);
+
     depthSource.setDepthImage(depthImageFloat);
 
     cvtColor(frame,frame,CV_BGR2GRAY);
@@ -98,6 +115,7 @@ int main() {
     Eigen::Isometry3d cam_to_local = odom->getPose();
 
     std::cout << isometryToString(cam_to_local) << endl; //print out the pose
+    std::cout << "Took: " << (((double)clock() - startTime) / CLOCKS_PER_SEC) << " seconds" << endl;
     waitKey(5);
     }
 }

@@ -14,7 +14,7 @@ use strict;
 # Date  : 06/02/2007
 # Date  : 03/12/2006
 #########################################################################
-my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x153768 -maxxangle .2 -maxyangle .2 -maxzangle 1 -maxidev 40 -w 128 -h 128 -hsv';
+my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x153768 -maxxangle .2 -maxyangle .2 -maxzangle 1 -maxidev 40 -w 64 -h 64 -hsv';
 my $totalnum = 7000;
 my $stage1 = "false";
 my $stage2 = "true";
@@ -76,7 +76,6 @@ if($stage2 eq "true")
         my $num = ($k < $numremain) ? $numfloor + 1 : $numfloor;
 
         !chomp($img);
-        my $imgdirlen = length(dirname($img));
         print "$cmd -img \"$inputdir/images/$img\" -pngfnformat $outputdir/images/distorted/$img%1.1d.png -num $num" . "\n";
         system("$cmd -img \"$inputdir/images/$img\" -pngfnformat $outputdir/images/distorted/$img%1.1d.png -num $num");
     }

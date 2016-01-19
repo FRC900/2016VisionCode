@@ -24,6 +24,7 @@
 #include "track.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
+#include "zedin.hpp"
 
 using namespace std;
 using namespace cv;
@@ -521,41 +522,48 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui)
 {
    // Digit, but no dot (meaning no file extension)? Open camera
-   if (fileName.length() == 0 || 
-      ((fileName.find('.') == string::npos) && isdigit(fileName[0])))
-   {
-	  stringstream ss;
-	  int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
-	  cap        = new C920CameraIn(camera, gui);
-	  Mat          mat;
-	  if (!cap->getNextFrame(mat))
-	  {
-		 delete cap;
-		 cap = new CameraIn(camera, gui);
-		 ss << "Default Camera ";
-	  }
-	  else
-	  {
-		 ss << "C920 Camera ";
-	  }
-	  ss << camera;
-	  windowName = ss.str();
-      capPath    = getDateTimeString();
-   }
-   else // has to be a file name, we hope
-   {
-	  if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg"))
-		 cap = new ImageIn(fileName.c_str());
-	  else
-		 cap = new VideoIn(fileName.c_str());
+		if (fileName.length() == 0 || 
+						((fileName.find('.') == string::npos) && isdigit(fileName[0])))
+		{
+				stringstream ss;
+				int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
+				cap		 = new ZedIn();
+				Mat		mat;
+				if(!cap->getNextFrame(mat)){
+						delete cap;
+						cap        = new C920CameraIn(camera, gui);
+						if (!cap->getNextFrame(mat))
+						{
+								delete cap;
+								cap = new CameraIn(camera, gui);
+								ss << "Default Camera ";
+						}
+						else
+						{
+								ss << "C920 Camera ";
+						}
 
-      // Strip off directory for capture path
-      capPath = fileName;
-      const size_t last_slash_idx = capPath.find_last_of("\\/");
-      if (std::string::npos != last_slash_idx)
-		capPath.erase(0, last_slash_idx + 1);
-      windowName = fileName;
-   }
+				}else{
+						ss << "Zed Camera ";
+				} 
+				ss << camera;
+				windowName = ss.str();
+				capPath    = getDateTimeString();
+		}
+		else // has to be a file name, we hope
+		{
+				if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg"))
+						cap = new ImageIn(fileName.c_str());
+				else
+						cap = new VideoIn(fileName.c_str());
+
+				// Strip off directory for capture path
+				capPath = fileName;
+				const size_t last_slash_idx = capPath.find_last_of("\\/");
+				if (std::string::npos != last_slash_idx)
+						capPath.erase(0, last_slash_idx + 1);
+				windowName = fileName;
+		}
 }
 
 void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value)

@@ -28,10 +28,6 @@ int g_max_resize = 25;
 string g_outputdir = ".";
 RNG rng(12345);
 #ifdef __CYGWIN__
-inline string
-to_string(int __val)
-{ return __gnu_cxx::__to_xstring<string>(vsnprintf, 4 * sizeof(int),
-    "%d", __val); }
 inline int
 stoi(const wstring& __str, size_t* __idx = 0, int __base = 10)
 { return __gnu_cxx::__stoa<long, int>(&std::wcstol, "stoi", __str.c_str(),
@@ -321,9 +317,6 @@ int main(int argc, char *argv[]) {
         Mat frame;
         Mat hsv_input;
 
-        vector<Mat> channels;
-        vector<Mat> temp2(3);
-
         int count = 0;
         bool isColor = true;
 
@@ -340,7 +333,6 @@ int main(int argc, char *argv[]) {
         vector<float> lblur(g_num_frames);
         int frame_counter = 0;
         int frame_holder[g_num_frames];
-        String write_name = "";
         while(1) {
             frame_counter = frame_video.get(CV_CAP_PROP_POS_MSEC);
             frame_video.read(frame);
@@ -393,7 +385,7 @@ int main(int argc, char *argv[]) {
             findContours( btrack_cp, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
             for( size_t i = 0; i < hierarchy.size(); i++ )
             {
-                if(hierarchy[i][3] >= 0 && boundingRect(contours[i]).area() > 10000)
+                if(hierarchy[i][3] >= 0 && boundingRect(contours[i]).area() > 2000)
                 {
                     contour_index = i;
                     break;
@@ -428,10 +420,16 @@ int main(int argc, char *argv[]) {
             for(int k = 0; k < g_files_per; k++)
             {
                 ResizeRect(bounding_rect, final_rect, hsv_input);
-                vid_name = Behead(vid_name);
-                write_name = g_outputdir + "/images/" + vid_name + "_" + to_string(j) + "_" + to_string(k) + ".png";
+                stringstream write_name;
+		int frame_num = frame_video.get(CV_CAP_PROP_POS_FRAMES)-1;
+		write_name << g_outputdir << "/images/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << frame_num;
+		write_name << "_" << setw(4) << final_rect.x;
+		write_name << "_" << setw(4) << final_rect.y;
+		write_name << "_" << setw(4) << final_rect.width;
+		write_name << "_" << setw(4) << final_rect.height;
+		write_name << ".png";
                 imshow("Edges", frame(final_rect));
-                imwrite(write_name, frame(final_rect));
+                imwrite(write_name.str().c_str(), frame(final_rect));
             }
         }
         /*for(int j = 0; j < g_num_frames; j++)
