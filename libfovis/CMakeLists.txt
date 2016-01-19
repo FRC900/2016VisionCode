@@ -11,6 +11,8 @@ if(PKG_CONFIG_FOUND)
     pkg_check_modules(EIGEN REQUIRED eigen3)
 endif()
 
+set(CMAKE_BUILD_TYPE Release)
+
 # Do we want to use SSE?
 option(USE_SSE "Enables SSE support" ON)
 if(USE_SSE)
@@ -18,6 +20,16 @@ if(USE_SSE)
     add_definitions(-DFOVIS_USE_SSE)
 else()
     set(USE_SSE_MESSAGE "Disabled")
+endif()
+
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Ofast -flto")
+if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=cortex-a15 -mfpu=neon-vfpv4 -fvect-cost-model")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mcpu=cortex-a15 -mfpu=neon-vfpv4 -fvect-cost-model")
+else()
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -march=native")
 endif()
 
 # build the main library
