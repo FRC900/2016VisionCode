@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
    int index = 0;
    int rc;
    struct stat statbuf;
-   do 
+   do
    {
       sprintf(name, "cap%d.avi", index++);
       rc = stat(name, &statbuf);
@@ -60,14 +60,14 @@ int main(int argc, char* argv[]) {
 
    camera.ChangeCaptureSize(v4l2::CAPTURE_SIZE_800x600);
    camera.ChangeCaptureFPS(v4l2::CAPTURE_FPS_30);
-   /*camera.GetBrightness(Brightness);
+   camera.GetBrightness(Brightness);
    camera.GetContrast(Contrast);
    camera.GetSaturation(Saturation);
    camera.GetSharpness(Sharpness);
    camera.GetGain(Gain);
    camera.GetBacklightCompensation(BacklightCompensation);
    camera.GetWhiteBalanceTemperature(WhiteBalanceTemperature);
-   ++WhiteBalanceTemperature;*/
+   ++WhiteBalanceTemperature;
 #if 0
    camera.GetFocus(Focus);
    ++Focus;
@@ -82,8 +82,9 @@ int main(int argc, char* argv[]) {
    // Off by one to account for -1 being auto.
    cv::createTrackbar("White Balance Temperature", "Adjustments", &WhiteBalanceTemperature, 6501);
    cv::createTrackbar("Focus", "Adjustments", &Focus, 256);
+   cv::createTrackbar("Auto Exposure", "Adjustments", &AutoExposure, 3);
 
-   camera.GrabFrame();  
+   camera.GrabFrame();
    camera.RetrieveMat(frame);
    VideoWriter outputVideo(name, CV_FOURCC('M','J','P','G'), 30, Size(frame.cols, frame.rows), true);
 
@@ -101,6 +102,7 @@ int main(int argc, char* argv[]) {
       --Focus;
       camera.SetFocus(Focus);
       ++Focus;
+      camera.SetAutoExposure(AutoExposure)
       if (camera.GrabFrame() && camera.RetrieveMat(frame))
       {
 	 outputVideo << frame;
