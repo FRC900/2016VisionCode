@@ -115,6 +115,12 @@ namespace v4l2 {
       this->capture->V4L2Control.value = value;
       return this->SetControl(this->capture);
    }
+   bool C920Camera::SetAutoExposure(int &value)
+   {
+       this->capture->V4L2Control.id = V4L2_CID_EXPOSURE_AUTO;
+       this->capture->V4L2Control.value = value;
+       return this->SetControl(this->capture);
+   }
    bool C920Camera::SetFocus(int &value) {
       if (value < 0) {
 	 this->capture->V4L2Control.id = V4L2_CID_FOCUS_AUTO;
