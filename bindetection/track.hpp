@@ -10,7 +10,6 @@ const size_t TrackedObjectDataLength = 5;
 
 const double HFOV = 69; // horizontal field of view of C920 camera
 
-
 // Class to hold info on a tracked object
 // Keeps a history per previous <historyLength> frames
 // of whether the object was seen or not, and the 

@@ -1,3 +1,6 @@
+#ifndef INC_DETECT_HPP__
+#define INC_DETECT_HPP__
+
 #include "CaffeBatchPrediction.hpp"
 
 template <class MatT>
@@ -41,3 +44,5 @@ std::vector<int> &scales);
 		const cv::Size &maxSize,
 		std::vector<cv::Rect> &rectsOut);
 };
+
+#endif

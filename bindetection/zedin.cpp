@@ -1,5 +1,6 @@
 #include "zedin.hpp"
 
+#ifdef ZED_SUPPORT
 //cuda include
 #include "cuda.h"
 #include "cuda_runtime.h"
@@ -19,11 +20,11 @@ ZedIn::ZedIn()
 	cout << sl::zed::errcode2str(err) << endl;
 	// Quit if an error occurred
 	if (err != sl::zed::SUCCESS) {
-    		delete zed;
+		delete zed;
 		zed = NULL;
 	}else{
-	width_ = zed->getImageSize().width;
-	height_ = zed->getImageSize().height;
+		width_ = zed->getImageSize().width;
+		height_ = zed->getImageSize().height;
 	}
 }
 
@@ -68,10 +69,30 @@ double ZedIn::getDepth(int x, int y) {
 
 int ZedIn::height(void)
 {
-return height_;
+	return height_;
 }
 
 int ZedIn::width(void)
 {
-return width_;
+	return width_;
 }
+#else
+ZedIn::ZedIn()
+{
+}
+
+bool ZedIn::getNextFrame(cv::Mat &frame,bool pause) 
+{
+	return false;
+}
+
+int ZedIn::height(void)
+{
+	return 0;
+}
+
+int ZedIn::width(void)
+{
+	return 0;
+}
+#endif
