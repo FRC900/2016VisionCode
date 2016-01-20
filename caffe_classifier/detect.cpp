@@ -20,7 +20,7 @@ static double gtod_wrapper(void)
 // detected rectangles back to the correct location and size on the
 // original input images
 template <class MatT>
-void NNDetect<MatT>::detectMultiscale(const MatT &inputImg,
+void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
 	std::vector<cv::Rect> &rectsOut)
@@ -33,7 +33,7 @@ void NNDetect<MatT>::detectMultiscale(const MatT &inputImg,
    std::vector<int> scalesOut;
 
    generateInitialWindows(inputImg, minSize, maxSize, wsize, scaledimages, rects, scales);
-   runDetection(classifier, scaledimages, rects, scales, .9, "bin", rectsOut, scalesOut);
+   runDetection(classifier, scaledimages, rects, scales, .7, "ball", rectsOut, scalesOut);
    for(size_t i = 0; i < rectsOut.size(); i++)
    {
       float scale = scaledimages[scalesOut[i]].second;

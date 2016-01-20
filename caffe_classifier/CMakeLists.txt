@@ -16,9 +16,9 @@ endif()
 find_package( OpenCV REQUIRED )
 find_package( CUDA REQUIRED )
 find_package( Boost COMPONENTS system REQUIRED )
-include_directories( ${OpenCV_INCLUDE_DIRS} /home/marshall/caffe /home/marshall/caffe/build/include /home/marshall/caffe/include ${Boost_INCLUDE_DIR} )
+include_directories( ${OpenCV_INCLUDE_DIRS} /home/marshall/caffe /home/marshall/caffe/build-6.5/include /home/marshall/caffe/include ${Boost_INCLUDE_DIR} )
 
-find_library (LibCaffe caffe PATH  /home/marshall/caffe/build/lib)
+find_library (LibCaffe caffe PATH  /home/marshall/caffe/build-6.5/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 

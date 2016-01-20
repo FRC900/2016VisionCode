@@ -2,19 +2,22 @@
 #define CLASSIFIERIO_HPP__
 
 #include <string>
+#include <vector>
+
+using namespace std;
 
 class ClassifierIO
 {
    public:
-		ClassifierIO(std::string baseDir, int dirNum, int stageNum);
-		std::string getClassifierDir(void) const;
-		std::string getClassifierName(void) const;
+		ClassifierIO(string baseDir, int dirNum, int stageNum);
+		string getClassifierDir(void) const;
+		string getClassifierName(void) const;
 		bool findNextClassifierStage(bool increment);
 		bool findNextClassifierDir(bool increment);
-        vector<string> getClassifierFiles(void) const;
-		std::string print(void) const;
+                vector<string> getClassifierFiles(void) const;
+		string print(void) const;
    private :
-		std::string baseDir_;
+		string baseDir_;
 		int dirNum_;
 		int stageNum_;
 };

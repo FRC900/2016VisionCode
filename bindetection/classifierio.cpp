@@ -29,12 +29,12 @@ string ClassifierIO::getClassifierDir() const
    return string();
 }
 
-vector<string> ClassifierIO:getClassifierFiles() const
+vector<string> ClassifierIO::getClassifierFiles() const
 {
     //Get 4 needed files
     vector<string> output;
+    output.push_back("deploy.prototxt");
     output.push_back("network.caffemodel");
-    output.push_back("train_val.prototxt");
     output.push_back("mean.binaryproto");
     output.push_back("labels.txt");
 

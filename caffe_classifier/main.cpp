@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
    cv::Size maxSize(700,700);
    std::vector<cv::Rect> rectsOut;
 
-   NNDetect<cv::gpu::GpuMat> detect(model_file, trained_file, mean_file, label_file);
+   NNDetect<cv::Mat> detect(model_file, trained_file, mean_file, label_file);
    detect.detectMultiscale(inputImg, minSize, maxSize, rectsOut);
    #if 1
    namedWindow("Image", cv::WINDOW_AUTOSIZE);

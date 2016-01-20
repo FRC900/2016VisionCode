@@ -1,3 +1,5 @@
+#include "CaffeBatchPrediction.hpp"
+
 template <class MatT>
 class NNDetect
 {
@@ -34,7 +36,7 @@ std::vector<int> &scales);
 	classifier(CaffeClassifier<MatT>(model_file, trained_file, mean_file, label_file, 64 ))
 	{
 	}
-	void detectMultiscale(const MatT &inputImg,
+	void detectMultiscale(const cv::Mat &inputImg,
 		const cv::Size &minSize,
 		const cv::Size &maxSize,
 		std::vector<cv::Rect> &rectsOut);

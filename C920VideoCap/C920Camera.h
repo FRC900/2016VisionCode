@@ -112,6 +112,7 @@ namespace v4l2 {
          bool SetSharpness(int &value);
          bool SetGain(int &value);
          bool SetBacklightCompensation(int &value);
+         bool SetAutoExposure(int &value);
          bool SetFocus(int &value);
          bool SetWhiteBalanceTemperature(int &value);
          bool GetBrightness(int &value);
