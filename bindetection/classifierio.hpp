@@ -11,6 +11,7 @@ class ClassifierIO
 		std::string getClassifierName(void) const;
 		bool findNextClassifierStage(bool increment);
 		bool findNextClassifierDir(bool increment);
+        vector<string> getClassifierFiles(void) const;
 		std::string print(void) const;
    private :
 		std::string baseDir_;
@@ -19,4 +20,3 @@ class ClassifierIO
 };
 
 #endif
-

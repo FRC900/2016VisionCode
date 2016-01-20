@@ -20,12 +20,12 @@ static double gtod_wrapper(void)
 // detected rectangles back to the correct location and size on the
 // original input images
 template <class MatT>
-void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
+void NNDetect<MatT>::detectMultiscale(const MatT &inputImg,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
 	std::vector<cv::Rect> &rectsOut)
 {
-   
+
    int wsize = classifier.getInputGeometry().width;
    std::vector<std::pair<MatT, float> > scaledimages;
    std::vector<cv::Rect> rects;
@@ -41,12 +41,12 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
    }
 }
 template <class MatT>
-void NNDetect<MatT>::generateInitialWindows( 
-      const cv::Mat  &input, 
+void NNDetect<MatT>::generateInitialWindows(
+      const cv::Mat  &input,
       const cv::Size &minSize,
       const cv::Size &maxSize,
       const int wsize,
-      std::vector<std::pair<MatT, float> > &scaledimages, 
+      std::vector<std::pair<MatT, float> > &scaledimages,
       std::vector<cv::Rect> &rects,
       std::vector<int> &scales)
 {
@@ -54,8 +54,8 @@ void NNDetect<MatT>::generateInitialWindows(
    scales.clear();
 
 
-   
-	
+
+
 
    // How many pixels to move the window for each step
    // TODO : figure out if it makes sense to change this depending on
@@ -93,22 +93,22 @@ void NNDetect<MatT>::generateInitialWindows(
 
 	 }
       }
-      
-   } 
+
+   }
    double end = gtod_wrapper();
    std::cout << "Elapsed time = " << (end - start) << std::endl;
 }
 
 template <class MatT>
 void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
-      const std::vector<std::pair<MatT, float> > &scaledimages, 
+      const std::vector<std::pair<MatT, float> > &scaledimages,
       const std::vector<cv::Rect> &rects,
-      const std::vector<int> &scales, 
+      const std::vector<int> &scales,
       float threshold,
-      std::string label, 
+      std::string label,
       std::vector<cv::Rect> &rectsOut,
-      std::vector<int> &scalesOut) 
-{     
+      std::vector<int> &scalesOut)
+{
    std::vector<MatT> images;
    std::vector<size_t> detected;
    int counter = 0;
@@ -125,7 +125,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
 	   rectsOut.push_back(rects[counter*classifier.BatchSize() + detected[j]]);
 	   scalesOut.push_back(scales[counter*classifier.BatchSize() + detected[j]]);
         }
-        counter++;	
+        counter++;
     }
     }
     double end = gtod_wrapper();
@@ -134,7 +134,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
 // do 1 run of the classifier. This takes up batch_size predictions and adds anything found
 // to the detected list
 template <class MatT>
-void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier, 
+void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
       const std::vector<MatT> &imgs,
       const float threshold,
       const std::string &label,
@@ -151,7 +151,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
 	 if (it->first == label)
 	 {
 	    if (it->second > threshold)
-	    {    
+	    {
 	       detected.push_back(i);
 	    }
 	    break;

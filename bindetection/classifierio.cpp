@@ -29,6 +29,18 @@ string ClassifierIO::getClassifierDir() const
    return string();
 }
 
+vector<string> ClassifierIO:getClassifierFiles() const
+{
+    //Get 4 needed files
+    vector<string> output;
+    output.push_back("network.caffemodel");
+    output.push_back("train_val.prototxt");
+    output.push_back("mean.binaryproto");
+    output.push_back("labels.txt");
+
+    return output;
+}
+
 // using the current directory number and stage within that directory,
 // generate a filename to load the cascade from.  Check that
 // the file exists - if it doesnt, return an empty string
@@ -42,7 +54,7 @@ string ClassifierIO::getClassifierName() const
 
    // There are two different incompatible file formats
    // OpenCV uses to store classifier information. For more
-   // entertainment value, some are valid for some types of 
+   // entertainment value, some are valid for some types of
    // classifiers and not others. Also others break on the GPU
    // version of the code but not the CPU.
    // The net is we need to look for both since depending on
@@ -79,11 +91,11 @@ bool ClassifierIO::findNextClassifierStage(bool increment)
       ClassifierIO tempClassifier(baseDir_, dirNum_, num);
       if (tempClassifier.getClassifierName().length())
       {
-	 *this = tempClassifier; 
+	 *this = tempClassifier;
 	 found = true;
       }
    }
-      
+
    return found;
 }
 
@@ -109,7 +121,7 @@ bool ClassifierIO::findNextClassifierDir(bool increment)
 	 }
       }
    }
-      
+
    return found;
 }
 
@@ -119,4 +131,3 @@ string ClassifierIO::print() const
    s << dirNum_ << ',' << stageNum_;
    return s.str();
 }
-

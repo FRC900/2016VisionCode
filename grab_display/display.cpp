@@ -15,12 +15,12 @@
 
 using namespace std;
 using namespace cv;
-int g_h_max = 170;
-int g_h_min = 130;
-int g_s_max = 255;
-int g_s_min = 147;
-int g_v_max = 255;
-int g_v_min = 48;
+int g_h_max = 138;
+int g_h_min = 87;
+int g_s_max = 227;
+int g_s_min = 48;
+int g_v_max = 238;
+int g_v_min = 147;
 int g_files_per = 10;
 int g_num_frames = 10;
 int g_min_resize = 0;
