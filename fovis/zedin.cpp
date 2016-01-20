@@ -22,6 +22,24 @@ ZedIn::ZedIn()
 	rightCamParams = stereoParams->RightCam;
 }
 
+ZedIn::ZedIn(char* svo_path)
+{
+	zed = new sl::zed::Camera(svo_path);
+	// init computation mode of the zed
+	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::NONE, -1, true);
+	cout << sl::zed::errcode2str(err) << endl;
+	// Quit if an error occurred
+	if (err != sl::zed::SUCCESS) {
+    		delete zed;
+    		exit(-1);
+	}
+	width = zed->getImageSize().width;
+	height = zed->getImageSize().height;
+	stereoParams = zed->getParameters();
+	leftCamParams = stereoParams->LeftCam;
+	rightCamParams = stereoParams->RightCam;
+}
+
 sl::zed::CamParameters ZedIn::getCameraParams(bool left) {
 	if(left) {
 	return leftCamParams;			
