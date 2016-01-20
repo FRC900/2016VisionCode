@@ -3,7 +3,7 @@ set(CMAKE_CXX_FLAGS "-std=c++0x -fopenmp")
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++11)
 project( fovis_zed_test )
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Ofast -flto")
 if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")

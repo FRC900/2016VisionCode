@@ -15,7 +15,7 @@
 namespace fovis
 {
 
-void FAST(uint8_t* img, int width, int height, int row_stride,
+void FAST(uint8_t* img, uint8_t* mask, int width, int height, int row_stride,
     std::vector<KeyPoint>* keypoints, 
     int threshold, 
     bool nonmax_suppression);

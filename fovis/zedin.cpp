@@ -26,7 +26,7 @@ ZedIn::ZedIn(char* svo_path)
 {
 	zed = new sl::zed::Camera(svo_path);
 	// init computation mode of the zed
-	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::NONE, -1, true);
+	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
 	cout << sl::zed::errcode2str(err) << endl;
 	// Quit if an error occurred
 	if (err != sl::zed::SUCCESS) {

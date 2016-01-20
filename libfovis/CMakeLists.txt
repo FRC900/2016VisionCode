@@ -11,7 +11,7 @@ if(PKG_CONFIG_FOUND)
     pkg_check_modules(EIGEN REQUIRED eigen3)
 endif()
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 find_package(CUDA REQUIRED)
 link_directories(/usr/local/cuda/lib)

@@ -94,7 +94,7 @@ class VisualOdometry
      * provide a depth estimate at each pixel of the input image, or report
      * that no depth estimate is available.
      */
-    void processFrame(const uint8_t* gray, DepthSource* depth_source);
+    void processFrame(const uint8_t* gray, uint8_t* mask, DepthSource* depth_source);
 
     /**
      * Retrieves the integrated pose estimate.  On initialization, the camera

@@ -167,7 +167,7 @@ VisualOdometry::estimateInitialRotation(const OdometryFrame* prev, const Odometr
 }
 
 void
-VisualOdometry::processFrame(const uint8_t* gray, DepthSource* depth_source)
+VisualOdometry::processFrame(const uint8_t* gray,uint8_t* mask, DepthSource* depth_source)
 {
   if(_change_reference_frames) {
     // current frame becomes the reference frame
@@ -185,7 +185,7 @@ VisualOdometry::processFrame(const uint8_t* gray, DepthSource* depth_source)
   _change_reference_frames = false;
 
   // detect features in new frame
-  _cur_frame->prepareFrame(gray, _fast_threshold, depth_source);
+  _cur_frame->prepareFrame(gray, mask, _fast_threshold, depth_source);
 
   const CameraIntrinsicsParameters& input_camera = _rectification->getInputCameraParameters();
   int width = input_camera.width;

@@ -74,7 +74,7 @@ OdometryFrame::~OdometryFrame()
 }
 
 void
-OdometryFrame::prepareFrame(const uint8_t* raw_gray,
+OdometryFrame::prepareFrame(const uint8_t* raw_gray,uint8_t* mask,
                             int fast_threshold,
                             DepthSource* depth_source)
 {
@@ -109,7 +109,7 @@ OdometryFrame::prepareFrame(const uint8_t* raw_gray,
     }
 
     level->_initial_keypoints.clear();
-    FAST(level->_raw_gray, level->_width, level->_height, level->_raw_gray_stride,
+    FAST(level->_raw_gray, mask, level->_width, level->_height, level->_raw_gray_stride,
         &level->_initial_keypoints, fast_threshold, 1);
 
     // Keep track of this number before filtering out keyoints with the
