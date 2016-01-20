@@ -88,43 +88,43 @@ namespace v4l2 {
 	}
 	/* Setters for camera properties */
 	//TODO shouldn't be int & arguments
-	bool C920Camera::SetBrightness(int &value) {
+	bool C920Camera::SetBrightness(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_BRIGHTNESS;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetContrast(int &value) {
+	bool C920Camera::SetContrast(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_CONTRAST;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetSaturation(int &value) {
+	bool C920Camera::SetSaturation(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_SATURATION;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetSharpness(int &value) {
+	bool C920Camera::SetSharpness(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_SHARPNESS;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetGain(int &value) {
+	bool C920Camera::SetGain(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_GAIN;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetBacklightCompensation(int &value) {
+	bool C920Camera::SetBacklightCompensation(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_BACKLIGHT_COMPENSATION;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetAutoExposure(int &value)
+	bool C920Camera::SetAutoExposure(int value)
 	{
 		this->capture->V4L2Control.id = V4L2_CID_EXPOSURE_AUTO;
 		this->capture->V4L2Control.value = value;
 		return this->SetControl(this->capture);
 	}
-	bool C920Camera::SetFocus(int &value) {
+	bool C920Camera::SetFocus(int value) {
 		if (value < 0) {
 			this->capture->V4L2Control.id = V4L2_CID_FOCUS_AUTO;
 			this->capture->V4L2Control.value = true;
@@ -140,7 +140,7 @@ namespace v4l2 {
 		}
 		return false;
 	}
-	bool C920Camera::SetWhiteBalanceTemperature(int &value) {
+	bool C920Camera::SetWhiteBalanceTemperature(int value) {
 		if (value < 0) {
 			this->capture->V4L2Control.id = V4L2_CID_AUTO_WHITE_BALANCE;
 			this->capture->V4L2Control.value = true;

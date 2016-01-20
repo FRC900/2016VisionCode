@@ -14,16 +14,18 @@
 # Executables
 *.exe
 test
-webcamtest
-imageclipper
+imageclipper/bin/imageclipper
+**/imageclipper
 convert_cassade
 createsamples
 haartraining
 performance
+convert_cascade
+facedetect
+cascade_training/mergevec/src/mergevec
 vec2img
 gaTesting
-recognize
-C920VideoCap
+C920VideoCap/C920VideoCap
 CaffeBatchPrediction
 CaffePrediction
 display

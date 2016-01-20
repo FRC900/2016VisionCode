@@ -101,12 +101,8 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 	_camera.SetSharpness(_sharpness);
 	_camera.SetGain(_gain);
 	_camera.SetBacklightCompensation(_backlightCompensation);
-	_whiteBalanceTemperature -= 1;
-	_camera.SetWhiteBalanceTemperature(_whiteBalanceTemperature);
-	_whiteBalanceTemperature += 1;
-	_focus -= 1;
-	_camera.SetFocus(_focus);
-	_focus += 1;
+	_camera.SetWhiteBalanceTemperature(_whiteBalanceTemperature - 1);
+	_camera.SetFocus(_focus - 1);
 	if (!pause)
 	{
 		if (_camera.GrabFrame())
