@@ -37,22 +37,29 @@ string isometryToString(const Eigen::Isometry3d& m)
 }
 
 
-int main() {
+int main(int argc, char **argv) {
 
   omp_set_num_threads(numThreads);
   Eigen::setNbThreads(numThreads);
   cout << "Using " << Eigen::nbThreads() << " threads" << endl;
-
-  ZedIn cap;
+  ZedIn *cap = NULL;
+  if(argc == 2) {
+  	cap = new ZedIn(argv[1]);
+	cout << "Read SVO file" << endl;
+  }
+  else {
+	cap = new ZedIn;
+	cout << "Initialized camera" << endl;
+  }
   fovis::CameraIntrinsicsParameters rgb_params;
   memset(&rgb_params,0,sizeof(rgb_params));
-  rgb_params.width = cap.width;
-  rgb_params.height = cap.height; //get width and height from the camera
+  rgb_params.width = cap->width;
+  rgb_params.height = cap->height; //get width and height from the camera
 
-  rgb_params.fx = cap.getCameraParams(leftCamera).fx;
-  rgb_params.fy = cap.getCameraParams(leftCamera).fy;
-  rgb_params.cx = cap.getCameraParams(leftCamera).cx; //get camera intrinsic parameters from zed function
-  rgb_params.cy = cap.getCameraParams(leftCamera).cy;
+  rgb_params.fx = cap->getCameraParams(leftCamera).fx;
+  rgb_params.fy = cap->getCameraParams(leftCamera).fy;
+  rgb_params.cx = cap->getCameraParams(leftCamera).cx; //get camera intrinsic parameters from zed function
+  rgb_params.cy = cap->getCameraParams(leftCamera).cy;
 
   /*cout << rgb_params.fx << endl;
   cout << rgb_params.fy<< endl;
@@ -73,19 +80,19 @@ int main() {
 
   Mat frame;
   Mat depthFrame;
-  float* depthImageFloat = new float[cap.width * cap.height];
-  fovis::DepthImage depthSource(rgb_params, cap.width, cap.height);
+  float* depthImageFloat = new float[cap->width * cap->height];
+  fovis::DepthImage depthSource(rgb_params, cap->width, cap->height);
   clock_t startTime;
   while(1)
     {
     startTime = clock();
-    cap.getNextFrame(frame,leftCamera);
+    cap->getNextFrame(frame,leftCamera);
 
     int pixelCounter = 0;
     float depthPoint;
-    for(int y = 0; y < cap.height; y++) {
-        for(int x = 0; x < cap.width; x++) {
-	    depthPoint = cap.getDepthPoint(x,y);
+    for(int y = 0; y < cap->height; y++) {
+        for(int x = 0; x < cap->width; x++) {
+	    depthPoint = cap->getDepthPoint(x,y);
 	    if(depthPoint <= 0) {
 		depthImageFloat[pixelCounter] = NAN;		
 	    }
@@ -95,7 +102,7 @@ int main() {
 	    pixelCounter++;
             }
         }
-    depthFrame = Mat(cap.width, cap.height, CV_32FC1, depthImageFloat);
+    depthFrame = Mat(cap->width, cap->height, CV_32FC1, depthImageFloat);
 
     depthSource.setDepthImage(depthImageFloat);
 

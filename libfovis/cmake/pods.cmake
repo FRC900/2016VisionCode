@@ -236,6 +236,7 @@ macro(pods_use_pkg_config_packages target)
 
     #this is really bad but we're going to manually link opencv
     find_package( OpenCV REQUIRED )
+
     execute_process(COMMAND 
         ${PKG_CONFIG_EXECUTABLE} --cflags-only-I ${ARGN}
         OUTPUT_VARIABLE _pods_pkg_include_flags)

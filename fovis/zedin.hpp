@@ -29,6 +29,7 @@ class ZedIn
 {
    public:
 	ZedIn();
+	ZedIn(char* svo_path);
         bool getNextFrame(cv::Mat &frame);
 	bool getNextFrame(cv::Mat &frame,bool left);
 	double getDepthPoint(int x, int y);
