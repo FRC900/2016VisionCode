@@ -15,6 +15,7 @@ use strict;
 # Date  : 03/12/2006
 #########################################################################
 my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x153768 -maxxangle .2 -maxyangle .2 -maxzangle 1 -maxidev 40 -w 64 -h 64 -hsv';
+my $numframespervideo = 10;
 my $totalnum = 7000;
 my $stage1 = "false";
 my $stage2 = "true";
@@ -24,6 +25,7 @@ if ($#ARGV < 1) {
     print "Usage: perl createtrainsamples.pl\n";
     print "  <input_dirname>\n";
     print "  <output_dirname>\n";
+    print "  [<numframespervideo = " . $numframespervideo . ">]\n";
     print "  [<totalnum = " . $totalnum . ">]\n";
     print "  [<imagecreate = " . $stage1 . ">]\n";
     print "  [<distortion = " . $stage2 . ">]\n";
@@ -51,8 +53,8 @@ if($stage1 eq "true")
     for( my $k = 0; $k <= $#videos; $k++)
     {
         my $video = @videos[$k];
-        print "./display -o $outputdir $inputdir/$video" . "\n";
-        system("./display -o $outputdir $inputdir/$video");
+        print "./display -o $outputdir -f $numframespervideo $inputdir/$video" . "\n";
+        system("./display -o $outputdir -f $numframespervideo $inputdir/$video");
     }
     $inputdir = $outputdir;
 }
