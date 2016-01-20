@@ -1,4 +1,6 @@
+#include <iostream>
 #include "zedin.hpp"
+using namespace std;
 
 #ifdef ZED_SUPPORT
 //cuda include
@@ -9,7 +11,6 @@
 #include "device_functions.h"
 
 using namespace cv;
-using namespace std;
 
 
 ZedIn::ZedIn()
@@ -79,6 +80,7 @@ int ZedIn::width(void)
 #else
 ZedIn::ZedIn()
 {
+	cerr << "Zed support not compiled in" << endl;
 }
 
 bool ZedIn::getNextFrame(cv::Mat &frame,bool pause) 
