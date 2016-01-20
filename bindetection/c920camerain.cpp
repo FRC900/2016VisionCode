@@ -10,14 +10,19 @@ C920CameraIn::C920CameraIn(int _stream, bool gui) :
 	_camera(_stream >= 0 ? _stream : 0)
 {
 	if (!_camera.IsOpen())
-	{
 		cerr << "Could not open C920 camera" << endl;
-	}
-	if (!initCamera(_stream, gui))
+	else if (!initCamera(_stream, gui))
 	{
 		_camera.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
+}
+
+void brightnessCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_brightness = value;
+	camPtr->_camera.SetBrightness(value);
 }
 
 bool C920CameraIn::initCamera(int _stream, bool gui)
@@ -76,7 +81,7 @@ bool C920CameraIn::initCamera(int _stream, bool gui)
 	if (gui)
 	{
 		cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
-		cv::createTrackbar("Brightness", "Adjustments", &_brightness, 255);
+		cv::createTrackbar("Brightness", "Adjustments", &_brightness, 255, brightnessCallback, this);
 		cv::createTrackbar("Contrast", "Adjustments", &_contrast, 255);
 		cv::createTrackbar("Saturation", "Adjustments", &_saturation, 255);
 		cv::createTrackbar("Sharpness", "Adjustments", &_sharpness, 255);
@@ -95,7 +100,6 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 	if (!_camera.IsOpen())
 		return false;
 	// Maybe move these to onChange method?
-	_camera.SetBrightness(_brightness);
 	_camera.SetContrast(_contrast);
 	_camera.SetSaturation(_saturation);
 	_camera.SetSharpness(_sharpness);

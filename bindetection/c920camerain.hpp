@@ -21,6 +21,8 @@ class C920CameraIn : public MediaIn
 #ifdef __linux__
       bool initCamera(int _stream, bool gui);
 
+	  friend void brightnessCallback(int value, void *data);
+
       v4l2::C920Camera  _camera;
       cv::Mat           _frame;
       int               _brightness;
