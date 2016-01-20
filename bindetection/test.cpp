@@ -126,6 +126,9 @@ int main( int argc, const char** argv )
 	bool printFrames = false; // print frame number?
 	int frameDisplayFrequency = 1;
 
+	// Hopefully this turns off any logging
+	::google::InitGoogleLogging(argv[0]);
+
 	// Read through command line args, extract
 	// cmd line parameters and input filename
 	Args args;
