@@ -13,8 +13,9 @@ use strict;
 # Date  : 09/12/2008 Add <totalnum> and <createsample_command_options> options
 # Date  : 06/02/2007
 # Date  : 03/12/2006
+# -bgcolor 0x96c997 -bgthresh 0x153768: purple screen values
 #########################################################################
-my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x153768 -maxxangle .2 -maxyangle .2 -maxzangle 1 -maxidev 40 -w 64 -h 64 -hsv';
+my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73EE64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 1 -maxidev 40 -w 64 -h 64 -hsv';
 my $numframespervideo = 10;
 my $totalnum = 7000;
 my $stage1 = "false";
@@ -34,10 +35,11 @@ if ($#ARGV < 1) {
 }
 my $inputdir  = $ARGV[0];
 my $outputdir = $ARGV[1];
-$totalnum     = $ARGV[2] if ($#ARGV > 1);
-$stage1       = $ARGV[3] if ($#ARGV > 2);
-$stage2       = $ARGV[4] if ($#ARGV > 3);
-$stage3       = $ARGV[5] if ($#ARGV > 4);
+$numframespervideo = $ARGV[2] if ($#ARGV > 1);
+$totalnum     = $ARGV[3] if ($#ARGV > 2);
+$stage1       = $ARGV[4] if ($#ARGV > 3);
+$stage2       = $ARGV[5] if ($#ARGV > 4);
+$stage3       = $ARGV[6] if ($#ARGV > 5);
 
 if($stage1 eq "true")
 {
