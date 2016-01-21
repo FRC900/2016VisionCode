@@ -41,6 +41,9 @@ $stage1       = $ARGV[4] if ($#ARGV > 3);
 $stage2       = $ARGV[5] if ($#ARGV > 4);
 $stage3       = $ARGV[6] if ($#ARGV > 5);
 
+use POSIX qw(strftime);
+my $now_string = strftime "%a%b%e%H:%M:%S%Y", localtime;
+
 if($stage1 eq "true")
 {
     opendir(VIDEO, "$inputdir");
@@ -52,13 +55,14 @@ if($stage1 eq "true")
         push @videos, $file;
     }
     closedir(VIDEO);
+    mkdir "$outputdir/images/$now_string";
     for( my $k = 0; $k <= $#videos; $k++)
     {
         my $video = @videos[$k];
-        print "./display -o $outputdir -f $numframespervideo $inputdir/$video" . "\n";
-        system("./display -o $outputdir -f $numframespervideo $inputdir/$video");
+        print "./display -o $outputdir/images/$now_string -f $numframespervideo $inputdir/$video" . "\n";
+        system("./display -o $outputdir/images/$now_string -f $numframespervideo $inputdir/$video");
     }
-    $inputdir = $outputdir;
+    $inputdir = "$outputdir/$now_string";
 }
 if($stage2 eq "true")
 {
