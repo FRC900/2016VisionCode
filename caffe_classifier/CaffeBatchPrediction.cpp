@@ -23,12 +23,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
 
    /* Load the network - this includes model geometry and trained weights */
    net_.reset(new caffe::Net<float>(model_file, caffe::TEST));
-
-   std::cerr << "Before Trained Layers From" << std::endl;
-
    net_->CopyTrainedLayersFrom(trained_file);
-
-   std::cerr << "After Trained Layers From" << std::endl;
 
    CHECK_EQ(net_->num_inputs(), 1) << "Network should have exactly one input.";
    CHECK_EQ(net_->num_outputs(), 1) << "Network should have exactly one output.";
@@ -42,8 +37,6 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
    /* Load the binaryproto mean file. */
    SetMean(mean_file);
    
-   std::cerr << "After SetMean" << std::endl;
-
    /* Load labels. */
    // This will be used to give each index of the output
    // a human-readable name
