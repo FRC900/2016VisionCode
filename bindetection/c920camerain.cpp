@@ -25,6 +25,64 @@ void brightnessCallback(int value, void *data)
 	camPtr->_camera.SetBrightness(value);
 }
 
+void contrastCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_contrast = value;
+	camPtr->_camera.SetContrast(value);
+}
+
+void saturationCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_saturation= value;
+	camPtr->_camera.SetSaturation(value);
+}
+
+void sharpnessCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_sharpness = value;
+	camPtr->_camera.SetSharpness(value);
+}
+
+void gainCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_gain = value;
+	camPtr->_camera.SetGain(value);
+}
+
+void backlightCompensationCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_backlightCompensation = value;
+	camPtr->_camera.SetBacklightCompensation(value);
+}
+
+void autoExposureCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_autoExposure = value;
+	camPtr->_camera.SetAutoExposure(value);
+}
+
+void whiteBalanceTemperatureCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_whiteBalanceTemperature = value;
+	// Off by one to allow -1=auto
+	camPtr->_camera.SetWhiteBalanceTemperature(value - 1);
+}
+
+void focusCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_focus = value;
+	// Off by one to allow -1=auto
+	camPtr->_camera.SetFocus(value - 1);
+}
+
 bool C920CameraIn::initCamera(int _stream, bool gui)
 {
 	_brightness = 128;
@@ -32,7 +90,6 @@ bool C920CameraIn::initCamera(int _stream, bool gui)
 	_saturation = 128;
 	_sharpness  = 128;
 	_gain       = 1;
-	_focus      = 1;
 	_backlightCompensation   = 0;
 	_whiteBalanceTemperature = 0;
 
@@ -76,37 +133,35 @@ bool C920CameraIn::initCamera(int _stream, bool gui)
 		return false;
 	};
 	++_whiteBalanceTemperature;
-	// _camera.GetFocus(_focus);
-	// ++_focus;
+
+	// force focus to farthest distance, non-auto
+	focusCallback(1, this); 
+	autoExposureCallback(1, this);
+
 	if (gui)
 	{
 		cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
 		cv::createTrackbar("Brightness", "Adjustments", &_brightness, 255, brightnessCallback, this);
-		cv::createTrackbar("Contrast", "Adjustments", &_contrast, 255);
-		cv::createTrackbar("Saturation", "Adjustments", &_saturation, 255);
-		cv::createTrackbar("Sharpness", "Adjustments", &_sharpness, 255);
-		cv::createTrackbar("Gain", "Adjustments", &_gain, 255);
-		cv::createTrackbar("Backlight Compensation", "Adjustments", &_backlightCompensation, 1);
+		cv::createTrackbar("Contrast", "Adjustments", &_contrast, 255, contrastCallback, this);
+		cv::createTrackbar("Saturation", "Adjustments", &_saturation, 255, saturationCallback, this);
+		cv::createTrackbar("Sharpness", "Adjustments", &_sharpness, 255, sharpnessCallback, this);
+		cv::createTrackbar("Gain", "Adjustments", &_gain, 255, gainCallback, this);
+		cv::createTrackbar("Auto Exposure", "Adjustments", &_autoExposure, 3, autoExposureCallback, this);
+		cv::createTrackbar("Backlight Compensation", "Adjustments", &_backlightCompensation, 1, backlightCompensationCallback, this);
 		// Off by one to account for -1 being auto.
-		cv::createTrackbar("White Balance Temperature", "Adjustments", &_whiteBalanceTemperature, 6501);
-		cv::createTrackbar("Focus", "Adjustments", &_focus, 256);
+		cv::createTrackbar("White Balance Temperature", "Adjustments", &_whiteBalanceTemperature, 6501, whiteBalanceTemperatureCallback, this);
+		cv::createTrackbar("Focus", "Adjustments", &_focus, 256, focusCallback, this);
 	}
 
 	_frameCounter = 0;
+	return true;
 }
 
 bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 {
 	if (!_camera.IsOpen())
 		return false;
-	// Maybe move these to onChange method?
-	_camera.SetContrast(_contrast);
-	_camera.SetSaturation(_saturation);
-	_camera.SetSharpness(_sharpness);
-	_camera.SetGain(_gain);
-	_camera.SetBacklightCompensation(_backlightCompensation);
-	_camera.SetWhiteBalanceTemperature(_whiteBalanceTemperature - 1);
-	_camera.SetFocus(_focus - 1);
+
 	if (!pause)
 	{
 		if (_camera.GrabFrame())
@@ -117,8 +172,8 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 			pyrDown(_frame, _frame);
 		_frameCounter += 1;
 	}
-	frame = _frame.clone();
 
+	frame = _frame.clone();
 	return true;
 }
 

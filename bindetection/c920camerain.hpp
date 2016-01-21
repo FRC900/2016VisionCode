@@ -21,7 +21,16 @@ class C920CameraIn : public MediaIn
 #ifdef __linux__
       bool initCamera(int _stream, bool gui);
 
+	  // Mark these as friends so they can access private class data
 	  friend void brightnessCallback(int value, void *data);
+	  friend void contrastCallback(int value, void *data);
+	  friend void saturationCallback(int value, void *data);
+	  friend void sharpnessCallback(int value, void *data);
+	  friend void gainCallback(int value, void *data);
+	  friend void autoExposureCallback(int value, void *data);
+	  friend void backlightCompensationCallback(int value, void *data);
+	  friend void whiteBalanceTemperatureCallback(int value, void *data);
+	  friend void focusCallback(int value, void *data);
 
       v4l2::C920Camera  _camera;
       cv::Mat           _frame;
@@ -31,6 +40,7 @@ class C920CameraIn : public MediaIn
       int               _sharpness;
       int               _gain;
       int               _focus;
+      int               _autoExposure;
       int               _backlightCompensation;
       int               _whiteBalanceTemperature;
 	  int               _frameCounter;

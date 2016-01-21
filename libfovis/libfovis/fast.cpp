@@ -4,8 +4,8 @@
 namespace fovis
 {
 
-	void FAST(uint8_t* image, uint8_t* mask, int width, int height, int row_stride,
-		std::vector<KeyPoint>* keypoints, int threshold, bool nonmax_suppression)
+	void FAST(uint8_t* image, int width, int height, int row_stride,
+		std::vector<KeyPoint>* keypoints, int threshold, bool nonmax_suppression )
 	{
 	   
 	   std::vector<cv::KeyPoint> cvKeypoints;
@@ -14,10 +14,11 @@ namespace fovis
 
 	   frameGPU.upload(frameCPU); //copy frame from cpu to gpu
 
-	   cv::gpu::GpuMat maskCV(height,width,CV_8UC1,mask);
+	   cv::gpu::GpuMat mask(height,width,CV_8UC1);
+	   mask.setTo(cv::Scalar(255,255,255)); //create a mask to run the detection on the whole image
 
 	   cv::gpu::FAST_GPU FASTObject(threshold,nonmax_suppression); //run the detection
-	   FASTObject(frameGPU,maskCV,cvKeypoints);
+	   FASTObject(frameGPU,mask,cvKeypoints);
 
 	   keypoints->clear();
 	   for(uint i = 0; i < cvKeypoints.size(); i++) { //the pointers here are so ugly please
