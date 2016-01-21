@@ -39,7 +39,6 @@ class OdometryFrame
     ~OdometryFrame();
 
     void prepareFrame(const uint8_t* raw_gray,
-	uint8_t* mask,
         int fast_threshold,
         DepthSource* depth_source);
 

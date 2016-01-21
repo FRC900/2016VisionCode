@@ -30,7 +30,7 @@ class StereoFrame
 
     ~StereoFrame();
 
-    void prepareFrame(const uint8_t* raw_gray, uint8_t* mask, int fast_threshold);
+    void prepareFrame(const uint8_t* raw_gray, int fast_threshold);
 
     int getNumDetectedKeypoints() const {
       int result = 0;
