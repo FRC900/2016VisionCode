@@ -43,7 +43,7 @@ Args::Args(void)
 	calibrate          = false;
 	writeVideo         = false;
 	saveVideo          = false;
-	classifierBaseDir  = "/home/ubuntu/2015VisionCode/cascade_training/classifier_bin_";
+	classifierBaseDir  = "/home/ubuntu/2016VisionCode/cascade_training/classifier_bin_";
 	classifierDirNum   = 14;
 	classifierStageNum = 29;
 	frameStart         = 0.0;
