@@ -3100,7 +3100,7 @@ void DatasetGenerator::create(const char* imgfilename, int bgcolor, int bgthresh
 
                 CvRect boundingBox = getObjectPosition( cvSize( cvbgreader->src.cols,
                                                                 cvbgreader->src.rows ),
-                                                        cvGetSize(data.img),
+                                                        data.img->size(),
                                                         cvSize( winwidth, winheight ) );
                 if(boundingBox.width <= 0 || boundingBox.height <= 0)
                 {

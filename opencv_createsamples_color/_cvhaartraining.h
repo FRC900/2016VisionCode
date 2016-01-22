@@ -290,9 +290,9 @@ typedef struct CvSampleDistortionData
     IplImage* src;
     IplImage* erode;
     IplImage* dilate;
-    IplImage* mask;
-    IplImage* img;
-    IplImage* maskimg;
+	cv::Mat*  mask;
+	cv::Mat*  img;
+    cv::Mat*  maskimg;
     int dx;
     int dy;
     int bgcolor;

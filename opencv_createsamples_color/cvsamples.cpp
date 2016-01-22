@@ -47,346 +47,31 @@
 #include "cvhaartraining.h"
 #include "_cvhaartraining.h"
 
-/* if ipl.h file is included then iplWarpPerspectiveQ function
-   is used for image transformation during samples creation;
-   otherwise internal cvWarpPerspective function is used */
-
-//#include <ipl.h>
-
 #include "cv.h"
 #include "highgui.h"
 
-/* Calculates coefficients of perspective transformation
- * which maps <quad> into rectangle ((0,0), (w,0), (w,h), (h,0)):
- *
- *      c00*xi + c01*yi + c02
- * ui = ---------------------
- *      c20*xi + c21*yi + c22
- *
- *      c10*xi + c11*yi + c12
- * vi = ---------------------
- *      c20*xi + c21*yi + c22
- *
- * Coefficients are calculated by solving linear system:
- * / x0 y0  1  0  0  0 -x0*u0 -y0*u0 \ /c00\ /u0\
- * | x1 y1  1  0  0  0 -x1*u1 -y1*u1 | |c01| |u1|
- * | x2 y2  1  0  0  0 -x2*u2 -y2*u2 | |c02| |u2|
- * | x3 y3  1  0  0  0 -x3*u3 -y3*u3 |.|c10|=|u3|,
- * |  0  0  0 x0 y0  1 -x0*v0 -y0*v0 | |c11| |v0|
- * |  0  0  0 x1 y1  1 -x1*v1 -y1*v1 | |c12| |v1|
- * |  0  0  0 x2 y2  1 -x2*v2 -y2*v2 | |c20| |v2|
- * \  0  0  0 x3 y3  1 -x3*v3 -y3*v3 / \c21/ \v3/
- *
- * where:
- *   (xi, yi) = (quad[i][0], quad[i][1])
- *        cij - coeffs[i][j], coeffs[2][2] = 1
- *   (ui, vi) - rectangle vertices
- */
-static void cvGetPerspectiveTransform( CvSize src_size, double quad[4][2],
-                                double coeffs[3][3] )
-{
-    //CV_FUNCNAME( "cvWarpPerspective" );
-
-    __BEGIN__;
-
-    double a[8][8];
-    double b[8];
-
-    CvMat A = cvMat( 8, 8, CV_64FC1, a );
-    CvMat B = cvMat( 8, 1, CV_64FC1, b );
-    CvMat X = cvMat( 8, 1, CV_64FC1, coeffs );
-
-    int i;
-    for( i = 0; i < 4; ++i )
-    {
-        a[i][0] = quad[i][0]; a[i][1] = quad[i][1]; a[i][2] = 1;
-        a[i][3] = a[i][4] = a[i][5] = a[i][6] = a[i][7] = 0;
-        b[i] = 0;
-    }
-    for( i = 4; i < 8; ++i )
-    {
-        a[i][3] = quad[i-4][0]; a[i][4] = quad[i-4][1]; a[i][5] = 1;
-        a[i][0] = a[i][1] = a[i][2] = a[i][6] = a[i][7] = 0;
-        b[i] = 0;
-    }
-
-    int u = src_size.width - 1;
-    int v = src_size.height - 1;
-
-    a[1][6] = -quad[1][0] * u; a[1][7] = -quad[1][1] * u;
-    a[2][6] = -quad[2][0] * u; a[2][7] = -quad[2][1] * u;
-    b[1] = b[2] = u;
-
-    a[6][6] = -quad[2][0] * v; a[6][7] = -quad[2][1] * v;
-    a[7][6] = -quad[3][0] * v; a[7][7] = -quad[3][1] * v;
-    b[6] = b[7] = v;
-
-    cvSolve( &A, &B, &X );
-
-    coeffs[2][2] = 1;
-
-    __END__;
-}
-
 /* Warps source into destination by a perspective transform */
-static void cvWarpPerspective( CvArr* src, CvArr* dst, double quad[4][2] )
+static void WarpPerspective( const cv::Mat &src, cv::Mat &dst, double quad[4][2] )
 {
-    CV_FUNCNAME( "cvWarpPerspective" );
+	cv::Mat output;
+    // Input Quadilateral or Image plane coordinates
+	cv::Point2f inputQuad[4]; 
+    // Output Quadilateral or World plane coordinates
+	cv::Point2f outputQuad[4];
 
-    __BEGIN__;
+    for( int i = 0; i < 4; ++i )
+		outputQuad[i] = cv::Point2f(quad[i][0], quad[i][1]);
 
-#ifdef __IPL_H__
-    IplImage src_stub, dst_stub;
-    IplImage* src_img;
-    IplImage* dst_img;
-    CV_CALL( src_img = cvGetImage( src, &src_stub ) );
-    CV_CALL( dst_img = cvGetImage( dst, &dst_stub ) );
-    iplWarpPerspectiveQ( src_img, dst_img, quad, IPL_WARP_R_TO_Q,
-                         IPL_INTER_CUBIC | IPL_SMOOTH_EDGE );
-#else
+	inputQuad[0] = cv::Point2f(0, 0);
+	inputQuad[1] = cv::Point2f(src.cols- 1, 0);
+	inputQuad[2] = cv::Point2f(src.cols- 1, src.rows- 1);
+	inputQuad[3] = cv::Point2f(0, src.rows- 1);
 
-    int fill_value = 0;
+	cv::Mat lambda = cv::getPerspectiveTransform( inputQuad, outputQuad );
 
-    double c[3][3]; /* transformation coefficients */
-    double q[4][2]; /* rearranged quad */
-
-    int left = 0;
-    int right = 0;
-    int next_right = 0;
-    int next_left = 0;
-    double y_min = 0;
-    double y_max = 0;
-    double k_left, b_left, k_right, b_right;
-
-    uchar* src_data;
-    int src_step;
-    CvSize src_size;
-
-    uchar* dst_data;
-    int dst_step;
-    CvSize dst_size;
-
-    double d = 0;
-    int direction = 0;
-    int i;
-
-    if( !src || (!CV_IS_IMAGE( src ) && !CV_IS_MAT( src )) ||
-        cvGetElemType( src ) != CV_8UC1 ||
-        cvGetDims( src ) != 2 )
-    {
-        CV_ERROR( CV_StsBadArg,
-            "Source must be two-dimensional array of CV_8UC1 type." );
-    }
-    if( !dst || (!CV_IS_IMAGE( dst ) && !CV_IS_MAT( dst )) ||
-        cvGetElemType( dst ) != CV_8UC1 ||
-        cvGetDims( dst ) != 2 )
-    {
-        CV_ERROR( CV_StsBadArg,
-            "Destination must be two-dimensional array of CV_8UC1 type." );
-    }
-
-    CV_CALL( cvGetRawData( src, &src_data, &src_step, &src_size ) );
-    CV_CALL( cvGetRawData( dst, &dst_data, &dst_step, &dst_size ) );
-
-    CV_CALL( cvGetPerspectiveTransform( src_size, quad, c ) );
-
-    /* if direction > 0 then vertices in quad follow in a CW direction,
-       otherwise they follow in a CCW direction */
-    direction = 0;
-    for( i = 0; i < 4; ++i )
-    {
-        int ni = i + 1; if( ni == 4 ) ni = 0;
-        int pi = i - 1; if( pi == -1 ) pi = 3;
-
-        d = (quad[i][0] - quad[pi][0])*(quad[ni][1] - quad[i][1]) -
-            (quad[i][1] - quad[pi][1])*(quad[ni][0] - quad[i][0]);
-        int cur_direction = CV_SIGN(d);
-        if( direction == 0 )
-        {
-            direction = cur_direction;
-        }
-        else if( direction * cur_direction < 0 )
-        {
-            direction = 0;
-            break;
-        }
-    }
-    if( direction == 0 )
-    {
-        CV_ERROR( CV_StsBadArg, "Quadrangle is nonconvex or degenerated." );
-    }
-
-    /* <left> is the index of the topmost quad vertice
-       if there are two such vertices <left> is the leftmost one */
-    left = 0;
-    for( i = 1; i < 4; ++i )
-    {
-        if( (quad[i][1] < quad[left][1]) ||
-            ((quad[i][1] == quad[left][1]) && (quad[i][0] < quad[left][0])) )
-        {
-            left = i;
-        }
-    }
-    /* rearrange <quad> vertices in such way that they follow in a CW
-       direction and the first vertice is the topmost one and put them
-       into <q> */
-    if( direction > 0 )
-    {
-        for( i = left; i < 4; ++i )
-        {
-            q[i-left][0] = quad[i][0];
-            q[i-left][1] = quad[i][1];
-        }
-        for( i = 0; i < left; ++i )
-        {
-            q[4-left+i][0] = quad[i][0];
-            q[4-left+i][1] = quad[i][1];
-        }
-    }
-    else
-    {
-        for( i = left; i >= 0; --i )
-        {
-            q[left-i][0] = quad[i][0];
-            q[left-i][1] = quad[i][1];
-        }
-        for( i = 3; i > left; --i )
-        {
-            q[4+left-i][0] = quad[i][0];
-            q[4+left-i][1] = quad[i][1];
-        }
-    }
-
-    left = right = 0;
-    /* if there are two topmost points, <right> is the index of the rightmost one
-       otherwise <right> */
-    if( q[left][1] == q[left+1][1] )
-    {
-        right = 1;
-    }
-
-    /* <next_left> follows <left> in a CCW direction */
-    next_left = 3;
-    /* <next_right> follows <right> in a CW direction */
-    next_right = right + 1;
-
-    /* subtraction of 1 prevents skipping of the first row */
-    y_min = q[left][1] - 1;
-
-    /* left edge equation: y = k_left * x + b_left */
-    k_left = (q[left][0] - q[next_left][0]) /
-               (q[left][1] - q[next_left][1]);
-    b_left = (q[left][1] * q[next_left][0] -
-               q[left][0] * q[next_left][1]) /
-                 (q[left][1] - q[next_left][1]);
-
-    /* right edge equation: y = k_right * x + b_right */
-    k_right = (q[right][0] - q[next_right][0]) /
-               (q[right][1] - q[next_right][1]);
-    b_right = (q[right][1] * q[next_right][0] -
-               q[right][0] * q[next_right][1]) /
-                 (q[right][1] - q[next_right][1]);
-
-    for(;;)
-    {
-        int x, y;
-
-        y_max = MIN( q[next_left][1], q[next_right][1] );
-
-        int iy_min = MAX( cvRound(y_min), 0 ) + 1;
-        int iy_max = MIN( cvRound(y_max), dst_size.height - 1 );
-
-        double x_min = k_left * iy_min + b_left;
-        double x_max = k_right * iy_min + b_right;
-
-        /* walk through the destination quadrangle row by row */
-        for( y = iy_min; y <= iy_max; ++y )
-        {
-            int ix_min = MAX( cvRound( x_min ), 0 );
-            int ix_max = MIN( cvRound( x_max ), dst_size.width - 1 );
-
-            for( x = ix_min; x <= ix_max; ++x )
-            {
-                /* calculate coordinates of the corresponding source array point */
-                double div = (c[2][0] * x + c[2][1] * y + c[2][2]);
-                double src_x = (c[0][0] * x + c[0][1] * y + c[0][2]) / div;
-                double src_y = (c[1][0] * x + c[1][1] * y + c[1][2]) / div;
-
-                int isrc_x = cvFloor( src_x );
-                int isrc_y = cvFloor( src_y );
-                double delta_x = src_x - isrc_x;
-                double delta_y = src_y - isrc_y;
-
-                uchar* s = src_data + isrc_y * src_step + isrc_x;
-
-                int i00, i10, i01, i11;
-                i00 = i10 = i01 = i11 = (int) fill_value;
-
-                /* linear interpolation using 2x2 neighborhood */
-                if( isrc_x >= 0 && isrc_x <= src_size.width &&
-                    isrc_y >= 0 && isrc_y <= src_size.height )
-                {
-                    i00 = s[0];
-                }
-                if( isrc_x >= -1 && isrc_x < src_size.width &&
-                    isrc_y >= 0 && isrc_y <= src_size.height )
-                {
-                    i10 = s[1];
-                }
-                if( isrc_x >= 0 && isrc_x <= src_size.width &&
-                    isrc_y >= -1 && isrc_y < src_size.height )
-                {
-                    i01 = s[src_step];
-                }
-                if( isrc_x >= -1 && isrc_x < src_size.width &&
-                    isrc_y >= -1 && isrc_y < src_size.height )
-                {
-                    i11 = s[src_step+1];
-                }
-
-                double i0 = i00 + (i10 - i00)*delta_x;
-                double i1 = i01 + (i11 - i01)*delta_x;
-
-                ((uchar*)(dst_data + y * dst_step))[x] = (uchar) (i0 + (i1 - i0)*delta_y);
-            }
-            x_min += k_left;
-            x_max += k_right;
-        }
-
-        if( (next_left == next_right) ||
-            (next_left+1 == next_right && q[next_left][1] == q[next_right][1]) )
-        {
-            break;
-        }
-
-        if( y_max == q[next_left][1] )
-        {
-            left = next_left;
-            next_left = left - 1;
-
-            k_left = (q[left][0] - q[next_left][0]) /
-                       (q[left][1] - q[next_left][1]);
-            b_left = (q[left][1] * q[next_left][0] -
-                       q[left][0] * q[next_left][1]) /
-                         (q[left][1] - q[next_left][1]);
-        }
-        if( y_max == q[next_right][1] )
-        {
-            right = next_right;
-            next_right = right + 1;
-
-            k_right = (q[right][0] - q[next_right][0]) /
-                       (q[right][1] - q[next_right][1]);
-            b_right = (q[right][1] * q[next_right][0] -
-                       q[right][0] * q[next_right][1]) /
-                         (q[right][1] - q[next_right][1]);
-        }
-        y_min = y_max;
-    }
-#endif /* #ifndef __IPL_H__ */
-
-    __END__;
+	cv::warpPerspective (src, dst, lambda, dst.size());
 }
+
 
 static
 void icvRandomQuad( int width, int height, double quad[4][2],
@@ -420,13 +105,13 @@ void icvRandomQuad( int width, int height, double quad[4][2],
     rotVectData[2] = maxzangle * (2.0 * rand() / RAND_MAX - 1.0);
     d = (distfactor + distfactor2 * (2.0 * rand() / RAND_MAX - 1.0)) * width;
 
-/*
+#if 0
     rotVectData[0] = maxxangle;
     rotVectData[1] = maxyangle;
     rotVectData[2] = maxzangle;
 
     d = distfactor * width;
-*/
+#endif
 
     cvRodrigues2( &rotVect, &rotMat );
 
@@ -469,15 +154,13 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
     if( data->src != NULL && data->src->depth == IPL_DEPTH_8U )
     {
         int r, c, n, m; // row, col, channel num
-        uchar* pmask;   // pointer to current mask pixel(s)
         uchar* psrc;    // pointer to current source image pixel(s)
         uchar* perode;  // pointer to erode and dialate pixels
         uchar* pdilate;
         uchar dd, de;
 		std::vector<int> bgcolors;    
 		std::vector<int> bgthresholds;
-		IplImage *savedSrc = data->src;
-		IplImage *hsvImage;
+		cv::Mat hsvImage;
 
 		/* convert bgcolor/bgthreshold into array of component BGR values */
 		for ( n = 0; n < data->src->nChannels; n++ )
@@ -495,65 +178,62 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 		   std::swap(bgcolors[0], bgcolors[2]);
 		   std::swap(bgthresholds[0], bgthresholds[2]);
 
-		   // Create hsv image, temporarily set ->src to it
-		   // ->src will be restored at the end of the function
-		   hsvImage = cvCloneImage( data->src );
-		   cvCvtColor( data->src, hsvImage, CV_BGR2HSV );
-		   data->src = hsvImage;
+		   cv::cvtColor( cv::Mat(data->src), hsvImage, CV_BGR2HSV );
 		}
 
         data->dx = data->src->width / 2;
         data->dy = data->src->height / 2;
         data->bgcolor = bgcolor;
 
-        data->mask = cvCreateImage( cvSize(data->src->width, data->src->height), IPL_DEPTH_8U, 1 );
-        data->erode = cvCloneImage( data->src );
-        data->dilate = cvCloneImage( data->src );
+		data->mask = new cv::Mat(data->src->width, data->src->height, CV_8UC1);
 
         /* make mask image */
-        for( r = 0; r < data->mask->height; r++ )
+        for( r = 0; r < data->mask->rows; r++ )
         {
-            for( c = 0; c < data->mask->width; c++ )
+            for( c = 0; c < data->mask->cols; c++ )
             {
-                psrc  = ( (uchar*) (data->src->imageData + r * data->src->widthStep)
-                         + c * data->src->nChannels );
-                pmask = ( (uchar*) (data->mask->imageData + r * data->mask->widthStep)
-                         + c );
+				if (hsv)
+					psrc  =  (uchar*) hsvImage.data + r * hsvImage.step + c * hsvImage.elemSize();
+				else
+					psrc  =  (uchar*) (data->src->imageData + r * data->src->widthStep)
+							 + c * data->src->nChannels;
+
 				/* Assume sample will be masked off. If any of the channels
 				   falls out of range of the mask for that channel, update
 				   the pixel to be unmasked and bail out of the loop */
-				*pmask = (uchar)0;
+				data->mask->at<uchar>(r,c) = 0;
 				for ( n = 0; n < data->src->nChannels; n++ )
 				{
 		 			if( !(bgcolors[n] - bgthresholds[n] <= (int) psrc[n] &&
 	     				(int) psrc[n] <= bgcolors[n] + bgthresholds[n] ) )
 	   				{
-	       				*pmask = (uchar) 255;
+						data->mask->at<uchar>(r,c) = 255;
 	       				break;
 	   				}
                 }
             }
         }
 
+		// Increase the size of the mask by a small amount
+		// to remove a small edge of chroma-key color that
+		// seems to surround the images we're working with
 		if (hsv)
-		{
-		   data->src  = savedSrc;
-		   cvReleaseImage( &hsvImage );
-		   cvErode( data->mask, data->mask, 0, 3 ); // Increase the size of the mask by a small amount
-		                                            // to remove a small edge of chroma-key color that
-					  							    // seems to surround the images we're working with
-		}
+		   cv::erode( *data->mask, *data->mask, cv::Mat(), cv::Point(-1,-1), 3 ); 
 
         /* extend borders of source image */
+		// TODO this doesn't work for HSV images - we need to compare e&d
+		// versions of the HSV image with the thresholds but use e&d version
+		// of the original source to extend the borders
+        data->erode = cvCloneImage( data->src );
         cvErode( data->src, data->erode, 0, 1 );
+
+        data->dilate = cvCloneImage( data->src );
         cvDilate( data->src, data->dilate, 0, 1 );
-        for( r = 0; r < data->mask->height; r++ )
+        for( r = 0; r < data->mask->rows; r++ )
         {
-            for( c = 0; c < data->mask->width; c++ )
+            for( c = 0; c < data->mask->cols; c++ )
             {
-                pmask = ( (uchar*) (data->mask->imageData + r * data->mask->widthStep)
-                        + c );
-                if( (*pmask) == 0 )
+                if( data->mask->at<uchar>(r,c) == 0 )
                 {
                     psrc = ( (uchar*) (data->src->imageData + r * data->src->widthStep)
                            + c * data->src->nChannels );
@@ -563,7 +243,7 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
                     pdilate =
                         ( (uchar*)(data->dilate->imageData + r * data->dilate->widthStep)
                                 + c * data->dilate->nChannels );
-					for ( n = 0; n > data->src->nChannels; n++ )
+					for ( n = 0; n < data->src->nChannels; n++ )
 					{ 
 						de = (uchar)(bgcolors[n] - perode[n]);
 						dd = (uchar)(pdilate[n] - bgcolors[n]);
@@ -583,19 +263,17 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
         }
 
 
-        data->img     = cvCreateImage( cvSize( data->src->width + 2 * data->dx,
-                                               data->src->height + 2 * data->dy ),
-                                       IPL_DEPTH_8U, data->src->nChannels );
-        data->maskimg = cvCreateImage( cvSize( data->src->width + 2 * data->dx,
-                                               data->src->height + 2 * data->dy ),
-                                       IPL_DEPTH_8U, 1 );
-
+        data->img     = new cv::Mat( data->src->width  + 2 * data->dx,
+						   	         data->src->height + 2 * data->dy,
+							         CV_8UC(data->src->nChannels) );
+        data->maskimg = new cv::Mat( data->src->width + 2 * data->dx,
+                                     data->src->height + 2 * data->dy, CV_8UC1);
 
         return 1;
     }
-
     return 0;
 }
+
 
 void icvPlaceDistortedSample( CvArr* background,
                               int inverse, int maxintensitydev,
@@ -607,17 +285,13 @@ void icvPlaceDistortedSample( CvArr* background,
     int r, c;
     uchar* pimg;
     uchar* pbg;
-    uchar* palpha;
-    uchar chartmp;
     int forecolordev;
     float scale;
-    IplImage* img;
-    IplImage* maskimg;
     CvMat  stub;
     CvMat* bgimg;
 
-    CvRect cr;
-    CvRect roi;
+	cv::Rect cr;
+	cv::Rect roi;
 
     double xshift, yshift, randscale;
 
@@ -634,38 +308,22 @@ void icvPlaceDistortedSample( CvArr* background,
 	
 	if (data->src->nChannels == 1)
 	{
-		cvSet( data->img, cvScalar( data->bgcolor ) );
-		cvWarpPerspective( data->src, data->img, quad );
+		data->img->setTo( cv::Scalar( data->bgcolor ) );
 	}
 	else
 	{
-		IplImage* img_arr[3];
-		IplImage* src_split[3];
-		int i;
-
-		for ( i = 0; i < 3; i++ )
-		{
-		    img_arr[i] = cvCreateImage( cvGetSize( data->img ), IPL_DEPTH_8U, 1 );
-			src_split[i] = cvCreateImage( cvGetSize( data->src ), IPL_DEPTH_8U, 1 );
-            cvSet( img_arr[i], cvScalar( (data->bgcolor >> ( i * 8 )) & 0x000000FF ) );
-		}
-		cvSplit( data->src, src_split[0], src_split[1], src_split[2], NULL ); // BGR
-
-        for ( i = 0; i < 3; i++ )
-			cvWarpPerspective( src_split[i], img_arr[i], quad );
-		cvMerge( img_arr[0], img_arr[1], img_arr[2], NULL, data->img );
-		for ( i = 0; i < 3; i++ )
-		{
-			cvReleaseImage(&img_arr[i]);
-			cvReleaseImage(&src_split[i]);
-		}
+		// Check HSV vs RGB here
+		data->img->setTo( cv::Scalar( (data->bgcolor >> 16) & 0x000000FF ,
+		                              (data->bgcolor >>  8) & 0x000000FF ,
+		                               data->bgcolor        & 0x000000FF ) );
 	}
+	WarpPerspective( data->src, *data->img, quad );
 
-    cvSet( data->maskimg, cvScalar( 0.0 ) );
+    data->maskimg->setTo(cv::Scalar( 0 ));
 
-    cvWarpPerspective( data->mask, data->maskimg, quad );
+    WarpPerspective( *data->mask, *data->maskimg, quad );
 
-    cvSmooth( data->maskimg, data->maskimg, CV_GAUSSIAN, 3, 3 );
+	cv::GaussianBlur( *data->maskimg, *data->maskimg, cv::Size(3, 3), 1.0 );
 
     bgimg = cvGetMat( background, &stub );
 
@@ -704,40 +362,35 @@ void icvPlaceDistortedSample( CvArr* background,
     roi.width  = (int) (scale * bgimg->cols);
     roi.height = (int) (scale * bgimg->rows);
 
-    img = cvCreateImage( cvSize( bgimg->cols, bgimg->rows ), IPL_DEPTH_8U, data->src->nChannels );
-    maskimg = cvCreateImage( cvSize( bgimg->cols, bgimg->rows ), IPL_DEPTH_8U, 1 );
+	cv::Mat img( bgimg->cols, bgimg->rows, CV_8UC(data->src->nChannels ) );
+	cv::Mat maskimg( bgimg->cols, bgimg->rows, CV_8UC1 );
 
-    cvSetImageROI( data->img, roi );
-    cvResize( data->img, img );
-    cvResetImageROI( data->img );
-    cvSetImageROI( data->maskimg, roi );
-    cvResize( data->maskimg, maskimg );
-    cvResetImageROI( data->maskimg );
+	cv::resize( (*data->img)(roi), img, img.size() );
+	cv::resize( (*data->maskimg)(roi), maskimg, maskimg.size() );
 
     forecolordev = (int) (maxintensitydev * (2.0 * rand() / RAND_MAX - 1.0));
 
-    for( r = 0; r < img->height; r++ )
-    {
-        for( c = 0; c < img->width; c++ )
-        {
-            pimg = (uchar*) img->imageData + r * img->widthStep + c * img->nChannels;
-            pbg = (uchar*) bgimg->data.ptr + r * bgimg->step + c * img->nChannels;
-            palpha = (uchar*) maskimg->imageData + r * maskimg->widthStep + c;
-	    for ( int n = 0; n < img->nChannels; n++ )
-	    {
-	        chartmp = (uchar) MAX( 0, MIN( 255, forecolordev + pimg[n] ) );
-	        if( inverse )
-	        {
-	            chartmp ^= 0xFF;
-	        }
-	        pbg[n] = (uchar) ((chartmp * (*palpha)+(255 - (*palpha)) * pbg[n] ) / 255);
-	    }
-        }
-    }
+	for( r = 0; r < img.rows; r++ )
+	{
+		for( c = 0; c < img.cols; c++ )
+		{
+			pimg   = (uchar*) img.data + r * img.step + c * img.elemSize();
 
-    cvReleaseImage( &img );
-    cvReleaseImage( &maskimg );
+			pbg = (uchar*) bgimg->data.ptr + r * bgimg->step + c * img.channels();
+			for ( int n = 0; n < img.channels(); n++ )
+			{
+				uchar chartmp = (uchar) MAX( 0, MIN( 255, forecolordev + pimg[n] ) );
+				uchar alpha = maskimg.at<uchar>(r,c);
+				if( inverse )
+				{
+					chartmp ^= 0xFF;
+				}
+				pbg[n] = (uchar) ( ( chartmp * alpha + (255 - alpha) * pbg[n] ) / 255);
+			}
+		}
+	}
 }
+
 
 void icvEndSampleDistortion( CvSampleDistortionData* data )
 {
@@ -747,7 +400,7 @@ void icvEndSampleDistortion( CvSampleDistortionData* data )
     }
     if( data->mask )
     {
-        cvReleaseImage( &data->mask );
+        delete data->mask;
     }
     if( data->erode )
     {
@@ -759,11 +412,11 @@ void icvEndSampleDistortion( CvSampleDistortionData* data )
     }
     if( data->img )
     {
-        cvReleaseImage( &data->img );
+        delete data->img;
     }
     if( data->maskimg )
     {
-        cvReleaseImage( &data->maskimg );
+        delete data->maskimg;
     }
 }
 
@@ -802,7 +455,6 @@ void icvWriteVecSample( FILE* file, CvArr* sample )
         }
     }
 }
-
 
 int cvCreateTrainingSamplesFromInfo( const char* infoname, const char* vecfilename,
                                      int num,
