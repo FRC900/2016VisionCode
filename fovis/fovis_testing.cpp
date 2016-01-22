@@ -20,7 +20,7 @@
 using namespace std;
 using namespace cv;
 
-bool leftCamera = false;
+bool leftCamera = true;
 int numThreads = 8;
 
 
@@ -36,6 +36,19 @@ string isometryToString(const Eigen::Isometry3d& m)
   return std::string(result);
 }
 
+double avgOfMat(const Mat& img, const Mat& mask) { //this averages mats without counting NaN
+	float *input = (float*)(img.data);
+	double sum = 0;
+	float datum;
+	for(int j = 0;j < img.rows;j++){
+	    for(int i = 0;i < img.cols;i++){
+		datum = input[img.cols * j + i ];
+		if(datum != NAN && mask[mask.cols * j + i] == 255) //if the data is not 0 and mask is true
+		    sum = sum + datum;
+	    }
+	}
+	return sum / (float)(img.rows * img.cols)
+}
 
 int main(int argc, char **argv) {
 
@@ -75,14 +88,34 @@ int main(int argc, char **argv) {
   options["feature-window-size"] = "9"; //default 9
   options["target-pixels-per-feature"] = "250"; //default 250
 
+  int numHistBins = 64;
+  int minDepthInt = 0;
+  int maxDepthInt = 1000;
+  int stddev_weight_int = 100;
+  int rangeRangeInt = 100;
+
+  string detectWindowName = "Background Partitioning Parameters";
+  namedWindow(detectWindowName);
+  createTrackbar ("Standard Deviation Multiplier", detectWindowName, &stddev_weight_int, 4000, NULL);
+  createTrackbar ("Histogram Min Depth", detectWindowName, &minDepthInt, 2000, NULL);
+  createTrackbar ("Histogram Max Depth", detectWindowName, &maxDepthInt, 2000, NULL);
+  createTrackbar ("Number of bins", detectWindowName, &numHistBins, 128, NULL);
+  createTrackbar ("Range of Range", detectWindowName, &rangeRangeInt, 1000, NULL);
+
+  float histRange_arr[2];
+  float stddev_weight;
+
   fovis::Rectification rect(rgb_params);
   fovis::VisualOdometry* odom = new fovis::VisualOdometry(&rect, options);
 
-  Mat frame, depthFrame, histMat;
+  Mat frame, depthFrame, histMat, displayFrame, depthMask, depthMask_inv, hist_stddev_mat, hist_mean_mat;
+  Mat depth_mean_mat_1, depth_stddev_mat_1, depth_mean_mat_2, depth_stddev_mat_2;
   float* depthImageFloat = new float[cap->width * cap->height];
+  double histMaxVal;
+  Point  histMaxValLoc;
   fovis::DepthImage depthSource(rgb_params, cap->width, cap->height);
   clock_t startTime;
-  vector<int> ranges;
+  vector<double> ranges;
   while(1)
     {
     startTime = clock();
@@ -103,13 +136,15 @@ int main(int argc, char **argv) {
             }
         }
 
-    depthFrame = Mat(cap->width, cap->height, CV_32FC1, depthImageFloat);
+    depthFrame = Mat(cap->height, cap->width, CV_32FC1, depthImageFloat);
     
     depthSource.setDepthImage(depthImageFloat);
 
-    float histRange_arr[] = {0,10};
+    histRange_arr[0] = minDepthInt / 100.0;
+    histRange_arr[1] = maxDepthInt / 100.0;
+    stddev_weight = stddev_weight_int / 100.0;
+
     const float* histRange = { histRange_arr };
-    int numHistBins = 128;
     bool uniform = true; bool accumulate = false;
     calcHist(&depthFrame,1,0,Mat(),histMat,1,&numHistBins,&histRange, uniform, accumulate); //create a histogram, depth on the x and num pixels on the y
     int hist_img_width = 512; int hist_img_height = 400;
@@ -117,12 +152,17 @@ int main(int argc, char **argv) {
     //cout << "histogram bin width: " << ((histRange_arr[1] - histRange_arr[0]) / (float)numHistBins) * 100.0 << " cm" << endl;
     float bin_width_m = (histRange_arr[1] - histRange_arr[0]) / (float)numHistBins;
 
-    float stddev_weight = 2; //how many standard deviations away it needs to be to be considered a peak
-
-    Mat hist_stddev_mat, hist_mean_mat; //output of meanStdDev
     histMat.at<float>(0) = 0; //first bin includes NaN and gets very large so ignore them
     meanStdDev(histMat,hist_stddev_mat,hist_mean_mat); //calculate the mean and stddev of the histogram
+    minMaxLoc(histMat,NULL,&histMaxVal,NULL,&histMaxValLoc); //calculate peak in the histogram
+
+    //cout << "Peak depth location: " << histMaxValLoc.y * bin_width_m << endl;
     ranges.clear();
+    ranges.push_back((float)histMaxValLoc.y - (rangeRangeInt / 100.0));
+    ranges.push_back((float)histMaxValLoc.y + (rangeRangeInt / 100.0));
+    cout << "Range is: " << ranges[0] * bin_width_m << " " << ranges[1] * bin_width_m << endl;
+
+    #if FALSE
     double range_threshhold = hist_stddev_mat.at<double>(0) * stddev_weight + hist_mean_mat.at<double>(0); //if a point is above this threshhold we consider it a peak
     for(int i = 0; i < histMat.rows * histMat.cols; i++) { //this creates ranges of depths that are peaks
 	if(histMat.at<int>(i) > range_threshhold) //if the point is on a range
@@ -137,12 +177,13 @@ int main(int argc, char **argv) {
 	}
     //cout << "Number of ranges: " << ranges.size() << endl;
     //cout << "Last range in m: " << ranges[ranges.size() - 2] * bin_width_m << " to " << ranges[ranges.size() - 1] * bin_width_m << endl;
-
-    Mat histImage(hist_img_height,hist_img_width, CV_8UC1, Scalar(0,0,0));
     for(int i = 0; i < histMat.rows * histMat.cols; i++) {
-	if(histMat.at<int>(i) < range_threshhold) //if not a peak set to zero, so that we can only see peaks
+	if(histMat.at<int>(i) > range_threshhold) //if not a peak set to zero, so that we can only see peaks
 	    histMat.at<int>(i) = 0;
 	}
+    #endif
+
+    Mat histImage(hist_img_height,hist_img_width, CV_8UC1, Scalar(0,0,0));
     normalize(histMat, histMat, 0, histImage.rows, NORM_MINMAX, -1, Mat() );
     for( int i = 1; i < numHistBins; i++ )
     {
@@ -151,10 +192,34 @@ int main(int argc, char **argv) {
                        Point( hist_bin_img_width*(i), hist_img_height - cvRound(histMat.at<float>(i)) ),
                        Scalar( 255, 255, 255), 4, 8, 0  );
     }
+    //line( histImage, Point(0, range_threshhold), Point(hist_img_width, range_threshhold), Scalar(255,255,255),4,8,0);
+
     imshow("Histogram",histImage);
 
+    frame.copyTo(displayFrame); //make a color copy for display purposes
+    cvtColor(displayFrame,displayFrame,CV_BGR2HSV); //convert to hsv
+    inRange(depthFrame,Scalar(ranges[ranges.size() - 2] * bin_width_m), Scalar(ranges[ranges.size() - 1] * bin_width_m),depthMask);
+    //meanStdDev(depthFrame,depth_mean_mat_1, depth_stddev_mat_1,depthMask); //average of depth of majority of frame
+    double depth_mean_1 = avgOfMat(depthFrame,depthMask);
+    bitwise_not(depthMask,depthMask_inv);
+    double depth_mean_2 = avgOfMat(depthFrame,depthMask_inv);
+    //meanStdDev(depthFrame,depth_mean_mat_2, depth_stddev_mat_2,depthMask_inv); //average of depth of minority of frame
+    cout << "Mean of majority: " << depth_mean_1 << endl;
+    cout << "Mean of minority: " << depth_mean_2 << endl;
+    cout << "Mean of chosen: ";
+    if(depth_mean_2 > depth_mean_1 { //if the minority of the image is the farther one
+	bitwise_not(depthMask,depthMask); //invert the mask
+	cout << depth_mean_2 << endl;
+	} else {
+	cout << depth_mean_1 << endl;
+	}
+    add(displayFrame,Scalar(140,0,0), displayFrame, depthMask);
+    cvtColor(displayFrame,displayFrame,CV_HSV2BGR);
+    imshow("frame",displayFrame);
+    imshow("background mask", depthMask);
+
+
     cvtColor(frame,frame,CV_BGR2GRAY);
-    imshow("frame",frame);
     if(!frame.isContinuous()) {
 	cout << "image is not continuous. Cannot continue, exiting now" << endl;
 	return -1;
