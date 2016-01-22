@@ -16,14 +16,15 @@
 using namespace std;
 using namespace cv;
 
-/*
- * Values for purple screen:
- * int g_h_max = 138;
- * int g_h_min = 87;
- * int g_s_max = 227;
- * int g_s_min = 48;
- * int g_v_max = 238;
- * int g_v_min = 147; */
+#if 0
+//Values for purple screen:
+int g_h_max = 170;
+int g_h_min = 130;
+int g_s_max = 255;
+int g_s_min = 147;
+int g_v_max = 255;
+int g_v_min = 48;  
+#else
 //Values for blue screen:
 int    g_h_max      = 120;
 int    g_h_min      = 110;
@@ -31,12 +32,15 @@ int    g_s_max      = 255;
 int    g_s_min      = 220;
 int    g_v_max      = 150;
 int    g_v_min      = 50;
+#endif
 int    g_files_per  = 10;
 int    g_num_frames = 10;
 int    g_min_resize = 0;
 int    g_max_resize = 25;
 string g_outputdir  = ".";
-RNG    rng(12345);
+
+const int min_area = 2000;
+
 #ifdef __CYGWIN__
 inline int
 stoi(const wstring& __str, size_t *__idx = 0, int __base = 10)
@@ -45,6 +49,7 @@ stoi(const wstring& __str, size_t *__idx = 0, int __base = 10)
                                         __idx, __base);
 }
 #endif
+
 template<typename T>
 string IntToHex(T i)
 {
@@ -63,7 +68,7 @@ string Behead(string my_string)
 }
 
 
-bool FindRect(Mat& frame, Rect& output)
+bool FindRect(const Mat& frame, Rect& output)
 {
     /* prec: frame image &frame, integers 0-255 for each min and max HSV value
      *  postc: a rectangle bounding the image we want
@@ -73,14 +78,16 @@ bool FindRect(Mat& frame, Rect& output)
     Mat btrack;
 
     inRange(frame, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), btrack);
+#ifdef DEBUG
     imshow("BtrackR", btrack);
+#endif
     vector<vector<Point> > contours;
     vector<Vec4i>          hierarchy;
     vector<Point>          points;
     findContours(btrack, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
     for (size_t i = 0; i < hierarchy.size(); i++)
     {
-        if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > 2000))
+        if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
         {
             points = contours[i];
             break;
@@ -94,13 +101,26 @@ bool FindRect(Mat& frame, Rect& output)
     return true;
 }
 
+// Resizes a rectangle to a new size, keeping
+// it centered on the same point
+Rect ResizeRect(const Rect &rect, const Size &size)
+{
+    Point tl = rect.tl();
+    tl.x = tl.x - ((double)size.width - rect.width) / 2;
+    tl.y = tl.y - ((double)size.height - rect.height) / 2;
+    Point br = rect.br();
+    br.x = br.x + ((double)size.width - rect.width) / 2;
+    br.y = br.y + ((double)size.height - rect.height) / 2;
 
-Rect AdjustRect(Rect& frame, float ratio)
+	return Rect(tl, br);
+}
+
+
+Rect AdjustRect(const Rect& frame, float ratio)
 {
     // adjusts the size of the rectangle to a fixed aspect ratio
-    Size rect_size = frame.size();
-    int  width     = rect_size.width;
-    int  height    = rect_size.height;
+    int width  = frame.width;
+    int height = frame.height;
 
     if (width / ratio > height)
     {
@@ -110,43 +130,26 @@ Rect AdjustRect(Rect& frame, float ratio)
     {
         width = height * ratio;
     }
-    Point tl = frame.tl();
-    tl.x = tl.x - (width - rect_size.width) / 2;
-    tl.y = tl.y - (height - rect_size.height) / 2;
-    Point br = frame.br();
-    br.x = br.x + (width - rect_size.width) / 2;
-    br.y = br.y + (height - rect_size.height) / 2;
-    return Rect(tl, br);
+
+    return ResizeRect(frame, Size(width, height));
 }
 
 
-bool ResizeRect(Rect& the_rect, Rect& output_rect, const Mat image_cool)
+bool RescaleRect(const Rect& the_rect, Rect& output_rect, const Mat &image_cool, double scale_up)
 {
-    //takes the rect &the_rect and randomly resizes it larger within range (g_min_resize, g_max_resize) outputs the rect
-    //to image imageCool
-    Point tl = the_rect.tl();
-    Point br = the_rect.br();
+    // takes the rect the_rect and resizes it larger by 1+scale_up percent
+	// outputs resized rect in output_rect
+	int width  = the_rect.width  * (1.0 + scale_up / 100.0);
+	int height = the_rect.height * (1.0 + scale_up / 100.0);
 
-    if ((tl.x < 0) || (tl.y < 0) || (br.x > image_cool.cols) || (br.y > image_cool.rows))
-    {
-        cout << "Rectangle out of bounds!" << endl;
-        return false;
-    }
-    tl = Point(-1, -1);
-    while (tl.x<0 || tl.y<0 || br.x> image_cool.cols || br.y> image_cool.rows)
-    {
-        float adjust    = rng.uniform(g_min_resize, g_max_resize);
-        Size  rect_size = the_rect.size();
-        float width     = rect_size.width * (1 + adjust / 100);
-        float height    = rect_size.height * (1 + adjust / 100);
-        tl   = the_rect.tl();
-        tl.x = tl.x - (width - rect_size.width) / 2;
-        tl.y = tl.y - (height - rect_size.height) / 2;
-        br   = the_rect.br();
-        br.x = br.x + (width - rect_size.width) / 2;
-        br.y = br.y + (height - rect_size.height) / 2;
-    }
-    output_rect = Rect(tl, br);
+    output_rect = ResizeRect(the_rect, Size(width, height));
+
+	if ((output_rect.x < 0) || (output_rect.y < 0) || 
+	    (output_rect.br().x > image_cool.cols) || (output_rect.br().y > image_cool.rows))
+	{
+		cout << "Rectangle out of bounds!" << endl;
+		return false;
+	}
     return true;
 }
 
@@ -319,6 +322,7 @@ int main(int argc, char *argv[])
         cout << "Invalid program syntax!" << endl;
         return 0;
     }
+#ifdef DEBUG
     namedWindow("Original", WINDOW_AUTOSIZE);
     namedWindow("RangeControl", WINDOW_AUTOSIZE);
     namedWindow("Tracking", WINDOW_AUTOSIZE);
@@ -331,6 +335,7 @@ int main(int argc, char *argv[])
 
     createTrackbar("ValMin", "RangeControl", &g_v_min, 255);
     createTrackbar("ValMax", "RangeControl", &g_v_max, 255);
+#endif
 
     String vid_name = "";
     Mat    mid      = Mat_<Vec3b>(1, 1) << Vec3b((g_h_min + g_h_max) / 2, (g_s_min + g_s_max) / 2, (g_v_min + g_v_max) / 2);
@@ -384,12 +389,14 @@ int main(int argc, char *argv[])
             {
                 continue;
             }
+#if 0
             bounding_rect = AdjustRect(bounding_rect, 1.0);
-            exists        = ResizeRect(bounding_rect, temp_rect, hsv_input);
+            exists        = RescaleRect(bounding_rect, temp_rect, hsv_input);
             if (exists == false)
             {
                 continue;
             }
+#endif
             cvtColor(frame, gframe, CV_BGR2GRAY);
             Laplacian(gframe, temp, CV_8UC1);
             meanStdDev(temp, tempm, variancem);
@@ -419,7 +426,7 @@ int main(int argc, char *argv[])
             findContours(btrack_cp, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
             for (size_t i = 0; i < hierarchy.size(); i++)
             {
-                if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > 2000))
+                if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
                 {
                     contour_index = i;
                     break;
@@ -456,11 +463,14 @@ int main(int argc, char *argv[])
             {
                 threshold(btrack, btrack, 128, 255, THRESH_BINARY);
                 bounding_rect = AdjustRect(bounding_rect, 1.0);
+#ifdef DEUBG
                 imshow("Btrack", btrack);
+#endif
                 Mat hsv_final;
                 cvtColor(frame, hsv_final, CV_BGR2HSV);
+#ifdef DEBUG
                 imshow("HSV", hsv_final);
-                Mat test;
+#endif
                 hsv_final.convertTo(hsv_final, CV_16UC3);
                 add(hsv_final, Scalar(hueAdjust, 0, 0), hsv_final, btrack);
                 for (int l = 0; l < hsv_final.rows; l++)
@@ -471,23 +481,35 @@ int main(int argc, char *argv[])
                     }
                 }
                 hsv_final.convertTo(hsv_final, CV_8UC3);
+#ifdef DEBUG
                 imshow("HSV mod", hsv_final);
+#endif
                 cvtColor(hsv_final, frame, CV_HSV2BGR);
+#ifdef DEBUG
                 imshow("Modified", frame);
                 waitKey(3000);
-                for (int k = 0; k < g_files_per; k++)
+#endif
+				double scale_adder;
+				if (g_files_per == 1)
+					scale_adder =  g_max_resize + 1;
+				else
+					scale_adder = (g_max_resize - g_min_resize) / (g_files_per - 1);
+
+                for (double scale_up = g_min_resize; scale_up <= g_max_resize; scale_up += scale_adder)
                 {
-                    ResizeRect(bounding_rect, final_rect, hsv_input);
-                    stringstream write_name;
-                    int          frame_num = frame_video.get(CV_CAP_PROP_POS_FRAMES) - 1;
-                    write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << frame_num;
-                    write_name << "_" << setw(4) << final_rect.x;
-                    write_name << "_" << setw(4) << final_rect.y;
-                    write_name << "_" << setw(4) << final_rect.width;
-                    write_name << "_" << setw(4) << final_rect.height;
-                    write_name << "_" << setw(3) << hueAdjust;
-                    write_name << ".png";
-                    imwrite(write_name.str().c_str(), frame(final_rect));
+                    if (RescaleRect(bounding_rect, final_rect, hsv_input, scale_up))
+					{
+						stringstream write_name;
+						int          frame_num = frame_video.get(CV_CAP_PROP_POS_FRAMES) - 1;
+						write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << frame_num;
+						write_name << "_" << setw(4) << final_rect.x;
+						write_name << "_" << setw(4) << final_rect.y;
+						write_name << "_" << setw(4) << final_rect.width;
+						write_name << "_" << setw(4) << final_rect.height;
+						write_name << "_" << setw(3) << hueAdjust;
+						write_name << ".png";
+						imwrite(write_name.str().c_str(), frame(final_rect));
+					}
                 }
             }
         }
