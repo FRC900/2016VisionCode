@@ -84,8 +84,10 @@ int main( int argc, char* argv[] )
     int width  = 24;
     int height = 24;
     bool pngoutput = false; /* whether to make the samples in png or in jpg*/
+	extern cv::RNG rng;
 
     srand((unsigned int)time(0));
+	rng = cv::RNG(time(NULL));
 
     if( argc == 1 )
     {
