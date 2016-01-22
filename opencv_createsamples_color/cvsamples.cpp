@@ -477,7 +477,7 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 		std::vector<int> bgcolors;    
 		std::vector<int> bgthresholds;
 		IplImage *savedSrc = data->src;
-		IplImage *hsv;
+		IplImage *hsvImage;
 
 		/* convert bgcolor/bgthreshold into array of component BGR values */
 		for ( n = 0; n < data->src->nChannels; n++ )
@@ -497,9 +497,9 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 
 		   // Create hsv image, temporarily set ->src to it
 		   // ->src will be restored at the end of the function
-		   hsv = cvCloneImage( data->src );
-		   cvCvtColor( data->src, hsv, CV_BGR2HSV );
-		   data->src = hsv;
+		   hsvImage = cvCloneImage( data->src );
+		   cvCvtColor( data->src, hsvImage, CV_BGR2HSV );
+		   data->src = hsvImage;
 		}
 
         data->dx = data->src->width / 2;
@@ -538,7 +538,7 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 		if (hsv)
 		{
 		   data->src  = savedSrc;
-		   cvReleaseImage( &hsv );
+		   cvReleaseImage( &hsvImage );
 		   cvErode( data->mask, data->mask, 0, 3 ); // Increase the size of the mask by a small amount
 		                                            // to remove a small edge of chroma-key color that
 					  							    // seems to surround the images we're working with
