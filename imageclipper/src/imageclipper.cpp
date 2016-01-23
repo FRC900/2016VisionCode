@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include "filesystem.h"
@@ -269,62 +270,78 @@ void key_callback( const ArgParam* arg, CvCallbackParam* param )
         cvPointTo32f( param->shear ),
         	getColorForAspectRatio(param->rect.width, param->rect.height));
 
-    while( true ) // key callback
-    {
-        char key = cvWaitKey( 0 );
-        cout << "Key pressed: " << (int)key << endl;
-
-        // 32 is SPACE
-	
-        if( key == 's' || key == 'S' || key == 32 || key == 'a' ) // Save
+	while( true ) // key callback
 	{
-	   CvCallbackParam thisParam = *param;
-	   if (key == 'S' || key == 'a')
-	   {
-	      thisParam.rect.x = 0;
-	      thisParam.rect.y = 0;
-	      thisParam.rect.width = param->img->width;
-	      thisParam.rect.height = param->img->height;
-	      thisParam.rotate = 0;
-	      thisParam.shear = cv::Point(0,0);
-	   }
-	   if( thisParam.rect.width > 0 && thisParam.rect.height > 0 )
-	   {
-		string output_path;
-	   if( key == 'a' ) {
-		output_path = icFormat( 
-		    thisParam.output_format, fs::dirname( filename ), 
-		    fs::filename( filename ), fs::extension( filename ),
-		    param->rect.x, param->rect.y, param->rect.width, param->rect.height, 
-		    thisParam.frame, thisParam.rotate );
-		}
-	   else {output_path = icFormat( 
-		    thisParam.output_format, fs::dirname( filename ), 
-		    fs::filename( filename ), fs::extension( filename ),
-		    thisParam.rect.x, thisParam.rect.y, thisParam.rect.width, thisParam.rect.height, 
-		    thisParam.frame, thisParam.rotate );
-		}
+		char key = cvWaitKey( 0 );
+		cout << "Key pressed: " << (int)key << endl;
 
-	      if( !fs::match_extensions( output_path, thisParam.imtypes ) )
-	      {
-		 cerr << "The image type " << fs::extension( output_path ) << " is not supported." << endl;
-		 exit(1);
-	      }
-	      fs::create_directories( fs::dirname( output_path ) );
+		// 32 is SPACE
 
-	      IplImage* crop = cvCreateImage( 
-		    cvSize( thisParam.rect.width, thisParam.rect.height ), 
-		    thisParam.img->depth, thisParam.img->nChannels );
-	      cvCropImageROI( thisParam.img, crop, 
-		    cvRect32fFromRect( thisParam.rect, thisParam.rotate ), 
-		    cvPointTo32f( thisParam.shear ) );
-	      cvSaveImage( fs::realpath( output_path ).c_str(), crop );
-	      cout << fs::realpath( output_path ) << endl;
-	      cvReleaseImage( &crop );
-	   }
-	}
+		if( key == 's' || key == 'S' || key == 32 || key == 'a' ) // Save
+		{
+			CvCallbackParam thisParam = *param;
+			if (key == 'S' || key == 'a')
+			{
+				thisParam.rect.x = 0;
+				thisParam.rect.y = 0;
+				thisParam.rect.width = param->img->width;
+				thisParam.rect.height = param->img->height;
+				thisParam.rotate = 0;
+				thisParam.shear = cv::Point(0,0);
+			}
+			if( thisParam.rect.width > 0 && thisParam.rect.height > 0 )
+			{
+				string output_path;
+				if( key == 'a' ) 
+				{
+					output_path = icFormat( 
+							thisParam.output_format, fs::dirname( filename ), 
+							fs::filename( filename ), fs::extension( filename ),
+							param->rect.x, param->rect.y, param->rect.width, param->rect.height, 
+							thisParam.frame, thisParam.rotate );
+				}
+				else 
+				{
+					output_path = icFormat( 
+							thisParam.output_format, fs::dirname( filename ), 
+							fs::filename( filename ), fs::extension( filename ),
+							thisParam.rect.x, thisParam.rect.y, thisParam.rect.width, thisParam.rect.height, 
+							thisParam.frame, thisParam.rotate );
+				}
+
+				if( !fs::match_extensions( output_path, thisParam.imtypes ) )
+				{
+					cerr << "The image type " << fs::extension( output_path ) << " is not supported." << endl;
+					exit(1);
+				}
+				fs::create_directories( fs::dirname( output_path ) );
+
+				IplImage* crop = cvCreateImage( 
+						cvSize( thisParam.rect.width, thisParam.rect.height ), 
+						thisParam.img->depth, thisParam.img->nChannels );
+				cvCropImageROI( thisParam.img, crop, 
+						cvRect32fFromRect( thisParam.rect, thisParam.rotate ), 
+						cvPointTo32f( thisParam.shear ) );
+				cvSaveImage( fs::realpath( output_path ).c_str(), crop );
+				cout << fs::realpath( output_path ) << endl;
+				cvReleaseImage( &crop );
+			}
+		}
+		else if( key == 't' ) // Record ground truth
+		{
+			CvCallbackParam thisParam = *param;
+			thisParam.shear = cv::Point(0,0);
+			thisParam.rotate = 0;
+			stringstream output_line;
+			output_line << fs::filename( filename ) << "." << fs::extension( filename ) << " " << thisParam.frame << " " ;
+			output_line << thisParam.rect.x << " " << thisParam.rect.y << " " << thisParam.rect.width << " " << thisParam.rect.height;
+			ofstream tag_file("ground_truth.txt", std::ios_base::app | std::ios_base::out);
+			tag_file << output_line.str() << endl;
+
+			cout << "Tagged ground truth " << output_line.str() << endl;
+		}
         // Forward
-        if( key == 'f' || key == 32 ) // 32 is SPACE
+		else if( key == 'f' || key == 32 ) // 32 is SPACE
         {
             if( param->cap )
             {
