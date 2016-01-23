@@ -67,7 +67,6 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
    // This allows an easy copy from the input images
    // into the input buffers for the net
    WrapBatchInputLayer();
-   std::cout << "Leaving Constructor" << std::endl;
 }
 
 // Helper function for compare - used to sort values by pair.first keys
