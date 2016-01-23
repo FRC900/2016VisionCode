@@ -17,15 +17,16 @@
 #include "classifierio.hpp"
 #include "detectstate.hpp"
 #include "frameticker.hpp"
+#include "groundtruth.hpp"
+#include "objdetect.hpp"
 #include "videoin.hpp"
 #include "imagein.hpp"
 #include "camerain.hpp"
 #include "c920camerain.hpp"
+#include "zedin.hpp"
 #include "track.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
-#include "zedin.hpp"
-#include "objdetect.hpp"
 
 using namespace std;
 using namespace cv;
@@ -34,7 +35,7 @@ using namespace cv;
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
 string getDateTimeString(void);
 void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
-void drawRects(Mat image,vector<Rect> detectRects);
+void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void checkDuplicate (vector<Rect> detectRects);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
@@ -42,25 +43,27 @@ void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string
 string getVideoOutName(bool raw = true);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, NetworkTable *netTable, bool dateAndTime);
 
-void drawRects(Mat image,vector<Rect> detectRects)
+void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 {
     for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
 	{
 		// Mark detected rectangle on image
 		// Change color based on direction we think the bin is pointing
-	    Scalar rectColor = Scalar(0,0,255);
 	    rectangle(image, *it, rectColor, 3);
 		// Label each outlined image with a digit.  Top-level code allows
 		// users to save these small images by hitting the key they're labeled with
 		// This should be a quick way to grab lots of falsly detected images
 		// which need to be added to the negative list for the next
 		// pass of classifier training.
-		size_t i = it - detectRects.begin();
-		if (i < 10)
+		if (text)
 		{
-			stringstream label;
-			label << i;
-			putText(image, label.str(), Point(it->x+10, it->y+30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
+			size_t i = it - detectRects.begin();
+			if (i < 10)
+			{
+				stringstream label;
+				label << i;
+				putText(image, label.str(), Point(it->x+10, it->y+30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
+			}
 		}
 	}
 }
@@ -141,6 +144,11 @@ int main( int argc, const char** argv )
 	MediaIn* cap;
 	openMedia(args.inputName, cap, capPath, windowName, !args.batchMode);
 
+	GroundTruth groundTruth("ground_truth.txt", args.inputName);
+	unsigned groundTruthActual = 0;
+	unsigned groundTruthFound  = 0;
+	vector<Rect> groundTruthList;
+
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
 
@@ -150,12 +158,8 @@ int main( int argc, const char** argv )
 
 	Mat frame;
 
-	// Minimum size of a bin at ~30 feet distance
-	// TODO : Verify this once camera is calibrated
-	if (args.ds)
-	   minDetectSize = cap->width() * 0.07;
-	else
-	   minDetectSize = cap->width() * 0.195;
+	// TODO : Figure this out 
+	minDetectSize = cap->width() * 0.05;
 
 	// If UI is up, pop up the parameters window
 	if (!args.batchMode)
@@ -338,6 +342,27 @@ int main( int argc, const char** argv )
 			}
 		}
 
+		if (cap->frameCount() >= 0)
+		{
+			groundTruthList    = groundTruth.get(cap->frameCounter());
+			groundTruthActual += groundTruthList.size();
+			for(vector<Rect>::const_iterator gt = groundTruthList.begin(); gt != groundTruthList.end(); ++gt)
+			{
+				for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
+				{
+					// If the intersection is > 30% of the area of
+					// the ground truth, that's a success
+					if ((*it & *gt).area() > (gt->area() * 0.3))
+					{
+						groundTruthFound += 1;
+						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
+							rectangle(frame, *it, Scalar(128,128,128), 3);
+						break;
+					}
+				}
+			}
+		}
+
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
@@ -371,6 +396,9 @@ int main( int argc, const char** argv )
 			   line (frame, Point(frame.cols/2, 0) , Point(frame.cols/2, frame.rows), Scalar(255,255,0));
 			   line (frame, Point(0, frame.rows/2) , Point(frame.cols, frame.rows/2), Scalar(255,255,0));
 			}
+
+			if (groundTruthList.size())
+				drawRects(frame, groundTruthList, Scalar(255,0,0), false);
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
@@ -466,6 +494,8 @@ int main( int argc, const char** argv )
 		if (args.skip > 0)
 		   cap->frameCounter(cap->frameCounter() + args.skip - 1);
 	}
+	if (groundTruthActual)
+		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
 	return 0;
 }
 

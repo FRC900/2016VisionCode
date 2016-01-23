@@ -33,10 +33,10 @@ vector<string> ClassifierIO::getClassifierFiles() const
 {
     //Get 4 needed files
     vector<string> output;
-    output.push_back("deploy.prototxt");
-    output.push_back("network.caffemodel");
-    output.push_back("mean.binaryproto");
-    output.push_back("labels.txt");
+    output.push_back("d12/deploy.prototxt");
+    output.push_back("d12/network.caffemodel");
+    output.push_back("d12/mean.binaryproto");
+    output.push_back("d12/labels.txt");
 
     return output;
 }
