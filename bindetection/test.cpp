@@ -515,13 +515,9 @@ int main( int argc, const char** argv )
 }
 
 // Write out the selected rectangle from the input frame
-// Save multiple copies - the full size image, that full size image converted to grayscale and histogram equalized, and a small version of each.
-// The small version is saved because while the input images to the training process are 20x20
-// the detection code can find larger versions of them. Scale them down to 20x20 so the complete detected
-// image is used as a negative to the training code. Without this, the training code will pull a 20x20
-// sub-image out of the larger full image
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter)
 {
+   mkdir("negative", 0755);
    if (index < rects.size())
    {
       Mat image = frame(rects[index]);
@@ -529,22 +525,6 @@ void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const
       stringstream fn;
       fn << "negative/" << path << "_" << frameCounter << "_" << index;
       imwrite(fn.str() + ".png", image);
-
-      // Save grayscale equalized version
-      Mat frameGray;
-      cvtColor( image, frameGray, CV_BGR2GRAY );
-      equalizeHist( frameGray, frameGray );
-      imwrite(fn.str() + "_g.png", frameGray);
-
-      // Save 20x20 version of the same image
-      Mat smallImg;
-      resize(image, smallImg, Size(20,20));
-      imwrite(fn.str() + "_s.png", smallImg);
-
-      // Save grayscale equalized version of small image
-      cvtColor( smallImg, frameGray, CV_BGR2GRAY );
-      equalizeHist( frameGray, frameGray );
-      imwrite(fn.str() + "_g_s.png", frameGray);
    }
 }
 
