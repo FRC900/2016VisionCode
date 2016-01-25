@@ -99,39 +99,39 @@ bool C920CameraIn::initCamera(int _stream, bool gui)
 	if (!_camera.ChangeCaptureSize(_captureSize))
 	{
 		return false;
-	};
-	_camera.ChangeCaptureFPS(v4l2::CAPTURE_FPS_30);
+	}
+	if (!_camera.ChangeCaptureFPS(v4l2::CAPTURE_FPS_30))
 	{
 		return false;
-	};
-	_camera.GetBrightness(_brightness);
+	}
+	if (!_camera.GetBrightness(_brightness))
 	{
 		return false;
-	};
-	_camera.GetContrast(_contrast);
+	}
+	if (!_camera.GetContrast(_contrast))
 	{
 		return false;
-	};
-	_camera.GetSaturation(_saturation);
+	}
+	if (!_camera.GetSaturation(_saturation))
 	{
 		return false;
-	};
-	_camera.GetSharpness(_sharpness);
+	}
+	if (!_camera.GetSharpness(_sharpness))
 	{
 		return false;
-	};
-	_camera.GetGain(_gain);
+	}
+	if (!_camera.GetGain(_gain))
 	{
 		return false;
-	};
-	_camera.GetBacklightCompensation(_backlightCompensation);
+	}
+	if (!_camera.GetBacklightCompensation(_backlightCompensation))
 	{
 		return false;
-	};
-	_camera.GetWhiteBalanceTemperature(_whiteBalanceTemperature);
+	}
+	if (!_camera.GetWhiteBalanceTemperature(_whiteBalanceTemperature))
 	{
 		return false;
-	};
+	}
 	++_whiteBalanceTemperature;
 
 	// force focus to farthest distance, non-auto
