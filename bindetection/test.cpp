@@ -517,7 +517,7 @@ int main( int argc, const char** argv )
 // Write out the selected rectangle from the input frame
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter)
 {
-   mkdir("negative", 0755);
+   mkdir("negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
    if (index < rects.size())
    {
       Mat image = frame(rects[index]);
