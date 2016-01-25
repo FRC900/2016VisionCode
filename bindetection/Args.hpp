@@ -21,6 +21,7 @@ class Args //class for processing arguments
 		int  classifierDirNum; // classifier directory and 
 		int  classifierStageNum;// stage to use
 		std::string inputName; // input file name or camera number
+		bool groundTruth;      // only test frames with ground truth data
 
 		Args(void);
 		bool processArgs(int argc, const char **argv);

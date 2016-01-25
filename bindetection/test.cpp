@@ -147,14 +147,19 @@ int main( int argc, const char** argv )
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	unsigned groundTruthActual = 0;
 	unsigned groundTruthFound  = 0;
+	unsigned groundTruthFrame  = 1;
 	vector<Rect> groundTruthList;
-
-	if (!args.batchMode)
-		namedWindow(windowName, WINDOW_AUTOSIZE);
+	vector<unsigned int> groundTruthFrames;
+	if (args.groundTruth)
+		groundTruthFrames = groundTruth.getFrameList();
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
 		cap->frameCounter(args.frameStart);
+
+	if (!args.batchMode)
+		namedWindow(windowName, WINDOW_AUTOSIZE);
+
 
 	Mat frame;
 
@@ -197,6 +202,11 @@ int main( int argc, const char** argv )
 	DetectState detectState(
 		  ClassifierIO(args.classifierBaseDir, args.classifierDirNum, args.classifierStageNum),
 		  gpu::getCudaEnabledDeviceCount() > 0);
+
+	// Find the first frame number which has ground truth data
+	if (args.groundTruth)
+		cap->frameCounter(groundTruthFrames[0]);
+
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -488,10 +498,15 @@ int main( int argc, const char** argv )
 		// Save frame time for the current frame
 		frameTicker.end();
 
+		// If testing only ground truth frames, move to the
+		// next one in the list
+		if (args.groundTruth)
+		   cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
 		// pretty similar so there will be lots of redundant images found
-		if (args.skip > 0)
+		else if (args.skip > 0)
 		   cap->frameCounter(cap->frameCounter() + args.skip - 1);
 	}
 	if (groundTruthActual)

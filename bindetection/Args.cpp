@@ -25,6 +25,7 @@ static void Usage(void)
    cout << "\t--classifierBase=    base directory for classifier info" << endl;
    cout << "\t--classifierDir=     pick classifier dir and stage number" << endl;
    cout << "\t--classifierStage=   from command line" << endl;
+   cout << "\t--groundTruth        only test frames which have ground truth data " << endl;
    cout << endl;
    cout << "Examples:" << endl;
    cout << "test : start in GUI mode, open default camera, start detecting and tracking while displaying results in the GUI" << endl;
@@ -47,6 +48,7 @@ Args::Args(void)
 	classifierDirNum   = 14;
 	classifierStageNum = 29;
 	frameStart         = 0.0;
+	groundTruth        = false;
 }
 
 bool Args::processArgs(int argc, const char **argv)
@@ -64,6 +66,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string classifierBaseOpt  = "--classifierBase="; // classifier base dir
 	const string classifierDirOpt   = "--classifierDir=";  // pick classifier dir and stage number
 	const string classifierStageOpt = "--classifierStage=";// from command line
+	const string groundTruthOpt     = "--groundTruth";     // only test frames which have ground truth data
 	const string badOpt             = "--";
 	// Read through command line args, extract
 	// cmd line parameters and input filename
@@ -96,6 +99,8 @@ bool Args::processArgs(int argc, const char **argv)
 			classifierDirNum = atoi(argv[fileArgc] + classifierDirOpt.length());
 		else if (classifierStageOpt.compare(0, classifierStageOpt.length(), argv[fileArgc], classifierStageOpt.length()) == 0)
 			classifierStageNum = atoi(argv[fileArgc] + classifierStageOpt.length());
+		else if (groundTruthOpt.compare(0, groundTruthOpt.length(), argv[fileArgc], groundTruthOpt.length()) == 0)
+			groundTruth = true;
 		else if (badOpt.compare(0, badOpt.length(), argv[fileArgc], badOpt.length()) == 0) // unknown option
 		{
 			cerr << "Unknown command line option " << argv[fileArgc] << endl;
