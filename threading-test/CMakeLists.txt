@@ -21,9 +21,10 @@ find_package(CUDA 6.5 REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Boost REQUIRED)
 
-include_directories(${OpenCV_INCLUDE_DIRS} /usr/local/include  ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
+include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS} /usr/local/include /usr/include/boost ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
+link_directories(${Boost_LIBRARY_DIR})
 
 add_executable( threading_test threading.cpp zedin.cpp)
 target_link_libraries( threading_test ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${Boost_LIBRARIES} ${CUDA_npps_LIBRARY})
