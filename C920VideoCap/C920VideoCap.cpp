@@ -31,8 +31,8 @@ int Brightness = 128,
     Focus = 20,
     BacklightCompensation = 20,
     WhiteBalanceTemperature = 20,
-	AutoExposure = 1;
-v4l2::C920Camera camera(0);
+	AutoExposure = 3;
+v4l2::C920Camera camera(1);
 
 void brightnessCallback(int value, void *data)
 {
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
 
 	// Set auto-focus off on startup
 	focusCallback(20, NULL);
-	autoExposureCallback(1, NULL);
+	autoExposureCallback(3, NULL);
 
 	cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
 	cv::createTrackbar("Brightness", "Adjustments", &Brightness, 255, brightnessCallback);

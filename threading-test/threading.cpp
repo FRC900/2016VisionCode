@@ -23,6 +23,17 @@ using namespace cv;
 
 bool leftCamera = true;
 
+void grabFramesLoop(ZedIn &cap) { //this is the function run in a separate thread
+
+clock_t startTime;
+while(1) {
+	startTime = clock();
+	cap.update();
+	std::cout << "Grab loop took: " << (((double)clock() - startTime) / CLOCKS_PER_SEC) << " seconds" << endl;
+	}
+}
+
+
 
 int main(int argc, char **argv) {
 
@@ -39,13 +50,13 @@ int main(int argc, char **argv) {
   
   Mat frame;
   clock_t startTime;
+  boost::thread grab_t(&grabFramesLoop,boost::ref(*cap));
   while(1)
     {
     startTime = clock();
-    cap->update();
     cap->getFrame().copyTo(frame);
     imshow("frame",frame);
-    std::cout << "Took: " << (((double)clock() - startTime) / CLOCKS_PER_SEC) << " seconds" << endl;
-    waitKey(5);
+    waitKey(10);
+    std::cout << "Main loop took: " << (((double)clock() - startTime) / CLOCKS_PER_SEC) << " seconds" << endl;
     }
 }
