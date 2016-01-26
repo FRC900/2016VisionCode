@@ -1,6 +1,6 @@
 #include "objdetect.hpp"
 
-int scale         = 4;
+int scale         = 35;
 int neighbors     = 4;
 int minDetectSize = 20;
 int maxDetectSize = 450;
@@ -39,6 +39,7 @@ void GPU_NNDetect::Detect (const Mat &frameInput, vector<Rect> &imageRects)
   classifier_.detectMultiscale(frameInput,
       Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
       Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
+	  1.01 + scale/100.,
       imageRects);
 
   /*

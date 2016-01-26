@@ -23,6 +23,7 @@ template <class MatT>
 void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
+	double scaleFactor,
 	std::vector<cv::Rect> &rectsOut)
 {
 	int wsize = classifier.getInputGeometry().width;
@@ -31,7 +32,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	std::vector<int> scales;
 	std::vector<int> scalesOut;
 
-	generateInitialWindows(inputImg, minSize, maxSize, wsize, scaledimages, rects, scales);
+	generateInitialWindows(inputImg, minSize, maxSize, wsize, scaleFactor, scaledimages, rects, scales);
 	runDetection(classifier, scaledimages, rects, scales, .7, "ball", rectsOut, scalesOut);
 	for(size_t i = 0; i < rectsOut.size(); i++)
 	{
@@ -46,6 +47,7 @@ void NNDetect<MatT>::generateInitialWindows(
       const cv::Size &minSize,
       const cv::Size &maxSize,
       const int wsize,
+	  double scaleFactor,
       std::vector<std::pair<MatT, float> > &scaledimages,
       std::vector<cv::Rect> &rects,
       std::vector<int> &scales)
@@ -72,7 +74,7 @@ void NNDetect<MatT>::generateInitialWindows(
    MatT(input).convertTo(f32Img, CV_32FC3);
 
    // Create array of scaled images
-   scalefactor(f32Img, cv::Size(wsize,wsize), minSize, maxSize, 1.35, scaledimages);
+   scalefactor(f32Img, cv::Size(wsize,wsize), minSize, maxSize, scaleFactor, scaledimages);
 
    // Main loop.  Look at each scaled image in turn
    for (size_t scale = 0; scale < scaledimages.size(); ++scale)
