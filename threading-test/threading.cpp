@@ -26,6 +26,8 @@ bool leftCamera = true;
 void grabFramesLoop(ZedIn &cap) { //this is the function run in a separate thread
 
 clock_t startTime;
+
+
 while(1) {
 	startTime = clock();
 	cap.update();
@@ -51,12 +53,14 @@ int main(int argc, char **argv) {
   Mat frame;
   clock_t startTime;
   boost::thread grab_t(&grabFramesLoop,boost::ref(*cap));
+  sleep(1);
+
   while(1)
     {
     startTime = clock();
     cap->getFrame().copyTo(frame);
     imshow("frame",frame);
-    waitKey(10);
+    waitKey(400);
     std::cout << "Main loop took: " << (((double)clock() - startTime) / CLOCKS_PER_SEC) << " seconds" << endl;
     }
 }

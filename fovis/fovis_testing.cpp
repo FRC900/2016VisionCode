@@ -38,6 +38,26 @@ string isometryToString(const Eigen::Isometry3d& m)
   return std::string(result);
 }
 
+void inRangeFloat(Mat &img, Mat &mask, float lb, float ub) {
+	float* ptr_img;
+	float* ptr_mask;
+	double sum = 0;
+	for(int j = 0;j < img.rows;j++){
+
+	    ptr_img = img.ptr<float>(j);
+	    ptr_mask = mask.ptr<float>(j);
+
+	    for(int i = 0;i < img.cols;i++){
+		if(!(isnan(ptr_img[i])) && lb < ptr_img[i] < ub) //if the data is not NAN and mask is true
+		    ptr_mask[i] = 255;
+		else
+		    ptr_mask[i] = 0;
+	    }
+	}
+
+
+}
+
 double avgOfMat(Mat &img, Mat &mask) { //this averages mats without counting NaN
 	CV_Assert(img.depth() == CV_32F); //must be of type used for depth
 	float* ptr_img;
@@ -49,7 +69,9 @@ double avgOfMat(Mat &img, Mat &mask) { //this averages mats without counting NaN
 	    ptr_mask = mask.ptr<float>(j);
 
 	    for(int i = 0;i < img.cols;i++){
-		if(ptr_img[i] != NAN && ptr_mask[i] == 255) //if the data is not NAN and mask is true
+		//cout << "value of depth: " << ptr_img[i] << endl;
+		//cout << "value of mask: " << ptr_mask[i] << endl;
+		if(!(isnan(ptr_img[i])) && ptr_img[i] != 0 && ptr_mask[i] != 0 && !(isnan(ptr_mask[i]))) //if the data is not NAN and mask is true
 		    sum = sum + ptr_img[i];
 	    }
 	}
@@ -99,6 +121,7 @@ int main(int argc, char **argv) {
   int maxDepthInt = 1000;
   int stddev_weight_int = 100;
   int rangeRangeInt = 100;
+  int maxPeaks = 1000;
 
   string detectWindowName = "Background Partitioning Parameters";
   namedWindow(detectWindowName);
@@ -107,14 +130,15 @@ int main(int argc, char **argv) {
   createTrackbar ("Histogram Max Depth", detectWindowName, &maxDepthInt, 2000, NULL);
   createTrackbar ("Number of bins", detectWindowName, &numHistBins, 128, NULL);
   createTrackbar ("Range of Range", detectWindowName, &rangeRangeInt, 1000, NULL);
+  createTrackbar ("Maximum Peaks", detectWindowName, &maxPeaks, 10000, NULL);
 
   float histRange_arr[2];
   float stddev_weight;
 
   fovis::Rectification rect(rgb_params);
   fovis::VisualOdometry* odom = new fovis::VisualOdometry(&rect, options);
-
-  Mat frame, depthFrame, histMat, displayFrame, depthMask, depthMask_inv, hist_stddev_mat, hist_mean_mat;
+  Mat depthMask(cap->height, cap->width, CV_8UC1);
+  Mat frame, depthFrame, histMat, displayFrame, depthMask_inv, hist_stddev_mat, hist_mean_mat;
   Mat depth_mean_mat_1, depth_stddev_mat_1, depth_mean_mat_2, depth_stddev_mat_2;
   float* depthImageFloat = new float[cap->width * cap->height];
   double histMaxVal;
@@ -147,8 +171,8 @@ int main(int argc, char **argv) {
     
     depthSource.setDepthImage(depthImageFloat);
 
-    histRange_arr[0] = minDepthInt / 100.0;
-    histRange_arr[1] = maxDepthInt / 100.0;
+    histRange_arr[0] = (float)minDepthInt / 100.0;
+    histRange_arr[1] = (float)maxDepthInt / 100.0;
     stddev_weight = stddev_weight_int / 100.0;
 
     const float* histRange = { histRange_arr };
@@ -159,27 +183,24 @@ int main(int argc, char **argv) {
     float bin_width_m = (histRange_arr[1] - histRange_arr[0]) / (float)numHistBins;
 
     histMat.at<float>(0) = 0; //first bin includes NaN and gets very large so ignore them
-    //meanStdDev(histMat,hist_stddev_mat,hist_mean_mat); //calculate the mean and stddev of the histogram
-    //minMaxLoc(histMat,NULL,&histMaxVal,NULL,&histMaxValLoc); //calculate peak in the histogram
 
     peaks.clear();
     histVec.clear();
-    for(int i = 0; i < histMat.cols; i++)
+    for(int i = 0; i < histMat.rows; i++)
 	histVec.push_back(histMat.at<float>(i));
 
     p1d::Persistence1D p; //use a library called Persistence to find all maximums
     p.RunPersistence(histVec);
     vector< p1d::TPairedExtrema > Extrema;
-    p.GetPairedExtrema(Extrema, 10);
+    p.GetPairedExtrema(Extrema, maxPeaks);
+    cout << "size of extrema: " << Extrema.size() << endl;
     //Print all found pairs - pairs are sorted ascending wrt. persistence.
     for(vector< p1d::TPairedExtrema >::iterator it = Extrema.begin(); it != Extrema.end(); it++)
-    {
-        cout << "Persistence: " << (*it).Persistence
-             << " minimum index: " << (*it).MinIndex
-             << " maximum index: " << (*it).MaxIndex
-             << std::endl;
+    { //either we run out of peaks or reach the maximum allowed by the parameter
+	cout << "Persistence: " << (*it).Persistence
+		     << " maximum index: " << (*it).MaxIndex
+		     << std::endl;
 	peaks.push_back((*it).MaxIndex);
-
     }
 
     Mat histImage(hist_img_height,hist_img_width, CV_8UC1, Scalar(0,0,0));
@@ -197,7 +218,13 @@ int main(int argc, char **argv) {
 
     frame.copyTo(displayFrame); //make a color copy for display purposes
     cvtColor(displayFrame,displayFrame,CV_BGR2HSV); //convert to hsv
-    inRange(depthFrame,Scalar((peaks[peaks.size() - 1] * bin_width_m) - (rangeRangeInt / 1000.0)), Scalar((peaks[peaks.size() - 1] * bin_width_m) + (rangeRangeInt / 1000.0)),depthMask);
+    if(peaks.size() == 0) {
+	cout << "Found no peaks!!!" << endl;
+	return -1;	
+	}
+    cout << "Minimum range: " << (peaks[peaks.size() - 1] * bin_width_m) - (rangeRangeInt / 1000.0) << endl;
+    cout << "Maximum range: " << (peaks[peaks.size() - 1] * bin_width_m) + (rangeRangeInt / 1000.0) << endl;
+    inRangeFloat(depthFrame,depthMask,(peaks[peaks.size() - 1] * bin_width_m) - (rangeRangeInt / 1000.0),(peaks[peaks.size() - 1] * bin_width_m) + (rangeRangeInt / 1000.0));
     double depth_mean_1 = avgOfMat(depthFrame,depthMask); //find the average of the "background"
     bitwise_not(depthMask,depthMask_inv); //invert the mat
     double depth_mean_2 = avgOfMat(depthFrame,depthMask_inv); //find the average of the "foreground"
