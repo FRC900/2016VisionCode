@@ -18,6 +18,7 @@ class NNDetect
 			const cv::Size &minSize,
 			const cv::Size &maxSize,
 			const int wsize,
+			double scaleFactor,
 			std::vector<std::pair<MatT, float> > &scaledimages,
 			std::vector<cv::Rect> &rects,
 
@@ -42,6 +43,7 @@ std::vector<int> &scales);
 	void detectMultiscale(const cv::Mat &inputImg,
 		const cv::Size &minSize,
 		const cv::Size &maxSize,
+		double          scaleFactor,
 		std::vector<cv::Rect> &rectsOut);
 };
 
