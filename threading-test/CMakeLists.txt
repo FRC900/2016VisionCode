@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_CXX_FLAGS "-std=c++0x -fopenmp")
+set(CMAKE_CXX_FLAGS "-std=c++11 -fopenmp")
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++11)
 project( threading_test )
 
@@ -19,9 +19,10 @@ find_package(OpenCV REQUIRED )
 find_package(ZED 0.8.2 REQUIRED)
 find_package(CUDA 6.5 REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost COMPONENTS system REQUIRED)
+find_package(Threads)
 
-include_directories(${OpenCV_INCLUDE_DIRS} /usr/local/include  ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
+include_directories(${OpenCV_INCLUDE_DIRS} /usr/local/include  ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${Boost_INCLUDE_DIR})
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 
