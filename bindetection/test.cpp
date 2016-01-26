@@ -1,17 +1,16 @@
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/objdetect/objdetect.hpp"
-#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/objdetect/objdetect.hpp>
 
 #include <iostream>
+#include <iomanip>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
 
-#include "networktables/NetworkTable.h"
-#include "networktables2/type/NumberArray.h"
+#include <zmq.hpp>
 
 #include "classifierio.hpp"
 #include "frameticker.hpp"
@@ -26,9 +25,6 @@ using namespace cv;
 
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
 string getDateTimeString(void);
-
-void writeNetTableNumber(NetworkTable *netTable, string label, int index, double value);
-void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
 
 // Allow switching between CPU and GPU for testing 
 enum CLASSIFIER_MODE
@@ -183,21 +179,21 @@ int main( int argc, const char** argv )
 	// recycling bins are 24" wide
 	TrackedObjectList binTrackingList(24.0, frame.cols);
 
-	NetworkTable::SetClientMode();
-	NetworkTable::SetIPAddress("10.9.0.2"); 
-	NetworkTable *netTable = NetworkTable::GetTable("VisionTable");
-	const size_t netTableArraySize = 7; // 7 bins?
-	NumberArray netTableArray;
+    zmq::context_t context (1);
+    zmq::socket_t publisher(context, ZMQ_PUB);
 
-	// 7 bins max, 3 entries each (confidence, distance, angle)
-	netTableArray.setSize(netTableArraySize * 3);
+    std::cout << "Starting network publisher 5555" << std::endl;
+	publisher.bind("tcp://*:5555");
+	publisher.bind("ipc://visioncode.ipc");
+
+	const size_t netTableArraySize = 7; // 7 bins?
 
 	// Code to write video frames to avi file on disk
 	string videoOutName = getVideoOutName();
 	Size S(frame.cols, frame.rows);
 	VideoWriter outputVideo;
 	VideoWriter save;
-	args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
+	//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
 
@@ -215,7 +211,7 @@ int main( int argc, const char** argv )
 		frameTicker.start(); // start time for this frame
 		if (--videoWritePollCount == 0)
 		{
-			args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
+			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
 		}
 		if (args.writeVideo) {
@@ -224,8 +220,10 @@ int main( int argc, const char** argv )
 			if (!outputVideo.isOpened())
 				outputVideo.open(videoOutName.c_str(), CV_FOURCC('M','J','P','G'), 15, S, true);
 			WriteOnFrame textWriter(frame);
-			string matchNum = netTable->GetString("Match Number", "No Match Number");
-			double matchTime = netTable->GetNumber("Match Time",-1);
+			//string matchNum = netTable->GetString("Match Number", "No Match Number");
+			//double matchTime = netTable->GetNumber("Match Time",-1);
+			string matchNum = "No Match Number";
+			double matchTime = -1.0;
 			textWriter.writeMatchNumTime(matchNum,matchTime);
 			textWriter.writeTime();
 			textWriter.write(outputVideo);
@@ -260,17 +258,7 @@ int main( int argc, const char** argv )
 		// Grab info from trackedobjects, print it out
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
-		// Clear out network table array
-		for (size_t i = 0; !args.ds & (i < (netTableArraySize * 3)); i++)
-			netTableArray.set(i, -1);
-#if 0
-		for (size_t i = 0; !args.ds & (i < netTableArraySize); i++)
-		{
-			writeNetTableNumber(netTable,"Ratio", i, -1);
-			writeNetTableNumber(netTable,"Distance", i, -1);
-			writeNetTableNumber(netTable,"Angle", i, -1);
-		}
-#endif
+		stringstream zmqString;
 		for (size_t i = 0; i < displayList.size(); i++)
 		{
 			if ((displayList[i].ratio >= 0.15) && args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
@@ -296,23 +284,18 @@ int main( int argc, const char** argv )
 			}
 			if (!args.ds && (i < netTableArraySize))
 			{
-				netTableArray.set(i*3,   displayList[i].ratio);
-				netTableArray.set(i*3+1, displayList[i].distance);
-				netTableArray.set(i*3+2, displayList[i].angle);
-#if 0
-				writeNetTableNumber(netTable,"Ratio", i, displayList[i].ratio);
-				writeNetTableNumber(netTable,"Distance", i, displayList[i].distance);
-				writeNetTableNumber(netTable,"Angle", i, displayList[i].angle);
-				cout << i << " ";
-				cout << displayList[i].ratio << " ";
-				cout << displayList[i].distance << " ";
-				cout << displayList[i].angle << endl;
-#endif
+				zmqString << fixed << setprecision(2) << displayList[i].ratio << " " ;
+				zmqString << fixed << setprecision(2) << (float)displayList[i].distance << " " ;
+				zmqString << fixed << setprecision(2) << displayList[i].angle << " " ;
 			}
 		}
+		for (size_t i = displayList.size(); i < netTableArraySize; i++)
+			zmqString << "0.00 0.00 0.00 ";
 
-		if (!args.ds)
-			netTable->PutValue("VisionArray", netTableArray);
+		cout << "ZMQ : " << zmqString.str() << endl;
+		zmq::message_t request(zmqString.str().length() - 1);
+		memcpy((void *) request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
+		publisher.send(request);
 
 		// Don't update to next frame if paused to prevent
 		// objects missing from this frame to be aged out
@@ -375,7 +358,7 @@ int main( int argc, const char** argv )
 						hits[i] = true;
 					}
 				}
-				writeNetTableBoolean(netTable, "Bin", i + 1, hits[i]);
+				//writeNetTableBoolean(netTable, "Bin", i + 1, hits[i]);
 			}
 		}
 
@@ -422,8 +405,6 @@ int main( int argc, const char** argv )
 			char c = waitKey(5);
 			if ((c == 'c') || (c == 'q') || (c == 27)) 
 			{ // exit
-				if (netTable->IsConnected())
-					NetworkTable::Shutdown();
 				return 0;
 			} 
 			else if( c == ' ') { pause = !pause; }
@@ -613,22 +594,6 @@ void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string
 		capPath.erase(0, last_slash_idx + 1);
       windowName = fileName;
    }
-}
-
-void writeNetTableNumber(NetworkTable *netTable, string label, int index, double value)
-{
-   stringstream ss;
-   ss << label;
-   ss << (index+1);
-   netTable->PutNumber(ss.str().c_str(), value);
-}
-
-void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value)
-{
-   stringstream ss;
-   ss << label;
-   ss << (index+1);
-   netTable->PutBoolean(ss.str().c_str(), value);
 }
 
 // Code to allow switching between CPU and GPU for testing

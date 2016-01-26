@@ -17,15 +17,26 @@ class VideoIn
    public:
       VideoIn(const char *path);
       VideoIn(int _stream = -1, bool gui = false);
+	  bool initCamera(int _stream, bool gui);
 
       cv::VideoCapture *VideoCap(void);
       bool getNextFrame(bool pause, cv::Mat &frame);
       int frameCounter(void);
       void frameCounter(int frameCount);
 
+	  // Mark these as friends so they can access private class data
+	  friend void brightnessCallback(int value, void *data);
+	  friend void contrastCallback(int value, void *data);
+	  friend void saturationCallback(int value, void *data);
+	  friend void sharpnessCallback(int value, void *data);
+	  friend void gainCallback(int value, void *data);
+	  friend void backlightCompensationCallback(int value, void *data);
+	  friend void whiteBalanceTemperatureCallback(int value, void *data);
+	  friend void focusCallback(int value, void *data);
    private:
       v4l2::C920Camera _camera;
       cv::VideoCapture _cap;
+	  v4l2::CaptureSize _captureSize;
       cv::Mat          _frame;
       int              _frameCounter;
       bool             _c920;

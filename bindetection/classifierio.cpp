@@ -22,7 +22,7 @@ string ClassifierIO::getClassifierDir() const
 {
    struct stat fileStat;
    stringstream ss;
-   ss << "/home/ubuntu/2015VisionCode/cascade_training/classifier_bin_";
+   ss << "/home/ubuntu/2016VisionCode/cascade_training/classifier_bin_";
    ss << _dirNum;
    if ((stat(ss.str().c_str(), &fileStat) == 0) && S_ISDIR(fileStat.st_mode))
       return string(ss.str());
