@@ -501,7 +501,12 @@ int main( int argc, const char** argv )
 		// If testing only ground truth frames, move to the
 		// next one in the list
 		if (args.groundTruth)
+		{
+
+			if (groundTruthFrame >= groundTruthFrames.size())
+				break;
 		   cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+		}
 
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
