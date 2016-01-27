@@ -184,7 +184,6 @@ int main( int argc, const char** argv )
 
     std::cout << "Starting network publisher 5555" << std::endl;
 	publisher.bind("tcp://*:5555");
-	publisher.bind("ipc://visioncode.ipc");
 
 	const size_t netTableArraySize = 7; // 7 bins?
 
@@ -259,6 +258,7 @@ int main( int argc, const char** argv )
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
 		stringstream zmqString;
+		zmqString << "V ";
 		for (size_t i = 0; i < displayList.size(); i++)
 		{
 			if ((displayList[i].ratio >= 0.15) && args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
@@ -292,9 +292,9 @@ int main( int argc, const char** argv )
 		for (size_t i = displayList.size(); i < netTableArraySize; i++)
 			zmqString << "0.00 0.00 0.00 ";
 
-		cout << "ZMQ : " << zmqString.str() << endl;
+		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
-		memcpy((void *) request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
+		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
 		publisher.send(request);
 
 		// Don't update to next frame if paused to prevent
