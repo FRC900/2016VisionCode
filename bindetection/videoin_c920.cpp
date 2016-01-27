@@ -178,50 +178,38 @@ bool VideoIn::initCamera(int _stream, bool gui)
 
 bool VideoIn::getNextFrame(bool pause, Mat &frame)
 {
-   if (_c920)
-   {
-      _camera.SetBrightness(_brightness);
-      _camera.SetContrast(_contrast);
-      _camera.SetSaturation(_saturation);
-      _camera.SetSharpness(_sharpness);
-      _camera.SetGain(_gain);
-      _camera.SetBacklightCompensation(_backlightCompensation);
-      --_whiteBalanceTemperature;
-      _camera.SetWhiteBalanceTemperature(_whiteBalanceTemperature);
-      ++_whiteBalanceTemperature;
-      --_focus;
-      _camera.SetFocus(_focus);
-      ++_focus;
-   }
-   if (!pause && _video)
-   {
-       if (_c920)
-       {
-	  if (_camera.GrabFrame())
-	     _camera.RetrieveMat(_frame);
-       }
-       else
-	  _cap >> _frame;
-      if( _frame.empty() )
-	 return false;
-      if (_frame.rows > 800)
-	 pyrDown(_frame, _frame);
-      _frameCounter += 1;
-   }
-   frame = _frame.clone();
+	if (!pause && _video)
+	{
+		if (_c920)
+		{
+			if (_camera.GrabFrame())
+				_camera.RetrieveMat(_frame);
+		}
+		else
+			_cap >> _frame;
+		if( _frame.empty() )
+			return false;
+		if (_frame.rows > 800)
+			pyrDown(_frame, _frame);
+		_frameCounter += 1;
+	}
+	frame = _frame.clone();
 
-   return true;
+	return true;
 }
+
 int VideoIn::frameCounter(void)
 {
    return _frameCounter;
 }
+
 void VideoIn::frameCounter(int frameCount)
 {
    if (_video && !_c920)
       _cap.set(CV_CAP_PROP_POS_FRAMES, frameCount);
    _frameCounter = frameCount;
 }
+
 VideoCapture *VideoIn::VideoCap(void) 
 {
    if (_video && !_c920)
