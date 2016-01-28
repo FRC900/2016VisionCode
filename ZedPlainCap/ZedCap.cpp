@@ -34,12 +34,13 @@ int main(int argc, char *argv[])
     char name[PATH_MAX];
     int  index = 0;
     int  rc;
+    struct stat statbuf;
     do
     {
         sprintf(name, "cap%d.avi", index++);
         rc = stat(name, &statbuf);
     } while (rc == 0);
-    VideoWriter outputVideo(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(frame.cols, frame.rows), true);
+    VideoWriter outputVideo(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(camera->width(), camera->height()), true);
     Mat         frame;
 
     while (true)
