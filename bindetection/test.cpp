@@ -164,7 +164,8 @@ int main( int argc, const char** argv )
 	Mat frame;
 
 	// TODO : Figure this out 
-	minDetectSize = cap->width() * 0.05;
+	//minDetectSize = cap->width() * 0.05;
+	minDetectSize = 40;
 
 	// If UI is up, pop up the parameters window
 	if (!args.batchMode)
@@ -204,8 +205,11 @@ int main( int argc, const char** argv )
 		  gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
-	if (args.groundTruth)
+	if (args.groundTruth && (groundTruthFrames.size() > 0))
+	{
+		cout << "Set frame counter to " << groundTruthFrames[0];
 		cap->frameCounter(groundTruthFrames[0]);
+	}
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -354,7 +358,7 @@ int main( int argc, const char** argv )
 
 		if (cap->frameCount() >= 0)
 		{
-			groundTruthList    = groundTruth.get(cap->frameCounter());
+			groundTruthList    = groundTruth.get(cap->frameCounter() - 1);
 			groundTruthActual += groundTruthList.size();
 			for(vector<Rect>::const_iterator gt = groundTruthList.begin(); gt != groundTruthList.end(); ++gt)
 			{
@@ -362,7 +366,7 @@ int main( int argc, const char** argv )
 				{
 					// If the intersection is > 30% of the area of
 					// the ground truth, that's a success
-					if ((*it & *gt).area() > (gt->area() * 0.3))
+					if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))
 					{
 						groundTruthFound += 1;
 						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
@@ -423,11 +427,22 @@ int main( int argc, const char** argv )
 			{ // exit
 				if (netTable->IsConnected())
 					NetworkTable::Shutdown();
-				return 0;
+				break;
 			}
-			else if( c == ' ') { pause = !pause; }
+			else if( c == ' ') 
+			{ 
+				pause = !pause; 
+			}
 			else if( c == 'f')  // advance to next frame
 			{
+				if (!pause)
+					pause = true;
+				else if (args.groundTruth)
+				{
+					if (groundTruthFrame >= groundTruthFrames.size())
+						break;
+					cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+				}
 				cap->getNextFrame(frame, false);
 			}
 			else if (c == 'A') // toggle capture-all
@@ -501,7 +516,13 @@ int main( int argc, const char** argv )
 		// If testing only ground truth frames, move to the
 		// next one in the list
 		if (args.groundTruth)
-		   cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+		{
+
+			if (groundTruthFrame >= groundTruthFrames.size())
+				break;
+			if (!pause)
+				cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+		}
 
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
