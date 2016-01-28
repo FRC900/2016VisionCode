@@ -84,6 +84,9 @@ int V_MAX = 255;
 int contourMin = 0;
 int contourMax = 50000;
 RNG rng(12345);
+
+
+
 int main(int argc, char **argv)
 {
 
@@ -112,15 +115,20 @@ int main(int argc, char **argv)
 
    Mat image;
    Mat hsvImage;
+   Mat thresholdHSVImage;
+   cout << "allocated images" << endl;
    while(1)
    {
-      
-      bool pause = true;
+	cout << "looped" << endl;
+	cout << cap << endl;
 	 cap->update();
+	 cout << "updated" << endl;
 	 cap->getFrame().copyTo(image);
+	 cout << "copied image" << endl;
+	 imwrite("test.png", image);
 	 imshow ("BGR", image);
-	 cvtColor(image, hsvImage, COLOR_BGR2HSV);
-	 Mat thresholdHSVImage;
+	 cout << "imshow" << endl;
+	 /*cvtColor(image, hsvImage, COLOR_BGR2HSV);
 	 generateThreshold(image, thresholdHSVImage,
 	       H_MIN, H_MAX, S_MIN, S_MAX, V_MIN, V_MAX);
 	 imshow ("HSV threshold", thresholdHSVImage);
@@ -158,8 +166,8 @@ int main(int argc, char **argv)
 		  minMC = mc[i].y;
 	    }
 	 }
-	 imshow ("HSV Contours and Mass Centers", hsvImage);
-	 waitKey(5);
+	 imshow ("HSV Contours and Mass Centers", hsvImage); */
+	 waitKey(10);
    }
 
 }
