@@ -17,12 +17,14 @@ ZedIn::ZedIn()
 	}
 	_width = zed->getImageSize().width;
 	_height = zed->getImageSize().height;
-	stereoParams = *zed->getParameters();
+	memcpy(&stereoParams, zed->getParameters(), sizeof(stereoParams));
 
 	cv_frame.create(_height,_width,CV_8UC4);
 	cv_normalDepth.create(_height,_width,CV_8UC4);
 	cv_depth.create(_height,_width,CV_32F);
 	cv_confidence.create(_height,_width,CV_8UC4);
+	
+	cv_frame = Scalar(2);
 }
 
 ZedIn::ZedIn(char* svo_path)
@@ -39,7 +41,14 @@ ZedIn::ZedIn(char* svo_path)
 
 	_width = zed->getImageSize().width;
 	_height = zed->getImageSize().height;
-	stereoParams = *zed->getParameters();
+	memcpy(&stereoParams, zed->getParameters(), sizeof(stereoParams));
+
+	cv_frame.create(_height,_width,CV_8UC4);
+	cv_normalDepth.create(_height,_width,CV_8UC4);
+	cv_depth.create(_height,_width,CV_32F);
+	cv_confidence.create(_height,_width,CV_8UC4);
+	
+	cv_frame = Scalar(2);
 }
 
 bool ZedIn::update()

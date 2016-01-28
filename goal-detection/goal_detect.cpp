@@ -117,17 +117,22 @@ int main(int argc, char **argv)
    Mat hsvImage;
    Mat thresholdHSVImage;
    cout << "allocated images" << endl;
-   while(1)
+   while(true)
    {
 	cout << "looped" << endl;
-	cout << cap << endl;
-	 cap->update();
-	 cout << "updated" << endl;
-	 cap->getFrame().copyTo(image);
-	 cout << "copied image" << endl;
-	 imwrite("test.png", image);
-	 imshow ("BGR", image);
-	 cout << "imshow" << endl;
+	//cout << cap << endl;
+	cap->update();
+	cout << "updated" << endl;
+	cap->getFrame().copyTo(image);
+	cout << "copied image" << endl;
+	imwrite("test.png", image);
+	imshow ("BGR", image);
+	cout << "imshow" << endl;
+
+	cout << "waitKey" << endl;
+	try { waitKey(5); }
+	catch (Exception& ex) { cout << "waitKey ERR" << endl; }
+	cout << "waitKey DONE" << endl;
 	 /*cvtColor(image, hsvImage, COLOR_BGR2HSV);
 	 generateThreshold(image, thresholdHSVImage,
 	       H_MIN, H_MAX, S_MIN, S_MAX, V_MIN, V_MAX);
@@ -167,7 +172,7 @@ int main(int argc, char **argv)
 	    }
 	 }
 	 imshow ("HSV Contours and Mass Centers", hsvImage); */
-	 waitKey(10);
+	 
    }
-
+   cout << "end loop" << endl;
 }
