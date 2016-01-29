@@ -43,7 +43,7 @@ bool ZedIn::getNextFrame(cv::Mat &frame, bool left, bool pause)
 	if (pause == false)
 	{
 		zed->grab(sl::zed::RAW);
-		imageGPU = zed->getView_gpu(left ? sl::zed::STEREO_LEFT, sl::zed::STEREO_RIGHT);
+		imageGPU = zed->getView_gpu(left ? sl::zed::STEREO_LEFT : sl::zed::STEREO_RIGHT);
 		depthMat = zed->retrieveMeasure(sl::zed::MEASURE::DEPTH);
 		cudaMemcpy2D((uchar*) frameRGBA_.data, frameRGBA_.step, (Npp8u*) imageGPU.data, imageGPU.step, imageGPU.getWidthByte(), imageGPU.height, cudaMemcpyDeviceToHost);
 		cvtColor(frameRGBA_, frame_, CV_RGBA2RGB);
