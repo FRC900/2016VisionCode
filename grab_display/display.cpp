@@ -1,10 +1,8 @@
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/objdetect/objdetect.hpp"
 #include <opencv2/opencv.hpp>
 
 #include <iostream>
 #include <iomanip>
+#include <functional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -33,13 +31,13 @@ int    g_s_min      = 220;
 int    g_v_max      = 150;
 int    g_v_min      = 50;
 #endif
-int    g_files_per  = 10;
-int    g_num_frames = 10;
+int    g_files_per  = 9;
+int    g_num_frames = 50;
 int    g_min_resize = 0;
-int    g_max_resize = 25;
+int    g_max_resize = 40;
 string g_outputdir  = ".";
 
-const int min_area = 2000;
+const int min_area = 7000;
 
 #ifdef __CYGWIN__
 inline int
@@ -358,59 +356,52 @@ int main(int argc, char *argv[])
         int  count   = 0;
         bool isColor = true;
 
-        Mat           temp;
-        Mat           hue;
-        Mat           sat;
-        Mat           val;
-        Mat           rgbVal;
-        Mat           ret;
-        Mat           gframe;
-        Mat           variancem;
-        Mat           tempm;
-        float         variance;
-        vector<float> lblur(g_num_frames);
-        int           frame_counter = 0;
-        int           frame_holder[g_num_frames];
-        while (1)
+        Mat   temp;
+        Mat   tempm;
+        Mat   gframe;
+        Mat   variancem;
+        float variance;
+		int   frame_counter;
+
+		typedef pair<float, int> Blur_Entry;
+        vector<Blur_Entry> lblur;
+
+        for (frame_counter = 0; frame_video.read(frame); frame_counter += 1)
         {
-            frame_counter = frame_video.get(CV_CAP_PROP_POS_MSEC);
-            frame_video.read(frame);
-            if (frame.empty())
-            {
-                break;
-            }
-            frame_counter++;
-            bool exists;
             Rect bounding_rect;
-            Rect temp_rect;
             cvtColor(frame, hsv_input, CV_BGR2HSV);
-            exists = FindRect(hsv_input, bounding_rect);
-            if (exists == false)
-            {
-                continue;
-            }
-#if 0
-            bounding_rect = AdjustRect(bounding_rect, 1.0);
-            exists        = RescaleRect(bounding_rect, temp_rect, hsv_input);
-            if (exists == false)
-            {
-                continue;
-            }
-#endif
-            cvtColor(frame, gframe, CV_BGR2GRAY);
-            Laplacian(gframe, temp, CV_8UC1);
-            meanStdDev(temp, tempm, variancem);
-            variance = pow(variancem.at<Scalar>(0, 0)[0], 2);
-            int min_pos = distance(lblur.begin(), min_element(lblur.begin(), lblur.end()));
-            if (variance > lblur[min_pos])
-            {
-                lblur[min_pos]        = variance;
-                frame_holder[min_pos] = frame_counter;
-            }
+			if (FindRect(hsv_input, bounding_rect))
+			{
+				cvtColor(frame, gframe, CV_BGR2GRAY);
+				Laplacian(gframe, temp, CV_8UC1);
+				meanStdDev(temp, tempm, variancem);
+				variance = pow(variancem.at<Scalar>(0, 0)[0], 2);
+				lblur.push_back(Blur_Entry(variance, frame_counter));
+			}
         }
-        for (int j = 0; j < g_num_frames; j++)
+		sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
+		cout << "Read " << lblur.size() << " valid frames from video of " << frame_counter << " total" << endl;
+
+		int frame_count = 0;
+		vector <bool> frame_used(frame_counter);
+		const int frame_range = 10; // Try to space frames out by this many unused frames
+		for (auto it = lblur.begin(); (frame_count < g_num_frames) && (it != lblur.end()); ++it)
         {
-            frame_video.set(CV_CAP_PROP_POS_MSEC, frame_holder[j]);
+			// Check to see that we haven't used a frame close to this one
+			// already - hopefully this will give some variety in the frames
+			// which are used
+			int this_frame = it->second;
+			bool frame_too_close = false;
+			for (int j = max(this_frame - frame_range + 1, 0); !frame_too_close && (j < min((int)frame_used.size(), this_frame + frame_range)); j++)
+				if (frame_used[j])
+					frame_too_close = true;
+
+			if (frame_too_close)
+				continue;
+
+			frame_used[this_frame] = true;
+
+            frame_video.set(CV_CAP_PROP_POS_FRAMES, this_frame);
             frame_video >> frame;
             Rect bounding_rect;
             Rect final_rect;
@@ -500,8 +491,7 @@ int main(int argc, char *argv[])
                     if (RescaleRect(bounding_rect, final_rect, hsv_input, scale_up))
 					{
 						stringstream write_name;
-						int          frame_num = frame_video.get(CV_CAP_PROP_POS_FRAMES) - 1;
-						write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << frame_num;
+						write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << this_frame;
 						write_name << "_" << setw(4) << final_rect.x;
 						write_name << "_" << setw(4) << final_rect.y;
 						write_name << "_" << setw(4) << final_rect.width;
@@ -512,6 +502,7 @@ int main(int argc, char *argv[])
 					}
                 }
             }
+			frame_count += 1;
         }
 
         /*for(int j = 0; j < g_num_frames; j++)
