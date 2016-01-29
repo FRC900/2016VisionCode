@@ -14,6 +14,11 @@ opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
 my @videos = grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
 closedir $dh;
 
+for $video (sort @videos)
+{
+	print "$video\n";
+}
+
 for $dir (sort @model_dirs)
 {
 	my $fulldir = $basedir."/".$dir;
@@ -25,13 +30,44 @@ for $dir (sort @model_dirs)
 	elsif (-f "$fulldir/deploy.prototxt")
 	{
 		open (my $fh, "$fulldir/train_val.prototxt") || die "Could not open $fulldir/train_val.prototxt : $!";
-		while ($line = <$fh>)
+		while (my $line = <$fh>)
 		{
 			if ($line =~ /(\d{8}-\d{6}-[\da-f]{4})\/mean.binaryproto/)
 			{
 				#print "Mean dir = $1\n";
 				$mean_dir = $1;
+			}
+			elsif ($line =~ /type: "Convolution"/)
+			{
+				while (my $line = <$fh>)
+				{
+					if ($line =~ /num_output: (\d+)/)
+					{
+						$conv_out = $1;
+						last;
+					}
+				}
+			}
+			elsif ($line =~ /type: "InnerProduct"/)
+			{
+				while (my $line = <$fh>)
+				{
+					if ($line =~ /num_output: (\d+)/)
+					{
+						$fc_out = $1;
+						last;
+					}
+				}
 				last;
+			}
+		}
+		close ($fh);
+		open (my $fh, "$fulldir/solver.prototxt") || die "Could not open $fulldir/solver.prototxt : $!";
+		while (my $line = <$fh>)
+		{
+			if ($line =~ /base_lr: ([\d\.e-]+)/)
+			{
+				$base_lr = $1;
 			}
 		}
 		close ($fh);
@@ -45,7 +81,9 @@ for $dir (sort @model_dirs)
 		for $snapshot (sort @snapshots)
 		{
 			`ln -sf $cwd/d12/$snapshot d12/network.caffemodel`;
-			print "$fulldir, $snapshot, ";
+			print "$conv_out, $fc_out, $base_lr, $fulldir, $snapshot, ";
+			print "\n";
+			last;
 			for $video (sort @videos)
 			{
 				open (my $pipeh, "./zv --batch --groundTruth $videodir/$video |");

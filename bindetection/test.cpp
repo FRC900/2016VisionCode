@@ -139,7 +139,7 @@ int main( int argc, const char** argv )
 	if (!args.processArgs(argc, argv))
 		return -2;
 
-	string windowName = "Bin detection"; // GUI window name
+	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
 	openMedia(args.inputName, cap, capPath, windowName, !args.batchMode);
@@ -159,7 +159,6 @@ int main( int argc, const char** argv )
 
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
-
 
 	Mat frame;
 
@@ -207,7 +206,7 @@ int main( int argc, const char** argv )
 	// Find the first frame number which has ground truth data
 	if (args.groundTruth && (groundTruthFrames.size() > 0))
 	{
-		cout << "Set frame counter to " << groundTruthFrames[0];
+		cerr << "Set frame counter to first ground truth frame " << groundTruthFrames[0];
 		cap->frameCounter(groundTruthFrames[0]);
 	}
 
@@ -240,7 +239,7 @@ int main( int argc, const char** argv )
 		// being used - this forces a reload
 		// Finally, it allows a switch between CPU and GPU on the fly
 		if (detectState.update() == false)
-			return -1;
+			break;
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
@@ -264,11 +263,7 @@ int main( int argc, const char** argv )
 		// object or add it as a new one
 		for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
 			binTrackingList.processDetect(*it);
-		#if 0
-		// Print detect status of live objects
-		if (args.tracking)
-			binTrackingList.print();
-		#endif
+
 		// Grab info from trackedobjects. Display it and update network tables
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
@@ -276,7 +271,7 @@ int main( int argc, const char** argv )
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
-		//   c. we're on one of the frames to display (every frDispFreq frames)
+		//   c. we're on one of the frames to display (every frameDispFreq frames)
 		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
 		    drawTrackingInfo(frame, displayList);
 
@@ -411,25 +406,25 @@ int main( int argc, const char** argv )
 			   line (frame, Point(0, frame.rows/2) , Point(frame.cols, frame.rows/2), Scalar(255,255,0));
 			}
 
-			if (groundTruthList.size())
-				drawRects(frame, groundTruthList, Scalar(255,0,0), false);
+			// Draw ground truth info for this frame. Will be a no-op
+			// if none is available for this particular video frame
+			drawRects(frame, groundTruthList, Scalar(255,0,0), false);
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
-			imshow( windowName, frame );
+			imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a vile
 			if (args.saveVideo)
 			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, netTable, false);
 
+			// Process user input for this frame
 			char c = waitKey(5);
 			if ((c == 'c') || (c == 'q') || (c == 27))
 			{ // exit
-				if (netTable->IsConnected())
-					NetworkTable::Shutdown();
 				break;
 			}
-			else if( c == ' ') 
+			else if( c == ' ')  // Toggle pause
 			{ 
 				pause = !pause; 
 			}
@@ -437,7 +432,7 @@ int main( int argc, const char** argv )
 			{
 				if (!pause)
 					pause = true;
-				else if (args.groundTruth)
+				if (args.groundTruth)
 				{
 					if (groundTruthFrame >= groundTruthFrames.size())
 						break;
@@ -517,19 +512,32 @@ int main( int argc, const char** argv )
 		// next one in the list
 		if (args.groundTruth)
 		{
-
+			// Exit if no more frames left to test
 			if (groundTruthFrame >= groundTruthFrames.size())
 				break;
+			// Otherwise, if not paused, move to the next frame
 			if (!pause)
 				cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
 		}
-
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
 		// pretty similar so there will be lots of redundant images found
-		else if ((args.skip > 0) && ((cap->frameCounter() + args.skip) < cap->frameCount()))
-				cap->frameCounter(cap->frameCounter() + args.skip - 1);
+		else if (!pause && (args.skip > 0))
+		{	
+			// Exit if the next skip puts the frame beyond the end of the video
+			if ((cap->frameCounter() + args.skip) >= cap->frameCount())
+				break;
+			cap->frameCounter(cap->frameCounter() + args.skip - 1);
+		}
+
+		// Check for running still images in batch mode - only
+		// process the image once rather than looping forever
+		if (args.batchMode && (cap->frameCount() == 1))
+			break;
 	}
+	if (netTable->IsConnected())
+		NetworkTable::Shutdown();
+
 	if (groundTruthActual)
 		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
 	return 0;
@@ -607,6 +615,8 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	{
 		if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg"))
 			cap = new ImageIn(fileName.c_str());
+		else if (hasSuffix(fileName, ".svo"))
+			cap = new ZedIn(fileName.c_str());
 		else
 			cap = new VideoIn(fileName.c_str());
 

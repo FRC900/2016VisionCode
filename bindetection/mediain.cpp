@@ -1,18 +1,15 @@
 #include "mediain.hpp"
-#include <iostream>
-
-using namespace std;
 
 MediaIn::MediaIn()
 {
 }
 
-int MediaIn::frameCount(void)
+int MediaIn::frameCount(void) const
 {
    return -1;
 }
 
-int MediaIn::frameCounter(void)
+int MediaIn::frameCounter(void) const
 {
    return -1;
 }

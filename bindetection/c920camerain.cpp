@@ -6,6 +6,18 @@ using namespace std;
 
 using namespace cv;
 
+// Prototypes for various callbacks used by scrollbars
+void brightnessCallback(int value, void *data);
+void contrastCallback(int value, void *data);
+void saturationCallback(int value, void *data);
+void sharpnessCallback(int value, void *data);
+void gainCallback(int value, void *data);
+void autoExposureCallback(int value, void *data);
+void backlightCompensationCallback(int value, void *data);
+void whiteBalanceTemperatureCallback(int value, void *data);
+void focusCallback(int value, void *data);
+
+// Constructor
 C920CameraIn::C920CameraIn(int _stream, bool gui) :
 	_camera(_stream >= 0 ? _stream : 0)
 {
@@ -16,71 +28,6 @@ C920CameraIn::C920CameraIn(int _stream, bool gui) :
 		_camera.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
-}
-
-void brightnessCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_brightness = value;
-	camPtr->_camera.SetBrightness(value);
-}
-
-void contrastCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_contrast = value;
-	camPtr->_camera.SetContrast(value);
-}
-
-void saturationCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_saturation= value;
-	camPtr->_camera.SetSaturation(value);
-}
-
-void sharpnessCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_sharpness = value;
-	camPtr->_camera.SetSharpness(value);
-}
-
-void gainCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_gain = value;
-	camPtr->_camera.SetGain(value);
-}
-
-void backlightCompensationCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_backlightCompensation = value;
-	camPtr->_camera.SetBacklightCompensation(value);
-}
-
-void autoExposureCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_autoExposure = value;
-	camPtr->_camera.SetAutoExposure(value);
-}
-
-void whiteBalanceTemperatureCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_whiteBalanceTemperature = value;
-	// Off by one to allow -1=auto
-	camPtr->_camera.SetWhiteBalanceTemperature(value - 1);
-}
-
-void focusCallback(int value, void *data)
-{
-	C920CameraIn *camPtr = (C920CameraIn *)data;
-	camPtr->_focus = value;
-	// Off by one to allow -1=auto
-	camPtr->_camera.SetFocus(value - 1);
 }
 
 bool C920CameraIn::initCamera(int _stream, bool gui)
@@ -153,7 +100,7 @@ bool C920CameraIn::initCamera(int _stream, bool gui)
 		cv::createTrackbar("Focus", "Adjustments", &_focus, 256, focusCallback, this);
 	}
 
-	_frameCounter = 0;
+	frameCounter_ = 0;
 	return true;
 }
 
@@ -165,26 +112,91 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 	if (!pause)
 	{
 		if (_camera.GrabFrame())
-			_camera.RetrieveMat(_frame);
-		if( _frame.empty() )
+			_camera.RetrieveMat(frame_);
+		if( frame_.empty() )
 			return false;
-		if (_frame.rows > 800)
-			pyrDown(_frame, _frame);
-		_frameCounter += 1;
+		if (frame_.rows > 800)
+			pyrDown(frame_, frame_);
+		frameCounter_ += 1;
 	}
 
-	frame = _frame.clone();
+	frame = frame_.clone();
 	return true;
 }
 
-int C920CameraIn::width(void)
+int C920CameraIn::width(void) const
 {
 	return v4l2::CAPTURE_SIZE_WIDTHS[_captureSize];
 }
 
-int C920CameraIn::height(void)
+int C920CameraIn::height(void) const
 {
 	return v4l2::CAPTURE_SIZE_HEIGHTS[_captureSize];
+}
+
+void brightnessCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_brightness = value;
+	camPtr->_camera.SetBrightness(value);
+}
+
+void contrastCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_contrast = value;
+	camPtr->_camera.SetContrast(value);
+}
+
+void saturationCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_saturation= value;
+	camPtr->_camera.SetSaturation(value);
+}
+
+void sharpnessCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_sharpness = value;
+	camPtr->_camera.SetSharpness(value);
+}
+
+void gainCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_gain = value;
+	camPtr->_camera.SetGain(value);
+}
+
+void backlightCompensationCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_backlightCompensation = value;
+	camPtr->_camera.SetBacklightCompensation(value);
+}
+
+void autoExposureCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_autoExposure = value;
+	camPtr->_camera.SetAutoExposure(value);
+}
+
+void whiteBalanceTemperatureCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_whiteBalanceTemperature = value;
+	// Off by one to allow -1=auto
+	camPtr->_camera.SetWhiteBalanceTemperature(value - 1);
+}
+
+void focusCallback(int value, void *data)
+{
+	C920CameraIn *camPtr = (C920CameraIn *)data;
+	camPtr->_focus = value;
+	// Off by one to allow -1=auto
+	camPtr->_camera.SetFocus(value - 1);
 }
 
 #else
@@ -197,16 +209,6 @@ C920CameraIn::C920CameraIn(int _stream, bool gui)
 bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 {
 	return false;
-}
-
-int C920CameraIn::width(void)
-{
-	return 0;
-}
-
-int C920CameraIn::height(void)
-{
-	return 0;
 }
 
 #endif

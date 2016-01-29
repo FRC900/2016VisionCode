@@ -1,21 +1,24 @@
 #ifndef C920CAMERAIN_HPP__
 #define C920CAMERAIN_HPP__
 
-#include "opencv2/highgui/highgui.hpp"
-#include "mediain.hpp"
+#include <opencv2/core/core.hpp>
+#include "camerain.hpp"
 
 #ifdef __linux__
 #include "../C920VideoCap/C920Camera.h"
 #endif
 
-class C920CameraIn : public MediaIn
+// Code specific for C920 camera. We have lots of
+// extra controls avaiable for this, so use it if
+// possible
+class C920CameraIn : public CameraIn
 {
    public:
       C920CameraIn(int _stream = -1, bool gui = false);
       bool getNextFrame(cv::Mat &frame, bool pause = false);
 
-      int width(void);
-      int height(void);
+      int width(void) const;
+      int height(void) const;
 
    private:
 #ifdef __linux__
@@ -33,7 +36,6 @@ class C920CameraIn : public MediaIn
 	  friend void focusCallback(int value, void *data);
 
       v4l2::C920Camera  _camera;
-      cv::Mat           _frame;
       int               _brightness;
       int               _contrast;
       int               _saturation;
