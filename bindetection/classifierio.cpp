@@ -33,14 +33,53 @@ vector<string> ClassifierIO::getClassifierFiles() const
 {
     //Get 4 needed files
     vector<string> output;
+    /*
     output.push_back("d12/deploy.prototxt");
     output.push_back("d12/network.caffemodel");
     output.push_back("d12/mean.binaryproto");
     output.push_back("d12/labels.txt");
+*/
+
+    struct stat fileStat;
+    string dirPath = getClassifierDir();
+
+    {
+        stringstream ss(dirPath);
+        ss << "/deploy.prototxt";
+        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+            return output;
+        output.push_back(ss.str());
+    }
+
+    {
+        stringstream ss(dirPath);
+        ss << "/snapshot_iter_" << stageNum_ << ".caffemodel";
+        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+            return output;
+        output.push_back(ss.str());
+    }
+
+    {
+        stringstream ss(dirPath);
+        ss << "/mean.binaryproto";
+        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+            return output;
+        output.push_back(ss.str());
+    }
+
+    {
+        stringstream ss(dirPath);
+        ss << "/labels.txt";
+        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+            return output;
+        output.push_back(ss.str());
+    }
 
     return output;
+
 }
 
+/*
 // using the current directory number and stage within that directory,
 // generate a filename to load the cascade from.  Check that
 // the file exists - if it doesnt, return an empty string
@@ -76,6 +115,7 @@ string ClassifierIO::getClassifierName() const
    // Found neither?  Return an empty string
    return string();
 }
+*/
 
 // Find the next valid classifier. Since some .xml input
 // files crash the GPU we've deleted them. Skip over missing
@@ -84,19 +124,23 @@ bool ClassifierIO::findNextClassifierStage(bool increment)
 {
    int adder = increment ? 1 : -1;
    int num = stageNum_ + adder;
-   bool found;
 
-   for (found = false; !found && ((num > 0) && (num < 100)); num += adder)
+   struct stat fileStat;
+   string dirPath = getClassifierDir();
+
+   //bool found = false;
+   while (num >= 0 && num <= 200000)
    {
-      ClassifierIO tempClassifier(baseDir_, dirNum_, num);
-      if (tempClassifier.getClassifierName().length())
-      {
-	 *this = tempClassifier;
-	 found = true;
-      }
+       stringstream ss(dirPath);
+       ss << "/snapshot_iter_" << num << ".caffemodel";
+       if ((stat(ss.str().c_str(), &fileStat) == 0) && S_ISREG(fileStat.st_mode)) {
+           stageNum_ = num;
+           return true;
+       }
+       num += adder;
    }
 
-   return found;
+   return false;
 }
 
 // Find the next valid classifier dir. Start with current stage in that
@@ -105,8 +149,20 @@ bool ClassifierIO::findNextClassifierDir(bool increment)
 {
    int adder = increment ? 1 : -1;
    int dnum = dirNum_ + adder;
-   bool found;
+   struct stat fileStat;
 
+
+   while (dnum >= 0 && dnum <= 100)
+   {
+       stringstream ss(baseDir_);
+       ss << dnum;
+       if ((stat(ss.str().c_str(), &fileStat) == 0) && S_ISDIR(fileStat.st_mode)) {
+           stageNum_ = num;
+           return true;
+       }
+
+
+   }
    for (found = false; !found && ((dnum > 0) && (dnum < 100)); dnum += adder)
    {
       ClassifierIO tempClassifier(baseDir_, dnum, stageNum_ + 1);

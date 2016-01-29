@@ -19,8 +19,8 @@ bool DetectState::update(void)
    if (reload_ == false)
 	  return true;
 
-	string name = classifierIO_.getClassifierName();
-	cerr << name << endl;
+	//string name = classifierIO_.getClassifierName();
+	//cerr << name << endl;
 	if (detector_)
 	   delete detector_;
 
@@ -30,12 +30,17 @@ bool DetectState::update(void)
 	//	detector_ = new GPU_CascadeDetect(name.c_str());
 	//else
         vector<string> files = classifierIO_.getClassifierFiles();
-		detector_ = new GPU_NNDetect(files[0],files[1],files[2],files[3]);
+    if (files.size() != 4)
+    {
+        cerr << "No files to load classifier" << endl;
+        return false;
+    }
+		detector_ = new GPU_NNDetect(files[0], files[1], files[2], files[3]);
 
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )
 	{
-		cerr << "Error loading " << name << endl;
+		cerr << "Error loading GPU_NNDetect" << endl;
 		return false;
 	}
 	reload_ = false;
