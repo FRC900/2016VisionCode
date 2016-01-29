@@ -527,8 +527,8 @@ int main( int argc, const char** argv )
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
 		// pretty similar so there will be lots of redundant images found
-		else if (args.skip > 0)
-		   cap->frameCounter(cap->frameCounter() + args.skip - 1);
+		else if ((args.skip > 0) && ((cap->frameCounter() + args.skip) < cap->frameCount()))
+				cap->frameCounter(cap->frameCounter() + args.skip - 1);
 	}
 	if (groundTruthActual)
 		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
