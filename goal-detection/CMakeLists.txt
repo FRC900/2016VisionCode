@@ -8,10 +8,10 @@ find_package(ZED REQUIRED)
 find_package(CUDA REQUIRED)
 
 
-include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ../bindetection )
+include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ../threading-test )
 
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 
-add_executable( goal_detect goal_detect.cpp ../bindetection/zedin.cpp ../bindetection/mediain.cpp )
+add_executable( goal_detect goal_detect.cpp ../threading-test/zedin.cpp )
 target_link_libraries( goal_detect ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} )

@@ -67,26 +67,33 @@ static void generateThreshold(const Mat &ImageIn, Mat &ImageOut,
    bitwise_and(SplitImage[2], ImageOut, ImageOut);
 
    Mat erodeElement (getStructuringElement( MORPH_RECT,Size(3,3)));
-   //dilate with larger element to make sure object is nicely visible
-   Mat dilateElement(getStructuringElement( MORPH_ELLIPSE,Size(11,11)));
+   Mat dilateElement(getStructuringElement( MORPH_ELLIPSE,Size(2,2)));
    erode(ImageOut, ImageOut, erodeElement, Point(-1,-1), 2);
    dilate(ImageOut, ImageOut, dilateElement, Point(-1,-1), 2);
 }
 
-int H_MIN = 117;
-int H_MAX = 179;
-int S_MIN =  81;
+int H_MIN = 60; //60-95 is a good range for bright green
+int H_MAX = 95;
+int S_MIN =  180;
 int S_MAX = 255;
 int V_MIN =  67;
 int V_MAX = 255;
-int contourMin = 0;
-int contourMax = 50000;
 RNG rng(12345);
 
 
 
 int main(int argc, char **argv)
 {
+
+   ZedIn *cap = NULL;
+   if(argc == 2) {
+  	cap = new ZedIn(argv[1]);
+	cerr << "Read SVO file" << endl;
+   }
+   else {
+	cap = new ZedIn;
+	cerr << "Initialized camera" << endl;
+   }
 
    string trackbarWindowName = "HSV Controls";
    namedWindow(trackbarWindowName, WINDOW_AUTOSIZE);
@@ -97,39 +104,21 @@ int main(int argc, char **argv)
    createTrackbar( "V_MIN", trackbarWindowName, &V_MIN, 255, NULL);
    createTrackbar( "V_MAX", trackbarWindowName, &V_MAX, 255, NULL);
 
-   namedWindow("Contour Size", WINDOW_AUTOSIZE);
-   createTrackbar( "ContourMin", "Contour Size", &contourMin, 1000, NULL);
-   createTrackbar( "ContourMax", "Contour Size", &contourMax, 50000, NULL);
 
-   ZedIn *cap = NULL;
-//   if(argc == 2) {
-//  	cap = new ZedIn(argv[1]);
-//	cerr << "Read SVO file" << endl;
-//   }
-   //else {
-	cap = new ZedIn;
-	cerr << "Initialized camera" << endl;
-//   }
+   cap->left(true);
 
    Mat image;
    Mat hsvImage;
    Mat thresholdHSVImage;
-   cerr << "allocated images" << endl;
+   Mat contours_black(cap->height(), cap->width(), CV_8UC1, Scalar(0,0,0));
    while(true)
    {
-	cerr << "looped" << endl;
-	//cerr << cap << endl;
-	cap->getNextFrame(image);
-	cerr << "copied image" << endl;
-	imwrite("test.png", image);
-	imshow ("BGR", image);
-	cerr << "imshow" << endl;
+	cap->update();
+	cap->getFrame().copyTo(image);
 
-	cerr << "waitKey" << endl;
-	try { waitKey(0); }
-	catch (Exception& ex) { cerr << "waitKey ERR" << endl; }
-	cerr << "waitKey DONE" << endl;
-	 /*cvtColor(image, hsvImage, COLOR_BGR2HSV);
+	imshow ("BGR", image);
+
+	 cvtColor(image, hsvImage, COLOR_BGR2HSV);
 	 generateThreshold(image, thresholdHSVImage,
 	       H_MIN, H_MAX, S_MIN, S_MAX, V_MIN, V_MAX);
 	 imshow ("HSV threshold", thresholdHSVImage);
@@ -151,24 +140,17 @@ int main(int argc, char **argv)
 	 /// Draw contours
 	 double maxMC = 0.0;
 	 double minMC = DBL_MAX; 
-	 for( int i = 0; i< contours.size(); i++ )
+	 for( int i = 0; i< contours.size(); i++ ) //runs for each contour that it found
 	 {
-	    if ((contourArea(contours[i]) > contourMin) &&
-		  (contourArea(contours[i]) < contourMax))
-	    {
 	       Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-	       drawContours( hsvImage, contours, i, color, 2, 8, hierarchy, 0, Point() );
-	       circle( hsvImage, mc[i], 4, color, -1, 8, 0 );
-	       // Grab the upper and lower mass centers
-	       // to figure out the target height in pixels
-	       if (mc[i].y > maxMC)
-		  maxMC = mc[i].y;
-	       if (mc[i].y < minMC)
-		  minMC = mc[i].y;
-	    }
+	       drawContours( contours_black, contours, i, color, 2, 8, hierarchy, 0, Point() );
+	       circle( contours_black, mc[i], 4, color, -1, 8, 0 );
+	       
+	  	cout << "Countour " << i << " moments: " << mc[i].x << " , " << mc[i].y << endl;
 	 }
-	 imshow ("HSV Contours and Mass Centers", hsvImage); */
 	 
+	 imshow ("HSV", hsvImage);
+	 imshow ("Contours", contours_black);
+	 waitKey(5);
    }
-   cerr << "end loop" << endl;
 }

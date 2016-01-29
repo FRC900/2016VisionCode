@@ -40,7 +40,7 @@ class ZedIn
 	sl::zed::CamParameters getCameraParams() { if(_left) { return stereoParams.LeftCam; } else { return stereoParams.RightCam; } }
 	sl::zed::StereoParameters getStereoParams() { return stereoParams; } //these are used for getting parameters for calibration-sensitive libraries
 
-	void left(bool& left) { _left = left; } //functions for modifying which camera is currently being pulled
+	void left(bool left) { _left = left; } //functions for modifying which camera is currently being pulled
 	bool left() const { return _left; }
 
 	int width() const { return _width; } //easy function for getting witdth and height (also inclded in getCameraParams)
