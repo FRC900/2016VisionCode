@@ -24,21 +24,26 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
 	double scaleFactor,
-	std::vector<cv::Rect> &rectsOut)
+    std::vector<cv::Rect> &rectsOut)
 {
+    std::vector<Detected> detectedOut;
 	int wsize = classifier.getInputGeometry().width;
 	std::vector<std::pair<MatT, float> > scaledimages;
 	std::vector<cv::Rect> rects;
 	std::vector<int> scales;
 	std::vector<int> scalesOut;
+    std::vector<float> scores;
 
 	generateInitialWindows(inputImg, minSize, maxSize, wsize, scaleFactor, scaledimages, rects, scales);
-	runDetection(classifier, scaledimages, rects, scales, .7, "ball", rectsOut, scalesOut);
+	runDetection(classifier, scaledimages, rects, scales, .7, "ball", rectsOut, scalesOut, scores);
 	for(size_t i = 0; i < rectsOut.size(); i++)
 	{
 		float scale = scaledimages[scalesOut[i]].second;
 		rectsOut[i] = cv::Rect(rectsOut[i].x/scale, rectsOut[i].y/scale, rectsOut[i].width/scale, rectsOut[i].height/scale);
+        detectedOut.push_back(Detected(rectsOut[i], scores[i]));
 	}
+    fastNMS(detectedOut, 10, rectsOut)
+
 }
 
 template <class MatT>
@@ -50,7 +55,8 @@ void NNDetect<MatT>::generateInitialWindows(
 	  double scaleFactor,
       std::vector<std::pair<MatT, float> > &scaledimages,
       std::vector<cv::Rect> &rects,
-      std::vector<int> &scales)
+      std::vector<int> &scales
+      std::vector<float>)
 {
    rects.clear();
    scales.clear();
@@ -104,7 +110,8 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
       float threshold,
       std::string label,
       std::vector<cv::Rect> &rectsOut,
-      std::vector<int> &scalesOut)
+      std::vector<int> &scalesOut,
+      std::vector<float> &scores)
 {
    std::vector<MatT> images;
    std::vector<size_t> detected;
@@ -115,7 +122,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
 	   images.push_back(scaledimages[scales[i]].first(rects[i]));
 	   if((images.size() == classifier.BatchSize()) || (i == rects.size() - 1))
 	   {
-		   doBatchPrediction(classifier, images, threshold, label, detected);
+		   doBatchPrediction(classifier, images, threshold, label, detected, scores);
 		   images.clear();
 		   for(size_t j = 0; j < detected.size(); j++)
 		   {
@@ -135,7 +142,8 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
       const std::vector<MatT> &imgs,
       const float threshold,
       const std::string &label,
-      std::vector<size_t> &detected)
+      std::vector<size_t> &detected,
+      std::vector<float>  &scores)
 {
    detected.clear();
    std::vector <std::vector<Prediction> >predictions = classifier.ClassifyBatch(imgs, 1);
@@ -153,6 +161,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
 			   if (it->second > threshold)
 			   {
 				   detected.push_back(i);
+                   scores.push_back(it->second);
 			   }
 			   break;
 		   }
