@@ -72,6 +72,8 @@ static void generateThreshold(const Mat &ImageIn, Mat &ImageOut,
    dilate(ImageOut, ImageOut, dilateElement, Point(-1,-1), 2);
 }
 
+
+
 int H_MIN = 60; //60-95 is a good range for bright green
 int H_MAX = 95;
 int S_MIN =  180;
@@ -110,7 +112,30 @@ int main(int argc, char **argv)
    Mat image;
    Mat hsvImage;
    Mat thresholdHSVImage;
-   Mat contours_black(cap->height(), cap->width(), CV_8UC1, Scalar(0,0,0));
+   Mat contourMask(cap->height(), cap->width(), CV_8UC1, Scalar(0));
+   Mat depthMat;
+   Mat NaNMask;
+
+
+   float camera_hfov = 84.14 * (M_PI / 180.0); //measured experimentally
+   float camera_vfov = 53.836 * (M_PI / 180.0); //calculated based on hfov and 16/9 aspect ratio
+   
+   vector< Point2f > target_shape_c; //profile of the target object in mm so we can easily get information about it by using opencv's functions
+   Rect targetShapeBound;
+
+   target_shape_c.push_back(Point(0,0));
+   target_shape_c.push_back(Point(0,609.6));
+   target_shape_c.push_back(Point(50.8,609.6));
+   target_shape_c.push_back(Point(50.8,50.8)); //describes vision target shape
+   target_shape_c.push_back(Point(762,50.8)); //also this does not work with the data in m
+   target_shape_c.push_back(Point(762,609.6));
+   target_shape_c.push_back(Point(812.8,609.6));
+   target_shape_c.push_back(Point(812.8,0));
+
+   targetShapeBound = boundingRect(target_shape_c);
+
+   cout << "target height" << targetShapeBound.height << endl;
+
    while(true)
    {
 	cap->update();
@@ -123,34 +148,44 @@ int main(int argc, char **argv)
 	       H_MIN, H_MAX, S_MIN, S_MAX, V_MIN, V_MAX);
 	 imshow ("HSV threshold", thresholdHSVImage);
 
-	 vector<vector<Point> > contours;
+	 vector<vector<Point> > recognized_ac;
 	 vector<Vec4i> hierarchy;
 
 	 /// Find contours
-	 findContours( thresholdHSVImage, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
+	 findContours( thresholdHSVImage, recognized_ac, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
 
 	 /// Get the mass centers of detected targets
-	 vector<Point2f> mc( contours.size() );
-	 for( int i = 0; i < contours.size(); i++ )
-	 { 
-	    Moments mu = moments( contours[i], false );
-	    mc[i] = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 ); 
-	 }
-
-	 /// Draw contours
-	 double maxMC = 0.0;
-	 double minMC = DBL_MAX; 
-	 for( int i = 0; i< contours.size(); i++ ) //runs for each contour that it found
+	 Point2f mc;
+	 Rect targetRect;
+	 for( int i = 0; i < recognized_ac.size(); i++ )
 	 {
-	       Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-	       drawContours( contours_black, contours, i, color, 2, 8, hierarchy, 0, Point() );
-	       circle( contours_black, mc[i], 4, color, -1, 8, 0 );
-	       
-	  	cout << "Countour " << i << " moments: " << mc[i].x << " , " << mc[i].y << endl;
+	    Moments mu = moments( recognized_ac[i], false );
+	    mc = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 ); 
+	    //cout << "recognized area (px^2): " << contourArea(recognized_ac[i]) << endl;
+	    
+	    targetRect = boundingRect(recognized_ac[i]);
+	
+	    cap->getDepth().copyTo(depthMat);
+	    contourMask.setTo(Scalar(0));
+	    drawContours(contourMask,recognized_ac,i,Scalar(255),CV_FILLED); //draw a contour so we can use it as a mask for averaging depth data
+	    NaNMask = Mat(isnan(depthMat) || depthMat == 0 || contourMask == 0); //anywhere to not get depth from
+	    
+	    double depth_z = mean(depthMat,NaNMask);
+
+	    cout << "average depth (m): " << depth_z << endl;
+	    cout << "Object height (px): " << targetRect.height << endl;
+	    cout << "FOV (rad): " << camera_vfov << endl;
+	    cout << "Image height: (px): " << cap->height() << endl;
+	    cout << "Object actual height (m): " << (targetShapeBound.height/1000.0) << endl;
+	
+	    double tanExp = tan( (targetRect.height * camera_vfov)/(2*cap->height()) );
+	    double asinExp = asin( (depth_z*tanExp)/(targetShapeBound.height/1000.0) );
+	    double h_dist = depth_z * cos( asinExp );
+	
+	    cout << "Horizontal distance to goal: " << h_dist << endl;
 	 }
 	 
 	 imshow ("HSV", hsvImage);
-	 imshow ("Contours", contours_black);
 	 waitKey(5);
    }
 }
