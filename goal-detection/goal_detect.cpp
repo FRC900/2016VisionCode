@@ -1,6 +1,4 @@
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/objdetect/objdetect.hpp"
+#include <iostream>
 #include <opencv2/opencv.hpp>
 
 #include "zedin.hpp"
@@ -104,35 +102,33 @@ int main(int argc, char **argv)
    createTrackbar( "ContourMax", "Contour Size", &contourMax, 50000, NULL);
 
    ZedIn *cap = NULL;
-   if(argc == 2) {
-  	cap = new ZedIn(argv[1]);
-	cout << "Read SVO file" << endl;
-   }
-   else {
+//   if(argc == 2) {
+//  	cap = new ZedIn(argv[1]);
+//	cerr << "Read SVO file" << endl;
+//   }
+   //else {
 	cap = new ZedIn;
-	cout << "Initialized camera" << endl;
-   }
+	cerr << "Initialized camera" << endl;
+//   }
 
    Mat image;
    Mat hsvImage;
    Mat thresholdHSVImage;
-   cout << "allocated images" << endl;
+   cerr << "allocated images" << endl;
    while(true)
    {
-	cout << "looped" << endl;
-	//cout << cap << endl;
-	cap->update();
-	cout << "updated" << endl;
-	cap->getFrame().copyTo(image);
-	cout << "copied image" << endl;
+	cerr << "looped" << endl;
+	//cerr << cap << endl;
+	cap->getNextFrame(image);
+	cerr << "copied image" << endl;
 	imwrite("test.png", image);
 	imshow ("BGR", image);
-	cout << "imshow" << endl;
+	cerr << "imshow" << endl;
 
-	cout << "waitKey" << endl;
-	try { waitKey(5); }
-	catch (Exception& ex) { cout << "waitKey ERR" << endl; }
-	cout << "waitKey DONE" << endl;
+	cerr << "waitKey" << endl;
+	try { waitKey(0); }
+	catch (Exception& ex) { cerr << "waitKey ERR" << endl; }
+	cerr << "waitKey DONE" << endl;
 	 /*cvtColor(image, hsvImage, COLOR_BGR2HSV);
 	 generateThreshold(image, thresholdHSVImage,
 	       H_MIN, H_MAX, S_MIN, S_MAX, V_MIN, V_MAX);
@@ -174,5 +170,5 @@ int main(int argc, char **argv)
 	 imshow ("HSV Contours and Mass Centers", hsvImage); */
 	 
    }
-   cout << "end loop" << endl;
+   cerr << "end loop" << endl;
 }
