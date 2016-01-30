@@ -4,11 +4,7 @@ using namespace std;
 
 #ifdef ZED_SUPPORT
 //cuda include
-#include "cuda.h"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 #include "npp.h"
-#include "device_functions.h"
 
 using namespace cv;
 
@@ -18,21 +14,25 @@ ZedIn::ZedIn(const char *filename)
 		zed = new sl::zed::Camera(filename);
 	else
 		zed = new sl::zed::Camera(sl::zed::VGA);
-	// init computation mode of the zed
-	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
-	cout << sl::zed::errcode2str(err) << endl;
-	// Quit if an error occurred
-	if (err != sl::zed::SUCCESS) 
+
+	if (zed)
 	{
-		delete zed;
-		zed = NULL;
-	}
-	else
-	{
-		width_     = zed->getImageSize().width;
-		height_    = zed->getImageSize().height;
-		frameRGBA_ = cv::Mat(height_, width_, CV_8UC4);
-		frameCounter_ = 0;
+		// init computation mode of the zed
+		sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
+		cout << sl::zed::errcode2str(err) << endl;
+		// Quit if an error occurred
+		if (err != sl::zed::SUCCESS) 
+		{
+			delete zed;
+			zed = NULL;
+		}
+		else
+		{
+			width_     = zed->getImageSize().width;
+			height_    = zed->getImageSize().height;
+			frameRGBA_ = cv::Mat(height_, width_, CV_8UC4);
+			frameCounter_ = 0;
+		}
 	}
 }
 
@@ -67,6 +67,16 @@ double ZedIn::getDepth(int x, int y)
 	return dist;
 }
 
+int ZedIn::width(void) const
+{
+		return width_;
+}
+
+int ZedIn::height(void) const
+{
+		return height_;
+}
+
 #else
 
 ZedIn::ZedIn(const char *filename)
@@ -77,6 +87,16 @@ ZedIn::ZedIn(const char *filename)
 bool ZedIn::getNextFrame(cv::Mat &frame, bool pause) 
 {
 	return false;
+}
+
+int ZedIn::width(void) const
+{
+		return 0;
+}
+
+int ZedIn::height(void) const
+{
+		return 0;
 }
 
 #endif
