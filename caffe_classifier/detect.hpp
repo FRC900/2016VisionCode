@@ -12,7 +12,8 @@ class NNDetect
 			const std::vector<MatT> &imgs,
 			const float threshold,
 			const std::string &label,
-			std::vector<size_t> &detected);
+			std::vector<size_t> &detected,
+			std::vector<float>  &scores);
 	void generateInitialWindows(
 			const cv::Mat  &input,
 			const cv::Size &minSize,
@@ -30,7 +31,8 @@ std::vector<int> &scales);
 			float threshold,
 			std::string label,
 			std::vector<cv::Rect> &rectsOut,
-			std::vector<int> &scalesOut);
+			std::vector<int> &scalesOut,
+			std::vector<float> &scores);
 
 	public:
 	NNDetect(const std::string &model_file,
@@ -44,6 +46,7 @@ std::vector<int> &scales);
 		const cv::Size &minSize,
 		const cv::Size &maxSize,
 		double          scaleFactor,
+		float threshold,
 		std::vector<cv::Rect> &rectsOut);
 };
 

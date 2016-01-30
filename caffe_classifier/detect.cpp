@@ -24,7 +24,8 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
 	double scaleFactor,
-    std::vector<cv::Rect> &rectsOut)
+	float threshold,
+        std::vector<cv::Rect> &rectsOut)
 {
     std::vector<Detected> detectedOut;
 	int wsize = classifier.getInputGeometry().width;
@@ -32,7 +33,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	std::vector<cv::Rect> rects;
 	std::vector<int> scales;
 	std::vector<int> scalesOut;
-    std::vector<float> scores;
+        std::vector<float> scores;
 
 	generateInitialWindows(inputImg, minSize, maxSize, wsize, scaleFactor, scaledimages, rects, scales);
 	runDetection(classifier, scaledimages, rects, scales, .7, "ball", rectsOut, scalesOut, scores);
@@ -40,9 +41,9 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	{
 		float scale = scaledimages[scalesOut[i]].second;
 		rectsOut[i] = cv::Rect(rectsOut[i].x/scale, rectsOut[i].y/scale, rectsOut[i].width/scale, rectsOut[i].height/scale);
-        detectedOut.push_back(Detected(rectsOut[i], scores[i]));
+        	detectedOut.push_back(Detected(rectsOut[i], scores[i]));
 	}
-    fastNMS(detectedOut, 10, rectsOut)
+   	fastNMS(detectedOut, threshold, rectsOut);
 
 }
 
@@ -55,8 +56,7 @@ void NNDetect<MatT>::generateInitialWindows(
 	  double scaleFactor,
       std::vector<std::pair<MatT, float> > &scaledimages,
       std::vector<cv::Rect> &rects,
-      std::vector<int> &scales
-      std::vector<float>)
+      std::vector<int> &scales)
 {
    rects.clear();
    scales.clear();
@@ -161,7 +161,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
 			   if (it->second > threshold)
 			   {
 				   detected.push_back(i);
-                   scores.push_back(it->second);
+                   	           scores.push_back(it->second);
 			   }
 			   break;
 		   }
