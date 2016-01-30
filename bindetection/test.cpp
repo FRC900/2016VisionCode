@@ -145,9 +145,10 @@ int main( int argc, const char** argv )
 	openMedia(args.inputName, cap, capPath, windowName, !args.batchMode);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
+	size_t   groundTruthFrame  = 1;
 	unsigned groundTruthActual = 0;
 	unsigned groundTruthFound  = 0;
-	unsigned groundTruthFrame  = 1;
+	unsigned groundTruthFalsePositives = 0;
 	vector<Rect> groundTruthList;
 	vector<unsigned int> groundTruthFrames;
 	if (args.groundTruth)
@@ -355,6 +356,9 @@ int main( int argc, const char** argv )
 		{
 			groundTruthList    = groundTruth.get(cap->frameCounter() - 1);
 			groundTruthActual += groundTruthList.size();
+            vector<bool> groundTruthsHit(groundTruthList.size());
+            vector<bool> detectRectsUsed(detectRects.size());
+
 			for(vector<Rect>::const_iterator gt = groundTruthList.begin(); gt != groundTruthList.end(); ++gt)
 			{
 				for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
@@ -363,13 +367,20 @@ int main( int argc, const char** argv )
 					// the ground truth, that's a success
 					if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))
 					{
-						groundTruthFound += 1;
+						if (!groundTruthsHit[gt - groundTruthList.begin()])
+						{
+							groundTruthFound += 1;
+							groundTruthsHit[gt - groundTruthList.begin()] = true;
+						}
+                        detectRectsUsed[it - detectRects.begin()] = true;
 						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
 							rectangle(frame, *it, Scalar(128,128,128), 3);
-						break;
 					}
 				}
 			}
+			for(auto it = groundTruthsHit.begin(); it != groundTruthsHit.end(); ++it)
+				if (!*it)
+					groundTruthFalsePositives += 1;
 		}
 
 		// Various random display updates. Only do them every frameDisplayFrequency
