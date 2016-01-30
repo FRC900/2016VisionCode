@@ -17,8 +17,8 @@ class ZedIn : public MediaIn
 	public:
 		ZedIn(const char *filename = NULL);
 		bool getNextFrame(cv::Mat &frame, bool pause = false);
-                int width(void) const;
-                int height(void) const;
+		int width(void) const;
+		int height(void) const;
 
 #ifdef ZED_SUPPORT
 		double getDepth(int x, int y);

@@ -69,12 +69,12 @@ double ZedIn::getDepth(int x, int y)
 
 int ZedIn::width(void) const
 {
-		return width_;
+	return width_;
 }
 
 int ZedIn::height(void) const
 {
-		return height_;
+	return height_;
 }
 
 #else
@@ -91,12 +91,12 @@ bool ZedIn::getNextFrame(cv::Mat &frame, bool pause)
 
 int ZedIn::width(void) const
 {
-		return 0;
+	return 0;
 }
 
 int ZedIn::height(void) const
 {
-		return 0;
+	return 0;
 }
 
 #endif

@@ -35,19 +35,19 @@ class C920CameraIn : public MediaIn
 	  friend void whiteBalanceTemperatureCallback(int value, void *data);
 	  friend void focusCallback(int value, void *data);
 
-      v4l2::C920Camera  _camera;
-		cv::Mat frame_;
-      int               _brightness;
-      int               _contrast;
-      int               _saturation;
-      int               _sharpness;
-      int               _gain;
-      int               _focus;
-      int               _autoExposure;
-      int               _backlightCompensation;
-      int               _whiteBalanceTemperature;
+      v4l2::C920Camera  camera_;
+	  cv::Mat           frame_;
+      int               brightness_;
+      int               contrast_;
+      int               saturation_;
+      int               sharpness_;
+      int               gain_;
+      int               focus_;
+      int               autoExposure_;
+      int               backlightCompensation_;
+      int               whiteBalanceTemperature_;
 	  int               frameCounter_;
-	  v4l2::CaptureSize _captureSize;
+	  v4l2::CaptureSize captureSize_;
 #endif
 };
 #endif
