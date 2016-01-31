@@ -22,37 +22,39 @@ vector<Vec4i> hierarchy;
 Point2f center_of_area;
 Rect contour_rect;
 
-cvtColor(image, hsv_image, COLOR_BGR2HSV);
+cvtColor(image, hsv_image, COLOR_BGR2HSV); //thresholds the h,s,v values of the image to look for green
 generateThreshold(image, threshold_image, _hue_min, _hue_max, _sat_min, _sat_max, _val_min, _val_max);
 
 findContours( threshold_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
+//find contours in the thresholded image
 
-float min_contour_depth = 1000000;
+float max_contour_area = 0;
 
 for (int i = 0; i < contours.size(); i++) {
-	Moments mu = moments( contours[i], false );
-	center_of_area = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 );
-	contour_rect = boundingRect(contours[i]);
+	Moments mu = moments( contours[i], false ); //get the center of area of the contour
+	center_of_area = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 ); //this could be used possibly for comparison to the center of area of the shape
+
+	contour_rect = boundingRect(contours[i]); //bounding box of the target
 
 	contour_mask.setTo(Scalar(0));
 
-	drawContours(contour_mask,contours,i,Scalar(255),CV_FILLED);
+	drawContours(contour_mask,contours,i,Scalar(255),CV_FILLED); //create a mask on the contour
 
 
-	float depth_z_min = minOfMat(depth,contour_mask,countPixel);
-	float depth_z_max = minOfMat(depth,contour_mask,countPixel);
+	float depth_z_min = minOfMat(depth,contour_mask,countPixel); //get the minimum and maximum depth values in the contour
+	float depth_z_max = minOfMat(depth,contour_mask,countPixel,true); //actually does some averaging
 
-	float h_dist_with_min = sqrt( (depth_z_min*depth_z_min) - (_goal_height*_goal_height) );
-	float h_dist_with_max = sqrt( (depth_z_max*depth_z_max) - ((_goal_height+contour_rect.height/1000.0)*(_goal_height+contour_rect.height/1000.0)));
-	float h_dist = (h_dist_with_max + h_dist_with_min) / 2.0;
+	float h_dist_with_min = sqrt( (depth_z_min*depth_z_min) - (_goal_height*_goal_height) ); //uses pythagorean theorem to determine horizontal distance to goal using minimum
+	float h_dist_with_max = sqrt( (depth_z_max*depth_z_max) - ((_goal_height+contour_rect.height/1000.0)*(_goal_height+contour_rect.height/1000.0))); //this one uses maximum
+	float h_dist = (h_dist_with_max + h_dist_with_min) / 2.0; //average of the two is more accurate
 
-	float goal_to_center_px = ((float)contour_rect.tl().x + ((float)contour_rect.width / 2.0)) - ((float)image.cols / 2.0);
-	float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols);
+	float goal_to_center_px = ((float)contour_rect.tl().x + ((float)contour_rect.width / 2.0)) - ((float)image.cols / 2.0); //number of pixels from center of contour to center of image (e.g. how far off center it is)
+	float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols); //converts to angle using the field of view
 	
-	if(depth_z_min < min_contour_depth) {
-		_dist_to_goal = h_dist;
+	if(contourArea(contours[i]) > max_contour_area) { //if this contour is the biggest one pick it
+		_dist_to_goal = h_dist; 
 		_angle_to_goal = goal_to_center_deg * (180.0 / M_PI);
-		min_contour_depth = depth_z_min;		
+		max_contour_area = contourArea(contours[i]); //set variables		
 		}
 	}
 
