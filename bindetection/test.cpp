@@ -151,7 +151,7 @@ int main( int argc, const char** argv )
 
 	// Create list of tracked objects
 	// recycling bins are 24" wide
-	TrackedObjectList binTrackingList(24.0, cap->width());
+	TrackedObjectList binTrackingList(8.0, cap->width());
 
 	NetworkTable::SetClientMode();
 	NetworkTable::SetIPAddress("10.9.0.2");
@@ -530,11 +530,10 @@ void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const
    mkdir("negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
    if (index < rects.size())
    {
-      Mat image = frame(rects[index]);
       // Create filename, save image
       stringstream fn;
       fn << "negative/" << path << "_" << frameCounter << "_" << index;
-      imwrite(fn.str() + ".png", image);
+      imwrite(fn.str() + ".png", frame(rects[index]));
    }
 }
 
@@ -562,7 +561,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (fileName.length() == 0 ||
-			((fileName.find('.') == string::npos) && isdigit(fileName[0])))
+		((fileName.find('.') == string::npos) && isdigit(fileName[0])))
 	{
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
