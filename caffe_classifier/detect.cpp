@@ -36,7 +36,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	std::vector<float> scores;
 
 	generateInitialWindows(inputImg, minSize, maxSize, wsize, scaleFactor, scaledimages, rects, scales);
-	runDetection(classifier, scaledimages, rects, scales, .7, "ball", rectsOut, scalesOut, scores);
+	runDetection(classifier, scaledimages, rects, scales, .4, "ball", rectsOut, scalesOut, scores);
 	for(size_t i = 0; i < rectsOut.size(); i++)
 	{
 		float scale = scaledimages[scalesOut[i]].second;
@@ -146,7 +146,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
       std::vector<float>  &scores)
 {
    detected.clear();
-   std::vector <std::vector<Prediction> >predictions = classifier.ClassifyBatch(imgs, 1);
+   std::vector <std::vector<Prediction> >predictions = classifier.ClassifyBatch(imgs, 2);
    // Each outer loop is the predictions for one input image
    for (size_t i = 0; i < imgs.size(); ++i)
    {
