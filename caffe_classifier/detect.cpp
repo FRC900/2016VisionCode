@@ -25,7 +25,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	const cv::Size &maxSize,
 	double scaleFactor,
 	float threshold,
-        std::vector<cv::Rect> &rectsOut)
+	std::vector<cv::Rect> &rectsOut)
 {
     std::vector<Detected> detectedOut;
 	int wsize = classifier.getInputGeometry().width;
@@ -44,7 +44,6 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 		detectedOut.push_back(Detected(rectsOut[i], scores[i]));
 	}
    	fastNMS(detectedOut, threshold, rectsOut);
-
 }
 
 template <class MatT>
@@ -135,6 +134,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
    double end = gtod_wrapper();
    std::cout << "runDetection time = " << (end - start) << std::endl;
 }
+
 // do 1 run of the classifier. This takes up batch_size predictions and adds anything found
 // to the detected list
 template <class MatT>

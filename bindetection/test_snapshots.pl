@@ -93,6 +93,9 @@ for $dir (sort @model_dirs)
 					{
 						print "$1, $2, ";
 					}
+					elsif ($line =~ /(\d+) false positives found in (\d+) frames/)
+					{
+						print "$1, $2, ";
 				}
 				close $pipeh;
 			}

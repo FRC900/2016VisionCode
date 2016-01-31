@@ -37,7 +37,6 @@ string getDateTimeString(void);
 void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void checkDuplicate (vector<Rect> detectRects);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true);
@@ -94,34 +93,6 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
    }
 }
 
-void checkDuplicate (vector<Rect> detectRects) {
-	for( size_t i = 0; i < detectRects.size(); i++ ) {
-		for (size_t j = 0; j < detectRects.size(); j++) {
-			if (i != j) {
-				Rect intersection = detectRects[i] & detectRects[j];
-				if (intersection.width * intersection.height > 0)
-					if (abs((detectRects[i].width * detectRects[i].height) - (detectRects[j].width * detectRects[j].height)) < 2000)
-						if (intersection.width / intersection.height < 5 &&  intersection.width / intersection.height > 0) {
-							Rect lowestYVal;
-							int indexHighest;
-							if(detectRects[i].y < detectRects[j].y) {
-							lowestYVal = detectRects[i]; //higher rectangle
-							indexHighest = j;
-						} else {
-							lowestYVal = detectRects[j]; //higher rectangle
-							indexHighest = i;
-					}
-					if(intersection.y > lowestYVal.y) {
-						//cout << "found intersection" << endl;
-						detectRects.erase(detectRects.begin()+indexHighest);
-					}
-				}
-			}
-		}
-	}
-}
-
-
 int main( int argc, const char** argv )
 {
 	// Flags for various UI features
@@ -173,7 +144,7 @@ int main( int argc, const char** argv )
 		string detectWindowName = "Detection Parameters";
 		namedWindow(detectWindowName);
 		createTrackbar ("Scale", detectWindowName, &scale, 50, NULL);
-		createTrackbar ("Neighbors", detectWindowName, &neighbors, 50, NULL);
+		createTrackbar ("NMS Threshold", detectWindowName, &nmsThreshold, 100, NULL);
 		createTrackbar ("Min Detect", detectWindowName, &minDetectSize, 200, NULL);
 		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()), NULL);
 	}
@@ -206,10 +177,7 @@ int main( int argc, const char** argv )
 
 	// Find the first frame number which has ground truth data
 	if (args.groundTruth && (groundTruthFrames.size() > 0))
-	{
-		cerr << "Set frame counter to first ground truth frame " << groundTruthFrames[0];
 		cap->frameCounter(groundTruthFrames[0]);
-	}
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -246,7 +214,6 @@ int main( int argc, const char** argv )
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
 		detectState.detector()->Detect(frame, detectRects);
-		checkDuplicate(detectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -354,10 +321,10 @@ int main( int argc, const char** argv )
 
 		if (cap->frameCount() >= 0)
 		{
-			groundTruthList    = groundTruth.get(cap->frameCounter() - 1);
+			groundTruthList = groundTruth.get(cap->frameCounter() - 1);
 			groundTruthActual += groundTruthList.size();
-            vector<bool> groundTruthsHit(groundTruthList.size());
-            vector<bool> detectRectsUsed(detectRects.size());
+			vector<bool> groundTruthsHit(groundTruthList.size());
+			vector<bool> detectRectsUsed(detectRects.size());
 
 			for(vector<Rect>::const_iterator gt = groundTruthList.begin(); gt != groundTruthList.end(); ++gt)
 			{
@@ -372,13 +339,13 @@ int main( int argc, const char** argv )
 							groundTruthFound += 1;
 							groundTruthsHit[gt - groundTruthList.begin()] = true;
 						}
-                        detectRectsUsed[it - detectRects.begin()] = true;
+						detectRectsUsed[it - detectRects.begin()] = true;
 						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
 							rectangle(frame, *it, Scalar(128,128,128), 3);
 					}
 				}
 			}
-			for(auto it = groundTruthsHit.begin(); it != groundTruthsHit.end(); ++it)
+			for(auto it = detectRectsUsed.begin(); it != detectRectsUsed.end(); ++it)
 				if (!*it)
 					groundTruthFalsePositives += 1;
 		}
@@ -550,7 +517,10 @@ int main( int argc, const char** argv )
 		NetworkTable::Shutdown();
 
 	if (groundTruthActual)
+	{
 		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
+		cout << groundTruthFalsePositives << " false positives found in " << groundTruthFrames.size() << " frames (" << (double)groundTruthFalsePositives/groundTruthFrames.size() << " per frame)" << endl;
+	}
 	return 0;
 }
 
