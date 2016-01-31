@@ -72,6 +72,79 @@ static void generateThreshold(const Mat &ImageIn, Mat &ImageOut,
    dilate(ImageOut, ImageOut, dilateElement, Point(-1,-1), 2);
 }
 
+double avgOfMat(Mat &img, Mat &mask, bool (*f)(float) ) { //this averages mats without counting NaN
+	CV_Assert(img.depth() == CV_32F); //must be of type used for depth
+	CV_Assert(mask.depth() == CV_8UC1);
+	float* ptr_img;
+	int* ptr_mask;
+	double sum = 0;
+	double numPix = 0;
+
+	for(int j = 0;j < img.rows;j++){ //for each row
+
+	    ptr_img = img.ptr<float>(j);
+	    ptr_mask = mask.ptr<int>(j);
+
+	    for(int i = 0;i < img.cols;i++){ //for each pixel in row
+		if(f(ptr_img[i]) && ptr_mask[i] == 255) {
+		    sum = sum + ptr_img[i];
+		    numPix++;
+			}
+	    }
+	}
+	return sum / (numPix * 1000.0);
+}
+
+double minOfMat(Mat &img, Mat &mask, bool (*f)(float), bool max=false, int range=10) { //this actually gets min or max
+	CV_Assert(img.depth() == CV_32F); //must be of type used for depth
+	CV_Assert(mask.depth() == CV_8UC1);
+	float* ptr_img;
+	uchar* ptr_mask;
+	double min = 100000000;
+	if(max)
+	  min = 0;
+	int minLoc_x;
+	int minLoc_y;
+
+	for(int j = 0;j < img.rows;j++){ //for each row
+
+	    ptr_img = img.ptr<float>(j);
+	    ptr_mask = mask.ptr<uchar>(j);
+
+	    for(int i = 0;i < img.cols;i++){ //for each pixel in row
+		if(f(ptr_img[i]) && ptr_mask[i] == 255) {
+		    if(max) {
+		       if(ptr_img[i] > min)
+			   min = ptr_img[i];
+			   minLoc_x = i;
+			   minLoc_y = j;
+		    } else {
+		       if(ptr_img[i] < min)
+			   min = ptr_img[i];
+			   minLoc_x = i;
+			   minLoc_y = j;
+			}
+		}
+	    }
+	}
+	
+	int sum = 0;
+	int numPix = 0;
+	for(int j = (minLoc_x - range); j < (minLoc_x + range); j++) {
+		for(int i = (minLoc_y - range); i < (minLoc_y + range); i++) {
+
+			if( 0 < i < img.cols && 0 < j < img.rows && f(img.at<float>(i,j)) && mask.at<uchar>(i,j) == 255) {
+				sum = sum + img.at<float>(i,j);
+				numPix++;
+				}
+
+			}	
+		}
+
+	return sum / (numPix * 1000.0);
+}
+
+bool countPixel(float v) { if( isnan(v) || v <= 0) { return false; } else { return true; } }
 
 
 int H_MIN = 60; //60-95 is a good range for bright green
@@ -80,6 +153,9 @@ int S_MIN =  180;
 int S_MAX = 255;
 int V_MIN =  67;
 int V_MAX = 255;
+
+double goal_height = 0.2286;
+
 RNG rng(12345);
 
 
@@ -105,7 +181,6 @@ int main(int argc, char **argv)
    createTrackbar( "S_MAX", trackbarWindowName, &S_MAX, 255, NULL);
    createTrackbar( "V_MIN", trackbarWindowName, &V_MIN, 255, NULL);
    createTrackbar( "V_MAX", trackbarWindowName, &V_MAX, 255, NULL);
-
 
    cap->left(true);
 
@@ -133,15 +208,16 @@ int main(int argc, char **argv)
    target_shape_c.push_back(Point(812.8,0));
 
    targetShapeBound = boundingRect(target_shape_c);
-
-   cout << "target height" << targetShapeBound.height << endl;
+   Moments targetShapeMoments = moments(target_shape_c, false);
+   Point2f targetShapeMC = Point2f( targetShapeMoments.m10/targetShapeMoments.m00 , targetShapeMoments.m01/targetShapeMoments.m00 );
 
    while(true)
    {
 	cap->update();
 	cap->getFrame().copyTo(image);
 
-	imshow ("BGR", image);
+	 imshow ("Normalized Depth", cap->getNormalDepth());
+	 imwrite ("image.png", image);
 
 	 cvtColor(image, hsvImage, COLOR_BGR2HSV);
 	 generateThreshold(image, thresholdHSVImage,
@@ -162,29 +238,36 @@ int main(int argc, char **argv)
 	    Moments mu = moments( recognized_ac[i], false );
 	    mc = Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 ); 
 	    //cout << "recognized area (px^2): " << contourArea(recognized_ac[i]) << endl;
-	    
+
 	    targetRect = boundingRect(recognized_ac[i]);
-	
+
 	    cap->getDepth().copyTo(depthMat);
+
+	    Mat targetDepthMat(depthMat,targetRect);
 	    contourMask.setTo(Scalar(0));
 	    drawContours(contourMask,recognized_ac,i,Scalar(255),CV_FILLED); //draw a contour so we can use it as a mask for averaging depth data
-	    NaNMask = Mat(isnan(depthMat) || depthMat == 0 || contourMask == 0); //anywhere to not get depth from
+	    imshow("Contours mask", contourMask);
 	    
-	    double depth_z = mean(depthMat,NaNMask);
+	    double depth_z_min = minOfMat(targetDepthMat,contourMask,countPixel);
+	    double depth_z_max = minOfMat(targetDepthMat,contourMask,countPixel,true);
 
-	    cout << "average depth (m): " << depth_z << endl;
-	    cout << "Object height (px): " << targetRect.height << endl;
-	    cout << "FOV (rad): " << camera_vfov << endl;
-	    cout << "Image height: (px): " << cap->height() << endl;
-	    cout << "Object actual height (m): " << (targetShapeBound.height/1000.0) << endl;
-	
-	    double tanExp = tan( (targetRect.height * camera_vfov)/(2*cap->height()) );
-	    double asinExp = asin( (depth_z*tanExp)/(targetShapeBound.height/1000.0) );
-	    double h_dist = depth_z * cos( asinExp );
-	
+	    cout << "Zed depth min: " << depth_z_min << endl;
+
+	    double h_dist_with_min = sqrt( (depth_z_min*depth_z_min) - (goal_height*goal_height) );
+	    double h_dist_with_max = sqrt( (depth_z_max*depth_z_max) - ((goal_height+targetRect.height/1000.0)*(goal_height+targetRect.height/1000.0)));
+
+	    //double h_dist_with_avg = sqrt( (depth_z_avg*depth_z_avg) - ((goal_height + targetShapeMC.y/1000.0)*(goal_height + (targetShapeMC.y/1000.0))));
+
+	    double h_dist = (h_dist_with_max + h_dist_with_min) / 2.0;
+
+	    double goal_w_angle = camera_hfov * (targetRect.width / (float)cap->width());
+	    double h_angle_to_goal = cos( ( (2*depth_z_min*tan(goal_w_angle)) / (targetShapeBound.width/1000.f) ) );
+
 	    cout << "Horizontal distance to goal: " << h_dist << endl;
+	    cout << "Horizontal angle to goal: " << h_angle_to_goal * (180 / M_PI) << endl;
 	 }
-	 
+
+	 imshow ("BGR", image);
 	 imshow ("HSV", hsvImage);
 	 waitKey(5);
    }
