@@ -4,10 +4,10 @@ use Cwd 'abs_path';
 my $cwd = abs_path(".");
 
 my $videodir = "/home/kjaget/ball_videos/test";
-my $basedir = "/home/kjaget/jobs";
+my $basedir = "/home/kjaget/test";
 
 opendir(my $dh, $basedir) || die "Can not open $basedir : $!";
-my @model_dirs = grep { /^201/ && -d "$basedir/$_" } readdir($dh);
+my @model_dirs = grep { /_2fc2_/ && -d "$basedir/$_" } readdir($dh);
 closedir $dh;
 
 opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
@@ -21,13 +21,17 @@ for $video (sort @videos)
 
 for $dir (sort @model_dirs)
 {
+	if (-f "$basedir/$dir/deploy.prototxt")
+	{
+		print "$dir\n";
+	}
+}
+
+for $dir (sort @model_dirs)
+{
 	my $fulldir = $basedir."/".$dir;
 	#print "$fulldir ";
-	if ((-f "$fulldir/mean.binaryproto") && (-f "$fulldir/labels.txt"))
-
-	{
-	}
-	elsif (-f "$fulldir/deploy.prototxt")
+	if (-f "$fulldir/deploy.prototxt")
 	{
 		open (my $fh, "$fulldir/train_val.prototxt") || die "Could not open $fulldir/train_val.prototxt : $!";
 		while (my $line = <$fh>)
@@ -76,14 +80,12 @@ for $dir (sort @model_dirs)
 		`cp $basedir/$mean_dir/mean.binaryproto d12`;
 		`cp $basedir/$mean_dir/labels.txt d12`;
 		opendir(my $dh, "d12") || die "Can not open d12 : $!";
-		my @snapshots = grep { /^snapshot_iter_/ && -f "d12/$_" } readdir($dh);
+		my @snapshots = grep { /^snapshot_iter_\d+.caffemodel/ && -f "d12/$_" } readdir($dh);
 		closedir $dh;
 		for $snapshot (sort @snapshots)
 		{
 			`ln -sf $cwd/d12/$snapshot d12/network.caffemodel`;
 			print "$conv_out, $fc_out, $base_lr, $fulldir, $snapshot, ";
-			print "\n";
-			last;
 			for $video (sort @videos)
 			{
 				open (my $pipeh, "./zv --batch --groundTruth $videodir/$video |");
@@ -96,6 +98,7 @@ for $dir (sort @model_dirs)
 					elsif ($line =~ /(\d+) false positives found in (\d+) frames/)
 					{
 						print "$1, $2, ";
+					}
 				}
 				close $pipeh;
 			}
