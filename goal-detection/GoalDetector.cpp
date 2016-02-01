@@ -1,5 +1,8 @@
 #include "GoalDetector.hpp"
 
+using namespace std;
+using namespace cv;
+
 GoalDetector::GoalDetector() {
 
 _goal_shape_contour.push_back(Point(0,0));
@@ -101,7 +104,7 @@ int numPix = 0;
 for(int j = (minLoc_x - range); j < (minLoc_x + range); j++) {
 	for(int i = (minLoc_y - range); i < (minLoc_y + range); i++) {
 
-		if( 0 < i < img.cols && 0 < j < img.rows && f(img.at<float>(i,j)) && mask.at<uchar>(i,j) == 255) {
+		if( 0 < i && i < img.cols && 0 < j && j < img.rows && f(img.at<float>(i,j)) && mask.at<uchar>(i,j) == 255) {
 			sum = sum + img.at<float>(i,j);
 			numPix++;
 			}
