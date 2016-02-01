@@ -21,7 +21,7 @@ int g_h_min = 130;
 int g_s_max = 255;
 int g_s_min = 147;
 int g_v_max = 255;
-int g_v_min = 48;  
+int g_v_min = 48;
 #else
 //Values for blue screen:
 int    g_h_max      = 120;
@@ -35,6 +35,7 @@ int    g_files_per  = 9;
 int    g_num_frames = 50;
 int    g_min_resize = 0;
 int    g_max_resize = 40;
+float  g_noise = 3.0;
 string g_outputdir  = ".";
 
 const int min_area = 7000;
@@ -142,7 +143,7 @@ bool RescaleRect(const Rect& the_rect, Rect& output_rect, const Mat &image_cool,
 
     output_rect = ResizeRect(the_rect, Size(width, height));
 
-	if ((output_rect.x < 0) || (output_rect.y < 0) || 
+	if ((output_rect.x < 0) || (output_rect.y < 0) ||
 	    (output_rect.br().x > image_cool.cols) || (output_rect.br().y > image_cool.rows))
 	{
 		cout << "Rectangle out of bounds!" << endl;
@@ -454,7 +455,7 @@ int main(int argc, char *argv[])
             {
                 threshold(btrack, btrack, 128, 255, THRESH_BINARY);
                 bounding_rect = AdjustRect(bounding_rect, 1.0);
-#ifdef DEUBG
+#ifdef DEBUG
                 imshow("Btrack", btrack);
 #endif
                 Mat hsv_final;
@@ -471,6 +472,19 @@ int main(int argc, char *argv[])
                         hsv_final.at<Vec3b>(l, m)[0] = hsv_final.at<Vec3b>(l, m)[0] % 180;
                     }
                 }
+                hsv_final.convertTo(hsv_final, CV_32FC3);
+                Mat noise = Mat(hsv_final.size(), CV_32F);
+                randn(noise, 0.0, g_noise);
+                Mat splitMat[3];
+                split(hsv_final, splitMat);
+                for(int i = 1; i <= 2; i++)
+                {
+                    double min, max;
+                    minMaxLoc(splitMat[i], &min, &max);
+                    add(splitMat[i], noise, splitMat[i], btrack);
+                    normalize(splitMat[i], splitMat[i], min, max, NORM_MINMAX, -1, btrack);
+                }
+                merge(splitMat, 3, hsv_final);
                 hsv_final.convertTo(hsv_final, CV_8UC3);
 #ifdef DEBUG
                 imshow("HSV mod", hsv_final);
@@ -480,7 +494,7 @@ int main(int argc, char *argv[])
                 imshow("Modified", frame);
                 waitKey(3000);
 #endif
-				double scale_adder;
+			    double scale_adder;
 				if (g_files_per == 1)
 					scale_adder =  g_max_resize + 1;
 				else
