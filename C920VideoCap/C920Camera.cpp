@@ -37,7 +37,8 @@ namespace v4l2 {
 		fprintf(stdout, "V4L2Camera INFO: Opening capture device %s.\n", __capture_file);
 		this->Close();
 		this->capture = this->CreateCapture(__capture_file);
-		fprintf(stdout, "V4L2Camera INFO: Opened capture device %s.\n", this->capture->DeviceName);
+		if (this->capture)
+			fprintf(stdout, "V4L2Camera INFO: Opened capture device %s.\n", this->capture->DeviceName);
 		return this->capture != 0;
 	}
 	void C920Camera::Close() {
@@ -290,7 +291,7 @@ namespace v4l2 {
 		fprintf(stdout, "C920Camera::InitilizeCapture INFO: Quering capture device capability %s.\n", capture->DeviceName);
 		CLEAR(capture->V4L2Capability);
 		if (-1 == xioctl(capture->DeviceHandle, VIDIOC_QUERYCAP, &capture->V4L2Capability)) {
-			fprintf(stderr, "C920Camera::InitilizeCapture ERROR: Unable query capability from %s.", capture->DeviceName);
+			fprintf(stderr, "C920Camera::InitilizeCapture ERROR: Unable to query capability from %s.\n", capture->DeviceName);
 			this->CloseCapture(capture);
 			return -2;
 		}

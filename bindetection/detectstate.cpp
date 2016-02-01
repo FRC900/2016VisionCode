@@ -20,7 +20,7 @@ bool DetectState::update(void)
 	  return true;
 
 	string name = classifierIO_.getClassifierName();
-	cerr << name << endl;
+	//cerr << name << endl;
 	if (detector_)
 	   delete detector_;
 

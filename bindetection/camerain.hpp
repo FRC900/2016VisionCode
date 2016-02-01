@@ -14,13 +14,11 @@ class CameraIn : public MediaIn
       int height(void) const;
       int frameCounter(void) const;
 
-   protected:
-      int     frameCounter_;
-	  int     width_;
-	  int     height_;
-      cv::Mat frame_;
-
    private:
+      int              frameCounter_;
+	  int              width_;
+	  int              height_;
+      cv::Mat          frame_;
       cv::VideoCapture cap_;
 };
 #endif

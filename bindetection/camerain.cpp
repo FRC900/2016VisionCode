@@ -29,7 +29,7 @@ bool CameraIn::getNextFrame(Mat &frame, bool pause)
 	if (!pause)
 	{
 		cap_ >> frame_;
-		if( frame_.empty() )
+		if (frame_.empty())
 			return false;
 		if (frame_.rows > 800)
 			pyrDown(frame_, frame_);

@@ -2,7 +2,7 @@
 #define C920CAMERAIN_HPP__
 
 #include <opencv2/core/core.hpp>
-#include "camerain.hpp"
+#include "mediain.hpp"
 
 #ifdef __linux__
 #include "../C920VideoCap/C920Camera.h"
@@ -11,7 +11,7 @@
 // Code specific for C920 camera. We have lots of
 // extra controls avaiable for this, so use it if
 // possible
-class C920CameraIn : public CameraIn
+class C920CameraIn : public MediaIn
 {
    public:
       C920CameraIn(int _stream = -1, bool gui = false);
@@ -35,18 +35,19 @@ class C920CameraIn : public CameraIn
 	  friend void whiteBalanceTemperatureCallback(int value, void *data);
 	  friend void focusCallback(int value, void *data);
 
-      v4l2::C920Camera  _camera;
-      int               _brightness;
-      int               _contrast;
-      int               _saturation;
-      int               _sharpness;
-      int               _gain;
-      int               _focus;
-      int               _autoExposure;
-      int               _backlightCompensation;
-      int               _whiteBalanceTemperature;
-	  int               _frameCounter;
-	  v4l2::CaptureSize _captureSize;
+      v4l2::C920Camera  camera_;
+	  cv::Mat           frame_;
+      int               brightness_;
+      int               contrast_;
+      int               saturation_;
+      int               sharpness_;
+      int               gain_;
+      int               focus_;
+      int               autoExposure_;
+      int               backlightCompensation_;
+      int               whiteBalanceTemperature_;
+	  int               frameCounter_;
+	  v4l2::CaptureSize captureSize_;
 #endif
 };
 #endif
