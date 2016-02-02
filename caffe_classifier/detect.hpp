@@ -10,20 +10,21 @@ class NNDetect
 	CaffeClassifier <MatT> classifier;
 	void doBatchPrediction(CaffeClassifier<MatT> &classifier,
 			const std::vector<MatT> &imgs,
-			const float threshold,
+			float threshold,
 			const std::string &label,
 			std::vector<size_t> &detected,
 			std::vector<float>  &scores);
+
 	void generateInitialWindows(
-			const cv::Mat  &input,
+			const MatT &input,
 			const cv::Size &minSize,
 			const cv::Size &maxSize,
-			const int wsize,
+			int wsize,
 			double scaleFactor,
 			std::vector<std::pair<MatT, float> > &scaledimages,
 			std::vector<cv::Rect> &rects,
+			std::vector<int> &scales);
 
-std::vector<int> &scales);
 	void runDetection(CaffeClassifier<MatT> &classifier,
 			const std::vector<std::pair<MatT, float> > &scaledimages,
 			const std::vector<cv::Rect> &rects,
@@ -39,15 +40,15 @@ std::vector<int> &scales);
 		const std::string &trained_file,
 		const std::string &mean_file,
 		const std::string &label_file):
-	classifier(CaffeClassifier<MatT>(model_file, trained_file, mean_file, label_file, 64 ))
+		classifier(CaffeClassifier<MatT>(model_file, trained_file, mean_file, label_file, 64 ))
 	{
 	}
 	void detectMultiscale(const cv::Mat &inputImg,
-		const cv::Size &minSize,
-		const cv::Size &maxSize,
-		double          scaleFactor,
-		float threshold,
-		std::vector<cv::Rect> &rectsOut);
+			const cv::Size &minSize,
+			const cv::Size &maxSize,
+			double scaleFactor,
+			double NMSThreshold,
+			std::vector<cv::Rect> &rectsOut);
 };
 
 #endif
