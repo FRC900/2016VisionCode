@@ -25,7 +25,7 @@ using namespace cv;
 bool leftCamera = true;
 int numThreads = 8;
 
-
+bool reload_fovis = true;
 string isometryToString(const Eigen::Isometry3d& m)
 {
   char result[80];
@@ -78,184 +78,194 @@ double avgOfMat(Mat &img, Mat &mask) { //this averages mats without counting NaN
 	return sum / (float)(img.rows * img.cols);
 }
 
+void setReload(int trackbar_value, void *why_is_this_parameter_even_here_please_dont_do_anything_with_it) {
+	reload_fovis = true;
+}
+
+
 int main(int argc, char **argv) {
 
   omp_set_num_threads(numThreads);
-  Eigen::setNbThreads(numThreads);
+  Eigen::setNbThreads(numThreads); //set threads for eigen so that it runs slightly faster
   cout << "Using " << Eigen::nbThreads() << " threads" << endl;
+
   ZedIn *cap = NULL;
-  if(argc == 2) {
+   if(argc == 2) {
   	cap = new ZedIn(argv[1]);
-	cout << "Read SVO file" << endl;
-  }
-  else {
+	cerr << "Read SVO file" << endl;
+   }
+   else {
 	cap = new ZedIn;
-	cout << "Initialized camera" << endl;
-  }
+	cerr << "Initialized camera" << endl;
+   }
+
   fovis::CameraIntrinsicsParameters rgb_params;
-  memset(&rgb_params,0,sizeof(rgb_params));
-  rgb_params.width = cap->width;
-  rgb_params.height = cap->height; //get width and height from the camera
+  memset(&rgb_params,0,sizeof(rgb_params)); //get intrinsic parameters from the camera (stuff like fx,cx,etc)
+  rgb_params.width = cap->width();
+  rgb_params.height = cap->height(); //get width and height from the camera
 
-  rgb_params.fx = cap->getCameraParams(leftCamera).fx;
-  rgb_params.fy = cap->getCameraParams(leftCamera).fy;
-  rgb_params.cx = cap->getCameraParams(leftCamera).cx; //get camera intrinsic parameters from zed function
-  rgb_params.cy = cap->getCameraParams(leftCamera).cy;
+  rgb_params.fx = cap->getCameraParams().fx;
+  rgb_params.fy = cap->getCameraParams().fy;
+  rgb_params.cx = cap->getCameraParams().cx; //get camera intrinsic parameters from zed function
+  rgb_params.cy = cap->getCameraParams().cy;
 
-  /*cout << rgb_params.fx << endl;
-  cout << rgb_params.fy<< endl;
-  cout << rgb_params.cx << endl;
-  cout << rgb_params.cy << endl; */
+  int fv_param_max_pyr_level = 3;
+  int fv_param_feature_search_window = 25;
+  int fv_param_feature_window_size = 9; //variables to add to trackbars
+  int fv_param_target_ppf = 250;
 
+  int num_optical_flow_sectors_x = 4;
+  int num_optical_flow_sectors_y = 4; //optical flow parameters
+  int num_optical_flow_points = 200;
+  int flow_arbitrary_outlier_threshold_int = 100;
 
-  // TODO change this later so we can adjust options
-  fovis::VisualOdometryOptions options = fovis::VisualOdometry::getDefaultOptions();
-  options["max-pyramid-level"] = "3"; //default 3
-  options["feature-search-window"] = "25"; //default 25
-  options["use-subpixel-refinement"] = "true"; //default true
-  options["feature-window-size"] = "9"; //default 9
-  options["target-pixels-per-feature"] = "250"; //default 250
-
-  int numHistBins = 64;
-  int minDepthInt = 0;
-  int maxDepthInt = 1000;
-  int stddev_weight_int = 100;
-  int rangeRangeInt = 100;
-  int maxPeaks = 1000;
-
-  string detectWindowName = "Background Partitioning Parameters";
+  string detectWindowName = "Parameters";
   namedWindow(detectWindowName);
-  createTrackbar ("Standard Deviation Multiplier", detectWindowName, &stddev_weight_int, 4000, NULL);
-  createTrackbar ("Histogram Min Depth", detectWindowName, &minDepthInt, 2000, NULL);
-  createTrackbar ("Histogram Max Depth", detectWindowName, &maxDepthInt, 2000, NULL);
-  createTrackbar ("Number of bins", detectWindowName, &numHistBins, 128, NULL);
-  createTrackbar ("Range of Range", detectWindowName, &rangeRangeInt, 1000, NULL);
-  createTrackbar ("Maximum Peaks", detectWindowName, &maxPeaks, 10000, NULL);
 
-  float histRange_arr[2];
-  float stddev_weight;
+  createTrackbar ("Max Pyramid Level", detectWindowName, &fv_param_max_pyr_level, 10, setReload);
+  createTrackbar ("Feature Search Window", detectWindowName, &fv_param_feature_search_window, 100, setReload);
+  createTrackbar ("Feature Window Size", detectWindowName, &fv_param_feature_window_size, 50, setReload);
+  createTrackbar ("Target Pixels per Feature", detectWindowName, &fv_param_target_ppf, 4000, setReload);
 
-  fovis::Rectification rect(rgb_params);
-  fovis::VisualOdometry* odom = new fovis::VisualOdometry(&rect, options);
-  Mat depthMask(cap->height, cap->width, CV_8UC1);
-  Mat frame, depthFrame, histMat, displayFrame, depthMask_inv, hist_stddev_mat, hist_mean_mat;
-  Mat depth_mean_mat_1, depth_stddev_mat_1, depth_mean_mat_2, depth_stddev_mat_2;
-  float* depthImageFloat = new float[cap->width * cap->height];
-  double histMaxVal;
-  Point  histMaxValLoc;
-  fovis::DepthImage depthSource(rgb_params, cap->width, cap->height);
+  createTrackbar ("Optical Flow Sectors X", detectWindowName, &num_optical_flow_sectors_x, 32, NULL);
+  createTrackbar ("Optical Flow Sectors Y", detectWindowName, &num_optical_flow_sectors_y, 32, NULL);
+  createTrackbar ("Optical Flow Points", detectWindowName, &num_optical_flow_points, 2000, NULL);
+  createTrackbar ("Optical Flow Threshold", detectWindowName, &num_optical_flow_points, 1000, NULL);
+
+  fovis::Rectification rect(rgb_params); //create fovis objects
+  fovis::DepthImage depthSource(rgb_params, cap->width(), cap->height());
+  fovis::VisualOdometry* odom;
+
+  Mat frame, frameGray, prev, prevGray, depthFrame, displayFrame;
   clock_t startTime;
-  vector<float> peaks;
-  vector<float> histVec;
+
+  cap->update();
+  cap->getFrame().copyTo(prev); //initialize to a frame so we can use optical flow
+
   while(1)
     {
+
+    if(reload_fovis) {
+
+		fovis::VisualOdometryOptions options = fovis::VisualOdometry::getDefaultOptions();
+
+		options["max-pyramid-level"] = to_string(fv_param_max_pyr_level);
+		options["feature-search-window"] = to_string(fv_param_feature_search_window);
+		options["use-subpixel-refinement"] = "true";
+		options["feature-window-size"] = to_string(fv_param_feature_window_size);
+		options["target-pixels-per-feature"] = to_string(fv_param_target_ppf);
+		
+		odom = new fovis::VisualOdometry(&rect, options);
+
+		reload_fovis = false;
+	}
+
     startTime = clock();
-    cap->getNextFrame(frame,leftCamera);
 
-    int pixelCounter = 0;
-    float depthPoint;
-    for(int y = 0; y < cap->height; y++) {
-        for(int x = 0; x < cap->width; x++) {
-	    depthPoint = cap->getDepthPoint(x,y);
-	    if(depthPoint <= 0) {
-		depthImageFloat[pixelCounter] = NAN;		
-	    }
-	    else {
-		depthImageFloat[pixelCounter] = depthPoint;
-	    }
-	    pixelCounter++;
-            }
-        }
+    cap->update();
+    cap->getFrame().copyTo(frame); //pull frame from zed
 
-    depthFrame = Mat(cap->height, cap->width, CV_32FC1, depthImageFloat);
-    
-    depthSource.setDepthImage(depthImageFloat);
+    cvtColor(frame,frameGray,CV_BGR2GRAY); //convert to grayscale 
+    cvtColor(prev,prevGray,CV_BGR2GRAY);
 
-    histRange_arr[0] = (float)minDepthInt / 100.0;
-    histRange_arr[1] = (float)maxDepthInt / 100.0;
-    stddev_weight = stddev_weight_int / 100.0;
+    vector<Point2f> prevCorner, currCorner;
+    vector< vector<Point2f> > prevCorner2(frame.cols / num_optical_flow_sectors_x);
+    vector< vector<Point2f> > currCorner2(frame.rows / num_optical_flow_sectors_y); //variables for optical flow
+    vector< Rect > flow_sectors;
+    vector<uchar> status;
+    vector<float> err;
 
-    const float* histRange = { histRange_arr };
-    bool uniform = true; bool accumulate = false;
-    calcHist(&depthFrame,1,0,Mat(),histMat,1,&numHistBins,&histRange, uniform, accumulate); //create a histogram, depth on the x and num pixels on the y
-    int hist_img_width = 512; int hist_img_height = 400;
-    int hist_bin_img_width = cvRound( (double)hist_img_width / numHistBins);
-    float bin_width_m = (histRange_arr[1] - histRange_arr[0]) / (float)numHistBins;
+    goodFeaturesToTrack(prevGray, prevCorner, num_optical_flow_points, 0.01, 30);
+    calcOpticalFlowPyrLK(prevGray, frameGray, prevCorner, currCorner, status, err); //calculate optical flow
 
-    histMat.at<float>(0) = 0; //first bin includes NaN and gets very large so ignore them
+    int flow_sector_size_x = frame.cols / num_optical_flow_sectors_x;
+    int flow_sector_size_y = frame.rows / num_optical_flow_sectors_y;
 
-    peaks.clear();
-    histVec.clear();
-    for(int i = 0; i < histMat.rows; i++)
-	histVec.push_back(histMat.at<float>(i));
+    for(int i = 0; i < num_optical_flow_sectors_x; i++) {
+	for(int j = 0; j < num_optical_flow_sectors_y; j++) {
+			flow_sectors.push_back(Rect(Point(i * flow_sector_size_x,j * flow_sector_size_y), Point((i+1) * flow_sector_size_x,(j+1) * flow_sector_size_y)));
+		} //create rects to segment points found into boxes
+	}
 
-    p1d::Persistence1D p; //use a library called Persistence to find all maximums
-    p.RunPersistence(histVec);
-    vector< p1d::TPairedExtrema > Extrema;
-    p.GetPairedExtrema(Extrema, maxPeaks);
-    cout << "size of extrema: " << Extrema.size() << endl;
-    //Print all found pairs - pairs are sorted ascending wrt. persistence.
-    for(vector< p1d::TPairedExtrema >::iterator it = Extrema.begin(); it != Extrema.end(); it++)
-    { //either we run out of peaks or reach the maximum allowed by the parameter
-	cout << "Persistence: " << (*it).Persistence
-		     << " maximum index: " << (*it).MaxIndex
-		     << std::endl;
-	peaks.push_back((*it).MaxIndex);
-    }
+    // Status is set to true for each point where a match was found.
+    // Use only these points for the rest of the calculations
 
-    Mat histImage(hist_img_height,hist_img_width, CV_8UC1, Scalar(0,0,0));
-    normalize(histMat, histMat, 0, histImage.rows, NORM_MINMAX, -1, Mat() );
-    for( int i = 1; i < numHistBins; i++ )
+    for (size_t i = 0; i < status.size(); i++)
     {
-      //cout << "current hist point: " << hist_bin_img_width*(i-1) << "," << histMat.at<float>(i) << endl;
-      line( histImage, Point( hist_bin_img_width*(i-1), hist_img_height - cvRound(histMat.at<float>(i-1)) ) ,
-                       Point( hist_bin_img_width*(i), hist_img_height - cvRound(histMat.at<float>(i)) ),
-                       Scalar( 255, 255, 255), 4, 8, 0  );
+         if (status[i])
+	 {
+		for(int i = 0; i < flow_sectors.size(); i++) {
+			if(flow_sectors[i].contains(prevCorner[i])) {
+				prevCorner2[i].push_back(prevCorner[i]);
+				currCorner2[i].push_back(currCorner[i]);
+				break;
+			}
+		}
+	 }
     }
-    //line( histImage, Point(0, range_threshhold), Point(hist_img_width, range_threshhold), Scalar(255,255,255),4,8,0);
 
-    imshow("Histogram",histImage);
-
-    frame.copyTo(displayFrame); //make a color copy for display purposes
-    cvtColor(displayFrame,displayFrame,CV_BGR2HSV); //convert to hsv
-    if(peaks.size() == 0) {
-	cout << "Found no peaks!!!" << endl;
-	return -1;	
+    vector< float > optical_flow_magnitude;
+    vector< bool > flow_good_sectors;
+    for(int i = 0; i < prevCorner2.size(); i++) { //for each sector calculate the magnitude of the movement
+	optical_flow_magnitude.push_back(norm(estimateRigidTransform(prevCorner2, currCorner2, false),NORM_L2));
 	}
-    cout << "Minimum range: " << (peaks[peaks.size() - 1] * bin_width_m) - (rangeRangeInt / 1000.0) << endl;
-    cout << "Maximum range: " << (peaks[peaks.size() - 1] * bin_width_m) + (rangeRangeInt / 1000.0) << endl;
-    inRangeFloat(depthFrame,depthMask,(peaks[peaks.size() - 1] * bin_width_m) - (rangeRangeInt / 1000.0),(peaks[peaks.size() - 1] * bin_width_m) + (rangeRangeInt / 1000.0));
-    double depth_mean_1 = avgOfMat(depthFrame,depthMask); //find the average of the "background"
-    bitwise_not(depthMask,depthMask_inv); //invert the mat
-    double depth_mean_2 = avgOfMat(depthFrame,depthMask_inv); //find the average of the "foreground"
-    cout << "Mean of majority: " << depth_mean_1 << endl;
-    cout << "Mean of minority: " << depth_mean_2 << endl;
-    cout << "Mean of chosen: ";
-    if(depth_mean_2 > depth_mean_1) { //if the foreground of the image is the farther one than
-	bitwise_not(depthMask,depthMask); //invert the mask because we are obviously wrong about that
-	cout << depth_mean_2 << endl;
-	} else {
-	cout << depth_mean_1 << endl;
+    
+    while(1) {
+	float mag_mean;
+	float sum = 0;
+	int good_sectors_prev_size = flow_good_sectors.size();
+
+	for(int i = 0; i < optical_flow_magnitude.size(); i++) {
+		sum = sum + optical_flow_magnitude[i]; //calculate the mean
+		}
+	mag_mean = sum / (float)optical_flow_magnitude.size();
+
+	for(int i = 0; i < optical_flow_magnitude.size(); i++) {
+		if(abs(optical_flow_magnitude[i]) > (flow_arbitrary_outlier_threshold_int / 100.0) * abs(mag_mean)) //if the data point is greater than the mean by a specific amount
+			flow_good_sectors.push_back(false);
+		else
+			flow_good_sectors.push_back(true);
+		}
+	if(good_sectors_prev_size == flow_good_sectors.size())
+		break;
+    }
+    
+
+    float fNaN = std::numeric_limits<float>::quiet_NaN(); //get a nan
+    cap->getDepth().copyTo(depthFrame);
+    
+    float* ptr_depthFrame;
+    for(int j = 0;j < depthFrame.rows;j++){ //for each row
+
+	ptr_depthFrame = depthFrame.ptr<float>(j);
+
+	for(int i = 0;i < depthFrame.cols;i++){ //for each pixel in row
+		if(ptr_depthFrame[i] <= 0)
+			ptr_depthFrame[i] = fNaN;
 	}
-    add(displayFrame,Scalar(140,0,0), displayFrame, depthMask); //tint the background so we can see which parts are background for display
-    cvtColor(displayFrame,displayFrame,CV_HSV2BGR);
-    imshow("frame",displayFrame);
-    imshow("background mask", depthMask);
 
+	for(int i = 0; i < flow_sectors.size(); i++) { //implement the optical flow into the depth data
+		Mat sector_submatrix = Mat(depthFrame,Range(flow_sectors[i].tl().y,flow_sectors[i].br().y), Range(flow_sectors[i].tl().x,flow_sectors[i].br().x));
+		Mat(sector_submatrix.rows,sector_submatrix.cols,CV_8UC1,Scalar(fNaN)).copyTo(sector_submatrix); //copy
+	}
+    }
 
-    cvtColor(frame,frame,CV_BGR2GRAY);
-    if(!frame.isContinuous()) {
+    depthSource.setDepthImage((float*)depthFrame.data); //pass the data into fovis
+
+    if(!frameGray.isContinuous()) {
 	cout << "image is not continuous. Cannot continue, exiting now" << endl;
 	return -1;
 	}
-    uint8_t* pt = (uint8_t*)frame.data;
+    uint8_t* pt = (uint8_t*)frameGray.data; //cast to unsigned integer and create pointer to data
 
-    odom->processFrame(pt, &depthSource);
+    odom->processFrame(pt, &depthSource); //run visual odometry
 	
     if(odom->getChangeReferenceFrames())
 	cout << "reference frame reset" << endl;
     Eigen::Isometry3d motion_estimate = odom->getMotionEstimate(); //estimate motion
     Eigen::Isometry3d cam_to_local = odom->getPose();
+
+    prev = frame.clone(); //copy to prev for next iteration
 
     std::cout << isometryToString(cam_to_local) << endl; //print out the pose
     std::cout << "Took: " << (((double)clock() - startTime) / CLOCKS_PER_SEC) << " seconds" << endl;
