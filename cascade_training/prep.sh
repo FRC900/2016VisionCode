@@ -35,24 +35,28 @@ shuf negatives.dat > temp.dat
 mv temp.dat negatives.dat
 
 # Create list of positive images
-/usr/bin/find positive_images -name \*.png > positives.dat
-/usr/bin/find positive_images -name \*.jpg >> positives.dat
+#/usr/bin/find positive_images -name \*.png > positives.dat
+#/usr/bin/find positive_images -name \*.jpg >> positives.dat
+
+
 # For each positive image, create a number of randomly rotated versions of that image
 # This creates a .vec file for each positive input image, each containing multiple images 
 # rotated random amounts
-perl createtrainsamples.pl positives.dat negatives.dat . 12000 | tee foo.txt
+# KCJ - perl createtrainsamples.pl positives.dat negatives.dat . 12000 | tee foo.txt
 
 # Merge each set of randomized versions of the images into one big .vec file
-rm positives.vec ordered_positives.vec
-/usr/bin/find . -name \*.vec > vectors.dat
-mergevec/src/mergevec.exe vectors.dat ordered_positives.vec
+rm positives.vec
+# KCJ - /usr/bin/find . -name \*.vec > vectors.dat
+# KCJ - mergevec/src/mergevec.exe vectors.dat ordered_positives.vec
 
 # Randomize the order of those images inside the .vec file.
 # If you change w/h in the first line, change the numbers in the next two 
 # lines to match
-mergevec/src/vec2img ordered_positives.vec samples%04d.png -w 20 -h 20 | shuf > info.dat
-sed 's/$/ 1 0 0 20 20/' info.dat > random_info.dat
-mergevec/src/createsamples -info random_info.dat -vec positives.vec -num `wc -l random_info.dat` -w 20 -h 20
-rm info.dat random_info.dat positives.dat vectors.dat ordered_positives.vec *.png.vec *.jpg.vec
+# KCJ - mergevec/src/vec2img ordered_positives.vec samples%04d.png -w 20 -h 20 | shuf > info.dat
+# KCJ - sed 's/$/ 1 0 0 20 20/' info.dat > random_info.dat
 
-rm samples????.png samples[0-9]????.png
+#find /home/kjaget/CNN/ball/ -name \*.png | xargs identify -format '\"%d/%f\" 1 0 0 %w %h\n' > info.dat
+shuf -n 25000 info.dat > random_info.dat
+opencv_createsamples -info random_info.dat -vec positives.vec -num `wc -l random_info.dat` -w 24 -h 24
+rm random_info.dat 
+
