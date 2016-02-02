@@ -535,14 +535,26 @@ int cvCreateTrainingSamplesFromInfo( const char* infoname, const char* vecfilena
     {
         filename++;
     }
+	char *saved_filename = filename;
+	char input_str[1024];
 
     for( line = 1, error = 0, total = 0; total < num ;line++ )
     {
-        int count;
+        int count = 0;
+		int str_pos = 0;
 
-        error = ( fscanf( info, "%s %d", filename, &count ) != 2 );
+		error = fgets(input_str, sizeof(input_str), info) == NULL;
+		if ( error ) { break; }
+		filename = saved_filename;
+        error = ( sscanf( input_str, "%s %d %n", filename, &count, &str_pos ) != 2 );
         if( !error )
         {
+			// Handle quoted filenames
+			if ((filename[0] == '"') && (filename[strlen(filename) - 1] == '"'))
+			{
+				memmove(filename, filename + 1, strlen(filename) - 1);
+				filename[strlen(filename) - 2] = '\0';
+			}
             src = cvLoadImage( fullname, 0 );
             error = ( src == NULL );
             if( error )
@@ -550,14 +562,26 @@ int cvCreateTrainingSamplesFromInfo( const char* infoname, const char* vecfilena
 
 #if CV_VERBOSE
                 fprintf( stderr, "Unable to open image: %s\n", fullname );
+				continue;
 #endif /* CV_VERBOSE */
 
             }
         }
+		else
+		{
+			fprintf (stderr, "Error reading filename from line %d : %d %d %d\n", line, error, total, num);
+		}
+
         for( i = 0; (i < count) && (total < num); i++, total++ )
         {
-            error = ( fscanf( info, "%d %d %d %d", &x, &y, &width, &height ) != 4 );
-            if( error ) break;
+			int chars_read;
+            error = ( sscanf( input_str + str_pos, "%d %d %d %d %n", &x, &y, &width, &height, &chars_read ) != 4 );
+            if( error ) 
+			{
+				fprintf (stderr, "Error reading sample %d from line %d\n", i, line);
+				break;
+			}
+			str_pos += chars_read;
             cvSetImageROI( src, cvRect( x, y, width, height ) );
             cvResize( src, sample, width >= sample->width &&
                       height >= sample->height ? CV_INTER_AREA : CV_INTER_LINEAR );
@@ -582,7 +606,7 @@ int cvCreateTrainingSamplesFromInfo( const char* infoname, const char* vecfilena
         {
 
 #if CV_VERBOSE
-            fprintf( stderr, "%s(%d) : parse error", infoname, line );
+            fprintf( stderr, "%s(%d) : parse error\n", infoname, line );
 #endif /* CV_VERBOSE */
 
             break;
