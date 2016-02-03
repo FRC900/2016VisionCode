@@ -182,8 +182,8 @@ int main( int argc, const char** argv )
     zmq::context_t context (1);
     zmq::socket_t publisher(context, ZMQ_PUB);
 
-    std::cout << "Starting network publisher 5555" << std::endl;
-	publisher.bind("tcp://*:5555");
+    std::cout << "Starting network publisher 5800" << std::endl;
+	publisher.bind("tcp://*:5800");
 
 	const size_t netTableArraySize = 7; // 7 bins?
 
@@ -258,7 +258,6 @@ int main( int argc, const char** argv )
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
 		stringstream zmqString;
-		zmqString << "V ";
 		for (size_t i = 0; i < displayList.size(); i++)
 		{
 			if ((displayList[i].ratio >= 0.15) && args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
