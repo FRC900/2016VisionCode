@@ -88,56 +88,56 @@ void icvMergeVecs( char* infoname, const char* outvecname, int showsamples, int 
     rewind( info );
     outvec.count = 0;
     for ( filenum = 0; ; filenum++ )
-    {
-	if ( fgets( onevecname, sizeof(onevecname), info) == NULL)
-        {
-            break;
-        }
-	for (char *p = onevecname + strlen(onevecname) - 1; (*p == '\n') || (*p == '\r'); --p)
-	   *p = '\0';
-        invec.input = fopen( onevecname, "rb" );
-        if ( invec.input == NULL )
-        {
-            fprintf( stderr, "ERROR: Input file %s does not exist or not readable.\n", onevecname );
-            exit(1);
-        }
-        fread( &invec.count,   sizeof( invec.count )  , 1, invec.input );
-        fread( &invec.vecsize, sizeof( invec.vecsize ), 1, invec.input );
-        fread( &tmp, sizeof( tmp ), 1, invec.input );
-        fread( &tmp, sizeof( tmp ), 1, invec.input );
+	{
+		if ( fgets( onevecname, sizeof(onevecname), info) == NULL)
+		{
+			break;
+		}
+		for (char *p = onevecname + strlen(onevecname) - 1; (*p == '\n') || (*p == '\r'); --p)
+			*p = '\0';
+		invec.input = fopen( onevecname, "rb" );
+		if ( invec.input == NULL )
+		{
+			fprintf( stderr, "ERROR: Input file %s does not exist or not readable.\n", onevecname );
+			exit(1);
+		}
+		fread( &invec.count,   sizeof( invec.count )  , 1, invec.input );
+		fread( &invec.vecsize, sizeof( invec.vecsize ), 1, invec.input );
+		fread( &tmp, sizeof( tmp ), 1, invec.input );
+		fread( &tmp, sizeof( tmp ), 1, invec.input );
 
-        outvec.count += invec.count;
-        if( i > 0 &&  invec.vecsize != prev_vecsize )
-        {
-            fprintf( stderr, "ERROR: The size of images in %s(%d) is different with the previous vec file(%d).\n", onevecname, invec.vecsize, prev_vecsize );
-            exit(1);
-        }
-        prev_vecsize = invec.vecsize;
-        fclose( invec.input );
-    }
+		outvec.count += invec.count;
+		if( i > 0 &&  invec.vecsize != prev_vecsize )
+		{
+			fprintf( stderr, "ERROR: The size of images in %s(%d) is different with the previous vec file(%d).\n", onevecname, invec.vecsize, prev_vecsize );
+			exit(1);
+		}
+		prev_vecsize = invec.vecsize;
+		fclose( invec.input );
+	}
     outvec.vecsize = invec.vecsize;
     icvWriteVecHeader( outvec.input, outvec.count, outvec.vecsize, 1);
 
-    // Contents
-    rewind( info );
-    outvec.count = 0;
-    for ( i = 0; i < filenum ; i++ )
-    {
-	if ( fgets( onevecname, sizeof(onevecname), info) == NULL)
+	// Contents
+	rewind( info );
+	outvec.count = 0;
+	for ( i = 0; i < filenum ; i++ )
 	{
-            break;
-        }
-	for (char *p = onevecname + strlen(onevecname) - 1; (*p == '\n') || (*p == '\r'); --p)
-	   *p = '\0';
-        invec.input = fopen( onevecname, "rb" );
-        fread( &invec.count,   sizeof( invec.count )  , 1, invec.input );
-        fread( &invec.vecsize, sizeof( invec.vecsize ), 1, invec.input );
-        fread( &tmp, sizeof( tmp ), 1, invec.input );
-        fread( &tmp, sizeof( tmp ), 1, invec.input );
+		if ( fgets( onevecname, sizeof(onevecname), info) == NULL)
+		{
+			break;
+		}
+		for (char *p = onevecname + strlen(onevecname) - 1; (*p == '\n') || (*p == '\r'); --p)
+			*p = '\0';
+		invec.input = fopen( onevecname, "rb" );
+		fread( &invec.count,   sizeof( invec.count )  , 1, invec.input );
+		fread( &invec.vecsize, sizeof( invec.vecsize ), 1, invec.input );
+		fread( &tmp, sizeof( tmp ), 1, invec.input );
+		fread( &tmp, sizeof( tmp ), 1, invec.input );
 
-        icvAppendVec( invec, outvec, &showsamples, width, height );
-        fclose( invec.input );
-    }
+		icvAppendVec( invec, outvec, &showsamples, width, height );
+		fclose( invec.input );
+	}
     fclose( outvec.input );
 }
 
