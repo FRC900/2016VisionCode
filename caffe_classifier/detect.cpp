@@ -13,7 +13,7 @@ static double gtod_wrapper(void)
    return (double)tv.tv_sec + (double)tv.tv_usec/1000000.0;
 }
 
-// TODO :: can we keep output data in GPU as well?
+// TODO :: Make a call for GPU Mat input. 
 // Simple multi-scale detect.  Take a single image, scale it into a number
 // of diffent sized images. Run a fixed-size detection window across each
 // of them.  Keep track of the scale of each scaled image to map the
@@ -24,73 +24,103 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
 	double scaleFactor,
-	double NMSThreshold,
+	double nmsThreshold,
 	std::vector<cv::Rect> &rectsOut)
 {
-    // Size of the first 
-	int wsize = classifier.getInputGeometry().width;
+    // Size of the first level classifier. Others are an integer multiple
+	// of this initial size (2x and maybe 4x if we need it)
+	int wsize = d12_.getInputGeometry().width;
 
     // scaled images which allow us to find images between min and max
     // size for the given classifier input window
-	std::vector<std::pair<MatT, float> > scaledImages12;
-	std::vector<std::pair<MatT, float> > scaledImages24;
-	std::vector<std::pair<MatT, float> > scaledImages48;
-    // list of initial rectangles to search. These are rectangles from
-    // various scaled images above - see scales below to map to the correct
-    // input image
-	std::vector<cv::Rect> rects;
-    // These are used to find which scaledImage a given rect comes from.
-    // For rect[i], scales[i] holds an index indo scaledImages which points
-    // to the correct scaled image to grab from.
-	std::vector<int> scales;
-	std::vector<int> scalesOut;
+	std::vector<std::pair<MatT, double> > scaledImages12;
+	std::vector<std::pair<MatT, double> > scaledImages24;
+	// Maybe later ? std::vector<std::pair<MatT, double> > scaledImages48;
+
+	// list of windows to work with.
+	// A window is a rectangle from a given scaled image along
+	// with the index of the scaled image it corresponds with.  
+	std::vector<Window> windowsIn;
+	std::vector<Window> windowsOut;
 
     // Confidence scores (0.0 - 1.0) for each detected rectangle
 	std::vector<float> scores;
 
-    // Detected is a rect, score pair. Used for non-max
-    // suppression - discarding rects which overlap and 
-    // keeping only the best scoring object
-    std::vector<Detected> detectedOut;
-
     // Generate a list of initial windows to search. Each window will be 12x12 from a scaled image
     // These scaled images let us search for variable sized objects using a fixed-width detector
     MatT f32Img;
-	MatT(inputImg).convertTo(f32Img, CV_32FC3);
-	generateInitialWindows(f32Img, minSize, maxSize, wsize, scaleFactor, scaledImages12, rects, scales);
+	MatT(inputImg).convertTo(f32Img, CV_32FC3); // classifier runs on float pixel data
+	generateInitialWindows(f32Img, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
 	// Generate scaled images for the larger detect sizes as well. Subsequent passes will use larger
     // input sizes. These images will let us grab higher res input as the detector size goes up (as
     // opposed to just scaling up the 12x12 images to a larger size).
-    // 
-    // scales[] maps to these scaledImages arrays in addition to the original scaledImages12, so no
-    //    need to regen that for each 
 	scalefactor(f32Img, cv::Size(wsize*2,wsize*2), minSize, maxSize, scaleFactor, scaledImages24);
-	scalefactor(f32Img, cv::Size(wsize*4,wsize*4), minSize, maxSize, scaleFactor, scaledImages48);
+	// not yet - scalefactor(f32Img, cv::Size(wsize*4,wsize*4), minSize, maxSize, scaleFactor, scaledImages48);
 
-	size_t i = 545;
-	cv::Rect rect12 = rects[i];
-	double scale12 = scaledImages12[scales[i]].second;
-	std::cout << rect12 <<  " scale12 = " << scale12 << std::endl;
-	cv::Rect rectOut = cv::Rect(rect12.x/scale12, rect12.y/scale12, rect12.width/scale12, rect12.height/scale12);
-std::cout << rectOut << "On original image" << std::endl;
-    
-	double scale24 = scaledImages24[scales[i]].second;
-	cv::Rect rect24(rect12.x * 2, rect12.y * 2, rect12.width * 2, rect12.height * 2);
-	std::cout << rect24 <<  " scale24 = " << scale24 << std::endl;
-	rectOut = cv::Rect(rect24.x/scale24, rect24.y/scale24, rect24.width/scale24, rect24.height/scale24);
-	std::cout << rectOut << "On original image" << std::endl;
-#if 0
-	runDetection(classifier, scaledImages12, rects, scales, .4, "ball", rectsOut, scalesOut, scores);
-	for(size_t i = 0; i < rectsOut.size(); i++)
+	// Do 1st level of detection. This takes the initial list of windows
+	// and returns the list which have a score for "ball" above the
+	// threshold listed.
+	runDetection(d12_, scaledImages12, windowsIn, .4, "ball", windowsOut, scores);
+	runNMS(windowsOut, scores, scaledImages12, nmsThreshold, windowsIn); 
+
+	// Double the size of the rects to get from a 12x12 to 24x24 
+	// detection window.  Use scaledImages24 for the detection call
+	// since that has the scales appropriate for the 24x24 detector
+	for(auto it = windowsIn.begin(); it != windowsIn.end(); ++it)
+		it->first = cv::Rect(it->first.x * 2, it->first.y * 2, it->first.width * 2, it->first.height * 2);
+
+	runDetection(d24_, scaledImages12, windowsIn, .4, "ball", windowsOut, scores);
+	runNMS(windowsOut, scores, scaledImages24, nmsThreshold, windowsIn); 
+	
+	// Final result - scale the output rectangles back to the 
+	// correct scale for the original sized image
+	rectsOut.clear();
+	for(auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
 	{
-		float scale = scaledImages12[scalesOut[i]].second;
-		rectsOut[i] = cv::Rect(rectsOut[i].x/scale, rectsOut[i].y/scale, rectsOut[i].width/scale, rectsOut[i].height/scale);
-		detectedOut.push_back(Detected(rectsOut[i], scores[i]));
+		double scale = scaledImages24[it->second].second;
+		cv::Rect rect(it->first);
+		cv::Rect scaledRect(cv::Rect(rect.x/scale, rect.y/scale, rect.width/scale, rect.height/scale));
+		rectsOut.push_back(scaledRect);
 	}
-	if (NMSThreshold > 0)
-			fastNMS(detectedOut, NMSThreshold, rectsOut);
-#endif
+}
+
+template <class MatT>
+void NNDetect<MatT>::runNMS(const std::vector<Window> &windows,
+							const std::vector<float> &scores,
+							const std::vector<std::pair<MatT, double> > &scaledImages,
+							double nmsThreshold,
+							std::vector<Window> &windowsOut)
+{
+	if ((nmsThreshold > 0.0) && (nmsThreshold < 1.0))
+	{
+		// Detected is a rect, score pair.
+		std::vector<Detected> detected;
+
+		// Need to scale each rect to the correct mapping to the 
+		// original image, since rectangles from multiple different
+		// scales might overlap
+		for(size_t i = 0; i < windows.size(); i++)
+		{
+			double scale = scaledImages[windows[i].second].second;
+			cv::Rect rect(windows[i].first);
+			cv::Rect scaledRect(cv::Rect(rect.x/scale, rect.y/scale, rect.width/scale, rect.height/scale));
+			detected.push_back(Detected(scaledRect, scores[i]));
+		}
+
+		std::vector<size_t> nmsOut;
+		fastNMS(detected, nmsThreshold, nmsOut);
+		// Each entry of nmsOut is the index of a saved rect/scales
+		// pair.  Save the entries from those indexes as the output
+		windowsOut.clear();
+		for (auto it = nmsOut.cbegin(); it != nmsOut.cend(); ++it)
+			windowsOut.push_back(windows[*it]);
+	}
+	else
+	{
+		// If not running NMS, output is the same as the input
+		windowsOut = windows;
+	}
 }
 
 template <class MatT>
@@ -100,12 +130,10 @@ void NNDetect<MatT>::generateInitialWindows(
       const cv::Size &maxSize,
       int wsize,
       double scaleFactor,
-      std::vector<std::pair<MatT, float> > &scaledImages,
-      std::vector<cv::Rect> &rects,
-      std::vector<int> &scales)
+      std::vector<std::pair<MatT, double> > &scaledImages,
+	  std::vector<Window> &windows)
 {
-   rects.clear();
-   scales.clear();
+   windows.clear();
 
    // How many pixels to move the window for each step
    // We use 4 - the calibration step can adjust +/- 2 pixels
@@ -125,14 +153,9 @@ void NNDetect<MatT>::generateInitialWindows(
 	   // Start at the upper left corner.  Loop through the rows and cols until
 	   // the detection window falls off the edges of the scaled image
 	   for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
-	   {
 		   for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
-		   {
 			   // Save location and image data for each sub-image
-			   rects.push_back(cv::Rect(c, r, wsize, wsize));
-			   scales.push_back(scale);
-		   }
-	   }
+			   windows.push_back(Window(cv::Rect(c, r, wsize, wsize), scale));
    }
    double end = gtod_wrapper();
    std::cout << "Generate initial windows time = " << (end - start) << std::endl;
@@ -140,15 +163,15 @@ void NNDetect<MatT>::generateInitialWindows(
 
 template <class MatT>
 void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
-      const std::vector<std::pair<MatT, float> > &scaledimages,
-      const std::vector<cv::Rect> &rects,
-      const std::vector<int> &scales,
+      const std::vector<std::pair<MatT, double> > &scaledImages,
+      const std::vector<Window> &windows,
       float threshold,
       std::string label,
-      std::vector<cv::Rect> &rectsOut,
-      std::vector<int> &scalesOut,
+      std::vector<Window> &windowsOut,
       std::vector<float> &scores)
 {
+	windowsOut.clear();
+	scores.clear();
    // Accumulate a number of images to test and pass them in to
    // the NN prediction as a batch
    std::vector<MatT> images;
@@ -157,21 +180,39 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
    // the input which have a high enough confidence score
    std::vector<size_t> detected;
 
+   size_t batchSize = classifier.BatchSize();
    int counter = 0;
    double start = gtod_wrapper(); // grab start time
 
-   for (size_t i = 0; i < rects.size(); ++i)
+   // For each input window, grab the correct image
+   // subset from the correct scaled image.
+   // Detection happens in batches, so save up a list of
+   // images and submit them all at once.
+   for (auto it = windows.cbegin(); it != windows.cend(); ++it)
    {
-	   images.push_back(scaledimages[scales[i]].first(rects[i]));
-	   if((images.size() == classifier.BatchSize()) || (i == rects.size() - 1))
+	   // scaledImages[x].first is a Mat holding the image
+	   // scaled to the correct size for the given rect.
+	   // it->second is the index into scaledImages to look at
+	   // so scaledImages[it->second] is a Mat at the correct
+	   // scale for the current window. it->first is the
+	   // rect describing the subset of that image we need to process
+	   images.push_back(scaledImages[it->second].first(it->first));
+	   if((images.size() == batchSize) || ((it+1) == windows.cend()))
 	   {
 		   doBatchPrediction(classifier, images, threshold, label, detected, scores);
+
+		   // Clear out images array to start the next batch
+		   // of processing fresh
 		   images.clear();
+
 		   for(size_t j = 0; j < detected.size(); j++)
 		   {
-			   rectsOut.push_back(rects[counter*classifier.BatchSize() + detected[j]]);
-			   scalesOut.push_back(scales[counter*classifier.BatchSize() + detected[j]]);
+			   // Indexes in detected array are relative to the start of the 
+			   // current batch just passed in to doBatchPrediction.
+			   // Use counter to keep track of which batch we're in
+			   windowsOut.push_back(windows[counter*batchSize + detected[j]]);
 		   }
+		   // Keep track of the batch number
 		   counter++;
 	   }
    }
@@ -179,8 +220,8 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT> &classifier,
    std::cout << "runDetection time = " << (end - start) << std::endl;
 }
 
-// do 1 run of the classifier. This takes up batch_size predictions and adds anything found
-// to the detected list
+// do 1 run of the classifier. This takes up batch_size predictions 
+// and adds the index of anything found to the detected list
 template <class MatT>
 void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
       const std::vector<MatT> &imgs,
@@ -190,7 +231,10 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT> &classifier,
       std::vector<float>  &scores)
 {
    detected.clear();
+   // Grab the top 2 detected classes.  Since we're doing an object / 
+   // not object split, that will get everything
    std::vector <std::vector<Prediction> >predictions = classifier.ClassifyBatch(imgs, 2);
+
    // Each outer loop is the predictions for one input image
    for (size_t i = 0; i < imgs.size(); ++i)
    {

@@ -6,5 +6,5 @@
 #include <vector>
 
 typedef std::pair<cv::Rect, float> Detected;
-void fastNMS(std::vector<Detected> detects, float overlap_th, std::vector<cv::Rect> &filteredList);
+void fastNMS(std::vector<Detected> detects, float overlap_th, std::vector<size_t> &filteredList);
 #endif
