@@ -60,7 +60,7 @@ while (1)
 	#                let through.  Since the code exits when the other conditions are satisified there's
 	#                not much downside to setting this really high. Most classifier stages will finish
 	#                way before this iteration limit is hit.
-	my $pid = open(PIPE, "opencv_traincascade -data classifier_ball_1 -vec positives.vec -bg negatives.dat -w 24 -h 24 -numStages 55 -minHitRate 0.999 -maxFalseAlarmRate 0.5 -numPos 22000 -numNeg 15000 -featureType LBP -precalcValBufSize 1750 -precalcIdxBufSize 1750 -maxWeakCount 1000 |");
+	my $pid = open(PIPE, "opencv_traincascade -data classifier_ball_1 -vec positives.vec -bg negatives.dat -w 24 -h 24 -numStages 55 -minHitRate 0.999 -maxFalseAlarmRate 0.5 -numPos 22000 -numNeg 15000 -featureType LBP -precalcValBufSize 3400 -precalcIdxBufSize 3400 -maxWeakCount 1000 |");
 	while ($line = <PIPE>)
 	{
 		print $line;
