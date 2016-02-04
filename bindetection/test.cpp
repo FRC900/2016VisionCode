@@ -256,28 +256,23 @@ int main( int argc, const char** argv )
 		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
 		    drawTrackingInfo(frame, displayList);
 
-		if (!args.ds)
+		for (size_t i = 0; i < min(displayList.size(), netTableArraySize); i++)
 		{
-
-		   for (size_t i = 0; i < min(displayList.size(), netTableArraySize); i++)
-		   {
 			if (i < displayList.size())
-				{
+			{
 				zmqString << fixed << setprecision(2) << displayList[i].ratio << " " ;
 				zmqString << fixed << setprecision(2) << (float)displayList[i].distance << " " ;
 				zmqString << fixed << setprecision(2) << displayList[i].angle << " " ;
-				}
+			}
 
-		   }
-			for (size_t i = displayList.size(); i < netTableArraySize; i++)
+		}
+		for (size_t i = displayList.size(); i < netTableArraySize; i++)
 			zmqString << "0.00 0.00 0.00 ";
 
 		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
 		publisher.send(request);
-
-		}
 
 		// Don't update to next frame if paused to prevent
 		// objects missing from this frame to be aged out
@@ -311,34 +306,6 @@ int main( int argc, const char** argv )
 			else
 				cout << ss.str() << endl;
 	    }
-
-		// Driverstation Code
-		if (args.ds)
-		{
-			// Report boolean value for each bin on the step
-			bool hits[4];
-			for (int i = 0; i < 4; i++)
-			{
-				Rect dsRect(i * frame.cols / 4, 0, frame.cols/4, frame.rows);
-				if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
-					rectangle(frame, dsRect, Scalar(0,255,255,3));
-				hits[i] = false;
-				// For each quadrant of the field, look for a detected
-				// rectangle contained entirely in the quadrant
-				// Assume that if that's found, it is a bin
-				// TODO : Tune this later with a distance range
-				for (vector<TrackedObjectDisplay>::const_iterator it = displayList.begin(); it != displayList.end(); ++it)
-				{
-					if (((it->rect & dsRect) == it->rect) && (it->ratio > 0.15))
-					{
-						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
-							rectangle(frame, it->rect, Scalar(255,128,128), 3);
-						hits[i] = true;
-					}
-				}
-				//writeNetTableBoolean(netTable, "Bin", i + 1, hits[i]);
-			}
-		}
 
 		if (cap->frameCount() >= 0)
 		{
