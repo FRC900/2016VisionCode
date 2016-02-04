@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 		cerr << "Read SVO file" << endl;
 	}
 	else {
-		cap = new ZedIn;
+		cap = new ZedIn();
 		cerr << "Initialized camera" << endl;
 	}
 

@@ -170,17 +170,16 @@ void FovisLocalizer::processFrame(cv::Mat& img_in, cv::Mat& depth_in)
 	_transform.first[1] = xyz(1);
 	_transform.first[2] = xyz(2);
 
-	if((rpy(0) * 180/M_PI) > 90) {
-		_transform.second[0] = 180 - (rpy(0) * 180/M_PI);
-		_transform.second[1] = 180 - (rpy(1) * 180/M_PI);
-		_transform.second[2] = 180 - (rpy(2) * 180/M_PI);
+	_transform.second[0] = rpy(0) * 180/M_PI;
+	_transform.second[1] = rpy(1) * 180/M_PI;
+	_transform.second[2] = rpy(2) * 180/M_PI;
 
-	} else {
-
-		_transform.second[0] = rpy(0) * 180/M_PI;
-		_transform.second[1] = rpy(1) * 180/M_PI;
-		_transform.second[2] = rpy(2) * 180/M_PI;
+	for(int i = 0; i < 3; i++) {
+		if(_transform.second[i] >= 90) {
+			_transform.second[i] = _transform.second[i] - 180;
+		} else if(_transform.second[i] <= -90) {
+			_transform.second[i] = _transform.second[i] + 180;
+		}
 
 	}
-
 }
