@@ -271,7 +271,7 @@ _list.push_back(TrackedObject(position));
 // and call nextFrame on the remaining ones
 void TrackedObjectList::nextFrame(void)
 {
-	for (std::list<TrackedObject>::iterator it = _list.begin(); it != _list.end(); )
+	for (auto it = _list.begin(); it != _list.end(); )
 	{
 		if (it->getDetectedRatio() < 0.00001) // For now just remove ones for
 		{                                     // which detectList is empty
@@ -291,14 +291,14 @@ void TrackedObjectList::nextFrame(void)
 // TODO : add an adjustTranslation here as well
 void TrackedObjectList::adjustAngle(double deltaAngle)
 {
-	for (std::list<TrackedObject>::iterator it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.begin(); it != _list.end(); ++it)
 		it->adjustAngle(deltaAngle, _imageWidth);
 }
 
 // Simple printout of list into stdout
 void TrackedObjectList::print(void) const
 {
-	for (std::list<TrackedObject>::const_iterator it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.cbegin(); it != _list.cend(); ++it)
 	{
 		double stdev;
 		double average = it->getAverageDistance(stdev);
@@ -313,7 +313,7 @@ void TrackedObjectList::getDisplay(std::vector<TrackedObjectDisplay> &displayLis
 {
 	displayList.clear();
 	TrackedObjectDisplay tod;
-	for (std::list<TrackedObject>::const_iterator it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.cbegin(); it != _list.cend(); ++it)
 	{
 		double stdev;
 		tod.distance = it->getAverageDistance(stdev);
@@ -334,8 +334,7 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect)
 	double rectArea = detectedRect.width * detectedRect.height;
 	cv::Point rectCorner(detectedRect.x, detectedRect.y);
 	//std::cout << "Processing " << detectedRect.x << "," << detectedRect.y << std::endl;
-	std::list<TrackedObject>::iterator it;
-	for (it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.begin(); it != _list.end(); ++it)
 	{
 		// Look for object with roughly the same position 
 		// as the current rect

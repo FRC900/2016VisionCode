@@ -50,7 +50,7 @@ GroundTruth::GroundTruth(const string &truthFile, const string &videoFile)
 // Grab the list of ground truths for a given frame
 std::vector<cv::Rect> GroundTruth::get(unsigned int frame) const
 {
-	map<unsigned int, vector<Rect> >::const_iterator it = map_.find(frame);
+	auto it = map_.find(frame);
 	if (it == map_.end())
 		return vector<Rect>();
 
