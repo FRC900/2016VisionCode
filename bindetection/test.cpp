@@ -114,14 +114,7 @@ int main( int argc, const char** argv )
 	openMedia(args.inputName, cap, capPath, windowName, !args.batchMode);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
-	size_t   groundTruthFrame  = 1;
-	unsigned groundTruthActual = 0;
-	unsigned groundTruthFound  = 0;
-	unsigned groundTruthFalsePositives = 0;
 	vector<Rect> groundTruthList;
-	vector<unsigned int> groundTruthFrames;
-	if (args.groundTruth)
-		groundTruthFrames = groundTruth.getFrameList();
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -172,8 +165,13 @@ int main( int argc, const char** argv )
 		  gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
-	if (args.groundTruth && (groundTruthFrames.size() > 0))
-		cap->frameCounter(groundTruthFrames[0]);
+	if (args.groundTruth)
+	{
+		int frameNum = groundTruth.nextFrameNumber();
+		if (frameNum == -1)
+			return 0;
+		cap->frameCounter(frameNum);
+	}
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -293,36 +291,9 @@ int main( int argc, const char** argv )
 
 		// Check ground truth data on videos and images,
 		// but not on camera input
+		vector<Rect> groundTruthHitList;
 		if (cap->frameCount() >= 0)
-		{
-			groundTruthList = groundTruth.get(cap->frameCounter() - 1);
-			groundTruthActual += groundTruthList.size();
-			vector<bool> groundTruthsHit(groundTruthList.size());
-			vector<bool> detectRectsUsed(detectRects.size());
-
-			for(auto gt = groundTruthList.cbegin(); gt != groundTruthList.cend(); ++gt)
-			{
-				for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
-				{
-					// If the intersection is > 30% of the area of
-					// the ground truth, that's a success
-					if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))
-					{
-						if (!groundTruthsHit[gt - groundTruthList.begin()])
-						{
-							groundTruthFound += 1;
-							groundTruthsHit[gt - groundTruthList.begin()] = true;
-						}
-						detectRectsUsed[it - detectRects.begin()] = true;
-						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
-							rectangle(frame, *it, Scalar(128,128,128), 3);
-					}
-				}
-			}
-			for(auto it = detectRectsUsed.cbegin(); it != detectRectsUsed.cend(); ++it)
-				if (!*it)
-					groundTruthFalsePositives += 1;
-		}
+			groundTruthHitList = groundTruth.processFrame(cap->frameCounter() - 1, detectRects);
 
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
@@ -360,7 +331,8 @@ int main( int argc, const char** argv )
 
 			// Draw ground truth info for this frame. Will be a no-op
 			// if none is available for this particular video frame
-			drawRects(frame, groundTruthList, Scalar(255,0,0), false);
+			drawRects(frame, groundTruth.get(cap->frameCounter() - 1), Scalar(255,0,0), false);
+			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
@@ -386,9 +358,12 @@ int main( int argc, const char** argv )
 					pause = true;
 				if (args.groundTruth)
 				{
-					if (groundTruthFrame >= groundTruthFrames.size())
+					int frame = groundTruth.nextFrameNumber();
+					// Exit if no more frames left to test
+					if (frame == -1)
 						break;
-					cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+					// Otherwise, if not paused, move to the next frame
+					cap->frameCounter(frame);
 				}
 				cap->getNextFrame(frame, false);
 			}
@@ -461,12 +436,13 @@ int main( int argc, const char** argv )
 		// next one in the list
 		if (args.groundTruth)
 		{
+			int frame = groundTruth.nextFrameNumber();
 			// Exit if no more frames left to test
-			if (groundTruthFrame >= groundTruthFrames.size())
+			if (frame == -1)
 				break;
 			// Otherwise, if not paused, move to the next frame
 			if (!pause)
-				cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+				cap->frameCounter(frame);
 		}
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
@@ -487,11 +463,8 @@ int main( int argc, const char** argv )
 		// Save frame time for the current frame
 		frameTicker.end();
 	}
-	if (groundTruthActual)
-	{
-		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
-		cout << groundTruthFalsePositives << " false positives found in " << groundTruthFrames.size() << " frames (" << (double)groundTruthFalsePositives/groundTruthFrames.size() << " per frame)" << endl;
-	}
+	groundTruth.print();
+
 	return 0;
 }
 
