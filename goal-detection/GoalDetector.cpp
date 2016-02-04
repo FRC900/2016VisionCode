@@ -15,7 +15,6 @@ GoalDetector::GoalDetector()
     _goal_shape_contour.push_back(Point(812.8, 0));
 }
 
-
 bool GoalDetector::processFrame(Mat& image, Mat& depth)
 {
     Mat hsv_image, threshold_image;
@@ -24,7 +23,7 @@ bool GoalDetector::processFrame(Mat& image, Mat& depth)
     vector<vector<Point> > contours;
     vector<Vec4i>          hierarchy;
     Point2f                center_of_area;
-    Rect contour_rect;
+    Rect                   contour_rect;
 
     cvtColor(image, hsv_image, COLOR_BGR2HSV); //thresholds the h,s,v values of the image to look for green
     generateThreshold(image, threshold_image, _hue_min, _hue_max, _sat_min, _sat_max, _val_min, _val_max);
@@ -37,42 +36,46 @@ bool GoalDetector::processFrame(Mat& image, Mat& depth)
     for (int i = 0; i < contours.size(); i++)
     {
         if (contourArea(contours[i]) > max_contour_area)                                                                                                             //if this contour is the biggest one pick it
-        {
-        Moments mu = moments(contours[i], false);                   //get the center of area of the contour
-        center_of_area = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00); //this could be used possibly for comparison to the center of area of the shape
+		{
+			Moments mu = moments(contours[i], false);                   //get the center of area of the contour
+			center_of_area = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00); //this could be used possibly for comparison to the center of area of the shape
 
-        contour_rect = boundingRect(contours[i]);                   //bounding box of the target
+			contour_rect = boundingRect(contours[i]);                   //bounding box of the target
 
-        contour_mask.setTo(Scalar(0));
+			contour_mask.setTo(Scalar(0));
 
-        drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
+			drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
 
-	
-        std::pair<float, float> minMax = minOfMat(depth, contour_mask, countPixel, contour_rect);                                                                                               //get the minimum and maximum depth values in the contour
-	float depth_z_min = minMax.first;
-        float depth_z_max = minMax.second;                                                                                         //actually does some averaging
+			std::pair<float, float> minMax = minOfMat(depth, contour_mask, countPixel, contour_rect);                                                                                               //get the minimum and maximum depth values in the contour
+			float depth_z_min = minMax.first;
+			float depth_z_max = minMax.second;                                                                                         //actually does some averaging
 
-        float h_dist_with_min = hypotf(depth_z_min, _goal_height);                                                             //uses pythagorean theorem to determine horizontal distance to goal using minimum
-        float h_dist_with_max = hypotf(depth_z_max, _goal_height + contour_rect.height / 1000.0); //this one uses maximum
-        float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;                                                                                           //average of the two is more accurate
+			float h_dist_with_min = hypotf(depth_z_min, _goal_height);                                                             //uses pythagorean theorem to determine horizontal distance to goal using minimum
 
-        float goal_to_center_px  = ((float)contour_rect.tl().x + ((float)contour_rect.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
-        float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
+			// KCJ - check that contour_rect is really in mm rather than pixels here.
+			// I'd expect that it would be in pixels and you'd have to do some
+			// trig with HFOV and distance to convert that to an actual height
+			// Or was this supposed to be boundingRect(_goal_shape_contour) - that makes more
+			// sense since the height of the retroreflective tape would be constant 
+			// in that contour def.
+			float h_dist_with_max = hypotf(depth_z_max, _goal_height + contour_rect.height / 1000.0); //this one uses maximum
+			float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;                                                                                           //average of the two is more accurate
 
-            _dist_to_goal    = h_dist;
-            _angle_to_goal   = goal_to_center_deg * (180.0 / M_PI);
-            max_contour_area = contourArea(contours[i]);     //set variables
-        }
-    }
+			float goal_to_center_px  = ((float)contour_rect.tl().x + ((float)contour_rect.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
+			float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
+
+			_dist_to_goal    = h_dist;
+			_angle_to_goal   = goal_to_center_deg * (180.0 / M_PI);
+			max_contour_area = contourArea(contours[i]);     //set variables
+		}
+	}
 }
 
 
-pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float), Rect bound_rect, int range) //this actually gets min or max
+pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float), Rect bound_rect, int range)
 {
     CV_Assert(img.depth() == CV_32F);                                                    //must be of type used for depth
     CV_Assert(mask.depth() == CV_8UC1);
-    float  *ptr_img;
-    uchar  *ptr_mask;
     double min = numeric_limits<float>::max();
     double max = numeric_limits<float>::min();
     int min_loc_x;
@@ -80,62 +83,62 @@ pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float),
     int max_loc_x;
     int max_loc_y;
     for (int j = bound_rect.tl().x; j < bound_rect.br().x; j++) //for each row
+	{
+		float *ptr_img  = img.ptr<float>(j);
+		uchar *ptr_mask = mask.ptr<uchar>(j);
 
-    {
-        ptr_img  = img.ptr<float>(j);
-        ptr_mask = mask.ptr<uchar>(j);
+		for (int i = bound_rect.tl().y; i < bound_rect.br().y; i++) //for each pixel in row
+		{
+			if ((ptr_mask[i] == 255) && f(ptr_img[i]))
+			{
+				if (ptr_img[i] > max)
+				{
+					max = ptr_img[i];
+					max_loc_x = i;
+					max_loc_y = j;
+				}
 
-        for (int i = bound_rect.tl().y; i < bound_rect.br().y; i++) //for each pixel in row
-        {
-            if (f(ptr_img[i]) && (ptr_mask[i] == 255))
-            {
-                
-                    if (ptr_img[i] > max)
-                    {
-                        max = ptr_img[i];
-                    	max_loc_x = i;
-                    	max_loc_y = j;
-                    }
-                
-                
-                    if (ptr_img[i] < min)
-                    {
-                        min = ptr_img[i];
-                    	min_loc_x = i;
-                    	min_loc_y = j;
-                    }
-                
-            }
-        }
-    }
+				if (ptr_img[i] < min)
+				{
+					min = ptr_img[i];
+					min_loc_x = i;
+					min_loc_y = j;
+				}
+			}
+		}
+	}
 
-    float sum   = 0;
-    int num_pix = 0;
+    float sum_min   = 0;
+    int num_pix_min = 0;
     for (int j = (min_loc_x - range); j < (min_loc_x + range); j++)
     {
+		float *ptr_img  = img.ptr<float>(j);
+		uchar *ptr_mask = mask.ptr<uchar>(j);
         for (int i = (min_loc_y - range); i < (min_loc_y + range); i++)
         {
-            if ((0 < i) && (i < img.cols) && (0 < j) && (j < img.rows) && f(img.at<float>(i, j)) && (mask.at<uchar>(i, j) == 255))
+            if ((0 < i) && (i < img.cols) && (0 < j) && (j < img.rows) && (ptr_mask[i] == 255) && f(ptr_img[i]))
             {
-                sum = sum + img.at<float>(i, j);
-                num_pix++;
+                sum_min += ptr_img[i];
+                num_pix_min++;
             }
         }
     }
-    float max_sum = 0;
+    float sum_max = 0;
     int num_pix_max = 0;
     for (int j = (max_loc_x - range); j < (max_loc_x + range); j++)
     {
+		float *ptr_img  = img.ptr<float>(j);
+		uchar *ptr_mask = mask.ptr<uchar>(j);
         for (int i = (max_loc_y - range); i < (max_loc_y + range); i++)
         {
-            if ((0 < i) && (i < img.cols) && (0 < j) && (j < img.rows) && f(img.at<float>(i, j)) && (mask.at<uchar>(i, j) == 255))
+            if ((0 < i) && (i < img.cols) && (0 < j) && (j < img.rows) && (ptr_mask[i] == 255) && f(ptr_img[i]))
             {
-                max_sum = max_sum + img.at<float>(i, j);
+                sum_max += ptr_img[i];
                 num_pix_max++;
             }
         }
     }
-    return pair<float, float>(sum / (num_pix * 1000.), max_sum / (num_pix_max * 1000.));
+    return pair<float, float>(sum_min / (num_pix_min * 1000.), sum_max / (num_pix_max * 1000.));
 }
 
 
