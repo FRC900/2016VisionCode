@@ -61,16 +61,24 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	// Do 1st level of detection. This takes the initial list of windows
 	// and returns the list which have a score for "ball" above the
 	// threshold listed.
+        std::cout << "d12 windows in = " << windowsIn.size() << std::endl;
 	runDetection(d12_, scaledImages12, windowsIn, .4, "ball", windowsOut, scores);
-	runNMS(windowsOut, scores, scaledImages12, nmsThreshold, windowsIn); 
 
+        std::cout << "d12 windows out = " << windowsOut.size() << std::endl;
+
+	runNMS(windowsOut, scores, scaledImages12, nmsThreshold, windowsIn); 
+        std::cout << "d12 nms windows out = " << windowsIn.size() << std::endl;
+
+#if 1
 	// Double the size of the rects to get from a 12x12 to 24x24 
 	// detection window.  Use scaledImages24 for the detection call
 	// since that has the scales appropriate for the 24x24 detector
 	for(auto it = windowsIn.begin(); it != windowsIn.end(); ++it)
 		it->first = cv::Rect(it->first.x * 2, it->first.y * 2, it->first.width * 2, it->first.height * 2);
 
-	runDetection(d24_, scaledImages12, windowsIn, .4, "ball", windowsOut, scores);
+        std::cout << "d24 windows in = " << windowsIn.size() << std::endl;
+	runDetection(d24_, scaledImages24, windowsIn, .4, "ball", windowsOut, scores);
+        std::cout << "d24 windows out = " << windowsOut.size() << std::endl;
 	runNMS(windowsOut, scores, scaledImages24, nmsThreshold, windowsIn); 
 	
 	// Final result - scale the output rectangles back to the 
@@ -83,6 +91,16 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 		cv::Rect scaledRect(cv::Rect(rect.x/scale, rect.y/scale, rect.width/scale, rect.height/scale));
 		rectsOut.push_back(scaledRect);
 	}
+#else
+	rectsOut.clear();
+	for(auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
+	{
+		double scale = scaledImages12[it->second].second;
+		cv::Rect rect(it->first);
+		cv::Rect scaledRect(cv::Rect(rect.x/scale, rect.y/scale, rect.width/scale, rect.height/scale));
+		rectsOut.push_back(scaledRect);
+	}
+#endif
 }
 
 template <class MatT>

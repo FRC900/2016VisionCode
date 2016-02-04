@@ -17,8 +17,8 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
       const std::string& trained_file,
       const std::string& mean_file,
       const std::string& label_file,
-      const int batch_size) {
-
+      const int batch_size) 
+{
 	if (!fileExists(model_file.c_str()))
 	{
 		std::cerr << "Could not find Caffe model " << model_file << std::endl;
@@ -39,6 +39,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
 		std::cerr << "Could not find label file " << label_file << std::endl;
 		return;
 	}
+	std::cout << "Loading " << model_file << " " << trained_file << " "<< mean_file << " " << label_file << std::endl;
 
 	if (IsGPU())
 		caffe::Caffe::set_mode(caffe::Caffe::GPU);
@@ -98,7 +99,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
 
 // Helper function for compare - used to sort values by pair.first keys
 static bool PairCompare(const std::pair<float, int>& lhs, 
-			const std::pair<float, int>& rhs) 
+						const std::pair<float, int>& rhs) 
 {
 	return lhs.first > rhs.first;
 }
@@ -386,7 +387,7 @@ float *CaffeClassifier<cv::gpu::GpuMat>::GetBlobData(caffe::Blob<float> *blob)
 template <>
 bool CaffeClassifier<cv::Mat>::IsGPU(void) const
 {
-	return false;
+	return true;
 }
 
 template <>

@@ -93,7 +93,7 @@ class GPU_NNDetect : public ObjDetect
 		//void Detect (const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects);
 
 	private :
-		NNDetect<cv::gpu::GpuMat> classifier_;
+		NNDetect<cv::Mat> classifier_;
 
 		// Declare GPU Mat elements once here instead of every single
 		// call to the functions which use them
