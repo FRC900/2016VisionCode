@@ -13,9 +13,6 @@
 
 #include <zmq.hpp>
 
-//#include "networktables/NetworkTable.h"
-//#include "networktables2/type/NumberArray.h"
-
 #include "classifierio.hpp"
 #include "detectstate.hpp"
 #include "frameticker.hpp"
@@ -36,7 +33,6 @@ using namespace cv;
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
 string getDateTimeString(void);
-//void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
@@ -152,30 +148,20 @@ int main( int argc, const char** argv )
 	}
 
 	// Create list of tracked objects
-	// recycling bins are 24" wide
+	// balls / boulders are 8" wide?
 	TrackedObjectList binTrackingList(8.0, cap->width());
 	
-
-	
-	//NetworkTable::SetClientMode();
-	//NetworkTable::SetIPAddress("10.9.0.2");
 	zmq::context_t context (1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
 
 	std::cout<< "Starting network publisher 5800" << std::endl;
-		publisher.bind("tcp://*:5800");
+	publisher.bind("tcp://*:5800");
 
-	//NetworkTable *netTable = NetworkTable::GetTable("VisionTable");
 	const size_t netTableArraySize = 7; // 7 bins?
-	//NumberArray netTableArray;
-
-	// 7 bins max, 3 entries each (confidence, distance, angle)
-	//netTableArray.setSize(netTableArraySize * 3);
 
 	// Code to write video frames to avi file on disk
 	VideoWriter outputVideo;
 	VideoWriter markedupVideo;
-	//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
 
@@ -247,7 +233,6 @@ int main( int argc, const char** argv )
 		binTrackingList.getDisplay(displayList);
 		stringstream zmqString;
 		zmqString << "V ";
-		
 
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
@@ -256,7 +241,7 @@ int main( int argc, const char** argv )
 		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
 		    drawTrackingInfo(frame, displayList);
 
-		for (size_t i = 0; i < min(displayList.size(), netTableArraySize); i++)
+		for (size_t i = 0; i < netTableArraySize; i++)
 		{
 			if (i < displayList.size())
 			{
@@ -264,10 +249,9 @@ int main( int argc, const char** argv )
 				zmqString << fixed << setprecision(2) << (float)displayList[i].distance << " " ;
 				zmqString << fixed << setprecision(2) << displayList[i].angle << " " ;
 			}
-
+			else
+				zmqString << "0.00 0.00 0.00 ";
 		}
-		for (size_t i = displayList.size(); i < netTableArraySize; i++)
-			zmqString << "0.00 0.00 0.00 ";
 
 		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
@@ -471,9 +455,6 @@ int main( int argc, const char** argv )
 			}
 		}
 
-		// Save frame time for the current frame
-		frameTicker.end();
-
 		// If testing only ground truth frames, move to the
 		// next one in the list
 		if (args.groundTruth)
@@ -500,10 +481,10 @@ int main( int argc, const char** argv )
 		// process the image once rather than looping forever
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
+	
+		// Save frame time for the current frame
+		frameTicker.end();
 	}
-	//if (netTable->IsConnected())
-		//NetworkTable::Shutdown();
-
 	if (groundTruthActual)
 	{
 		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
@@ -597,13 +578,6 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 }
 
-//void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value)
-//{
-  // stringstream ss;
-  // ss << label << index+1;
-  // netTable->PutBoolean(ss.str().c_str(), value);
-//}
-
 // Video-MM-DD-YY_hr-min-sec-##.avi
 string getVideoOutName(bool raw)
 {
@@ -636,16 +610,16 @@ string getVideoOutName(bool raw)
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime)
 {
    if (!outputVideo.isOpened())
-	  outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
+	   outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
    WriteOnFrame textWriter(frame);
    if (dateAndTime)
    {
-	  //string matchNum  = netTable->GetString("Match Number", "No Match Number");
-	  //double matchTime = netTable->GetNumber("Match Time",-1);
-	string matchNum = "No Match Number";
-	double matchTime = -1;
-	  textWriter.writeMatchNumTime(matchNum,matchTime);
-	  textWriter.writeTime();
+	   //string matchNum  = netTable->GetString("Match Number", "No Match Number");
+	   //double matchTime = netTable->GetNumber("Match Time",-1);
+	   string matchNum = "No Match Number";
+	   double matchTime = -1;
+	   textWriter.writeMatchNumTime(matchNum,matchTime);
+	   textWriter.writeTime();
    }
    textWriter.write(outputVideo);
 }
