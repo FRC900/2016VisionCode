@@ -42,7 +42,7 @@ void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat 
 
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 {
-    for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
+    for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 	{
 		// Mark detected rectangle on image
 		// Change color based on direction we think the bin is pointing
@@ -67,7 +67,7 @@ void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
-   for (vector<TrackedObjectDisplay>::const_iterator it = displayList.begin(); it != displayList.end(); ++it)
+   for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
 	  if (it->ratio >= 0.15)
 	  {
@@ -225,7 +225,7 @@ int main( int argc, const char** argv )
 
 		// Process this detected rectangle - either update the nearest
 		// object or add it as a new one
-		for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
+		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 			binTrackingList.processDetect(*it);
 
 		// Grab info from trackedobjects. Display it and update network tables
@@ -291,6 +291,8 @@ int main( int argc, const char** argv )
 				cout << ss.str() << endl;
 	    }
 
+		// Check ground truth data on videos and images,
+		// but not on camera input
 		if (cap->frameCount() >= 0)
 		{
 			groundTruthList = groundTruth.get(cap->frameCounter() - 1);
@@ -298,9 +300,9 @@ int main( int argc, const char** argv )
 			vector<bool> groundTruthsHit(groundTruthList.size());
 			vector<bool> detectRectsUsed(detectRects.size());
 
-			for(vector<Rect>::const_iterator gt = groundTruthList.begin(); gt != groundTruthList.end(); ++gt)
+			for(auto gt = groundTruthList.cbegin(); gt != groundTruthList.cend(); ++gt)
 			{
-				for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
+				for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 				{
 					// If the intersection is > 30% of the area of
 					// the ground truth, that's a success
@@ -317,7 +319,7 @@ int main( int argc, const char** argv )
 					}
 				}
 			}
-			for(auto it = detectRectsUsed.begin(); it != detectRectsUsed.end(); ++it)
+			for(auto it = detectRectsUsed.cbegin(); it != detectRectsUsed.cend(); ++it)
 				if (!*it)
 					groundTruthFalsePositives += 1;
 		}
