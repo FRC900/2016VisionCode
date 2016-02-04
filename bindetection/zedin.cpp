@@ -13,7 +13,7 @@ ZedIn::ZedIn(const char *filename)
 	if (filename)
 		zed = new sl::zed::Camera(filename);
 	else
-		zed = new sl::zed::Camera(sl::zed::VGA);
+		zed = new sl::zed::Camera(sl::zed::VGA, 30);
 
 	if (zed)
 	{

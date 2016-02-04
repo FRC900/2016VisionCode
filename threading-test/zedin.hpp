@@ -26,16 +26,16 @@
 class ZedIn
 {
    public:
-	ZedIn();
-	ZedIn(char* svo_path); //constructors
+	ZedIn(const char*=NULL); //constructors
 
 	bool update(); //call to pull a new frame
 
 	double getDepthPoint(int x, int y);
-	const cv::Mat getDepth() { return cv_depth; } //various ways to get image data from the camera
-	const cv::Mat getFrame() { return cv_frame; }
-	const cv::Mat getNormalDepth() { return cv_normalDepth; }
-	const cv::Mat getConfidence() { return cv_confidence; }
+	cv::Mat getDepth()const { return cv_depth; } //various ways to get image data from the camera
+	cv::Mat getFrame()const { return cv_frame; }
+	cv::Mat getNormalDepth()const { return cv_normalDepth; }
+	cv::Mat getConfidence()const { return cv_confidence; }
+	void getCopy(cv::Mat &frame) { cv_frame.copyTo(frame); }
 
 	sl::zed::CamParameters getCameraParams() { if(_left) { return stereoParams.LeftCam; } else { return stereoParams.RightCam; } }
 	sl::zed::StereoParameters getStereoParams() { return stereoParams; } //these are used for getting parameters for calibration-sensitive libraries

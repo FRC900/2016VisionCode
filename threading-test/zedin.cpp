@@ -4,9 +4,16 @@ using namespace cv;
 using namespace std;
 
 
-ZedIn::ZedIn()
+ZedIn::ZedIn(const char* svo_path)
 {
-	zed = new sl::zed::Camera(sl::zed::VGA);
+	if(!svo_path)
+	{
+		zed = new sl::zed::Camera(sl::zed::VGA);
+	}
+	else
+	{
+		zed = new sl::zed::Camera(svo_path);
+	}
 	// init computation mode of the zed
 	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
 	cout << sl::zed::errcode2str(err) << endl;
@@ -23,31 +30,7 @@ ZedIn::ZedIn()
 	cv_normalDepth.create(_height,_width,CV_8UC4);
 	cv_depth.create(_height,_width,CV_32FC1);
 	cv_confidence.create(_height,_width,CV_32FC1);
-	
-	//cv_frame = Scalar(2);
-}
-
-ZedIn::ZedIn(char* svo_path)
-{
-	zed = new sl::zed::Camera(svo_path);
-	// init computation mode of the zed
-	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
-	cout << sl::zed::errcode2str(err) << endl;
-	// Quit if an error occurred
-	if (err != sl::zed::SUCCESS) {
-    		delete zed;
-    		exit(-1);
 	}
-
-	_width = zed->getImageSize().width;
-	_height = zed->getImageSize().height;
-	memcpy(&stereoParams, zed->getParameters(), sizeof(stereoParams));
-
-	cv_frame.create(_height,_width,CV_8UC4);
-	cv_normalDepth.create(_height,_width,CV_8UC4);
-	cv_depth.create(_height,_width,CV_32F);
-	cv_confidence.create(_height,_width,CV_32FC1);
-	
 	//cv_frame = Scalar(2);
 }
 

@@ -35,7 +35,7 @@ private:
 
     void generateThreshold(const cv::Mat& ImageIn, cv::Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX);
 
-    float minOfMat(cv::Mat& img, cv::Mat& mask, bool (*f)(float), bool max = false, int range = 10);
+    std::pair<float, float> minOfMat(cv::Mat& img, cv::Mat& mask, bool (*f)(float), cv::Rect bound_rect, int range=10);
 
     static bool countPixel(float v)
     {
