@@ -11,8 +11,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 
-#include "networktables/NetworkTable.h"
-#include "networktables2/type/NumberArray.h"
+#include <zmq.hpp>
+
+//#include "networktables/NetworkTable.h"
+//#include "networktables2/type/NumberArray.h"
 
 #include "classifierio.hpp"
 #include "detectstate.hpp"
@@ -34,13 +36,13 @@ using namespace cv;
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
 string getDateTimeString(void);
-void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
+//void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true);
-void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, NetworkTable *netTable, bool dateAndTime);
+void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
 
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 {
@@ -152,20 +154,28 @@ int main( int argc, const char** argv )
 	// Create list of tracked objects
 	// recycling bins are 24" wide
 	TrackedObjectList binTrackingList(8.0, cap->width());
+	
 
-	NetworkTable::SetClientMode();
-	NetworkTable::SetIPAddress("10.9.0.2");
-	NetworkTable *netTable = NetworkTable::GetTable("VisionTable");
+	
+	//NetworkTable::SetClientMode();
+	//NetworkTable::SetIPAddress("10.9.0.2");
+	zmq::context_t context (1);
+	zmq::socket_t publisher(context, ZMQ_PUB);
+
+	std::cout<< "Starting network publisher 5800" << std::endl;
+		publisher.bind("tcp://*:5800");
+
+	//NetworkTable *netTable = NetworkTable::GetTable("VisionTable");
 	const size_t netTableArraySize = 7; // 7 bins?
-	NumberArray netTableArray;
+	//NumberArray netTableArray;
 
 	// 7 bins max, 3 entries each (confidence, distance, angle)
-	netTableArray.setSize(netTableArraySize * 3);
+	//netTableArray.setSize(netTableArraySize * 3);
 
 	// Code to write video frames to avi file on disk
 	VideoWriter outputVideo;
 	VideoWriter markedupVideo;
-	args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
+	//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
 
@@ -189,12 +199,12 @@ int main( int argc, const char** argv )
 		frameTicker.start(); // start time for this frame
 		if (--videoWritePollCount == 0)
 		{
-			args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
+			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
 		}
 
 		if (args.writeVideo)
-		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, netTable, true);
+		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, NULL, true);
 
 		//TODO : grab angle delta from robot
 		// Adjust the position of all of the detected objects
@@ -235,6 +245,9 @@ int main( int argc, const char** argv )
 		// Grab info from trackedobjects. Display it and update network tables
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
+		stringstream zmqString;
+		zmqString << "V ";
+		
 
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
@@ -245,17 +258,25 @@ int main( int argc, const char** argv )
 
 		if (!args.ds)
 		{
-		   // Clear out network table array
-		   for (size_t i = 0; !args.ds & (i < (netTableArraySize * 3)); i++)
-			   netTableArray.set(i, -1);
 
 		   for (size_t i = 0; i < min(displayList.size(), netTableArraySize); i++)
 		   {
-			  netTableArray.set(i*3,   displayList[i].ratio);
-			  netTableArray.set(i*3+1, displayList[i].distance);
-			  netTableArray.set(i*3+2, displayList[i].angle);
+			if (i < displayList.size())
+				{
+				zmqString << fixed << setprecision(2) << displayList[i].ratio << " " ;
+				zmqString << fixed << setprecision(2) << (float)displayList[i].distance << " " ;
+				zmqString << fixed << setprecision(2) << displayList[i].angle << " " ;
+				}
+
 		   }
-		   netTable->PutValue("VisionArray", netTableArray);
+			for (size_t i = displayList.size(); i < netTableArraySize; i++)
+			zmqString << "0.00 0.00 0.00 ";
+
+		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
+		zmq::message_t request(zmqString.str().length() - 1);
+		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
+		publisher.send(request);
+
 		}
 
 		// Don't update to next frame if paused to prevent
@@ -315,7 +336,7 @@ int main( int argc, const char** argv )
 						hits[i] = true;
 					}
 				}
-				writeNetTableBoolean(netTable, "Bin", i + 1, hits[i]);
+				//writeNetTableBoolean(netTable, "Bin", i + 1, hits[i]);
 			}
 		}
 
@@ -394,7 +415,7 @@ int main( int argc, const char** argv )
 
 			// If saveVideo is set, write the marked-up frame to a vile
 			if (args.saveVideo)
-			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, netTable, false);
+			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, NULL, false);
 
 			// Process user input for this frame
 			char c = waitKey(5);
@@ -513,8 +534,8 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 	}
-	if (netTable->IsConnected())
-		NetworkTable::Shutdown();
+	//if (netTable->IsConnected())
+		//NetworkTable::Shutdown();
 
 	if (groundTruthActual)
 	{
@@ -609,12 +630,12 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 }
 
-void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value)
-{
-   stringstream ss;
-   ss << label << index+1;
-   netTable->PutBoolean(ss.str().c_str(), value);
-}
+//void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value)
+//{
+  // stringstream ss;
+  // ss << label << index+1;
+  // netTable->PutBoolean(ss.str().c_str(), value);
+//}
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
 string getVideoOutName(bool raw)
@@ -645,15 +666,17 @@ string getVideoOutName(bool raw)
 
 // Write a frame to an output video
 // optionally, if dateAndTime is set, stamp the date, time and match information to the frame before writing
-void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, NetworkTable *netTable, bool dateAndTime)
+void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime)
 {
    if (!outputVideo.isOpened())
 	  outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
    WriteOnFrame textWriter(frame);
    if (dateAndTime)
    {
-	  string matchNum  = netTable->GetString("Match Number", "No Match Number");
-	  double matchTime = netTable->GetNumber("Match Time",-1);
+	  //string matchNum  = netTable->GetString("Match Number", "No Match Number");
+	  //double matchTime = netTable->GetNumber("Match Time",-1);
+	string matchNum = "No Match Number";
+	double matchTime = -1;
 	  textWriter.writeMatchNumTime(matchNum,matchTime);
 	  textWriter.writeTime();
    }
