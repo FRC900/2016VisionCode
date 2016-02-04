@@ -21,22 +21,22 @@ CaffeClassifier<MatT>::CaffeClassifier(const std::string& model_file,
 
 	if (!fileExists(model_file.c_str()))
 	{
-		std::cerr << "Could not find Caffe model " << model_file;
+		std::cerr << "Could not find Caffe model " << model_file << std::endl;
 		return;
 	}
 	if (!fileExists(trained_file.c_str()))
 	{
-		std::cerr << "Could not find Caffe trained weights " << trained_file;
+		std::cerr << "Could not find Caffe trained weights " << trained_file << std::endl;
 		return;
 	}
 	if (!fileExists(mean_file.c_str()))
 	{
-		std::cerr << "Could not find mean image file " << mean_file;
+		std::cerr << "Could not find mean image file " << mean_file << std::endl;
 		return;
 	}
 	if (!fileExists(label_file.c_str()))
 	{
-		std::cerr << "Could not find label file " << label_file;
+		std::cerr << "Could not find label file " << label_file << std::endl;
 		return;
 	}
 
