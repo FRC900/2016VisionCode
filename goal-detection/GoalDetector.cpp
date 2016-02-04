@@ -79,7 +79,7 @@ pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float),
     int min_loc_y;
     int max_loc_x;
     int max_loc_y;
-    for (int j = bound_rect.tl().x; j < bound_rect.br().y; j++) //for each row
+    for (int j = bound_rect.tl().x; j < bound_rect.br().x; j++) //for each row
 
     {
         ptr_img  = img.ptr<float>(j);
@@ -109,7 +109,7 @@ pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float),
         }
     }
 
-    float sum    = 0;
+    float sum   = 0;
     int num_pix = 0;
     for (int j = (min_loc_x - range); j < (min_loc_x + range); j++)
     {
