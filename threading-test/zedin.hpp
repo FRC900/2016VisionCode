@@ -26,7 +26,7 @@
 class ZedIn
 {
    public:
-	ZedIn(const char*=NULL); //constructors
+	ZedIn(const char* = NULL); //constructors
 
 	bool update(); //call to pull a new frame
 

@@ -30,7 +30,6 @@ ZedIn::ZedIn(const char* svo_path)
 	cv_normalDepth.create(_height,_width,CV_8UC4);
 	cv_depth.create(_height,_width,CV_32FC1);
 	cv_confidence.create(_height,_width,CV_32FC1);
-	}
 	//cv_frame = Scalar(2);
 }
 
