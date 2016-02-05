@@ -1373,7 +1373,10 @@ void icvGetNextFromBackgroundData( CvBackgroundData* data,
             data->last %= data->count;
             img = cvLoadImage( data->filename[data->last], CV_MAT_TYPE(reader->src.type) == CV_8UC1 ? CV_LOAD_IMAGE_GRAYSCALE : CV_LOAD_IMAGE_COLOR );
             if( !img )
+			{
+				fprintf( stderr, "Could not load %s\n", data->filename[data->last]);
                 continue;
+			}
             data->round += data->last / data->count;
             data->round = data->round % (data->winsize.width * data->winsize.height);
 
@@ -1383,11 +1386,10 @@ void icvGetNextFromBackgroundData( CvBackgroundData* data,
             offset.x = MIN( offset.x, img->width - data->winsize.width );
             offset.y = MIN( offset.y, img->height - data->winsize.height );
 
-            if( img != NULL && img->depth != IPL_DEPTH_8U &&
+            if( img != NULL && img->depth == IPL_DEPTH_8U &&
                 offset.x >= 0 && offset.y >= 0 )
-            {
                 break;
-            }
+
             if( img != NULL )
                 cvReleaseImage( &img );
             img = NULL;
