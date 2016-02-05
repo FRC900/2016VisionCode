@@ -18,6 +18,11 @@ void MediaIn::frameCounter(int frameCount)
 {
 }
 
+bool MediaIn::getDepthMat(cv::Mat &depthMat)
+{
+	return false;
+}
+
 double MediaIn::getDepth(int x, int y)
 {
    return -1000.;

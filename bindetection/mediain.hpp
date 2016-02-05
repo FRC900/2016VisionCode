@@ -24,6 +24,7 @@ class MediaIn
       virtual void   frameCounter(int framecount);
 
 	  // Get depth info for current frame
+	  virtual bool   getDepthMat(cv::Mat &depthMat);
       virtual double getDepth(int x, int y);
 };
 #endif

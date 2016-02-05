@@ -3,68 +3,71 @@
 using namespace std;
 
 #ifdef ZED_SUPPORT
-//cuda include
-#include "npp.h"
 
 using namespace cv;
 
 ZedIn::ZedIn(const char *filename)
 {
 	if (filename)
-		zed = new sl::zed::Camera(filename);
+		zed_ = new sl::zed::Camera(filename);
 	else
-		zed = new sl::zed::Camera(sl::zed::VGA, 30);
+		zed_ = new sl::zed::Camera(sl::zed::VGA, 30);
 
-	if (zed)
+	if (zed_)
 	{
 		// init computation mode of the zed
-		sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
+		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::QUALITY, -1, true);
 		cout << sl::zed::errcode2str(err) << endl;
 		// Quit if an error occurred
 		if (err != sl::zed::SUCCESS) 
 		{
-			delete zed;
-			zed = NULL;
+			delete zed_;
+			zed_ = NULL;
 		}
 		else
 		{
-			width_     = zed->getImageSize().width;
-			height_    = zed->getImageSize().height;
-			frameRGBA_ = cv::Mat(height_, width_, CV_8UC4);
+			width_     = zed_->getImageSize().width;
+			height_    = zed_->getImageSize().height;
+			frameRGBA_ = Mat(height_, width_, CV_8UC4);
 			frameCounter_ = 0;
 		}
 	}
 }
 
-bool ZedIn::getNextFrame(cv::Mat &frame, bool left, bool pause)
+bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 {
-	if(zed == NULL)
+	if (zed_ == NULL)
 		return false;
 	if (pause == false)
 	{
-		zed->grab(sl::zed::RAW);
-		imageGPU = zed->getView_gpu(left ? sl::zed::STEREO_LEFT : sl::zed::STEREO_RIGHT);
-		depthMat = zed->retrieveMeasure(sl::zed::MEASURE::DEPTH);
-		cudaMemcpy2D((uchar*) frameRGBA_.data, frameRGBA_.step, (Npp8u*) imageGPU.data, imageGPU.step, imageGPU.getWidthByte(), imageGPU.height, cudaMemcpyDeviceToHost);
+		zed_->grab(sl::zed::RAW);
+
+		slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
 		cvtColor(frameRGBA_, frame_, CV_RGBA2RGB);
+
+		slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
+
 		frameCounter_ += 1;
 	}
 	frame = frame_.clone();
 	return true;
 }
 
-bool ZedIn::getNextFrame(cv::Mat &frame, bool pause) 
+bool ZedIn::getNextFrame(Mat &frame, bool pause) 
 {
 	return getNextFrame(frame, true, pause);
 }
 
 double ZedIn::getDepth(int x, int y) 
 {
-	//zed->grab(sl::zed::FULL);
-	float* data = (float*) depthMat.data;
-	float* ptr_image_num = (float*) ((int8_t*) data + y * depthMat.step);
-	float dist = ptr_image_num[x] / 1000.f;
-	return dist;
+	float* ptr_image_num = (float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
+	return ptr_image_num[x] / 1000.f;
+}
+
+bool ZedIn::getDepthMat(Mat &depthMat)
+{
+	depthMat_.copyTo(depthMat); //not normalized depth
+	return true;
 }
 
 int ZedIn::width(void) const
@@ -84,19 +87,9 @@ ZedIn::ZedIn(const char *filename)
 	cerr << "Zed support not compiled in" << endl;
 }
 
-bool ZedIn::getNextFrame(cv::Mat &frame, bool pause) 
+bool ZedIn::getNextFrame(Mat &frame, bool pause) 
 {
 	return false;
-}
-
-int ZedIn::width(void) const
-{
-	return 0;
-}
-
-int ZedIn::height(void) const
-{
-	return 0;
 }
 
 #endif
