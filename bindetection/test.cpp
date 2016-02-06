@@ -26,6 +26,7 @@
 #include "track.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
+#include "GoalDetector.hpp"
 
 using namespace std;
 using namespace cv;
@@ -175,6 +176,12 @@ int main( int argc, const char** argv )
 		cap->frameCounter(frameNum);
 	}
 
+
+	//Creating Goaldetection object
+
+	GoalDetector gd;
+  	Mat depth;
+	Rect boundRect;
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -188,9 +195,11 @@ int main( int argc, const char** argv )
 			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
 		}
-
+		
 		if (args.writeVideo)
+		{
 		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, NULL, true);
+		}
 
 		//TODO : grab angle delta from robot
 		// Adjust the position of all of the detected objects
@@ -204,7 +213,18 @@ int main( int argc, const char** argv )
 		// being used - this forces a reload
 		// Finally, it allows a switch between CPU and GPU on the fly
 		if (detectState.update() == false)
-			break;
+		break;
+
+		//Getting depth matrix
+
+		cap->getDepthMat(depth);
+
+		//Initiallizing Goaldetector object
+
+		gd.processFrame(frame, depth, boundRect);
+		float hdistance = gd.dist_to_goal();
+		float gangle = gd.angle_to_goal();
+			
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
@@ -228,12 +248,16 @@ int main( int argc, const char** argv )
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 			binTrackingList.processDetect(*it);
 
-		// Grab info from trackedobjects. Display it and update network tables
+		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
+		//Creates immutable strings for 0MQ Output
 		stringstream zmqString;
 		zmqString << "V ";
-
+		stringstream gString;
+		gString << "G ";
+		gString << fixed << setprecision(2) << gd.dist_to_goal() << " ";
+		gString << fixed << setprecision(2) << gd.angle_to_goal();
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
@@ -254,9 +278,13 @@ int main( int argc, const char** argv )
 		}
 
 		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
+		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
+		zmq::message_t grequest(gString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
+		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
 		publisher.send(request);
+		publisher.send(grequest);
 
 		// Don't update to next frame if paused to prevent
 		// objects missing from this frame to be aged out
@@ -297,6 +325,7 @@ int main( int argc, const char** argv )
 		if (cap->frameCount() >= 0)
 			groundTruthHitList = groundTruth.processFrame(cap->frameCounter() - 1, detectRects);
 
+
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
@@ -335,6 +364,7 @@ int main( int argc, const char** argv )
 			// if none is available for this particular video frame
 			drawRects(frame, groundTruth.get(cap->frameCounter() - 1), Scalar(255,0,0), false);
 			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+			rectangle(frame, boundRect, Scalar(255,0,0));
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
@@ -592,6 +622,7 @@ void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat 
    WriteOnFrame textWriter(frame);
    if (dateAndTime)
    {
+	   (void)netTable;
 	   //string matchNum  = netTable->GetString("Match Number", "No Match Number");
 	   //double matchTime = netTable->GetNumber("Match Time",-1);
 	   string matchNum = "No Match Number";

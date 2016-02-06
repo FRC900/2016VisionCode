@@ -34,6 +34,13 @@ ZedIn::ZedIn(const char *filename)
 	}
 }
 
+ZedIn::~ZedIn()
+{
+	if (zed_)
+		delete zed_;
+}
+
+
 bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 {
 	if (zed_ == NULL)
@@ -82,6 +89,10 @@ int ZedIn::height(void) const
 
 #else
 
+ZedIn::~ZedIn()
+{
+}
+
 int ZedIn::width(void) const
 {
 	return 0;
@@ -94,11 +105,14 @@ int ZedIn::height(void) const
 
 ZedIn::ZedIn(const char *filename)
 {
+	(void)filename;
 	cerr << "Zed support not compiled in" << endl;
 }
 
 bool ZedIn::getNextFrame(Mat &frame, bool pause) 
 {
+	(void)frame;
+	(void)pause;
 	return false;
 }
 
