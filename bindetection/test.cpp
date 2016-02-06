@@ -222,14 +222,14 @@ int main( int argc, const char** argv )
 		//Initiallizing Goaldetector object
 
 		gd.processFrame(frame, depth, boundRect);
-		float hdistance = gd.dist_to_goal();
+		float gdistance = gd.dist_to_goal();
 		float gangle = gd.angle_to_goal();
 			
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
-		detectState.detector()->Detect(frame, detectRects);
+		detectState.detector()->Detect(frame, depth, detectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -256,8 +256,8 @@ int main( int argc, const char** argv )
 		zmqString << "V ";
 		stringstream gString;
 		gString << "G ";
-		gString << fixed << setprecision(2) << gd.dist_to_goal() << " ";
-		gString << fixed << setprecision(2) << gd.angle_to_goal();
+		gString << fixed << setprecision(2) << gdistance << " ";
+		gString << fixed << setprecision(2) << gangle;
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active

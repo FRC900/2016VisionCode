@@ -31,7 +31,7 @@ using namespace cv::gpu;
 	Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
 */
-void GPU_NNDetect::Detect (const Mat &frameInput, vector<Rect> &imageRects)
+void GPU_NNDetect::Detect (const Mat &frameInput, Mat &depthIn, vector<Rect> &imageRects)
 {
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it
@@ -40,6 +40,7 @@ void GPU_NNDetect::Detect (const Mat &frameInput, vector<Rect> &imageRects)
 	detectThreshold.push_back(d24Threshold / 100.);
 
 	classifier_.detectMultiscale(frameInput,
+			depthIn,
 			Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
 			Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
 			1.01 + scale/100.,

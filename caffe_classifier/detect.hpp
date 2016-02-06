@@ -37,6 +37,7 @@ class NNDetect
 	{
 	}
 		void detectMultiscale(const cv::Mat &inputImg,
+				cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				double scaleFactor,
@@ -57,6 +58,7 @@ class NNDetect
 
 		void generateInitialWindows(
 				const MatT &input,
+				cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				int wsize,
