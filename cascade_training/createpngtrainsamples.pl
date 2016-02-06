@@ -5,15 +5,17 @@ use strict;
 # Create samples from an image applying distortions repeatedly 
 # (create many many samples from many images applying distortions)
 #
-#  perl createtrainsamples.pl <positives.dat> <negatives.dat> <vec_output_dir>
+#  perl createtrainsamples.pl <positives.dat> <negatives.dat> <png_output_dir>
 #      [<totalnum = 7000>] [<createsample_command_options = ./createsamples -w 20 -h 20...>]
 #  ex) perl createtrainsamples.pl positives.dat negatives.dat samples
 #
 # Author: Naotoshi Seo
-# Date  : 09/12/2008 Add <totalnum> and <createsample_command_options> options
-# Date  : 06/02/2007
-# Date  : 03/12/2006
+# Expanded by FRC Team 900 for neural net training
 #########################################################################
+#
+# Create a positives.dat file containing names of all of the input images
+# Create a similar negatives.dat file holding names of the negatives
+#
 # white : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x511efc -bgthresh 0x511e03 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
 # blue : 
 my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73ee64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
@@ -22,7 +24,7 @@ my $totalnum = 7000;
 my $tmpfile  = 'tmp';
 
 if ($#ARGV < 2) {
-    print "Usage: perl createtrainsamples.pl\n";
+    print "Usage: perl createpngtrainsamples.pl\n";
     print "  <positives_collection_filename>\n";
     print "  <negatives_collection_filename>\n";
     print "  <output_dirname>\n";
