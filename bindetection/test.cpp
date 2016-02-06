@@ -134,10 +134,12 @@ int main( int argc, const char** argv )
 	{
 		string detectWindowName = "Detection Parameters";
 		namedWindow(detectWindowName);
-		createTrackbar ("Scale", detectWindowName, &scale, 50, NULL);
-		createTrackbar ("NMS Threshold", detectWindowName, &nmsThreshold, 100, NULL);
-		createTrackbar ("Min Detect", detectWindowName, &minDetectSize, 200, NULL);
-		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()), NULL);
+		createTrackbar ("Scale", detectWindowName, &scale, 50);
+		createTrackbar ("NMS Threshold", detectWindowName, &nmsThreshold, 100);
+		createTrackbar ("Min Detect", detectWindowName, &minDetectSize, 200);
+		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()));
+		createTrackbar ("D12 Threshold", detectWindowName, &d12Threshold, 100);
+		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
 	}
 
 	// Create list of tracked objects

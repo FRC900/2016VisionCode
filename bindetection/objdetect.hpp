@@ -107,5 +107,7 @@ extern int scale;
 extern int nmsThreshold;
 extern int minDetectSize;
 extern int maxDetectSize;
+extern int d12Threshold;
+extern int d24Threshold;
 
 #endif
