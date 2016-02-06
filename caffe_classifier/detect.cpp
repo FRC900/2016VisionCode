@@ -167,10 +167,9 @@ void NNDetect<MatT>::generateInitialWindows(
         scalefactor(depthGpu, cv::Size(wsize,wsize), minSize, maxSize, scaleFactor, scaledDepth);
    }
    scalefactor(input, cv::Size(wsize,wsize), minSize, maxSize, scaleFactor, scaledImages);
-   float frac_size = (wsize*wsize)/(input.rows * input.cols);
+   float frac_size = (wsize*wsize)/((float)input.rows * (float)input.cols);
    float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
    float depth_max = depth_min + 600.;
-   std::cout << depth_min << " " << depth_max << std::endl;
 
    // Main loop.  Look at each scaled image in turn
    for (size_t scale = 0; scale < scaledImages.size(); ++scale)
