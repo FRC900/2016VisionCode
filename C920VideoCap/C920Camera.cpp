@@ -527,7 +527,7 @@ try_again: capture->V4L2RequestBuffers.count = buffer_number;
 	}
 	int C920Camera::GetControl(V4L2CameraCapture* capture) {
 		if (xioctl(capture->DeviceHandle, VIDIOC_G_CTRL, &capture->V4L2Control) == -1) {
-			fprintf(stderr, "C920Camera::GetControl ERROR: Unable to get control...");
+			fprintf(stderr, "C920Camera::GetControl ERROR: Unable to get control...\n");
 			return false;
 		}
 		return true;

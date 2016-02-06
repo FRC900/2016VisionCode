@@ -1,7 +1,7 @@
 layer {
-  name: "data_d24"
+  name: "data"
   type: "Data"
-  top: "data_d24"
+  top: "data"
   top: "label_d24"
   include {
     phase: TRAIN
@@ -9,10 +9,10 @@ layer {
   transform_param {
     mirror: true
     crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160201-194145-fb09/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160205-210116-1a49/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160201-194145-fb09/train_db"
+    source: "/usr/share/digits/digits/jobs/20160205-210116-1a49/train_db"
     batch_size: 16
     backend: LMDB
   }
@@ -24,9 +24,9 @@ layer {
   }
 }
 layer {
-  name: "data_d24"
+  name: "data"
   type: "Data"
-  top: "data_d24"
+  top: "data"
   top: "label_d24"
   include {
     phase: TEST
@@ -34,10 +34,10 @@ layer {
   transform_param {
     mirror: false
     crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160201-194145-fb09/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160205-210116-1a49/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160201-194145-fb09/val_db"
+    source: "/usr/share/digits/digits/jobs/20160205-210116-1a49/val_db"
     batch_size: 16
     backend: LMDB
   }
@@ -50,7 +50,7 @@ layer {
 layer {
   name: "conv1_d24"
   type: "Convolution"
-  bottom: "data_d24"
+  bottom: "data"
   top: "conv1_d24"
   param {
     lr_mult: 1.0
@@ -61,9 +61,9 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 3
+    num_output: 2
     kernel_size: 3
-    stride: 1
+    stride: 2
     weight_filler {
       type: "xavier"
     }

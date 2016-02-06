@@ -57,13 +57,8 @@ bool GoalDetector::processFrame(Mat& image, Mat& depth, Rect &bound)
 			cout << depth_z_min << " " << depth_z_max << endl;
 			float h_dist_with_min = hypotf(depth_z_min, _goal_height);                                                             //uses pythagorean theorem to determine horizontal distance to goal using minimum
 
-			// KCJ - check that contour_rect is really in mm rather than pixels here.
-			// I'd expect that it would be in pixels and you'd have to do some
-			// trig with HFOV and distance to convert that to an actual height
-			// Or was this supposed to be boundingRect(_goal_shape_contour) - that makes more
-			// sense since the height of the retroreflective tape would be constant 
-			// in that contour def.
 			float h_dist_with_max = hypotf(depth_z_max, (_goal_height + _goal_shape_rect.height) / 1000.0); //this one uses maximum
+
 			float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;                                                                                           //average of the two is more accurate
 
 			float goal_to_center_px  = ((float)contour_rect.tl().x + ((float)contour_rect.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)

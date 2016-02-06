@@ -7,11 +7,11 @@ layer {
     phase: TRAIN
   }
   transform_param {
-    mean_file: "/home/kjaget/DIGITS/digits/jobs/20160122-223828-e082/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/mean.binaryproto"
   }
   data_param {
-    source: "/home/kjaget/DIGITS/digits/jobs/20160122-223828-e082/train_db"
-    batch_size: 256
+    source: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/train_db"
+    batch_size: 64
     backend: LMDB
   }
 }
@@ -24,19 +24,19 @@ layer {
     phase: TEST
   }
   transform_param {
-    mean_file: "/home/kjaget/DIGITS/digits/jobs/20160122-223828-e082/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/mean.binaryproto"
   }
   data_param {
-    source: "/home/kjaget/DIGITS/digits/jobs/20160122-223828-e082/val_db"
+    source: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/val_db"
     batch_size: 100
     backend: LMDB
   }
 }
 layer {
-  name: "scale_d12"
+  name: "scale"
   type: "Power"
   bottom: "data"
-  top: "scale_d12"
+  top: "scale"
   power_param {
     scale: 0.0125000001863
   }
@@ -44,7 +44,7 @@ layer {
 layer {
   name: "conv1_d12"
   type: "Convolution"
-  bottom: "scale_d12"
+  bottom: "scale"
   top: "conv1_d12"
   param {
     lr_mult: 1.0
@@ -55,8 +55,8 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 4
-    kernel_size: 3
+    num_output: 2
+    kernel_size: 2
     stride: 1
     weight_filler {
       type: "xavier"
@@ -73,7 +73,7 @@ layer {
   top: "pool1_d12"
   pooling_param {
     pool: MAX
-    kernel_size: 3
+    kernel_size: 2
     stride: 2
   }
 }
@@ -97,7 +97,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 6
+    num_output: 4
     weight_filler {
       type: "xavier"
     }
@@ -107,7 +107,7 @@ layer {
   }
 }
 layer {
-  name: "relu2_d12"
+  name: "relu3_d12"
   type: "ReLU"
   bottom: "fc1_d12"
   top: "fc1_d12"
