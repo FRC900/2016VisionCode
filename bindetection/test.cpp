@@ -195,8 +195,8 @@ int main( int argc, const char** argv )
 		//TODO : grab angle delta from robot
 		// Adjust the position of all of the detected objects
 		// to account for movement of the robot between frames
-		double deltaAngle = 0.0;
-		binTrackingList.adjustAngle(deltaAngle);
+		Mat transformMat;
+		binTrackingList.adjustPosition(transformMat);
 
 		// This code will load a classifier if none is loaded - this handles
 		// initializing the classifier the first time through the loop.

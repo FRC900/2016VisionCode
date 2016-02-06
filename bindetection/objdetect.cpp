@@ -1,11 +1,11 @@
 #include "objdetect.hpp"
 
 int scale         = 35;
-int nmsThreshold  = 39;
+int nmsThreshold  =  0;
 int minDetectSize = 20;
 int maxDetectSize = 450;
-int d12Threshold  = 40;
-int d24Threshold  = 40;
+int d12Threshold  = 70;
+int d24Threshold  =  0;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios

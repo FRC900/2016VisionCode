@@ -34,10 +34,9 @@ class TrackedObject
       TrackedObject &operator=(const TrackedObject &object);
       ~TrackedObject();
 
-      // Adjust the position and angle history by 
-      // the specified amount. Used to compensate for 
-      // the robot turning
-      void adjustAngle(double deltaAngle, int imageWidth);
+	  // Adjust the expected object position to account
+	  // for camera motion between last frame and current one
+      void adjustPosition(const cv::Mat &transformMat);
 
       // Set the distance to the bin for the current frame
       void setDistance(double distance);
@@ -122,8 +121,8 @@ struct TrackedObjectDisplay
 // 
 // Need to create array of tracked objects.
 // For each frame, 
-//   read the angle the robot has turned (adjustAngle)
-//   update each object's position with that angle :
+//   use optical flow to figure out camera motions
+//   update each object's position to "undo" that motion
 //   for each detected rectangle
 //      try to find a close match in the list of previously detected objects
 //      if found
@@ -153,7 +152,7 @@ class TrackedObjectList
       
       // Adjust the angle of each tracked object based on
       // the rotation of the robot
-      void adjustAngle(double deltaAngle);
+      void adjustPosition(const cv::Mat &transformMat);
 
       // Simple printout of list into
       void print(void) const;

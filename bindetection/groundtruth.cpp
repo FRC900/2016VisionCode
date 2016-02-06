@@ -89,7 +89,6 @@ vector<Rect> GroundTruth::processFrame(int frameNum, const vector<Rect> &detectR
 	{
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 		{
-			cout << "!" << endl;
 			// If the intersection is > 30% of the area of
 			// the ground truth, that's a success
 			if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))

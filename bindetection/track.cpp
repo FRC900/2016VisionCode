@@ -68,17 +68,24 @@ TrackedObject::~TrackedObject()
 	delete[] _angleArray;
 }
 
-// Adjust the position and angle history by 
-// the specified amount. Used to compensate for 
-// the robot turning
-// TODO : also need a similar adjustTranslation call
-void TrackedObject::adjustAngle(double deltaAngle, int imageWidth)
+// Adjust position based on camera motion
+// between frames
+void TrackedObject::adjustPosition(const cv::Mat &transformMat)
 {
-	// Need to figure out what positive and negative
-	// angles mean
-	for (size_t i = 0; i < _listLength; i++)
-		_angleArray[i] += deltaAngle;
-	_position.x += deltaAngle * imageWidth / HFOV;
+	//for (size_t i = 0; i < _listLength; i++)
+	//_angleArray[i] += deltaAngle;
+	if (!transformMat.empty())
+	{
+		cv::Mat posMat(3, 1, CV_64FC1);
+		posMat.at<double>(0,0) = _position.x;
+		posMat.at<double>(0,1) = _position.y;
+		posMat.at<double>(0,2) = 1.0;
+
+		posMat = transformMat * posMat;
+
+		_position.x = posMat.at<double>(0,0);
+		_position.y = posMat.at<double>(0,1);
+	}
 }
 
 // Set the distance to the bin for the current frame
@@ -286,13 +293,11 @@ void TrackedObjectList::nextFrame(void)
 	}
 }
 
-// Adjust the angle of each tracked object based on
-// the rotation of the robot
-// TODO : add an adjustTranslation here as well
-void TrackedObjectList::adjustAngle(double deltaAngle)
+// Adjust position for camera motion between frames
+void TrackedObjectList::adjustPosition(const cv::Mat &transformMat)
 {
 	for (auto it = _list.begin(); it != _list.end(); ++it)
-		it->adjustAngle(deltaAngle, _imageWidth);
+		it->adjustPosition(transformMat);
 }
 
 // Simple printout of list into stdout
