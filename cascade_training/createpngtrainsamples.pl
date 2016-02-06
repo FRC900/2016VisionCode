@@ -14,7 +14,10 @@ use strict;
 # Date  : 06/02/2007
 # Date  : 03/12/2006
 #########################################################################
-my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x511efc -bgthresh 0x511e03 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
+# white : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x511efc -bgthresh 0x511e03 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
+# blue : 
+my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73ee64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
+# purple : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x143667 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
 my $totalnum = 7000;
 my $tmpfile  = 'tmp';
 
@@ -58,12 +61,11 @@ for (my $k = 0; $k <= $#positives; $k++ ) {
     open(TMP, "> $tmpfile");
     print TMP @localnegatives;
     close(TMP);
-    system("cat $tmpfile");
+	#system("cat $tmpfile");
 
     !chomp($img);
     my $imgdirlen = length(dirname($img));
-	#my $vec = $outputdir . substr($img, $imgdirlen) . ".vec" ;
-	my $pngfn = $outputdir . substr($img, $imgdirlen) . "%d.png" ;
+	my $pngfn = $outputdir . substr($img, $imgdirlen) . "_chroma_%5.5d.png" ;
     print "$cmd -img \"$img\" -bg $tmpfile -pngfnformat \"$pngfn\" -num $num" . "\n";
     system("$cmd -img \"$img\" -bg $tmpfile -pngfnformat \"$pngfn\" -num $num");
 }
