@@ -537,7 +537,8 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 	else // has to be a file name, we hope
 	{
-		if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg"))
+		if ((hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
+		     hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG")))
 			cap = new ImageIn(fileName.c_str());
 		else if (hasSuffix(fileName, ".svo"))
 			cap = new ZedIn(fileName.c_str());

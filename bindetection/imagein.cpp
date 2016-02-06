@@ -1,6 +1,6 @@
 #include <iostream>
 #include <opencv2/highgui/highgui.hpp>
-
+#include <opencv2/imgproc/imgproc.hpp>
 #include "imagein.hpp"
 
 using namespace cv;
@@ -10,6 +10,8 @@ ImageIn::ImageIn(const char *path) :
 {
 	if (frame_.empty())
 		std::cerr << "Could not open image file " << path << std::endl;
+	while (frame_.rows > 800)
+		pyrDown(frame_, frame_);
 }
 
 bool ImageIn::getNextFrame(Mat &frame, bool pause)
