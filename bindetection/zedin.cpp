@@ -82,6 +82,16 @@ int ZedIn::height(void) const
 
 #else
 
+int ZedIn::width(void) const
+{
+	return 0;
+}
+
+int ZedIn::height(void) const
+{
+	return 0;
+}
+
 ZedIn::ZedIn(const char *filename)
 {
 	cerr << "Zed support not compiled in" << endl;
