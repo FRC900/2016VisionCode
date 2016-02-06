@@ -23,14 +23,14 @@ C920CameraIn::C920CameraIn(int _stream, bool gui) :
 {
 	if (!camera_.IsOpen())
 		cerr << "Could not open C920 camera" << endl;
-	else if (!initCamera(_stream, gui))
+	else if (!initCamera(gui))
 	{
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
 }
 
-bool C920CameraIn::initCamera(int _stream, bool gui)
+bool C920CameraIn::initCamera(bool gui)
 {
 	brightness_ = 128;
 	contrast_   = 128;
