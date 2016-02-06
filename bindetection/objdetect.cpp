@@ -43,7 +43,7 @@ void GPU_NNDetect::Detect (const Mat &frameInput, vector<Rect> &imageRects)
 			Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
 			Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
 			1.01 + scale/100.,
-			.01 + nmsThreshold/100.,
+			nmsThreshold/100.,
 			detectThreshold,
 			imageRects);
 }

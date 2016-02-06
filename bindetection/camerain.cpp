@@ -7,11 +7,12 @@
 using namespace cv;
 
 CameraIn::CameraIn(int stream, bool gui) : 
-	cap_(stream),
+	frameCounter_(0),
 	width_(800),
     height_(600),
-	frameCounter_(0)
+	cap_(stream)
 {
+	(void)gui;
 	if (cap_.isOpened())
 	{
 		cap_.set(CV_CAP_PROP_FPS, 30.0);

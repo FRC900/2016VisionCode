@@ -8,6 +8,7 @@ class VideoIn : public MediaIn
 {
    public:
       VideoIn(const char *path);
+	  ~VideoIn() {}
       bool getNextFrame(cv::Mat &frame, bool pause = false);
       int width() const;
       int height() const;

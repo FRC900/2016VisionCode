@@ -40,9 +40,12 @@ int main(int argc, char *argv[])
    cv::Size minSize(40,40);
    cv::Size maxSize(700,700);
    std::vector<cv::Rect> rectsOut;
+   std::vector<double> detectThresholds;
+   detectThresholds.push_back(0.85);
+   detectThresholds.push_back(0.5);
 
    NNDetect<cv::gpu::GpuMat> detect(model_file, trained_file, mean_file, label_file);
-   detect.detectMultiscale(inputImg, minSize, maxSize, 1.15, 0.4, rectsOut);
+   detect.detectMultiscale(inputImg, minSize, maxSize, 1.15, 0.4, detectThresholds, rectsOut);
    namedWindow("Image", cv::WINDOW_AUTOSIZE);
    for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
       rectangle(inputImg, *it, cv::Scalar(0,0,255));

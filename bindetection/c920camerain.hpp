@@ -15,6 +15,7 @@ class C920CameraIn : public MediaIn
 {
    public:
       C920CameraIn(int _stream = -1, bool gui = false);
+	  ~C920CameraIn() {}
       bool getNextFrame(cv::Mat &frame, bool pause = false);
 
       int width(void) const;
@@ -22,7 +23,7 @@ class C920CameraIn : public MediaIn
 
    private:
 #ifdef __linux__
-      bool initCamera(int _stream, bool gui);
+      bool initCamera(bool gui);
 
 	  // Mark these as friends so they can access private class data
 	  friend void brightnessCallback(int value, void *data);

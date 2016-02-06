@@ -105,7 +105,7 @@ static bool PairCompare(const std::pair<float, int>& lhs,
 }
 
 /* Return the indices of the top N values of vector v. */
-static std::vector<int> Argmax(const std::vector<float>& v, int N) 
+static std::vector<int> Argmax(const std::vector<float>& v, size_t N) 
 {
 	std::vector<std::pair<float, int> > pairs;
 	for (size_t i = 0; i < v.size(); ++i)
@@ -325,8 +325,8 @@ void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 		// don't both resizing/converting it again
 		if ((imgs[i].channels() != num_channels_) ||
 			(imgs[i].size()     != input_geometry_) ||
-			(num_channels_ == 3) && (imgs[i].type() != CV_32FC3) ||
-			(num_channels_ == 1) && (imgs[i].type() != CV_32FC1))
+			((num_channels_ == 3) && (imgs[i].type() != CV_32FC3)) ||
+			((num_channels_ == 1) && (imgs[i].type() != CV_32FC1)) )
 			SlowPreprocess(imgs[i], sample_normalized_);
 		else
 			subtract(imgs[i], mean_, sample_normalized_);
