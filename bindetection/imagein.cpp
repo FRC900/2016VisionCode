@@ -16,6 +16,7 @@ ImageIn::ImageIn(const char *path) :
 
 bool ImageIn::getNextFrame(Mat &frame, bool pause)
 {
+	(void)pause;
 	if (frame_.empty())
 		return false;
 	frame = frame_.clone();

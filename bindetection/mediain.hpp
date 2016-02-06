@@ -10,6 +10,7 @@ class MediaIn
 {
    public:
       MediaIn();
+	  virtual ~MediaIn() {}
       virtual bool   getNextFrame(cv::Mat &frame, bool pause = false) = 0;
 
 	  // Image size

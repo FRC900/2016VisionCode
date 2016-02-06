@@ -19,6 +19,7 @@ class ObjDetect
 		// virtual void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects) = 0; //pure virtual function, must be defined by CPU and GPU detect
 		virtual void Detect(const cv::Mat &frameGPUInput, std::vector<cv::Rect> &imageRects)
 		{
+			(void)frameGPUInput;
 			imageRects.clear();
 		}
 		bool initialized(void)

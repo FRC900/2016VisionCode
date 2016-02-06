@@ -48,11 +48,14 @@ GroundTruth::GroundTruth(const string &truthFile, const string &videoFile)
 
 
 // Grab the list of ground truths for a given frame
-std::vector<cv::Rect> GroundTruth::get(unsigned int frame) const
+vector<Rect> GroundTruth::get(unsigned int frame) const
 {
 	auto it = map_.find(frame);
 	if (it == map_.end())
+	{
+		cout << "Not found" << endl;
 		return vector<Rect>();
+	}
 
 	return it->second;
 }
@@ -86,6 +89,7 @@ vector<Rect> GroundTruth::processFrame(int frameNum, const vector<Rect> &detectR
 	{
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 		{
+			cout << "!" << endl;
 			// If the intersection is > 30% of the area of
 			// the ground truth, that's a success
 			if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))
@@ -103,6 +107,8 @@ vector<Rect> GroundTruth::processFrame(int frameNum, const vector<Rect> &detectR
 	for(auto it = detectRectsUsed.cbegin(); it != detectRectsUsed.cend(); ++it)
 		if (!*it)
 			falsePositives_ += 1;
+
+	return retList;
 }
 
 // Print a summary of the results so far

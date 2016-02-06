@@ -16,6 +16,7 @@ class ZedIn : public MediaIn
 {
 	public:
 		ZedIn(const char *filename = NULL);
+		~ZedIn();
 		bool getNextFrame(cv::Mat &frame, bool pause = false);
 
 		int    width(void) const;

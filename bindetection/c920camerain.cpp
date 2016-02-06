@@ -203,11 +203,15 @@ void focusCallback(int value, void *data)
 
 C920CameraIn::C920CameraIn(int _stream, bool gui)
 {
+	(void)_stream;
+	(void)gui;
 	std::cerr << "C920 support not enabled" << std::endl;
 }
 
 bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 {
+	(void)frame;
+	(void)pause;
 	return false;
 }
 

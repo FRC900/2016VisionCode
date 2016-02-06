@@ -136,20 +136,20 @@ void TrackedObject::clearDetected(void)
 double TrackedObject::getDetectedRatio(void) const
 {
 	int detectedCount = 0;
-	size_t i;
+	int i;
 	bool recentHits = true;
 
 	// Don't display detected bins if they're not seen for at least 1 of 4 consecutive frames
 	if (_listIndex > 4)
 	{
 		recentHits = false;
-		for (i = _listIndex; (i >= 0) && (i >= _listIndex - 4) && !recentHits; i--)
+		for (i = _listIndex; (i >= 0) && (i >= (int)_listIndex - 4) && !recentHits; i--)
 			if (_detectArray[i % _listLength])
 				recentHits = true;
 	}
 
-	for (i = 0; i < _listLength; i++)
-		if (_detectArray[i])
+	for (size_t j = 0; j < _listLength; j++)
+		if (_detectArray[j])
 			detectedCount += 1;
 	double detectRatio = (double)detectedCount / _listLength;
 	if (!recentHits)

@@ -297,6 +297,7 @@ int main( int argc, const char** argv )
 		if (cap->frameCount() >= 0)
 			groundTruthHitList = groundTruth.processFrame(cap->frameCounter() - 1, detectRects);
 
+
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
@@ -592,6 +593,7 @@ void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat 
    WriteOnFrame textWriter(frame);
    if (dateAndTime)
    {
+	   (void)netTable;
 	   //string matchNum  = netTable->GetString("Match Number", "No Match Number");
 	   //double matchTime = netTable->GetNumber("Match Time",-1);
 	   string matchNum = "No Match Number";

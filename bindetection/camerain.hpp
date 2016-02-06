@@ -8,6 +8,7 @@ class CameraIn : public MediaIn
 {
    public:
       CameraIn(int stream = -1, bool gui = false);
+	  ~CameraIn() {}
       bool getNextFrame(cv::Mat &frame, bool pause = false);
 
       int width(void) const;
