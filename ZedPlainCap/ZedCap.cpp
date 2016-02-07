@@ -41,7 +41,9 @@ int main(int argc, char *argv[])
         rc = stat(name, &statbuf);
     } while (rc == 0);
     VideoWriter outputVideo(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(camera->width(), camera->height()), true);
-    Mat         frame;
+    Mat frame(200,200,CV_8UC3);
+
+    imshow("Frame", frame);
 
     while (true)
     {
@@ -56,7 +58,8 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Unable to grab frame.\n");
             break;
         }
-        int wait_key = cv::waitKey(5);
+        uchar wait_key = cv::waitKey(5);
+	cout << wait_key << endl;
         if ((wait_key == 27) || (wait_key == 32))
         {
             break;
