@@ -31,6 +31,7 @@ bool GoalDetector::processFrame(Mat& image, Mat& depth, Rect &bound)
     {
 	_dist_to_goal = -1;
 	_angle_to_goal = -1;
+	bound = Rect(0,0,0,0);
 	return false;
     }
     findContours(threshold_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
@@ -46,24 +47,25 @@ bool GoalDetector::processFrame(Mat& image, Mat& depth, Rect &bound)
 			center_of_area = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00); //this could be used possibly for comparison to the center of area of the shape
 
 			bound = boundingRect(contours[i]);                   //bounding box of the target
-
+			
 			contour_mask.setTo(Scalar(0));
-
 			drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
-
+			imshow("Mask", contour_mask);
 			std::pair<float, float> minMax = minOfMat(depth, contour_mask, countPixel, bound);                                                                                               //get the minimum and maximum depth values in the contour
 			float depth_z_min = minMax.first;
 			float depth_z_max = minMax.second;                                                                                         //actually does some averaging
-			cout << depth_z_min << " " << depth_z_max << endl;
 			float h_dist_with_min = hypotf(depth_z_min, _goal_height);                                                             //uses pythagorean theorem to determine horizontal distance to goal using minimum
 
-			float h_dist_with_max = hypotf(depth_z_max, (_goal_height + _goal_shape_rect.height) / 1000.0); //this one uses maximum
+			float h_dist_with_max = hypotf(depth_z_max, _goal_height + (_goal_shape_rect.height / 1000.0)); //this one uses maximum
 
 			float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;                                                                                           //average of the two is more accurate
 
-			float goal_to_center_px  = ((float)contour_rect.tl().x + ((float)contour_rect.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
+			float goal_to_center_px  = ((float)bound.tl().x + ((float)bound.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
 			float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
-
+			if (depth_z_min == -1)
+			{
+			   h_dist = -1;
+			}
 			_dist_to_goal    = h_dist;
 			_angle_to_goal   = goal_to_center_deg * (180.0 / M_PI);
 			max_contour_area = contourArea(contours[i]);     //set variables
@@ -83,15 +85,17 @@ pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float),
     int min_loc_y;
     int max_loc_x;
     int max_loc_y;
-    for (int j = bound_rect.tl().y; j < bound_rect.br().y; j++) //for each row
+    bool found = false;
+    for (int j = bound_rect.tl().y; j <= bound_rect.br().y; j++) //for each row
 	{
 		float *ptr_img  = img.ptr<float>(j);
 		uchar *ptr_mask = mask.ptr<uchar>(j);
 
-		for (int i = bound_rect.tl().x; i < bound_rect.br().x; i++) //for each pixel in row
+		for (int i = bound_rect.tl().x; i <= bound_rect.br().x; i++) //for each pixel in row
 		{
 			if ((ptr_mask[i] == 255) && f(ptr_img[i]))
 			{
+				found = true;
 				if (ptr_img[i] > max)
 				{
 					max = ptr_img[i];
@@ -108,7 +112,10 @@ pair<float, float> GoalDetector::minOfMat(Mat& img, Mat& mask, bool (*f)(float),
 			}
 		}
 	}
-    cout << min_loc_x << " " << min_loc_y << " " << max_loc_x << " " << max_loc_y << endl;
+    if(!found)
+    {
+	return pair<float, float>(-1, -1);
+    }
     float sum_min   = 0;
     int num_pix_min = 0;
     for (int j = (min_loc_y - range); j < (min_loc_y + range); j++)
