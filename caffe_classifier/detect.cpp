@@ -21,6 +21,7 @@ static double gtod_wrapper(void)
 // original input images
 template <class MatT>
 void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
+	cv::Mat &depthMat,
 	const cv::Size &minSize,
 	const cv::Size &maxSize,
 	double scaleFactor,
@@ -51,7 +52,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
     // These scaled images let us search for variable sized objects using a fixed-width detector
     MatT f32Img;
 	MatT(inputImg).convertTo(f32Img, CV_32FC3); // classifier runs on float pixel data
-	generateInitialWindows(f32Img, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
+	generateInitialWindows(f32Img, depthMat, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
 	// Generate scaled images for the larger detect sizes as well. Subsequent passes will use larger
     // input sizes. These images will let us grab higher res input as the detector size goes up (as
@@ -139,6 +140,7 @@ void NNDetect<MatT>::runNMS(const std::vector<Window> &windows,
 template <class MatT>
 void NNDetect<MatT>::generateInitialWindows(
       const MatT &input,
+      cv::Mat &depthIn,
       const cv::Size &minSize,
       const cv::Size &maxSize,
       int wsize,
@@ -158,7 +160,16 @@ void NNDetect<MatT>::generateInitialWindows(
    double start = gtod_wrapper(); // grab start time
 
    // Create array of scaled images
+   if(!depthIn.empty())
+   {
+   	MatT depthGpu = MatT(depthIn); 
+   	std::vector<std::pair<MatT, double> > scaledDepth;
+        scalefactor(depthGpu, cv::Size(wsize,wsize), minSize, maxSize, scaleFactor, scaledDepth);
+   }
    scalefactor(input, cv::Size(wsize,wsize), minSize, maxSize, scaleFactor, scaledImages);
+   float frac_size = (wsize*wsize)/((float)input.rows * (float)input.cols);
+   float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
+   float depth_max = depth_min + 600.;
 
    // Main loop.  Look at each scaled image in turn
    for (size_t scale = 0; scale < scaledImages.size(); ++scale)
@@ -166,9 +177,38 @@ void NNDetect<MatT>::generateInitialWindows(
 	   // Start at the upper left corner.  Loop through the rows and cols until
 	   // the detection window falls off the edges of the scaled image
 	   for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
+	   {   
 		   for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
+		   {
+		       if(!depthIn.empty())
+		       {
+			   bool in_range = false;
 			   // Save location and image data for each sub-image
+			   cv::Mat detectCheck = depthIn(cv::Rect(c, r, wsize, wsize));
+			   for(int px = 0; px < detectCheck.rows; px++)
+			   {
+				float* p = detectCheck.ptr<float>(px); 
+				for(int py = 0; py < detectCheck.cols; py++)
+				{
+				    if(p[py] < depth_max && p[py] > depth_min)
+				    {
+			   		windows.push_back(Window(cv::Rect(c, r, wsize, wsize), scale));
+					in_range = true;
+					break;
+				    }
+				}
+				if(in_range == true)
+				{
+				    break;
+				}
+			   }
+		       }
+		       else
+		       {
 			   windows.push_back(Window(cv::Rect(c, r, wsize, wsize), scale));
+		       }
+		   }
+	   }
    }
    double end = gtod_wrapper();
    std::cout << "Generate initial windows time = " << (end - start) << std::endl;
