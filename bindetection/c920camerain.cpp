@@ -2,6 +2,7 @@
 #include "c920camerain.hpp"
 using namespace std;
 #ifdef __linux__
+#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 using namespace cv;
@@ -126,12 +127,22 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 
 int C920CameraIn::width(void) const
 {
-	return v4l2::CAPTURE_SIZE_WIDTHS[captureSize_];
+	unsigned int width;
+	unsigned int height;
+
+	v4l2::GetCaptureSize(captureSize_, width, height);
+
+	return width;
 }
 
 int C920CameraIn::height(void) const
 {
-	return v4l2::CAPTURE_SIZE_HEIGHTS[captureSize_];
+	unsigned int width;
+	unsigned int height;
+
+	v4l2::GetCaptureSize(captureSize_, width, height);
+
+	return height;
 }
 
 void brightnessCallback(int value, void *data)
