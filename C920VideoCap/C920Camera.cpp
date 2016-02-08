@@ -7,9 +7,29 @@
  *
  * Based on OpenCV cap_v4l.cpp
  */
-#include "C920Camera.h"
 #include <iostream>
+#include <opencv2/highgui/highgui.hpp>
+#include "C920Camera.h"
+
+#define CLEAR(x) memset (&(x), 0, sizeof (x))
+
 namespace v4l2 {
+
+	static int CAPTURE_SIZE_WIDTHS[] = { 160, 160, 176, 320, 320, 352, 432, 640, 640, 800, 800, 864, 960, 1024, 1280, 1600, 1920 };
+	static int CAPTURE_SIZE_HEIGHTS[] = { 90, 120, 144, 180, 240, 288, 240, 360, 480, 448, 600, 480, 720, 576, 720, 896, 1080 };
+	static int CAPTURE_FPS_NUMERATOR[] = { 1, 1, 1, 1, 1, 2, 1 };
+	static int CAPTURE_FPS_DENOMINATOR[] = { 30, 24, 20, 15, 10, 15, 5 };
+
+	void GetCaptureSize(enum CaptureSize size, unsigned int &width, unsigned int &height) 
+	{
+		width = CAPTURE_SIZE_WIDTHS[size];
+		height = CAPTURE_SIZE_HEIGHTS[size];
+	}
+	void GetCaptureFPS(enum CaptureFPS fps, unsigned int &numerator, unsigned int &denominator)
+	{
+		numerator = CAPTURE_FPS_NUMERATOR[fps];
+		denominator = CAPTURE_FPS_DENOMINATOR[fps];
+	}
 	static int xioctl(int fd, int request, void *arg) {
 		int r;
 		do {
