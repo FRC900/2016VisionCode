@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
 		}
 		if (!batch)
 		{
-			int wait_key = cv::waitKey(5);
+			unsigned char wait_key = cv::waitKey(5);
 			if (wait_key == 27 || wait_key == 32)
 				break;
 		}
