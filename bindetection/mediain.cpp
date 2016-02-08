@@ -6,12 +6,12 @@ MediaIn::MediaIn()
 
 int MediaIn::frameCount(void) const
 {
-   return -1;
+	return -1;
 }
 
 int MediaIn::frameCounter(void) const
 {
-   return -1;
+	return -1;
 }
 
 void MediaIn::frameCounter(int frameCount)
@@ -21,13 +21,13 @@ void MediaIn::frameCounter(int frameCount)
 
 bool MediaIn::getDepthMat(cv::Mat &depthMat)
 {
-	(void)depthMat;
-	return false;
+	depthMat = Mat(); // return empty mat to indicate no depth info
+	return false;     // in addition to returning false
 }
 
 double MediaIn::getDepth(int x, int y)
 {
 	(void)x;
 	(void)y;
-   return -1000.;
+	return -1000.;
 }
