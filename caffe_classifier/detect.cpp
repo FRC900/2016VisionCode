@@ -87,11 +87,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
         std::cout << "d24 windows out = " << windowsOut.size() << std::endl;
         runNMS(windowsOut, scores, scaledImages24, nmsThreshold, windowsIn);
-    }
-    else
-    {
-        // Quick hack to bypass D24 net processing
-        windowsOut = windowsIn;
+		std::cout << "d24 nms windows out = " << windowsIn.size() << std::endl;
     }
 
     // Final result - scale the output rectangles back to the
@@ -193,7 +189,7 @@ void NNDetect<MatT>::generateInitialWindows(
             {
                 if (!depthIn.empty())
                 {
-                    cv::Mat detectCheck = scaledDepth[scale](cv::Rect(c, r, wsize, wsize));
+                    cv::Mat detectCheck = cv::Mat(scaledDepth[scale].first(cv::Rect(c, r, wsize, wsize)));
                     if(!depthInRange(depth_min, depth_max, detectCheck))
                     {
                         break;
@@ -304,7 +300,9 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         }
     }
 }
-bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, cv::Mat detectCheck)
+
+template <class MatT>
+bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, cv::Mat &detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
