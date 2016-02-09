@@ -11,10 +11,10 @@ public:
 
     GoalDetector();
 
-    float dist_to_goal() const { return _dist_to_goal; }   //floor distance to goal in m
-    float angle_to_goal() const { return _angle_to_goal; } //angle robot has to turn to face goal in degrees
+    float dist_to_goal(void) const { return _dist_to_goal; }   //floor distance to goal in m
+    float angle_to_goal(void) const { return _angle_to_goal; } //angle robot has to turn to face goal in degrees
 
-    bool processFrame(cv::Mat& image, cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
+    bool processFrame(const cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
 
 private:
 
@@ -36,7 +36,7 @@ private:
 
     bool generateThreshold(const cv::Mat& ImageIn, cv::Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX);
 
-    std::pair<float, float> minOfMat(cv::Mat& img, cv::Mat& mask, bool (*f)(float), cv::Rect bound_rect, int range=10);
+    std::pair<float, float> minOfMat(const cv::Mat& img, const cv::Mat& mask, bool (*f)(float), const cv::Rect& bound_rect, int range=10);
 
     static bool countPixel(float v)
     {
