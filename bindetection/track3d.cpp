@@ -1,24 +1,22 @@
 #include <iostream>
 #include <opencv2/core/core.hpp>
-#include "track3d.hpp"
+#include "track.hpp"
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-ObjectType::ObjectType(int contour_type_id) {
+ObjectType::ObjectType(int contour_type_id=1) {
 	switch(contour_type_id) {
 		case 1: //a ball!
 			_contour.push_back(cv::Point(0,0));
 			_contour.push_back(cv::Point(0,0.254));
 			_contour.push_back(cv::Point(0.254,0.254));
 			_contour.push_back(cv::Point(0.254,0));
-			_delta_rotate = false;
 			break;
 		case 2: //a bin (just because)
 			_contour.push_back(cv::Point(0,0));
 			_contour.push_back(cv::Point(0,0.5842));
 			_contour.push_back(cv::Point(0.5842,0.5842));
 			_contour.push_back(cv::Point(0.5842,0));
-			_delta_rotate = false;
 			break;
 		case default:
 			cerr << "error initializing object!" << endl;
@@ -26,32 +24,38 @@ ObjectType::ObjectType(int contour_type_id) {
 
 }
 
-ObjectType::ObjectType(vector< cv::Point2f > contour_in, bool delta_rotate_in=false) {
+ObjectType::ObjectType(vector< cv::Point2f > contour_in) {
 	_contour = contour_in;
-	_delta_rotate = delta_rotate_in;
 }
 
-void computeProperties() {
+void ObjectType::computeProperties() {
 	cv::Rect br = boundingRect(_contour);
 	_width = br.width();
 	_height = br.height();
 	_area = contourArea(_contour);
-	_com =
+	//TODO finish this with com
 }
 
-TrackedObject::TrackedObject(const cv::Rect &position, int id, size_t historyLength, size_t dataLength)
+
+
+
+
+TrackedObject::TrackedObject(int id, ObjectType &type_in, cv::Size2f fov_size, cv::Size2f frame_size, size_t historyLength = TrackedObjectHistoryLength, size_t dataLength = TrackedObjectDataLength)
 {
 	_listLength    = historyLength;
 	_dataLength    = dataLength;
 	_detectArray   = new bool[historyLength];
-	_distanceArray = new double[historyLength];
-	_angleArray    = new double[historyLength];
+	_positionArray = new cv::Point2f[historyLength];
+
+	_fov_size = fov_size;
+	_frame_size = frame_size;
+	_type = type_in;
+
 	for (size_t i = 0; i < historyLength; i++)
 		_detectArray[i] = false;
 	_listIndex     = 0;
-	_position      = position;
 	// Label with base-26 letter ID (A, B, C .. Z, AA, AB, AC, etc)
-	do
+	do 
 	{
 		_id += (char)(id % 26 + 'A');
 		id /= 26;
@@ -68,11 +72,9 @@ TrackedObject::TrackedObject(const TrackedObject &object)
 	_listLength    = object._listLength;
 	_dataLength    = object._dataLength;
 	_detectArray   = new bool[object._listLength];
-	_distanceArray = new double[object._listLength];
-	_angleArray    = new double[object._listLength];
+	_positionArray = new cv::Point2f[object._listLength];
 	memcpy(_detectArray, object._detectArray, sizeof(_detectArray[0]) * _listLength);
-	memcpy(_distanceArray, object._distanceArray, sizeof(_distanceArray[0]) * _listLength);
-	memcpy(_angleArray, object._angleArray, sizeof(_angleArray[0]) * _listLength);
+	memcpy(_positionArray, object._positionArray, sizeof(_positionArray[0]) * _listLength);
 	_listIndex  = object._listIndex;
 	_position   = object._position;
 	_id         = object._id;
@@ -85,11 +87,9 @@ TrackedObject &TrackedObject::operator=(const TrackedObject &object)
 	delete [] _distanceArray;
 	delete [] _angleArray;
 	_detectArray   = new bool[object._listLength];
-	_distanceArray = new double[object._listLength];
-	_angleArray    = new double[object._listLength];
+	_distanceArray = new cv::Point2f[object._listLength];
 	memcpy(_detectArray, object._detectArray, sizeof(_detectArray[0]) * _listLength);
-	memcpy(_distanceArray, object._distanceArray, sizeof(_distanceArray[0]) * _listLength);
-	memcpy(_angleArray, object._angleArray, sizeof(_angleArray[0]) * _listLength);
+	memcpy(_positionArray, object._positionArray, sizeof(_positionArray[0]) * _listLength);
 	_listIndex  = object._listIndex;
 	_position   = object._position;
 	_id         = object._id;
@@ -99,57 +99,32 @@ TrackedObject &TrackedObject::operator=(const TrackedObject &object)
 TrackedObject::~TrackedObject()
 {
 	delete[] _detectArray;
-	delete[] _distanceArray;
-	delete[] _angleArray;
+	delete[] _positionArray;
 }
 
-// Adjust the position and angle history by
-// the specified amount. Used to compensate for
-// the robot turning
-// TODO : also need a similar adjustTranslation call
-void TrackedObject::adjustAngle(double deltaAngle, int imageWidth)
+// Adjust position based on camera motion
+// between frames
+void TrackedObject::setPosition(const cv::Point2f &new_position)
 {
-	// Need to figure out what positive and negative
-	// angles mean
-	for (size_t i = 0; i < _listLength; i++)
-		_angleArray[i] += deltaAngle;
-	_position.x += deltaAngle * imageWidth / HFOV;
+	_position = new_position;
 }
 
 // Set the distance to the bin for the current frame
-void TrackedObject::setDistance(double distance)
+void TrackedObject::setPosition(const cv::Rect &screen_position, const double avg_depth)
 {
-	_distanceArray[_listIndex % _listLength] = distance;
-	//std::cout << "\t " << getId() << " distance[" << (_listIndex & _listLength) << "] = " << distance <<std::endl;
-	setDetected();
-}
+	cv::Point rect_center;
+	rect_center.x = screen_position.tl().x + (screen_position.width/2);
+	rect_center.y = screen_position.tl().y - (screen_position.height/2);
+	cv::Point dist_to_center = rect_center - Point(_frame_size.width,_frame_size.height);
+	cv::Point2f percent_fov;
+	percent_fov.x = (float)dist_to_center.x / (float)_frame_size.width;
+	percent_fov.y = (float)dist_to_center.y / (float)_frame_size.height;
+	cv::Point2f angle = Point2f(percent_fov.x * _fov_size.width, percent_fov.y * _fov_size.height);
 
-// Set the distance to the target using the detected
-// rectangle plus the known size of the object and frame size
-void TrackedObject::setDistance(const cv::Rect &rect, double objWidth, int imageWidth)
-{
-	double FOVFrac  = (double)rect.width / imageWidth;
-	double totalFOV = (objWidth / 2.0) / FOVFrac;
-	double FOVRad   =  (M_PI / 180.0) * (HFOV / 2.0);
-	setDistance( (totalFOV / tan(FOVRad)) + 2.89);
-}
-
-// Set the angle off center for the current frame
-void TrackedObject::setAngle(double angle)
-{
-	_angleArray[_listIndex % _listLength] = angle;
-	//std::cout << "\t " << getId() << " angle[" << (_listIndex & _listLength) << "] = " << angle <<std::endl;
-	setDetected();
-}
-
-// Set the angle off center for the current frame
-// using the detected rectangle.
-void TrackedObject::setAngle(const cv::Rect &rect, int imageWidth)
-{
-	double degreesPerPixel = HFOV / imageWidth;
-	int rectCenterX = rect.x + rect.width / 2;
-	int rectLocX = rectCenterX - imageWidth / 2;
-	setAngle((double)rectLocX * degreesPerPixel);
+	_position.x = avg_depth * sin(percent_fov.x) * cos(percent_fov.y); //x=rsin(th1) * cos(th2)
+	_position.y = avg_depth * sin(percent_fov.x) * sin(percent_fov.y); //y=rsin(th1) * sin(th2)
+	_position.z = avg_depth * cos(percent_fov.x); //x=rcos(th1)
+	
 }
 
 // Mark the object as detected in this frame
@@ -167,24 +142,24 @@ void TrackedObject::clearDetected(void)
 }
 
 // Return the percent of last _listLength frames
-// the object was seen
+// the object was seen 
 double TrackedObject::getDetectedRatio(void) const
 {
 	int detectedCount = 0;
-	size_t i;
+	int i;
 	bool recentHits = true;
 
 	// Don't display detected bins if they're not seen for at least 1 of 4 consecutive frames
 	if (_listIndex > 4)
 	{
 		recentHits = false;
-		for (i = _listIndex; (i >= 0) && (i >= _listIndex - 4) && !recentHits; i--)
+		for (i = _listIndex; (i >= 0) && (i >= (int)_listIndex - 4) && !recentHits; i--)
 			if (_detectArray[i % _listLength])
 				recentHits = true;
 	}
 
-	for (i = 0; i < _listLength; i++)
-		if (_detectArray[i])
+	for (size_t j = 0; j < _listLength; j++)
+		if (_detectArray[j])
 			detectedCount += 1;
 	double detectRatio = (double)detectedCount / _listLength;
 	if (!recentHits)
@@ -199,13 +174,16 @@ void TrackedObject::nextFrame(void)
 	clearDetected();
 }
 
-// Return the distance in pixels between the
-// tracked object's position and a point
-double TrackedObject::distanceFromPoint(cv::Point point) const
+
+cv::Point3f TrackedObject::getPosition() const 
 {
-	//std::cout <<"position " << _position.x << "," << _position.y << " point " << point.x<<"," << point.y << std::endl;
-	return (_position.x - point.x) * (_position.x - point.x) +
-		   (_position.y - point.y) * (_position.y - point.y);
+	return _position;
+}
+
+cv::Rect TrackedObject::getScreenPosition() const 
+{
+	float r = sqrt(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+
 }
 
 // Return the area of the tracked object
@@ -321,13 +299,11 @@ void TrackedObjectList::nextFrame(void)
 	}
 }
 
-// Adjust the angle of each tracked object based on
-// the rotation of the robot
-// TODO : add an adjustTranslation here as well
-void TrackedObjectList::adjustAngle(double deltaAngle)
+// Adjust position for camera motion between frames
+void TrackedObjectList::adjustPosition(const cv::Mat &transformMat)
 {
 	for (auto it = _list.begin(); it != _list.end(); ++it)
-		it->adjustAngle(deltaAngle, _imageWidth);
+		it->adjustPosition(transformMat);
 }
 
 // Simple printout of list into stdout
@@ -339,7 +315,7 @@ void TrackedObjectList::print(void) const
 		double average = it->getAverageDistance(stdev);
 		std::cout << it->getId() << " distance " << average << "+-" << stdev << " ";
 		average = it->getAverageAngle(stdev);
-		std::cout << " angle " << average << "+-" << stdev << std::endl;
+		std::cout << " angle " << average << "+-" << stdev << std::endl; 
 	}
 }
 
@@ -371,7 +347,7 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect)
 	//std::cout << "Processing " << detectedRect.x << "," << detectedRect.y << std::endl;
 	for (auto it = _list.begin(); it != _list.end(); ++it)
 	{
-		// Look for object with roughly the same position
+		// Look for object with roughly the same position 
 		// as the current rect
 		//std::cout << "\t distance " << it->distanceFromPoint(rectCorner) << std::endl;
 		if( it->distanceFromPoint(rectCorner) < 2000) // tune me!
@@ -397,3 +373,4 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect)
 	_list.push_back(to);
 	//std::cout << "\t Adding " << to.getId() << std::endl;
 }
+
