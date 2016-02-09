@@ -94,7 +94,7 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 				double intersectArea = (topRect & thisRect).area();
 				double unionArea     = topRect.area() + thisRect.area() - intersectArea;
 
-				if ((intersectArea / unionArea) <= overlap_th)
+				if ((intersectArea > 0.0) && ((intersectArea / unionArea) <= overlap_th))
 					validList[i] = false; // invalidate Rects which overlap
 				else
 					anyValid = true;      // otherwise indicate that there's stuff left to do next time
