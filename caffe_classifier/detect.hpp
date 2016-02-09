@@ -78,6 +78,8 @@ class NNDetect
 				const std::vector<std::pair<MatT, double> > &scaledImages,
 				double nmsThreshold,
 				std::vector<Window> &windowsOut);
+
+		bool depthInRange(float depth_min, float depth_max, cv::Mat &detectCheck);
 };
 
 #endif
