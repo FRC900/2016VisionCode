@@ -23,7 +23,6 @@
 //        See the top of the loop in runDetection for an example
 //
 
-
 template <class MatT>
 class NNDetect
 {

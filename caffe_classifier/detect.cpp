@@ -66,6 +66,9 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 	std::cout << "d12 windows in = " << windowsIn.size() << std::endl;
 	runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsOut, scores);
 	std::cout << "d12 windows out = " << windowsOut.size() << std::endl;
+
+	for(size_t i = 0; i < windowsOut.size(); ++i)
+		std::cout << windowsOut[i].first << " " << scaledImages12[windowsOut[i].second].second << " " << scores[i] << std::endl;
 	runNMS(windowsOut, scores, scaledImages12, nmsThreshold, windowsIn); 
 	std::cout << "d12 nms windows out = " << windowsIn.size() << std::endl;
 
@@ -82,10 +85,8 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat &inputImg,
 		runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
 		std::cout << "d24 windows out = " << windowsOut.size() << std::endl;
 		runNMS(windowsOut, scores, scaledImages24, nmsThreshold, windowsIn); 
+		std::cout << "d24 nms windows out = " << windowsIn.size() << std::endl;
 	}
-	else
-		// Quick hack to bypass D24 net processing
-		windowsOut = windowsIn;
 
 	// Final result - scale the output rectangles back to the 
 	// correct scale for the original sized image
