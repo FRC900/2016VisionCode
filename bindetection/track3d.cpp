@@ -121,9 +121,9 @@ void TrackedObject::setPosition(const cv::Rect &screen_position, const double av
 	percent_fov.y = (float)dist_to_center.y / (float)_frame_size.height;
 	cv::Point2f angle = Point2f(percent_fov.x * _fov_size.width, percent_fov.y * _fov_size.height);
 
-	_position.x = avg_depth * sin(percent_fov.x) * cos(percent_fov.y); //x=rsin(th1) * cos(th2)
-	_position.y = avg_depth * sin(percent_fov.x) * sin(percent_fov.y); //y=rsin(th1) * sin(th2)
-	_position.z = avg_depth * cos(percent_fov.x); //x=rcos(th1)
+	_position.x = avg_depth * sin(angle.x) * cos(angle.y); //x=rsin(th1) * cos(th2)
+	_position.y = avg_depth * sin(angle.x) * sin(angle.y); //y=rsin(th1) * sin(th2)
+	_position.z = avg_depth * cos(angle.x); //x=rcos(th1)
 	
 }
 
@@ -183,48 +183,64 @@ cv::Point3f TrackedObject::getPosition() const
 cv::Rect TrackedObject::getScreenPosition() const 
 {
 	float r = sqrt(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+	float theta_2 = arcsin( _position.y / (r * sin(acos(_position.z / r))) );
+	float theta_1 = arcsin( _position.x / (r * cos(theta_2)));
+
+	cv::Point2f percent_fov = Point2f(theta_2 / _fov_size.x, theta_1 / _fov_size.y);
+	cv::Point dist_to_center = Point(percent_fov.x * _frame_size.width, percent_fov.y * _frame_size.height);
+
+	cv::Point rect_center;
+	rect_center.x = dist_to_center.x + (_frame_size.width / 2);
+	rect_center.y = dist_to_center.y + (_frame_size.height / 2);
+
+	cv::Point2f angular_size = Point2f(2.0 * atan(_type.width() / (2*r)), 2.0 * atan(_type.height() / (2*r)));
+	cv::Point2f screen_size;
+	screen_size.x = angular_size.x * (_frame_size.width / _fov_size.x);
+	screen_size.y = angular_size.y * (_frame_size.height / _fov_size.y);
+	
+	cv::Point topLeft;
+	topLeft.x = rect_center.x - (screen_size.x / 2);
+	topLeft.y = rect_center.y - (screen_size.y / 2);
+
+	return Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
 
 }
 
 // Return the area of the tracked object
-double TrackedObject::area(void) const
+double TrackedObject::rectArea(void) const
 {
-	return _position.width * _position.height;
+	cv::Rect screen_position = getScreenPosition();
+	return screen_position.width * screen_position.height;
 }
 
-// Return the position of the tracked object
-cv::Rect TrackedObject::getPosition(void) const
+//fit the contour of the object into the rect of it and return the area of that
+//kinda gimmicky but pretty cool
+double TrackedObject::contourArea(void) const
 {
-	return _position;
-}
+	cv::Rect screen_position = getScreenPosition();
+	float scale_factor_x = screen_position.width / _type.width();
+	float scale_factor_y = screen_position.height / _type.height();
+	float scale_factor;
 
-// Update current object position
-// Maybe maintain a range of previous positions seen +/- some margin instead?
-cv::Rect TrackedObject::setPosition(const cv::Rect &position)
-{
-	return _position = position;
-}
+	if(scale_factor_x < scale_factor_y)
+		scale_factor = scale_factor_x;
+	else
+		scale_factor = scale_factor_y;
+	
+	vector<Point> scaled_contour;
+	for(int i = 0; i < _type.shape().size(); i++) 
+	{
+		scaled_contour.push_back(_type.shape()[i] * scale_factor);	
+	}
 
-double TrackedObject::getAverageDistance(double &stdev) const
-{
-	//std::cout << "\tAverageDistance" << std::endl;
-	return getAverageAndStdev(_distanceArray, stdev);
-}
-double TrackedObject::getAverageAngle(double &stdev) const
-{
-	//std::cout << "\tAverageAngle" << std::endl;
-	return getAverageAndStdev(_angleArray, stdev);
-}
-
-std::string TrackedObject::getId(void) const
-{
-	return _id;
+	return cv::contourArea(scaled_contour);
 }
 
 // Helper function to average distance and angle
-double TrackedObject::getAverageAndStdev(double *list, double &stdev) const
+cv::Point3f TrackedObject::getAveragePosition(cv::Point3f &variance) const
 {
-	double sum        = 0.0;
+	cv::Point3f sum = Point3f(0,0,0);
+	cv::Point3f sumDeviation = Point3f(0,0,0);
 	size_t validCount = 0;
 	size_t seenCount  = 0;
 	// Work backwards from _listIndex.  Find the first _dataLength valid entries and get the average
@@ -234,7 +250,9 @@ double TrackedObject::getAverageAndStdev(double *list, double &stdev) const
 		if (_detectArray[i % _listLength])
 		{
 			validCount += 1;
-			sum += list[i % _listLength];
+			sum.x += _positionArray[i % _listLength].x;
+			sum.y += _positionArray[i % _listLength].y;
+			sum.z += _positionArray[i % _listLength].z;
 		}
 		seenCount += 1;
 	}
@@ -242,44 +260,65 @@ double TrackedObject::getAverageAndStdev(double *list, double &stdev) const
 	// Nothing valid?  Return 0s
 	if (validCount == 0)
 	{
-	   stdev = 0.0;
-	   return 0.0;
+	   stdev = Point3f(0,0,0);
+	   return Point3f(0,0,0);
 	}
 
-	double average   = sum / validCount;
+	cv::Point3f average;
+	average.x = sum.x / validCount;
+	average.y = sum.y / validCount;
+	average.z = sum.z / validCount;
+	
 	double sumSquare = 0.0;
 	for (size_t i = _listIndex; (seenCount < _listLength) && (validCount < _dataLength); i--)
 	{
-		if (_detectArray[i % _listLength])
-			sumSquare += (list[i % _listLength] - average) * (list[i % _listLength] - average);
+		if (_detectArray[i % _listLength]) {
+			sumDeviation.x += (list[i % _listLength].x - average.x) * (list[i % _listLength].x - average.x);
+			sumDeviation.y += (list[i % _listLength].y - average.y) * (list[i % _listLength].y - average.y);
+			sumDeviation.z += (list[i % _listLength].z - average.z) * (list[i % _listLength].z - average.z);
+		}
 		seenCount += 1;
 	}
-	stdev = sumSquare / validCount;
+	variance = Point3f(sumDeviation.x / (validCount-1), sumDeviation.y / (validCount-1) ,sumDeviation.z / (validCount-1));
 
 	// Code is returning NaN - test here since NaN is never equal to any
 	// number including another NaN.
 	if (average != average)
-	   average = 0.0;
+	   average = Point3f(0,0,0);
 	if (stdev != stdev)
-	   stdev = 0.0;
+	   stdev = Point3f(0,0,0);
 	return average;
 }
 
-// Create a tracked object list.  Set the object width in inches
-// (feet, meters, parsecs, whatever) and imageWidth in pixels since
+cv::Point3f TrackedObject::getAveragePosition(double &variance) const
+{
+	cv::Point3f variance_3d;
+	cv::Point3f avg;
+	avg = getAveragePosition(variance_3d)
+	variance = sqrt(variance_3d.x * variance_3d.x + variance_3d.y * variance_3d.y + variance_3d.z * variance_3d.z);
+	return avg;
+}
+
+int TrackedObject::lastSeen() {
+	int last_seen_index = 0;
+	for(size_t i = _listIndex; (seenCount < _listLength) && (validCount < _dataLength); i--) {
+		if(_detectArray)
+			break;
+		last_seen_index++;		
+		}
+	return last_seen_index;
+}
+
+
+//Create a tracked object list
 // those stay constant for the entire length of the run
-TrackedObjectList::TrackedObjectList(double objectWidth, int imageWidth) :
-_imageWidth(imageWidth),
-_detectCount(0),
-_objectWidth(objectWidth)
-{
+TrackedObjectList::TrackedObjectList(cv::Size imageSize, cv::Size fovSize) {
+
+	_imageSize = imageSize;
+	_fovSize = fovSize;
+	_detectCount = 0;
+
 }
-#if 0
-void Add(const cv::Rect &position)
-{
-_list.push_back(TrackedObject(position));
-}
-#endif
 // Go to the next frame.  First remove stale objects from the list
 // and call nextFrame on the remaining ones
 void TrackedObjectList::nextFrame(void)
@@ -300,10 +339,14 @@ void TrackedObjectList::nextFrame(void)
 }
 
 // Adjust position for camera motion between frames
-void TrackedObjectList::adjustPosition(const cv::Mat &transformMat)
+void TrackedObjectList::adjustLocation(const Eigen::Isometry3d &delta_robot)
 {
-	for (auto it = _list.begin(); it != _list.end(); ++it)
-		it->adjustPosition(transformMat);
+	for (auto it = _list.begin(); it != _list.end(); ++it) {
+		cv::Point3f old_position = it->getPosition();
+		Eigen::Vector3d = old_pos_vector(old_position.x, old_position.y, old_position.z);
+		Eigen::Vector3d new_pos_vector = delta_robot.inverse() * old_pos_vector;
+		it->setPosition(Point3f(new_pos_vector.x, new_pos_vector.y, new_pos_vector.z));
+	}
 }
 
 // Simple printout of list into stdout
@@ -339,38 +382,30 @@ void TrackedObjectList::getDisplay(std::vector<TrackedObjectDisplay> &displayLis
 // Process a detected rectangle from the current frame.
 // This will either match a previously detected object or
 // if not, add a new object to the list
-void TrackedObjectList::processDetect(const cv::Rect &detectedRect)
+void TrackedObjectList::processDetect(const cv::Rect &detectedRect, ObjectType type)
 {
-	const double areaDelta = 0.40;
-	double rectArea = detectedRect.width * detectedRect.height;
-	cv::Point rectCorner(detectedRect.x, detectedRect.y);
-	//std::cout << "Processing " << detectedRect.x << "," << detectedRect.y << std::endl;
+	TrackedObject new_object(_detectCount++, type, _fovSize, _imageSize);
+	cv::Point3f new_object_pos = new_object.getPosition();
+
 	for (auto it = _list.begin(); it != _list.end(); ++it)
 	{
-		// Look for object with roughly the same position 
-		// as the current rect
-		//std::cout << "\t distance " << it->distanceFromPoint(rectCorner) << std::endl;
-		if( it->distanceFromPoint(rectCorner) < 2000) // tune me!
+		cv::Point3f distance;
+		distance.x = new_object_pos.x - it->getPosition().x;
+		distance.y = new_object_pos.y - it->getPosition().y;
+		distance.z = new_object_pos.z - it->getPosition().z;
+
+		int last_seen = it->lastSeen();
+		float last_seen_multiplier = 0.125; // tune me!
+		float initial_distance_threshold = 1.0; // tune me! (this is in m)
+		if( distance < initial_distance_threshold + last_seen_multiplier * (float)last_seen) 
 		{
-			// And roughly the same area - +/- areaDelta %
-			double itArea = it->area();
-			//std::cout << "\t area " << (rectArea * (1.0 - areaDelta)) << "-" << (rectArea * (1.0 + areaDelta)) << " vs " <<  itArea << std::endl;
-			if (((rectArea * (1.0 - areaDelta)) < itArea) &&
-				((rectArea * (1.0 + 2*areaDelta)) > itArea) )
-			{
-				//std::cout << "\t Updating " << it->getId() << std::endl;
-				it->setDistance(detectedRect, _objectWidth, _imageWidth);
-				it->setAngle(detectedRect, _imageWidth);
-				it->setPosition(detectedRect);
+				it->setPosition(new_object_pos);
 				return;
 			}
 		}
 	}
 	// Object didn't match previous hits - add a new one to the list
-	TrackedObject to(detectedRect, _detectCount++);
-	to.setDistance(detectedRect, _objectWidth, _imageWidth);
-	to.setAngle(detectedRect, _imageWidth);
-	_list.push_back(to);
+	_list.push_back(new_object);
 	//std::cout << "\t Adding " << to.getId() << std::endl;
 }
 

@@ -82,7 +82,8 @@ class TrackedObject
       void nextFrame(void);
 
       // Return the area of the tracked object
-      double area(void) const;
+      double rectArea(void) const;
+	  double contourArea(void) const;
 
       // Update current object position
       // Maybe maintain a range of previous positions seen +/- some margin instead?
@@ -92,7 +93,10 @@ class TrackedObject
 	  cv::Rect getScreenPosition() const;
 	  cv::Point3f getPosition() const;
 
-      cv::Point3f getAveragePosition(double &stdev) const;
+      cv::Point3f getAveragePosition(cv::Point3f &variance) const;
+	  cv::Point3f getAveragePosition(double &variance) const; //aggregate variance
+
+	  int lastSeen(void);
 
       std::string getId(void) const;
       
@@ -114,12 +118,9 @@ class TrackedObject
 	  cv::Size2f _frame_size;
 
       // Arrays of data for position
-      double  *_positionArray;
+      cv::Point3f  *_positionArray;
       std::string _id; //unique target ID - use a string rather than numbers so it isn't confused
                        // with individual frame detect indexes
-
-      // Helper function to average distance and angle
-      double getAverageAndStdev(double *list, double &stdev) const;
 };
 
 // Used to return info to display
@@ -154,7 +155,7 @@ class TrackedObjectList
       // Create a tracked object list.  Set the object width in inches
       // (feet, meters, parsecs, whatever) and imageWidth in pixels since
       // those stay constant for the entire length of the run
-      TrackedObjectList(double objectWidth, int imageWidth);
+      TrackedObjectList(cv::Size imageSize, cv::Size fovSize);
 #if 0
       void Add(const cv::Rect &position)
       {
@@ -167,7 +168,7 @@ class TrackedObjectList
       
       // Adjust the angle of each tracked object based on
       // the rotation of the robot
-      void adjustPosition(const cv::Mat &transformMat);
+      void adjustLocation(const &Eigen::Isometry3d &delta_robot);
 
       // Simple printout of list into
       void print(void) const;
@@ -182,7 +183,8 @@ class TrackedObjectList
 
    private :
       std::list<TrackedObject> _list;        // list of currently valid detected objects
-      int                      _imageWidth;  // width of captured frame
+      cv::Size                      _imageSize;  // width of captured frame
+	  cv::Size 					_fovSize;
       int                      _detectCount; // ID of next objectcreated
       double                   _objectWidth; // width of the object tracked
 };
