@@ -23,6 +23,7 @@ public:
 
 	void processFrame(cv::Mat& img, cv::Mat& depth);
 	std::pair<cv::Vec3f,cv::Vec3f> getTransform() const { return _transform; }
+	Eigen::Isometry3d transform_eigen const { return _transform_eigen; }
 	void reloadFovis();
 
 	int fv_param_max_pyr_level = 3;
@@ -38,6 +39,7 @@ public:
 private:
 
 	std::pair<cv::Vec3f,cv::Vec3f> _transform;
+	Eigen::Isometry3d _transform_eigen;
 
 	fovis::CameraIntrinsicsParameters _rgb_params;
 	fovis::Rectification* _rect;

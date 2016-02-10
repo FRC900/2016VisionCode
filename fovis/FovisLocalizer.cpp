@@ -162,6 +162,7 @@ void FovisLocalizer::processFrame(cv::Mat& img_in, cv::Mat& depth_in)
 
 	_odom->processFrame(pt, &depthSource); //run visual odometry
 	Eigen::Isometry3d m = _odom->getMotionEstimate(); //estimate motion
+	_transform_eigen = m;
 
 	Eigen::Vector3d xyz = m.translation();
 	Eigen::Vector3d rpy = m.rotation().eulerAngles(0, 1, 2);
@@ -182,4 +183,6 @@ void FovisLocalizer::processFrame(cv::Mat& img_in, cv::Mat& depth_in)
 		}
 
 	}
+
+
 }
