@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <string>
 #include <list>
+#include <Eigen/Geometry>
 
 const size_t TrackedObjectHistoryLength = 20;
 const size_t TrackedObjectDataLength = 5;
@@ -24,27 +25,27 @@ public:
   ObjectType(int contour_type_id);
 
   //this constructor takes a custom contour
-  ObjectType(vector< cv::Point3f > contour_in);
+  ObjectType(std::vector< cv::Point2f > contour_in);
 
   //get the contour associated with the object type. Useful for shape comparison
-  vector< cv::Point3f > shape () const { return _contour; }
+  std::vector< cv::Point2f > shape () const { return _contour; }
 
   //get physical characteristics
-  cv::Point3f com () const { return _width; }
+  cv::Point2f com () const { return _com; }
   float width () const {return _width; }
   float height () const {return _height; }
   float area () const { return _area; }
 
 private:
 
-  vector< cv::Point3f > _contour;
+  std::vector< cv::Point2f > _contour;
 
   //properties are computed and stored internally so that they don't have to be recomputed
   //every time the get functions are called
   float _width;
   float _height;
   float _area;
-  cv::Point3f _com; //center of mass
+  cv::Point2f _com; //center of mass
 
   //called by constructor to compute properties
   void computeProperties(void);
@@ -126,7 +127,7 @@ class TrackedObject
     //how many frames ago the object was last seen
     int lastSeen(void);
 
-    std::string getId(void) const;
+    std::string getId(void) const { return _id; }
 
     private :
 
@@ -197,8 +198,8 @@ class TrackedObject
   void nextFrame(void);
 
   // Adjust the angle of each tracked object based on
-  // the rotation of the robot straigth from fovis
-  void adjustLocation(const &Eigen::Isometry3d &delta_robot);
+  // the rotation of the robot straight from fovis
+  void adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 
   // Simple printout of list into
   void print(void) const;
