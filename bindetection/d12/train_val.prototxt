@@ -7,10 +7,10 @@ layer {
     phase: TRAIN
   }
   transform_param {
-    mean_file: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160206-214507-132e/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/train_db"
+    source: "/usr/share/digits/digits/jobs/20160206-214507-132e/train_db"
     batch_size: 64
     backend: LMDB
   }
@@ -24,10 +24,10 @@ layer {
     phase: TEST
   }
   transform_param {
-    mean_file: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160206-214507-132e/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160121-182637-5e7e/val_db"
+    source: "/usr/share/digits/digits/jobs/20160206-214507-132e/val_db"
     batch_size: 100
     backend: LMDB
   }
@@ -55,8 +55,8 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 2
-    kernel_size: 2
+    num_output: 4
+    kernel_size: 3
     stride: 1
     weight_filler {
       type: "xavier"
@@ -97,7 +97,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 4
+    num_output: 6
     weight_filler {
       type: "xavier"
     }
