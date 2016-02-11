@@ -22,17 +22,18 @@ find_package(Boost COMPONENTS system REQUIRED)
 find_package(Threads)
 find_package(OpenCV REQUIRED)
 find_package(ZMQ REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} /home/ubuntu/caffe/build/install/include /home/ubuntu/caffe/build/include /home/ubuntu-bvlc/caffe/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} ../goal-detection)
+include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} /home/ubuntu/caffe/build/install/include /home/ubuntu/caffe/build/include /home/ubuntu-bvlc/caffe/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} /usr/local/include/eigen3 ../goal-detection /home/ubuntu/2016VisionCode/libfovis/build/include/fovis ../fovis)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
+link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
-add_executable(zv test.cpp objdetect.cpp ../goal-detection/GoalDetector.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp zedin.cpp groundtruth.cpp) 
+add_executable(zv test.cpp objdetect.cpp ../goal-detection/GoalDetector.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track3d.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp zedin.cpp groundtruth.cpp ../fovis/FovisLocalizer.cpp) 
 
 find_library (LibCaffe caffe PATH  /home/ubuntu/caffe/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
-target_link_libraries( zv ${OpenCV_LIBS} ${LibCaffe} ${CMAKE_THREAD_LIBS_INIT} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} ${ZMQ_LIBRARIES})
+target_link_libraries( zv ${OpenCV_LIBS} ${LibCaffe} fovis ${CMAKE_THREAD_LIBS_INIT} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} ${ZMQ_LIBRARIES})
 
 # Code to test for bugs in GPU classifier code. Think this is fixed
 # so for now don't build this code
