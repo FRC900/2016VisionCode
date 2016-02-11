@@ -99,7 +99,7 @@ class TrackedObject
 
       // Arrays of data for distance and angle
       double  *_distanceArray;
-      double  *_angleArray;
+      double  *_angleArray; 
       std::string _id; //unique target ID - use a string rather than numbers so it isn't confused
                        // with individual frame detect indexes
 

@@ -6,7 +6,7 @@
 #include "opencv2/core/core.hpp"
 
 //fovis include
-#include "zedin.hpp"
+//#include "zedin.hpp"
 
 #include <fovis.hpp>
 

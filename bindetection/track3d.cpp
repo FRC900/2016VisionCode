@@ -442,9 +442,12 @@ void TrackedObjectList::getDisplay(std::vector<TrackedObjectDisplay> &displayLis
 // Process a detected rectangle from the current frame.
 // This will either match a previously detected object or
 // if not, add a new object to the list
-void TrackedObjectList::processDetect(const cv::Rect &detectedRect, ObjectType type)
+void TrackedObjectList::processDetect(const cv::Rect &detectedRect, float depth, ObjectType type)
 {
+	//initialize the object and load the rect position into it
 	TrackedObject new_object(_detectCount++, type, _fovSize, _imageSize);
+	new_object.setPosition(detectedRect,depth);
+
 	cv::Point3f new_object_pos = new_object.getPosition();
 
 	for (auto it = _list.begin(); it != _list.end(); ++it)

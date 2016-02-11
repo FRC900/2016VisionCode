@@ -23,6 +23,7 @@ class ZedIn : public MediaIn
 		int    height(void) const;
 
 #ifdef ZED_SUPPORT
+		sl::zed::CamParameters getCameraParams(bool left);
 		bool   getDepthMat(cv::Mat &depthMat);
 		double getDepth(int x, int y);
 #endif
