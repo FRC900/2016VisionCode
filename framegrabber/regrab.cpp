@@ -52,6 +52,7 @@ int main(void)
 	closedir(dirp);
 	cout << "Read " << image_names.size() << " image names" << endl;
 
+	RNG rng(time(NULL));
 	const char *w_name = "1";
 	const char *miniw_name = "2";
 	CvPoint shear = Point(0,0);
@@ -118,7 +119,7 @@ int main(void)
 				cvPointTo32f( shear ));
 #endif
 
-		for (double size = 0.00; size <= 0.42; size += 0.05)
+		for (double size = 0.00; size <= 0.42; size += 0.07)
 		{
 			double dSize = rect.width * size;
 			Rect thisRect = rect;
@@ -136,16 +137,39 @@ int main(void)
 					cvRect32fFromRect( thisRect, rotation ), 
 					cvPointTo32f( shear ) );
 
-			stringstream write_name;
-			write_name << inFileName;
-			write_name << "_" << setw(5) << setfill('0') << frame;
-			write_name << "_" << setw(4) << thisRect.x;
-			write_name << "_" << setw(4) << thisRect.y;
-			write_name << "_" << setw(4) << thisRect.width;
-			write_name << "_" << setw(4) << thisRect.height;
-			write_name << "_r.png";
-			cerr << write_name.str() << endl;
-			cvSaveImage( write_name.str().c_str(), crop );
+			for (int j = 0; j < 4; j++)
+			{
+				Mat mat(crop, true);
+
+				Mat noise(mat.size(), CV_64FC1);
+				Mat splitMat[3];
+
+				mat.convertTo(mat, CV_64FC3);
+				split(mat, splitMat);
+
+				for (int i = 0; i < 3; i++)
+				{
+					double min, max;
+					randn(noise, 0.0, 5.0);
+					minMaxLoc(splitMat[i], &min, &max, NULL, NULL);
+					add(splitMat[i], noise, splitMat[i]);
+					normalize(splitMat[i], splitMat[i], min, max, NORM_MINMAX, -1);
+				}
+				merge(splitMat, 3, mat);
+				mat.convertTo(mat, CV_8UC3);
+
+				stringstream write_name;
+				write_name << inFileName;
+				write_name << "_" << setw(5) << setfill('0') << frame;
+				write_name << "_" << setw(4) << thisRect.x;
+				write_name << "_" << setw(4) << thisRect.y;
+				write_name << "_" << setw(4) << thisRect.width;
+				write_name << "_" << setw(4) << thisRect.height;
+				write_name << "_" << setw(2) << j;
+				write_name << "_r.png";
+				cerr << write_name.str() << endl;
+				imwrite( write_name.str().c_str(), mat );
+			}
 			cvReleaseImage( &crop );
 		}
 		cvReleaseCapture( &cap );
