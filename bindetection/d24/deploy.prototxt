@@ -19,9 +19,9 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 2
-    kernel_size: 3
-    stride: 2
+    num_output: 6
+    kernel_size: 2
+    stride: 1
     weight_filler {
       type: "xavier"
     }
@@ -37,8 +37,8 @@ layer {
   top: "pool1_d24"
   pooling_param {
     pool: MAX
-    kernel_size: 3
-    stride: 2
+    kernel_size: 4
+    stride: 1
   }
 }
 layer {
@@ -61,7 +61,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 4
+    num_output: 12
     weight_filler {
       type: "xavier"
     }

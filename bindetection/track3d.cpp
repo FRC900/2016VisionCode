@@ -71,8 +71,8 @@ void ObjectType::computeProperties() {
 
 TrackedObject::TrackedObject( int id,
     ObjectType &type_in,
-    cv::Size2f fov_size,
-    cv::Size2f frame_size,
+    cv::Point2f fov_size,
+    cv::Point2f frame_size,
     size_t historyLength,
     size_t dataLength)
 {
@@ -137,15 +137,10 @@ TrackedObject::~TrackedObject()
 	delete[] _positionArray;
 }
 
-// set position
-void TrackedObject::setPosition(const cv::Point3f &new_position)
-{
-	_position = new_position;
-}
-
 // Set the position based on a rect on the screen and depth info from the zed
 void TrackedObject::setPosition(const cv::Rect &screen_position, const double avg_depth)
 {
+	_screen_position = screen_position;
 	/*
 	Method:
 		find the center of the rect
@@ -163,16 +158,19 @@ void TrackedObject::setPosition(const cv::Rect &screen_position, const double av
 
 	cv::Point rect_center;
 	rect_center.x = screen_position.tl().x + (screen_position.width/2);
-	rect_center.y = screen_position.tl().y - (screen_position.height/2);
-	cv::Point dist_to_center = rect_center - cv::Point(_frame_size.width,_frame_size.height);
+	rect_center.y = screen_position.tl().y + (screen_position.height/2);
+	cv::Point dist_to_center;
+	dist_to_center.x = rect_center.x - (_frame_size.x / 2);
+	dist_to_center.y = (_frame_size.y / 2) - rect_center.y;
+	
 	cv::Point2f percent_fov;
-	percent_fov.x = (float)dist_to_center.x / (float)_frame_size.width;
-	percent_fov.y = (float)dist_to_center.y / (float)_frame_size.height;
-	cv::Point2f angle = cv::Point2f(percent_fov.x * _fov_size.width, percent_fov.y * _fov_size.height);
+	percent_fov.x = (float)dist_to_center.x / (float)_frame_size.x;
+	percent_fov.y = (float)dist_to_center.y / (float)_frame_size.y;
+	cv::Point2f angle = cv::Point2f(percent_fov.x * _fov_size.x, percent_fov.y * _fov_size.y);
 
-	_position.x = avg_depth * sin(angle.x) * cos(angle.y);
-	_position.y = avg_depth * sin(angle.x) * sin(angle.y);
-	_position.z = avg_depth * cos(angle.x);
+	_position.z = avg_depth * sin(angle.x) * cos(angle.y);
+	_position.x = avg_depth * sin(angle.x) * sin(angle.y);
+	_position.y = avg_depth * cos(angle.x);
 
 }
 
@@ -221,42 +219,6 @@ void TrackedObject::nextFrame(void)
 {
 	_listIndex += 1;
 	clearDetected();
-}
-
-
-cv::Point3f TrackedObject::getPosition() const
-{
-	return _position;
-}
-
-cv::Rect TrackedObject::getScreenPosition() const
-{
-	/*
-	Reversal of the setPosition method
-	Could be used for things like linear interpolation or prediction of rect location
-	*/
-	float r = sqrt(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
-	float theta_2 = asin( _position.y / (r * sin(acos(_position.z / r))) );
-	float theta_1 = asin( _position.x / (r * cos(theta_2)));
-
-	cv::Point2f percent_fov = cv::Point2f(theta_2 / _fov_size.width, theta_1 / _fov_size.height);
-	cv::Point dist_to_center = cv::Point(percent_fov.x * _frame_size.width, percent_fov.y * _frame_size.height);
-
-	cv::Point rect_center;
-	rect_center.x = dist_to_center.x + (_frame_size.width / 2);
-	rect_center.y = dist_to_center.y + (_frame_size.height / 2);
-
-	cv::Point2f angular_size = cv::Point2f(2.0 * atan(_type.width() / (2*r)), 2.0 * atan(_type.height() / (2*r)));
-	cv::Point2f screen_size;
-	screen_size.x = angular_size.x * (_frame_size.width / _fov_size.width);
-	screen_size.y = angular_size.y * (_frame_size.height / _fov_size.height);
-
-	cv::Point topLeft;
-	topLeft.x = rect_center.x - (screen_size.x / 2);
-	topLeft.y = rect_center.y - (screen_size.y / 2);
-
-	return cv::Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
-
 }
 
 // Return the area of the boundingRect of the object
@@ -373,7 +335,7 @@ int TrackedObject::lastSeen() {
 
 //Create a tracked object list
 // those stay constant for the entire length of the run
-TrackedObjectList::TrackedObjectList(cv::Size imageSize, cv::Size fovSize) {
+TrackedObjectList::TrackedObjectList(cv::Point imageSize, cv::Point2f fovSize) {
 
 	_imageSize = imageSize;
 	_fovSize = fovSize;
@@ -437,6 +399,7 @@ void TrackedObjectList::getDisplay(std::vector<TrackedObjectDisplay> &displayLis
 		tod.ratio    = it->getDetectedRatio();
 		displayList.push_back(tod);
 	}
+	
 }
 
 // Process a detected rectangle from the current frame.
@@ -456,18 +419,14 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect, float depth,
 		distance.x = new_object_pos.x - it->getPosition().x;
 		distance.y = new_object_pos.y - it->getPosition().y;
 		distance.z = new_object_pos.z - it->getPosition().z;
+		float distance_hyp = sqrt(distance.x * distance.x + distance.y * distance.y + distance.z * distance.z);
 
-		int last_seen = it->lastSeen();
-		//use a linear equation for the maximum distance away that
-		//the bin can be with the x parameter being the number of frames
-		//since it was last seen
-		float last_seen_multiplier = 0.125; // tune me!
-		float initial_distance_threshold = 1.0; // tune me! (this is in m)
-		if( distance.x < initial_distance_threshold + last_seen_multiplier * (float)last_seen &&
-				distance.y < initial_distance_threshold + last_seen_multiplier * (float)last_seen &&
-				distance.z < initial_distance_threshold + last_seen_multiplier * (float)last_seen)
+		float distance_threshold = 3.0; // tune me! (this is in m)
+		if( distance_hyp < distance_threshold)
 		{
+				it->setScreenPosition(detectedRect);
 				it->setPosition(new_object_pos);
+				it->setDetected();
 				return;
 		}
 		

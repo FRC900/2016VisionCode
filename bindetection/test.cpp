@@ -77,7 +77,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 	  if (it->ratio >= 0.15)
 	  {
 		 const int roundPosTo = 2;
-
+		 std::cout << "Ratio: " << it->ratio << std::endl;
 		 // Color moves from red to green (via brown, yuck)
 		 // as the detected ratio goes up
 		 Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
@@ -146,7 +146,7 @@ int main( int argc, const char** argv )
 
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
-	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), Size(HFOV,VFOV));
+	TrackedObjectList objectTrackingList(Point(cap->width(),cap->height()), Point2f(HFOV,VFOV));
 	
 	zmq::context_t context (1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
@@ -178,7 +178,7 @@ int main( int argc, const char** argv )
 	}
 
 	cap->getNextFrame(frame, pause);
-	FovisLocalizer fvlc(cap->getCameraParams(true), cap->width(), cap->height(), frame);
+	//FovisLocalizer fvlc(cap->getCameraParams(true), cap->width(), cap->height(), frame);
 	//Creating Goaldetection object
 
 	GoalDetector gd;
@@ -224,13 +224,13 @@ int main( int argc, const char** argv )
 		float gangle = gd.angle_to_goal();
 
 
-		fvlc.processFrame(frame,depth);
+		//fvlc.processFrame(frame,depth);
 
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
-Mat dummyMat;
+		Mat dummyMat;
 		detectState.detector()->Detect(frame, dummyMat, detectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
@@ -246,14 +246,16 @@ Mat dummyMat;
 			drawRects(frame,detectRects);
 
 		//adjust locations of objects based on fovis results
-		objectTrackingList.adjustLocation(fvlc.transform_eigen());
+		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
 
 		// Process this detected rectangle - either update the nearest
 		// object or add it as a new one
 		//also compute the average depth of the region since that is necessary for the processing
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) {
+			cout << "Detected object at: " << (*it).tl().x << "," << (*it).tl().y << endl;
 			Mat rectDepthMat(depth,*it);
-			objectTrackingList.processDetect(*it,cv::mean(rectDepthMat)[0], ObjectType(1));
+			objectTrackingList.processDetect(*it,cv::mean(rectDepthMat)[0] / 1000.0, ObjectType(1));
+			cout << "Depth: " << cv::mean(rectDepthMat)[0] / 1000.0 << endl;
 		}
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
@@ -286,8 +288,8 @@ Mat dummyMat;
 				zmqString << "0.00 0.00 0.00 ";
 		}
 
-		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
-		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+		//cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
+		//cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
 		zmq::message_t grequest(gString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
@@ -324,8 +326,8 @@ Mat dummyMat;
 			ss << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
 			if (!args.batchMode)
 				putText(frame, ss.str(), Point(frame.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-			else
-				cout << ss.str() << endl;
+			//else
+				//cout << ss.str() << endl;
 	    }
 
 		// Check ground truth data on videos and images,

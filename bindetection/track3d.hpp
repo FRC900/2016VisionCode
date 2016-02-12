@@ -69,8 +69,8 @@ class TrackedObject
   public :
   TrackedObject( int id,
     ObjectType &type_in,
-    cv::Size2f fov_size,
-    cv::Size2f frame_size,
+    cv::Point2f fov_size,
+    cv::Point2f frame_size,
     size_t historyLength = TrackedObjectHistoryLength,
     size_t dataLength = TrackedObjectDataLength);
 
@@ -106,13 +106,14 @@ class TrackedObject
 
     // Update current object position based on a 3d position or
     //input rect on screen and depth
-    void setPosition(const cv::Point3f &new_position);
+    void setPosition(const cv::Point3f &new_position) { _position = new_position; }
+	void setScreenPosition(const cv::Rect &screen_position) { _screen_position = screen_position; }
     void setPosition(const cv::Rect &screen_position, const double avg_depth);
 
     //get position of a rect on the screen corresponding to the object size and location
     //inverse of setPosition(Rect,depth)
-    cv::Rect getScreenPosition() const;
-    cv::Point3f getPosition() const;
+    cv::Rect getScreenPosition() const { return _screen_position; }
+    cv::Point3f getPosition() const { 	return _position; }
 
     //averages the position over the past frames
     //variance is given separately for X,Y,Z
@@ -141,9 +142,11 @@ class TrackedObject
     // enough to care about
     bool    *_detectArray;
 
+	cv::Rect _screen_position;
+
     //runtime constants needed for computing position from rect
-    cv::Size2f _fov_size;
-    cv::Size2f _frame_size;
+    cv::Point2f _fov_size;
+    cv::Point2f _frame_size;
 
     // Arrays of data for position
     cv::Point3f  *_positionArray;
@@ -182,7 +185,7 @@ class TrackedObject
     // Create a tracked object list.  Set the object width in inches
     // (feet, meters, parsecs, whatever) and imageWidth in pixels since
     // those stay constant for the entire length of the run
-    TrackedObjectList(cv::Size imageSize, cv::Size fovSize);
+    TrackedObjectList(cv::Point imageSize, cv::Point2f fovSize);
 
     #if 0
     void Add(const cv::Rect &position)
@@ -216,8 +219,8 @@ class TrackedObject
   double _objectWidth; // width of the object tracked
 
   //values stay constant throughout the run but are needed for computing stuff
-  cv::Size _imageSize;
-  cv::Size _fovSize;
+  cv::Point2f _imageSize;
+  cv::Point2f _fovSize;
 };
 
 #endif
