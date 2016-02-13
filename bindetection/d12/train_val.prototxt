@@ -7,10 +7,10 @@ layer {
     phase: TRAIN
   }
   transform_param {
-    mean_file: "/usr/share/digits/digits/jobs/20160206-214507-132e/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160212-194349-2ccb/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160206-214507-132e/train_db"
+    source: "/usr/share/digits/digits/jobs/20160212-194349-2ccb/train_db"
     batch_size: 64
     backend: LMDB
   }
@@ -24,10 +24,10 @@ layer {
     phase: TEST
   }
   transform_param {
-    mean_file: "/usr/share/digits/digits/jobs/20160206-214507-132e/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160212-194349-2ccb/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160206-214507-132e/val_db"
+    source: "/usr/share/digits/digits/jobs/20160212-194349-2ccb/val_db"
     batch_size: 100
     backend: LMDB
   }

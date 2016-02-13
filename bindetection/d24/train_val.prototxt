@@ -9,10 +9,10 @@ layer {
   transform_param {
     mirror: true
     crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160206-214516-2622/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160212-194354-ee1b/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160206-214516-2622/train_db"
+    source: "/usr/share/digits/digits/jobs/20160212-194354-ee1b/train_db"
     batch_size: 16
     backend: LMDB
   }
@@ -34,10 +34,10 @@ layer {
   transform_param {
     mirror: false
     crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160206-214516-2622/mean.binaryproto"
+    mean_file: "/usr/share/digits/digits/jobs/20160212-194354-ee1b/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160206-214516-2622/val_db"
+    source: "/usr/share/digits/digits/jobs/20160212-194354-ee1b/val_db"
     batch_size: 16
     backend: LMDB
   }
