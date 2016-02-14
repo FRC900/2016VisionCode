@@ -29,7 +29,11 @@ bool DetectState::update(void)
 	//if (gpu_)
 	//	detector_ = new GPU_CascadeDetect(name.c_str());
 	//else
-        vector<string> files = classifierIO_.getClassifierFiles();
+    vector<string> files = classifierIO_.getClassifierFiles();
+    for (int i = 0; i < files.size(); ++i)
+    {
+        cerr << "files[" << i << "] = " << files[i] << endl;
+    }
     if (files.size() != 4)
     {
         cerr << "No files to load classifier" << endl;

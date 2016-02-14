@@ -6,73 +6,99 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <boost/filesystem.hpp>
+
 #include "classifierio.hpp"
 
 using namespace std;
+using namespace boost::filesystem;
 
 ClassifierIO::ClassifierIO(string baseDir, int dirNum, int stageNum) :
-   baseDir_  ( baseDir),
-   dirNum_   ( dirNum),
-   stageNum_ ( stageNum)
+    baseDir_  ( baseDir),
+    dirNum_   ( dirNum),
+    stageNum_ ( stageNum)
 {
+    if (!findNextClassifierDir(true))
+        cerr << "ERROR: Failed to find first classifier stage" << endl;
 }
 
 // using the current directory number, generate a filename for that dir
 // if it exists - if it doesnt, return an empty string
 string ClassifierIO::getClassifierDir() const
 {
-   struct stat fileStat;
-   stringstream ss;
-   ss << baseDir_ << dirNum_;
-   if ((stat(ss.str().c_str(), &fileStat) == 0) && S_ISDIR(fileStat.st_mode))
-      return string(ss.str());
-   return string();
+    path p(baseDir_ + to_string(dirNum_));
+    if (exists(p) && is_directory(p))
+    {
+        return p.string();
+    }
+    else
+    {
+        cerr << "ERROR: Invalid classifier directory: "
+             << baseDir_ + to_string(dirNum_) << endl;
+        return string();
+    }
 }
 
 vector<string> ClassifierIO::getClassifierFiles() const
 {
-    //Get 4 needed files
+    // Get 4 needed files in the following order:
+    // 1. deploy.prototxt
+    // 2. snapshot_iter_#####.caffemodel
+    // 3. mean.binaryproto
+    // 4. labels.txt
     vector<string> output;
     /*
     output.push_back("d12/deploy.prototxt");
     output.push_back("d12/network.caffemodel");
     output.push_back("d12/mean.binaryproto");
     output.push_back("d12/labels.txt");
-*/
+    */
 
-    struct stat fileStat;
-    string dirPath = getClassifierDir();
+    path classifierPath(getClassifierDir());
+    //cerr << "classifier dir=" << classifierPath.string() << endl;
 
     {
-        stringstream ss(dirPath);
-        ss << "/deploy.prototxt";
-        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+        path tmpPath(classifierPath);
+        tmpPath /= "deploy.prototxt";
+        if (!exists(tmpPath) || !is_regular_file(tmpPath))
+        {
+            cerr << "ERROR: Failed to open " << tmpPath.string();
             return output;
-        output.push_back(ss.str());
+        }
+        output.push_back(tmpPath.string());
     }
 
     {
-        stringstream ss(dirPath);
-        ss << "/snapshot_iter_" << stageNum_ << ".caffemodel";
-        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+        path tmpPath(classifierPath);
+        tmpPath /= "snapshot_iter_" + to_string(stageNum_) + ".caffemodel";
+        if (!exists(tmpPath) || !is_regular_file(tmpPath))
+        {
+            cerr << "ERROR: Failed to open " << tmpPath.string();
             return output;
-        output.push_back(ss.str());
+        }
+        output.push_back(tmpPath.string());
     }
 
     {
-        stringstream ss(dirPath);
-        ss << "/mean.binaryproto";
-        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+        path tmpPath(classifierPath);
+        tmpPath /= "mean.binaryproto";
+        if (!exists(tmpPath) || !is_regular_file(tmpPath))
+        {
+            cerr << "ERROR: Failed to open " << tmpPath.string();
             return output;
-        output.push_back(ss.str());
+        }
+        output.push_back(tmpPath.string());
     }
 
     {
-        stringstream ss(dirPath);
-        ss << "/labels.txt";
-        if ((stat(ss.str().c_str(), &fileStat) != 0) || !S_ISREG(fileStat.st_mode))
+        path tmpPath(classifierPath);
+        tmpPath /= "labels.txt";
+        if (!exists(tmpPath) || !is_regular_file(tmpPath))
+        {
+            cerr << "ERROR: Failed to open " << tmpPath.string();
             return output;
-        output.push_back(ss.str());
+        }
+        output.push_back(tmpPath.string());
     }
 
     return output;
@@ -122,18 +148,20 @@ string ClassifierIO::getClassifierName() const
 // files in the sequence
 bool ClassifierIO::findNextClassifierStage(bool increment)
 {
-   int adder = increment ? 1 : -1;
-   int num = stageNum_ + adder;
+    int adder = increment ? 1 : -1;
+    int num = stageNum_ + adder;
 
-   struct stat fileStat;
-   string dirPath = getClassifierDir();
+    //struct stat fileStat;
+    //string dirPath = getClassifierDir();
+    path dirPath(getClassifierDir());
 
    //bool found = false;
    while (num >= 0 && num <= 200000)
    {
-       stringstream ss(dirPath);
-       ss << "/snapshot_iter_" << num << ".caffemodel";
-       if ((stat(ss.str().c_str(), &fileStat) == 0) && S_ISREG(fileStat.st_mode)) {
+       path p(dirPath);
+       p /= "snapshot_iter_" + to_string(num) + ".caffemodel";
+       if (exists(p) && is_regular_file(p))
+       {
            stageNum_ = num;
            return true;
        }
@@ -148,35 +176,27 @@ bool ClassifierIO::findNextClassifierStage(bool increment)
 bool ClassifierIO::findNextClassifierDir(bool increment)
 {
    int adder = increment ? 1 : -1;
-   int dnum = dirNum_ + adder;
-   struct stat fileStat;
+   int dnum = dirNum_;
+   bool found = false;
 
-
-   while (dnum >= 0 && dnum <= 100)
+   while (dnum >= 0 && dnum <= 100 && !found)
    {
-       stringstream ss(baseDir_);
-       ss << dnum;
-       if ((stat(ss.str().c_str(), &fileStat) == 0) && S_ISDIR(fileStat.st_mode)) {
-           stageNum_ = num;
-           return true;
+       dnum += adder;
+       path p(baseDir_ + to_string(dnum));
+       if (exists(p) && is_directory(p))
+       {
+           dirNum_ = dnum;
+           found = true;
        }
-
-
    }
-   for (found = false; !found && ((dnum > 0) && (dnum < 100)); dnum += adder)
-   {
-      ClassifierIO tempClassifier(baseDir_, dnum, stageNum_ + 1);
-      if (tempClassifier.getClassifierDir().length())
-      {
+
 	 // Try to find a valid classifier in this dir, counting
-	 // down from the current stage number
-	 if (tempClassifier.findNextClassifierStage(false))
+	 // up from zero
+   stageNum_ = 0;
+	 if (found && findNextClassifierStage(true))
 	 {
-	    *this = tempClassifier;
 	    found = true;
 	 }
-      }
-   }
 
    return found;
 }

@@ -44,9 +44,9 @@ Args::Args(void)
 	calibrate          = false;
 	writeVideo         = false;
 	saveVideo          = false;
-	classifierBaseDir  = "/home/ubuntu/2016VisionCode/cascade_training/classifier_bin_";
-	classifierDirNum   = 14;
-	classifierStageNum = 29;
+	classifierBaseDir  = "/home/ubuntu/2016VisionCode/bindetection/d";
+	classifierDirNum   = 0;
+	classifierStageNum = 0;
 	frameStart         = 0.0;
 	groundTruth        = false;
 }
@@ -57,7 +57,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string captureAllOpt      = "--all";             // capture all detected images in each frame
 	const string batchModeOpt       = "--batch";           // run without GUI
 	const string dsOpt              = "--ds";              // driver station mode - look for 4 bins on step
-	const string skipOpt            = "--skip=";           // skip frames in input video file 
+	const string skipOpt            = "--skip=";           // skip frames in input video file
 	const string calibrateOpt       = "--calibrate";       // bring up crosshair to calibrate camera position
 	const string writeVideoOpt      = "--capture";         // save camera video to output file
 	const string saveVideoOpt       = "--save";            // write processed video to output file
@@ -105,7 +105,7 @@ bool Args::processArgs(int argc, const char **argv)
 		{
 			cerr << "Unknown command line option " << argv[fileArgc] << endl;
 			Usage();
-			return false; 
+			return false;
 		}
 		else // first non -- arg is filename or camera number
 			break;
@@ -120,4 +120,3 @@ bool Args::processArgs(int argc, const char **argv)
 		inputName = argv[fileArgc];
 	return true;
 }
-
