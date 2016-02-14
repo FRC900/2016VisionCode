@@ -1,9 +1,11 @@
 #include "objdetect.hpp"
 
 int scale         = 35;
-int neighbors     = 4;
-int minDetectSize = 20;
+int nmsThreshold  = 0;
+int minDetectSize = 44;
 int maxDetectSize = 450;
+int d12Threshold  = 78;
+int d24Threshold  = 78;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios
@@ -29,38 +31,22 @@ using namespace cv::gpu;
 	Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
 */
-void GPU_NNDetect::Detect (const Mat &frameInput, vector<Rect> &imageRects)
+void GPU_NNDetect::Detect (const Mat &frameInput, Mat &depthIn, vector<Rect> &imageRects)
 {
-  //cvtColor(frameGPUInput, frameGray, CV_BGR2GRAY);
-  //equalizeHist(frameGray, frameEq);
+	// Control detect threshold via sliders.
+	// Hack - set D24 to 0 to bypass running it
+	vector<double> detectThreshold;
+	detectThreshold.push_back(d12Threshold ? d12Threshold / 100. : 0.01);
+	detectThreshold.push_back(d24Threshold / 100.);
 
-  //-- Detect objects
-  int detectCount;
-  classifier_.detectMultiscale(frameInput,
-      Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
-      Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
-	  1.01 + scale/100.,
-      imageRects);
-
-  /*
-  detectCount = classifier_.detectMultiScale(frameEq,
-	 detectResultsGPU,
-	 Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
-	 Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
-	 1.01 + scale/100.,
-	 neighbors);
-  */
-
-  // download only detected number of rectangles
-  /*
-  Mat detectResult;
-  detectResultsGPU.colRange(0, imageRects.size()).download(detectResult);
-
-  imageRects.clear();
-  Rect *rects = detectResult.ptr<Rect>();
-  for(int i = 0; i < detectCount; ++i)
-     imageRects.push_back(rects[ivoid CPU_CascadeDetect::Detect (const Mat &frame, vector<Rect> &imageRects));
-  */
+	classifier_.detectMultiscale(frameInput,
+			depthIn,
+			Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
+			Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
+			1.01 + scale/100.,
+			nmsThreshold/100.,
+			detectThreshold,
+			imageRects);
 }
 
 //gpu version with wrapper to upload Mat to GpuMat

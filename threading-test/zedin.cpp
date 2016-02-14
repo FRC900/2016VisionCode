@@ -4,9 +4,16 @@ using namespace cv;
 using namespace std;
 
 
-ZedIn::ZedIn()
+ZedIn::ZedIn(const char* svo_path)
 {
-	zed = new sl::zed::Camera(sl::zed::VGA);
+	if(!svo_path)
+	{
+		zed = new sl::zed::Camera(sl::zed::VGA);
+	}
+	else
+	{
+		zed = new sl::zed::Camera(svo_path);
+	}
 	// init computation mode of the zed
 	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
 	cout << sl::zed::errcode2str(err) << endl;
@@ -21,39 +28,13 @@ ZedIn::ZedIn()
 
 	cv_frame.create(_height,_width,CV_8UC4);
 	cv_normalDepth.create(_height,_width,CV_8UC4);
-	cv_depth.create(_height,_width,CV_32F);
-	cv_confidence.create(_height,_width,CV_8UC4);
-	
-	cv_frame = Scalar(2);
-}
-
-ZedIn::ZedIn(char* svo_path)
-{
-	zed = new sl::zed::Camera(svo_path);
-	// init computation mode of the zed
-	sl::zed::ERRCODE err = zed->init(sl::zed::MODE::QUALITY, -1, true);
-	cout << sl::zed::errcode2str(err) << endl;
-	// Quit if an error occurred
-	if (err != sl::zed::SUCCESS) {
-    		delete zed;
-    		exit(-1);
-	}
-
-	_width = zed->getImageSize().width;
-	_height = zed->getImageSize().height;
-	memcpy(&stereoParams, zed->getParameters(), sizeof(stereoParams));
-
-	cv_frame.create(_height,_width,CV_8UC4);
-	cv_normalDepth.create(_height,_width,CV_8UC4);
-	cv_depth.create(_height,_width,CV_32F);
-	cv_confidence.create(_height,_width,CV_8UC4);
-	
-	cv_frame = Scalar(2);
+	cv_depth.create(_height,_width,CV_32FC1);
+	cv_confidence.create(_height,_width,CV_32FC1);
+	//cv_frame = Scalar(2);
 }
 
 bool ZedIn::update()
 {
-	cout << 1 << endl;
 	bool grabError = zed->grab(sl::zed::RAW);
 	if (grabError) {
 		cerr << "Error grabbing image from zed" << endl;
@@ -65,14 +46,11 @@ bool ZedIn::update()
 	else
 		slMat2cvMat(zed->retrieveImage(sl::zed::SIDE::RIGHT)).copyTo(cv_frame);
 	
-	cout << 2 << endl;
 	slMat2cvMat(zed->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(cv_depth); //not normalized depth
 	slMat2cvMat(zed->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(cv_normalDepth); //normalized depth
 	slMat2cvMat(zed->retrieveMeasure(sl::zed::MEASURE::CONFIDENCE)).copyTo(cv_confidence);
 
-	cout << 3 << endl;
 	cvtColor(cv_frame,cv_frame,CV_RGBA2RGB); //remove the alpha channel
-	cout << 4 << endl;
    	return true;
 }
 

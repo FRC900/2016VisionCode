@@ -1,45 +1,57 @@
-#include "opencv2/imgproc/imgproc.hpp"
+#include <iostream>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include "camerain.hpp"
 
 using namespace cv;
 
-CameraIn::CameraIn(int stream, bool gui)
+CameraIn::CameraIn(int stream, bool gui) : 
+	frameCounter_(0),
+	width_(800),
+    height_(600),
+	cap_(stream)
 {
-   _cap = VideoCapture(stream);
-   _cap.set(CV_CAP_PROP_FPS, 30.0);
-   _cap.set(CV_CAP_PROP_FRAME_WIDTH, 800);
-   _cap.set(CV_CAP_PROP_FRAME_HEIGHT, 600);
-   _frameCounter = 0;
+	(void)gui;
+	if (cap_.isOpened())
+	{
+		cap_.set(CV_CAP_PROP_FPS, 30.0);
+		cap_.set(CV_CAP_PROP_FRAME_WIDTH, width_);
+		cap_.set(CV_CAP_PROP_FRAME_HEIGHT, height_);
+	}
+	else
+		std::cerr << "Could not open camera" << std::endl;
 }
 
 bool CameraIn::getNextFrame(Mat &frame, bool pause)
 {
-   if (!pause)
-   {
-      _cap >> _frame;
-      if( _frame.empty() )
-	 return false;
-      if (_frame.rows > 800)
-	 pyrDown(_frame, _frame);
-      _frameCounter += 1;
-   }
-   frame = _frame.clone();
+	if (!cap_.isOpened())
+		return false;
+	if (!pause)
+	{
+		cap_ >> frame_;
+		if (frame_.empty())
+			return false;
+		if (frame_.rows > 800)
+			pyrDown(frame_, frame_);
+		frameCounter_ += 1;
+	}
+	frame = frame_.clone();
 
-   return true;
+	return true;
 }
 
-int CameraIn::height(void)
+int CameraIn::width(void) const
 {
-   return _cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+   return width_;
 }
 
-int CameraIn::width(void)
+int CameraIn::height(void) const
 {
-   return _cap.get(CV_CAP_PROP_FRAME_WIDTH);
+   return height_;
 }
 
-int CameraIn::frameCounter(void)
+int CameraIn::frameCounter(void) const
 {
-   return _frameCounter;
+   return frameCounter_;
 }

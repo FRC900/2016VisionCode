@@ -1,24 +1,26 @@
 #ifndef CAMERAIN_HPP__
 #define CAMERAIN_HPP__
 
+#include <opencv2/highgui/highgui.hpp>
 #include "mediain.hpp"
-#include "opencv2/highgui/highgui.hpp"
 
 class CameraIn : public MediaIn
 {
    public:
       CameraIn(int stream = -1, bool gui = false);
+	  ~CameraIn() {}
       bool getNextFrame(cv::Mat &frame, bool pause = false);
 
-      int width(void);
-      int height(void);
-      int frameCounter(void);
+      int width(void) const;
+      int height(void) const;
+      int frameCounter(void) const;
 
-   protected:
-      int _frameCounter;
    private:
-      cv::VideoCapture _cap;
-      cv::Mat          _frame;
+      int              frameCounter_;
+	  int              width_;
+	  int              height_;
+      cv::Mat          frame_;
+      cv::VideoCapture cap_;
 };
 #endif
 

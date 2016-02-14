@@ -2,7 +2,7 @@
 #define ZEDCAMERAIN_HPP__
 
 //opencv include
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/core/core.hpp>
 #include "mediain.hpp"
 
 #ifdef ZED_SUPPORT
@@ -15,25 +15,29 @@
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn();
+		ZedIn(const char *filename = NULL);
+		~ZedIn();
 		bool getNextFrame(cv::Mat &frame, bool pause = false);
 
-		int width(void);
-		int height(void);
+		int    width(void) const;
+		int    height(void) const;
+
 #ifdef ZED_SUPPORT
+		bool   getDepthMat(cv::Mat &depthMat);
 		double getDepth(int x, int y);
 #endif
 
 	private:
 #ifdef ZED_SUPPORT
 		bool getNextFrame(cv::Mat &frame, bool left, bool pause);
-		sl::zed::Camera* zed;
-		sl::zed::Mat imageGPU;
-		sl::zed::Mat depthGPU;
-		cv::Mat depthCPU;
-		sl::zed::Mat depthMat;
+
+		sl::zed::Camera* zed_;
+		cv::Mat frameRGBA_;
+		cv::Mat frame_;
+		cv::Mat depthMat_;
 		int width_;
 		int height_;
+		int frameCounter_;
 #endif
 };
 #endif

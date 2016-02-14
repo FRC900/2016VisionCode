@@ -68,17 +68,24 @@ TrackedObject::~TrackedObject()
 	delete[] _angleArray;
 }
 
-// Adjust the position and angle history by 
-// the specified amount. Used to compensate for 
-// the robot turning
-// TODO : also need a similar adjustTranslation call
-void TrackedObject::adjustAngle(double deltaAngle, int imageWidth)
+// Adjust position based on camera motion
+// between frames
+void TrackedObject::adjustPosition(const cv::Mat &transformMat)
 {
-	// Need to figure out what positive and negative
-	// angles mean
-	for (size_t i = 0; i < _listLength; i++)
-		_angleArray[i] += deltaAngle;
-	_position.x += deltaAngle * imageWidth / HFOV;
+	//for (size_t i = 0; i < _listLength; i++)
+	//_angleArray[i] += deltaAngle;
+	if (!transformMat.empty())
+	{
+		cv::Mat posMat(3, 1, CV_64FC1);
+		posMat.at<double>(0,0) = _position.x;
+		posMat.at<double>(0,1) = _position.y;
+		posMat.at<double>(0,2) = 1.0;
+
+		posMat = transformMat * posMat;
+
+		_position.x = posMat.at<double>(0,0);
+		_position.y = posMat.at<double>(0,1);
+	}
 }
 
 // Set the distance to the bin for the current frame
@@ -136,20 +143,20 @@ void TrackedObject::clearDetected(void)
 double TrackedObject::getDetectedRatio(void) const
 {
 	int detectedCount = 0;
-	size_t i;
+	int i;
 	bool recentHits = true;
 
 	// Don't display detected bins if they're not seen for at least 1 of 4 consecutive frames
 	if (_listIndex > 4)
 	{
 		recentHits = false;
-		for (i = _listIndex; (i >= 0) && (i >= _listIndex - 4) && !recentHits; i--)
+		for (i = _listIndex; (i >= 0) && (i >= (int)_listIndex - 4) && !recentHits; i--)
 			if (_detectArray[i % _listLength])
 				recentHits = true;
 	}
 
-	for (i = 0; i < _listLength; i++)
-		if (_detectArray[i])
+	for (size_t j = 0; j < _listLength; j++)
+		if (_detectArray[j])
 			detectedCount += 1;
 	double detectRatio = (double)detectedCount / _listLength;
 	if (!recentHits)
@@ -271,7 +278,7 @@ _list.push_back(TrackedObject(position));
 // and call nextFrame on the remaining ones
 void TrackedObjectList::nextFrame(void)
 {
-	for (std::list<TrackedObject>::iterator it = _list.begin(); it != _list.end(); )
+	for (auto it = _list.begin(); it != _list.end(); )
 	{
 		if (it->getDetectedRatio() < 0.00001) // For now just remove ones for
 		{                                     // which detectList is empty
@@ -286,19 +293,17 @@ void TrackedObjectList::nextFrame(void)
 	}
 }
 
-// Adjust the angle of each tracked object based on
-// the rotation of the robot
-// TODO : add an adjustTranslation here as well
-void TrackedObjectList::adjustAngle(double deltaAngle)
+// Adjust position for camera motion between frames
+void TrackedObjectList::adjustPosition(const cv::Mat &transformMat)
 {
-	for (std::list<TrackedObject>::iterator it = _list.begin(); it != _list.end(); ++it)
-		it->adjustAngle(deltaAngle, _imageWidth);
+	for (auto it = _list.begin(); it != _list.end(); ++it)
+		it->adjustPosition(transformMat);
 }
 
 // Simple printout of list into stdout
 void TrackedObjectList::print(void) const
 {
-	for (std::list<TrackedObject>::const_iterator it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.cbegin(); it != _list.cend(); ++it)
 	{
 		double stdev;
 		double average = it->getAverageDistance(stdev);
@@ -313,7 +318,7 @@ void TrackedObjectList::getDisplay(std::vector<TrackedObjectDisplay> &displayLis
 {
 	displayList.clear();
 	TrackedObjectDisplay tod;
-	for (std::list<TrackedObject>::const_iterator it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.cbegin(); it != _list.cend(); ++it)
 	{
 		double stdev;
 		tod.distance = it->getAverageDistance(stdev);
@@ -334,8 +339,7 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect)
 	double rectArea = detectedRect.width * detectedRect.height;
 	cv::Point rectCorner(detectedRect.x, detectedRect.y);
 	//std::cout << "Processing " << detectedRect.x << "," << detectedRect.y << std::endl;
-	std::list<TrackedObject>::iterator it;
-	for (it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = _list.begin(); it != _list.end(); ++it)
 	{
 		// Look for object with roughly the same position 
 		// as the current rect

@@ -1,24 +1,46 @@
+#include <iostream>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "imagein.hpp"
 
 using namespace cv;
 
-ImageIn::ImageIn(const char *path)
+ImageIn::ImageIn(const char *path) :
+	frame_(imread(path))
 {
-   _frame = imread(path);
+	if (frame_.empty())
+		std::cerr << "Could not open image file " << path << std::endl;
+	while (frame_.rows > 800)
+		pyrDown(frame_, frame_);
 }
 
 bool ImageIn::getNextFrame(Mat &frame, bool pause)
 {
-   frame = _frame.clone();
-   return true;
+	(void)pause;
+	if (frame_.empty())
+		return false;
+	frame = frame_.clone();
+	return true;
 }
 
-int ImageIn::width(void)
+int ImageIn::width(void) const
 {
-   return _frame.cols;
+	return frame_.cols;
 }
-int ImageIn::height(void)
+
+int ImageIn::height(void) const
 {
-   return _frame.rows;
+	return frame_.rows;
+}
+
+// Images have only 1 "frame"
+int ImageIn::frameCount(void) const
+{
+	return 1;
+}
+
+int ImageIn::frameCounter(void) const
+{
+	return 1;
 }
 

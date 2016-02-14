@@ -6,7 +6,7 @@
 
 template<class MatT>
 void scalefactor(MatT inputimage, cv::Size objectsize, 
-      cv::Size minsize, cv::Size maxsize, float scaleFactor, 
-      std::vector<std::pair<MatT, float> > &ScaleInfo);
+      cv::Size minsize, cv::Size maxsize, double scaleFactor, 
+      std::vector<std::pair<MatT, double> > &ScaleInfo);
 
 #endif

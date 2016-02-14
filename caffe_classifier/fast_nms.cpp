@@ -6,109 +6,126 @@
  */
 
 #include <algorithm>
+#include <functional>
 #include <iostream>
 
 #include "fast_nms.hpp"
 
-// TODO : see if these hacks really are faster or not
-#define fast_max(x,y) (x - ((x - y) & ((x - y) >> (sizeof(int) * CHAR_BIT - 1))))
-#define fast_min(x,y) (y + ((x - y) & ((x - y) >> (sizeof(int) * CHAR_BIT - 1))))
-
-static bool detectedCompareGreater(const Detected &rh, const Detected &lh)
+class DetectedPlusIndex
 {
-   return rh.second > lh.second;
-}
+	public :
+		DetectedPlusIndex(const cv::Rect &rect, double score, size_t index) :
+			rect_(rect),
+			score_(score),
+			index_(index)
+	{}
+		cv::Rect rect_;
+		float    score_;
+		size_t   index_;
 
-void 
-fastNMS(std::vector<Detected> detected, float overlap_th, std::vector<cv::Rect> &filteredList) 
+		bool operator> (const DetectedPlusIndex &other) const
+		{
+			return score_ > other.score_;
+		}
+};
+
+void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vector<size_t> &filteredList) 
 {
-   filteredList.clear(); // Clear out return array
+	filteredList.clear(); // Clear out return array
+	std::vector <DetectedPlusIndex> dpi;
 
-   // Sort input rects by decreasing score - i.e. look at best
-   // values first
-   std::sort(detected.begin(), detected.end(), detectedCompareGreater);
+	// Create a list that includes the detected input plus the
+	// index into the list as it was passed in.  Keep the index
+	// so we can pass the original unsorted index back to the caller.
+	size_t idx = 0;
+	for (auto it = detected.cbegin(); it != detected.cend(); ++it)
+		dpi.push_back(DetectedPlusIndex(it->first, it->second, idx++));
 
-   std::vector<bool> validList(detected.size(), true);
+	// Sort input rects by decreasing score - i.e. look at best
+	// values first
+	std::sort(dpi.begin(), dpi.end(), std::greater<DetectedPlusIndex>());
 
-   // Loop while there's anything valid left in rects array
-   bool anyValid = true;
-   do
-   {
-      anyValid = false; // assume there's nothing valid, adjust later if needed
+	// Start by assuming all of the input rects are non-overlapping
+	std::vector<bool> validList(dpi.size(), true);
 
-      // Look for first valid entry in rects
-      size_t i;
-      for (i = 0; i < validList.size(); ++i)
-	 if (validList[i])
-	    break;
+	// Loop while there's anything valid left in rects array
+	bool anyValid;
+	do
+	{
+		anyValid = false; // assume there's nothing valid, adjust later if needed
 
-      // Exit if none are found
-      if (i == validList.size())
-	 break;
+		// Look for the highest scoring unprocessed 
+		// rectangle left in the list
+		size_t i;
+		for (i = 0; i < validList.size(); ++i)
+			if (validList[i])
+				break;
 
-      // Save the highest ranked remaining DRect
-      // and invalidate it - this means we've already
-      // processed it
-      filteredList.push_back(detected[i].first);
-      validList[i] = false;
+		// Exit if everything has been processed
+		if (i == validList.size())
+			break;
 
-      // Save coords of this DRect so we can
-      // filter out nearby DRects which have a lower
-      // ranking
-      int x0 = detected[i].first.tl().x;
-      int y0 = detected[i].first.tl().y;
-      int x1 = detected[i].first.br().x;
-      int y1 = detected[i].first.br().y;
+		// Save the index of the highest ranked remaining Rect
+		// and invalidate it - this means we've already
+		// processed it
+		filteredList.push_back(dpi[i].index_);
+		validList[i] = false;
 
-      // Loop through the rest of the array, looking
-      // for entries which overlap with the current "good"
-      // one being processed
-      for (++i; i < detected.size() ; ++i) 
-      {
-	 if (validList[i])
-	 {
-	    int tx0 = fast_max(x0, detected[i].first.tl().x);
-	    int ty0 = fast_max(y0, detected[i].first.tl().y);
-	    int tx1 = fast_min(x1, detected[i].first.br().x);
-	    int ty1 = fast_min(y1, detected[i].first.br().y);
+		// Save this rect to compare against the
+		// remaining lower-scoring ones
+		cv::Rect topRect = dpi[i].rect_;
 
-	    tx0 = tx1 - tx0 + 1;
-	    ty0 = ty1 - ty0 + 1;
-	    if ((tx0 > 0) && (ty0 > 0) && 
-		((tx0 * ty0 / (float)detected[i].first.area()) > overlap_th)) 
-	       validList[i] = false; // invalidate DRects which overlap
-	    else
-	       anyValid = true;  // otherwise indicate that there's stuff left to do next time
-	 }
-      }
-   }
-   while (anyValid);
+		// Loop through the rest of the array, looking
+		// for entries which overlap with the current "good"
+		// one being processed
+		for (++i; i < dpi.size(); ++i) 
+		{
+			// Only check entries which haven't 
+			// been removed already
+			if (validList[i])
+			{
+				cv::Rect thisRect = dpi[i].rect_;
+
+				// Look at the Intersection over Union ratio.
+				// The higher this is, the closer the two rects are
+				// to overlapping
+				double intersectArea = (topRect & thisRect).area();
+				double unionArea     = topRect.area() + thisRect.area() - intersectArea;
+
+				if ((intersectArea > 0.0) && ((intersectArea / unionArea) <= overlap_th))
+					validList[i] = false; // invalidate Rects which overlap
+				else
+					anyValid = true;      // otherwise indicate that there's stuff left to do next time
+			}
+		}
+	}
+	while (anyValid);
 }
 
 #if 0
-static void 
+	static void 
 test_nn() 
 {
-   std::vector<Detected> rects;
-   std::vector<cv::Rect> keep;
+	std::vector<Detected> rects;
+	std::vector<cv::Rect> keep;
 
-   rects.push_back(Detected(cv::Rect(cv::Point(0,  0),  cv::Point(10+1, 10+1)), 0.5f));
-   rects.push_back(Detected(cv::Rect(cv::Point(1,  1),  cv::Point(10+1, 10+1)), 0.4f));
-   rects.push_back(Detected(cv::Rect(cv::Point(20, 20), cv::Point(40+1, 40+1)), 0.3f));
-   rects.push_back(Detected(cv::Rect(cv::Point(20, 20), cv::Point(40+1, 30+1)), 0.4f));
-   rects.push_back(Detected(cv::Rect(cv::Point(15, 20), cv::Point(40+1, 40+1)), 0.1f));
-   
-   fastNMS(rects, 0.4f, keep);
+	rects.push_back(Detected(cv::Rect(cv::Point(0,  0),  cv::Point(10+1, 10+1)), 0.5f));
+	rects.push_back(Detected(cv::Rect(cv::Point(1,  1),  cv::Point(10+1, 10+1)), 0.4f));
+	rects.push_back(Detected(cv::Rect(cv::Point(20, 20), cv::Point(40+1, 40+1)), 0.3f));
+	rects.push_back(Detected(cv::Rect(cv::Point(20, 20), cv::Point(40+1, 30+1)), 0.4f));
+	rects.push_back(Detected(cv::Rect(cv::Point(15, 20), cv::Point(40+1, 40+1)), 0.1f));
 
-   for (size_t i = 0; i < keep.size(); i++)
-      std::cout << keep[i] << std::endl;
+	fastNMS(rects, 0.4f, keep);
+
+	for (size_t i = 0; i < keep.size(); i++)
+		std::cout << keep[i] << std::endl;
 }
 
-int 
+	int 
 main(int argc, char *argv[]) 
 {
-    test_nn();
-    return 0;
+	test_nn();
+	return 0;
 }
 #endif
 

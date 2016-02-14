@@ -11,8 +11,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 
-#include "networktables/NetworkTable.h"
-#include "networktables2/type/NumberArray.h"
+#include <zmq.hpp>
 
 #include "classifierio.hpp"
 #include "detectstate.hpp"
@@ -27,6 +26,7 @@
 #include "track.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
+#include "GoalDetector.hpp"
 
 using namespace std;
 using namespace cv;
@@ -34,18 +34,16 @@ using namespace cv;
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
 string getDateTimeString(void);
-void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void checkDuplicate (vector<Rect> detectRects);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true);
-void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, NetworkTable *netTable, bool dateAndTime);
+void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
 
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 {
-    for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
+    for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 	{
 		// Mark detected rectangle on image
 		// Change color based on direction we think the bin is pointing
@@ -70,7 +68,7 @@ void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
-   for (vector<TrackedObjectDisplay>::const_iterator it = displayList.begin(); it != displayList.end(); ++it)
+   for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
 	  if (it->ratio >= 0.15)
 	  {
@@ -94,34 +92,6 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
    }
 }
 
-void checkDuplicate (vector<Rect> detectRects) {
-	for( size_t i = 0; i < detectRects.size(); i++ ) {
-		for (size_t j = 0; j < detectRects.size(); j++) {
-			if (i != j) {
-				Rect intersection = detectRects[i] & detectRects[j];
-				if (intersection.width * intersection.height > 0)
-					if (abs((detectRects[i].width * detectRects[i].height) - (detectRects[j].width * detectRects[j].height)) < 2000)
-						if (intersection.width / intersection.height < 5 &&  intersection.width / intersection.height > 0) {
-							Rect lowestYVal;
-							int indexHighest;
-							if(detectRects[i].y < detectRects[j].y) {
-							lowestYVal = detectRects[i]; //higher rectangle
-							indexHighest = j;
-						} else {
-							lowestYVal = detectRects[j]; //higher rectangle
-							indexHighest = i;
-					}
-					if(intersection.y > lowestYVal.y) {
-						//cout << "found intersection" << endl;
-						detectRects.erase(detectRects.begin()+indexHighest);
-					}
-				}
-			}
-		}
-	}
-}
-
-
 int main( int argc, const char** argv )
 {
 	// Flags for various UI features
@@ -139,19 +109,13 @@ int main( int argc, const char** argv )
 	if (!args.processArgs(argc, argv))
 		return -2;
 
-	string windowName = "Bin detection"; // GUI window name
+	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
 	openMedia(args.inputName, cap, capPath, windowName, !args.batchMode);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
-	unsigned groundTruthActual = 0;
-	unsigned groundTruthFound  = 0;
-	unsigned groundTruthFrame  = 1;
 	vector<Rect> groundTruthList;
-	vector<unsigned int> groundTruthFrames;
-	if (args.groundTruth)
-		groundTruthFrames = groundTruth.getFrameList();
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -159,7 +123,6 @@ int main( int argc, const char** argv )
 
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
-
 
 	Mat frame;
 
@@ -172,29 +135,29 @@ int main( int argc, const char** argv )
 	{
 		string detectWindowName = "Detection Parameters";
 		namedWindow(detectWindowName);
-		createTrackbar ("Scale", detectWindowName, &scale, 50, NULL);
-		createTrackbar ("Neighbors", detectWindowName, &neighbors, 50, NULL);
-		createTrackbar ("Min Detect", detectWindowName, &minDetectSize, 200, NULL);
-		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()), NULL);
+		createTrackbar ("Scale", detectWindowName, &scale, 50);
+		createTrackbar ("NMS Threshold", detectWindowName, &nmsThreshold, 100);
+		createTrackbar ("Min Detect", detectWindowName, &minDetectSize, 200);
+		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()));
+		createTrackbar ("D12 Threshold", detectWindowName, &d12Threshold, 100);
+		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
 	}
 
 	// Create list of tracked objects
-	// recycling bins are 24" wide
-	TrackedObjectList binTrackingList(24.0, cap->width());
+	// balls / boulders are 8" wide?
+	TrackedObjectList binTrackingList(8.0, cap->width());
+	
+	zmq::context_t context (1);
+	zmq::socket_t publisher(context, ZMQ_PUB);
 
-	NetworkTable::SetClientMode();
-	NetworkTable::SetIPAddress("10.9.0.2");
-	NetworkTable *netTable = NetworkTable::GetTable("VisionTable");
+	std::cout<< "Starting network publisher 5800" << std::endl;
+	publisher.bind("tcp://*:5800");
+
 	const size_t netTableArraySize = 7; // 7 bins?
-	NumberArray netTableArray;
-
-	// 7 bins max, 3 entries each (confidence, distance, angle)
-	netTableArray.setSize(netTableArraySize * 3);
 
 	// Code to write video frames to avi file on disk
 	VideoWriter outputVideo;
 	VideoWriter markedupVideo;
-	args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
 
@@ -205,12 +168,20 @@ int main( int argc, const char** argv )
 		  gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
-	if (args.groundTruth && (groundTruthFrames.size() > 0))
+	if (args.groundTruth)
 	{
-		cout << "Set frame counter to " << groundTruthFrames[0];
-		cap->frameCounter(groundTruthFrames[0]);
+		int frameNum = groundTruth.nextFrameNumber();
+		if (frameNum == -1)
+			return 0;
+		cap->frameCounter(frameNum);
 	}
 
+
+	//Creating Goaldetection object
+
+	GoalDetector gd;
+  	Mat depth;
+	Rect boundRect;
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -221,18 +192,20 @@ int main( int argc, const char** argv )
 		frameTicker.start(); // start time for this frame
 		if (--videoWritePollCount == 0)
 		{
-			args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
+			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
 		}
-
+		
 		if (args.writeVideo)
-		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, netTable, true);
+		{
+		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, NULL, true);
+		}
 
 		//TODO : grab angle delta from robot
 		// Adjust the position of all of the detected objects
 		// to account for movement of the robot between frames
-		double deltaAngle = 0.0;
-		binTrackingList.adjustAngle(deltaAngle);
+		Mat transformMat;
+		binTrackingList.adjustPosition(transformMat);
 
 		// This code will load a classifier if none is loaded - this handles
 		// initializing the classifier the first time through the loop.
@@ -240,13 +213,23 @@ int main( int argc, const char** argv )
 		// being used - this forces a reload
 		// Finally, it allows a switch between CPU and GPU on the fly
 		if (detectState.update() == false)
-			return -1;
+		break;
+
+		//Getting depth matrix
+
+		cap->getDepthMat(depth);
+
+		//Initiallizing Goaldetector object
+
+		gd.processFrame(frame, depth, boundRect);
+		float gdistance = gd.dist_to_goal();
+		float gangle = gd.angle_to_goal();
+			
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
-		detectState.detector()->Detect(frame, detectRects);
-		checkDuplicate(detectRects);
+		detectState.detector()->Detect(frame, depth, detectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -262,38 +245,46 @@ int main( int argc, const char** argv )
 
 		// Process this detected rectangle - either update the nearest
 		// object or add it as a new one
-		for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
+		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 			binTrackingList.processDetect(*it);
-		#if 0
-		// Print detect status of live objects
-		if (args.tracking)
-			binTrackingList.print();
-		#endif
-		// Grab info from trackedobjects. Display it and update network tables
+
+		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
 		binTrackingList.getDisplay(displayList);
-
+		//Creates immutable strings for 0MQ Output
+		stringstream zmqString;
+		zmqString << "V ";
+		stringstream gString;
+		gString << "G ";
+		gString << fixed << setprecision(2) << gdistance << " ";
+		gString << fixed << setprecision(2) << gangle;
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
-		//   c. we're on one of the frames to display (every frDispFreq frames)
+		//   c. we're on one of the frames to display (every frameDispFreq frames)
 		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
 		    drawTrackingInfo(frame, displayList);
 
-		if (!args.ds)
+		for (size_t i = 0; i < netTableArraySize; i++)
 		{
-		   // Clear out network table array
-		   for (size_t i = 0; !args.ds & (i < (netTableArraySize * 3)); i++)
-			   netTableArray.set(i, -1);
-
-		   for (size_t i = 0; i < min(displayList.size(), netTableArraySize); i++)
-		   {
-			  netTableArray.set(i*3,   displayList[i].ratio);
-			  netTableArray.set(i*3+1, displayList[i].distance);
-			  netTableArray.set(i*3+2, displayList[i].angle);
-		   }
-		   netTable->PutValue("VisionArray", netTableArray);
+			if (i < displayList.size())
+			{
+				zmqString << fixed << setprecision(2) << displayList[i].ratio << " " ;
+				zmqString << fixed << setprecision(2) << (float)displayList[i].distance << " " ;
+				zmqString << fixed << setprecision(2) << displayList[i].angle << " " ;
+			}
+			else
+				zmqString << "0.00 0.00 0.00 ";
 		}
+
+		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
+		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+		zmq::message_t request(zmqString.str().length() - 1);
+		zmq::message_t grequest(gString.str().length() - 1);
+		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
+		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
+		publisher.send(request);
+		publisher.send(grequest);
 
 		// Don't update to next frame if paused to prevent
 		// objects missing from this frame to be aged out
@@ -328,54 +319,12 @@ int main( int argc, const char** argv )
 				cout << ss.str() << endl;
 	    }
 
-		// Driverstation Code
-		if (args.ds)
-		{
-			// Report boolean value for each bin on the step
-			bool hits[4];
-			for (int i = 0; i < 4; i++)
-			{
-				Rect dsRect(i * frame.cols / 4, 0, frame.cols/4, frame.rows);
-				if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
-					rectangle(frame, dsRect, Scalar(0,255,255,3));
-				hits[i] = false;
-				// For each quadrant of the field, look for a detected
-				// rectangle contained entirely in the quadrant
-				// Assume that if that's found, it is a bin
-				// TODO : Tune this later with a distance range
-				for (vector<TrackedObjectDisplay>::const_iterator it = displayList.begin(); it != displayList.end(); ++it)
-				{
-					if (((it->rect & dsRect) == it->rect) && (it->ratio > 0.15))
-					{
-						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
-							rectangle(frame, it->rect, Scalar(255,128,128), 3);
-						hits[i] = true;
-					}
-				}
-				writeNetTableBoolean(netTable, "Bin", i + 1, hits[i]);
-			}
-		}
-
+		// Check ground truth data on videos and images,
+		// but not on camera input
+		vector<Rect> groundTruthHitList;
 		if (cap->frameCount() >= 0)
-		{
-			groundTruthList    = groundTruth.get(cap->frameCounter() - 1);
-			groundTruthActual += groundTruthList.size();
-			for(vector<Rect>::const_iterator gt = groundTruthList.begin(); gt != groundTruthList.end(); ++gt)
-			{
-				for(vector<Rect>::const_iterator it = detectRects.begin(); it != detectRects.end(); ++it)
-				{
-					// If the intersection is > 30% of the area of
-					// the ground truth, that's a success
-					if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))
-					{
-						groundTruthFound += 1;
-						if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
-							rectangle(frame, *it, Scalar(128,128,128), 3);
-						break;
-					}
-				}
-			}
-		}
+			groundTruthHitList = groundTruth.processFrame(cap->frameCounter() - 1, detectRects);
+
 
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
@@ -411,25 +360,27 @@ int main( int argc, const char** argv )
 			   line (frame, Point(0, frame.rows/2) , Point(frame.cols, frame.rows/2), Scalar(255,255,0));
 			}
 
-			if (groundTruthList.size())
-				drawRects(frame, groundTruthList, Scalar(255,0,0), false);
+			// Draw ground truth info for this frame. Will be a no-op
+			// if none is available for this particular video frame
+			drawRects(frame, groundTruth.get(cap->frameCounter() - 1), Scalar(255,0,0), false);
+			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+			rectangle(frame, boundRect, Scalar(255,0,0));
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
-			imshow( windowName, frame );
+			imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a vile
 			if (args.saveVideo)
-			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, netTable, false);
+			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, NULL, false);
 
+			// Process user input for this frame
 			char c = waitKey(5);
 			if ((c == 'c') || (c == 'q') || (c == 27))
 			{ // exit
-				if (netTable->IsConnected())
-					NetworkTable::Shutdown();
 				break;
 			}
-			else if( c == ' ') 
+			else if( c == ' ')  // Toggle pause
 			{ 
 				pause = !pause; 
 			}
@@ -437,11 +388,14 @@ int main( int argc, const char** argv )
 			{
 				if (!pause)
 					pause = true;
-				else if (args.groundTruth)
+				if (args.groundTruth)
 				{
-					if (groundTruthFrame >= groundTruthFrames.size())
+					int frame = groundTruth.nextFrameNumber();
+					// Exit if no more frames left to test
+					if (frame == -1)
 						break;
-					cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+					// Otherwise, if not paused, move to the next frame
+					cap->frameCounter(frame);
 				}
 				cap->getNextFrame(frame, false);
 			}
@@ -510,28 +464,39 @@ int main( int argc, const char** argv )
 			}
 		}
 
-		// Save frame time for the current frame
-		frameTicker.end();
-
 		// If testing only ground truth frames, move to the
 		// next one in the list
 		if (args.groundTruth)
 		{
-
-			if (groundTruthFrame >= groundTruthFrames.size())
+			int frame = groundTruth.nextFrameNumber();
+			// Exit if no more frames left to test
+			if (frame == -1)
 				break;
+			// Otherwise, if not paused, move to the next frame
 			if (!pause)
-				cap->frameCounter(groundTruthFrames[groundTruthFrame++]);
+				cap->frameCounter(frame);
 		}
-
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
 		// pretty similar so there will be lots of redundant images found
-		else if ((args.skip > 0) && ((cap->frameCounter() + args.skip) < cap->frameCount()))
-				cap->frameCounter(cap->frameCounter() + args.skip - 1);
+		else if (!pause && (args.skip > 0))
+		{	
+			// Exit if the next skip puts the frame beyond the end of the video
+			if ((cap->frameCounter() + args.skip) >= cap->frameCount())
+				break;
+			cap->frameCounter(cap->frameCounter() + args.skip - 1);
+		}
+
+		// Check for running still images in batch mode - only
+		// process the image once rather than looping forever
+		if (args.batchMode && (cap->frameCount() == 1))
+			break;
+	
+		// Save frame time for the current frame
+		frameTicker.end();
 	}
-	if (groundTruthActual)
-		cout << groundTruthFound << " of " << groundTruthActual << " ground truth objects found (" << (double)groundTruthFound / groundTruthActual * 100.0 << "%)" << endl;
+	groundTruth.print();
+
 	return 0;
 }
 
@@ -541,11 +506,10 @@ void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const
    mkdir("negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
    if (index < rects.size())
    {
-      Mat image = frame(rects[index]);
       // Create filename, save image
       stringstream fn;
       fn << "negative/" << path << "_" << frameCounter << "_" << index;
-      imwrite(fn.str() + ".png", image);
+      imwrite(fn.str() + ".png", frame(rects[index]));
    }
 }
 
@@ -573,7 +537,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (fileName.length() == 0 ||
-			((fileName.find('.') == string::npos) && isdigit(fileName[0])))
+		((fileName.find('.') == string::npos) && isdigit(fileName[0])))
 	{
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
@@ -605,8 +569,11 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 	else // has to be a file name, we hope
 	{
-		if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg"))
+		if ((hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
+		     hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG")))
 			cap = new ImageIn(fileName.c_str());
+		else if (hasSuffix(fileName, ".svo"))
+			cap = new ZedIn(fileName.c_str());
 		else
 			cap = new VideoIn(fileName.c_str());
 
@@ -617,13 +584,6 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 			capPath.erase(0, last_slash_idx + 1);
 		windowName = fileName;
 	}
-}
-
-void writeNetTableBoolean(NetworkTable *netTable, string label, int index, bool value)
-{
-   stringstream ss;
-   ss << label << index+1;
-   netTable->PutBoolean(ss.str().c_str(), value);
 }
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
@@ -655,17 +615,20 @@ string getVideoOutName(bool raw)
 
 // Write a frame to an output video
 // optionally, if dateAndTime is set, stamp the date, time and match information to the frame before writing
-void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, NetworkTable *netTable, bool dateAndTime)
+void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime)
 {
    if (!outputVideo.isOpened())
-	  outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
+	   outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
    WriteOnFrame textWriter(frame);
    if (dateAndTime)
    {
-	  string matchNum  = netTable->GetString("Match Number", "No Match Number");
-	  double matchTime = netTable->GetNumber("Match Time",-1);
-	  textWriter.writeMatchNumTime(matchNum,matchTime);
-	  textWriter.writeTime();
+	   (void)netTable;
+	   //string matchNum  = netTable->GetString("Match Number", "No Match Number");
+	   //double matchTime = netTable->GetNumber("Match Time",-1);
+	   string matchNum = "No Match Number";
+	   double matchTime = -1;
+	   textWriter.writeMatchNumTime(matchNum,matchTime);
+	   textWriter.writeTime();
    }
    textWriter.write(outputVideo);
 }

@@ -1,10 +1,8 @@
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/objdetect/objdetect.hpp"
 #include <opencv2/opencv.hpp>
 
 #include <iostream>
 #include <iomanip>
+#include <functional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -16,30 +14,31 @@
 using namespace std;
 using namespace cv;
 
-#if 0
+#if 1
 //Values for purple screen:
 int g_h_max = 170;
 int g_h_min = 130;
 int g_s_max = 255;
 int g_s_min = 147;
 int g_v_max = 255;
-int g_v_min = 48;  
+int g_v_min = 48;
 #else
 //Values for blue screen:
-int    g_h_max      = 120;
-int    g_h_min      = 110;
-int    g_s_max      = 255;
-int    g_s_min      = 220;
-int    g_v_max      = 150;
-int    g_v_min      = 50;
+int g_h_max = 120;
+int g_h_min = 110;
+int g_s_max = 255;
+int g_s_min = 220;
+int g_v_max = 150;
+int g_v_min = 50;
 #endif
-int    g_files_per  = 10;
-int    g_num_frames = 10;
+int    g_files_per  = 9;
+int    g_num_frames = 50;
 int    g_min_resize = 0;
-int    g_max_resize = 25;
+int    g_max_resize = 40;
+float  g_noise      = 5.0;
 string g_outputdir  = ".";
 
-const int min_area = 2000;
+const int min_area = 7000;
 
 #ifdef __CYGWIN__
 inline int
@@ -101,18 +100,20 @@ bool FindRect(const Mat& frame, Rect& output)
     return true;
 }
 
+
 // Resizes a rectangle to a new size, keeping
 // it centered on the same point
-Rect ResizeRect(const Rect &rect, const Size &size)
+Rect ResizeRect(const Rect& rect, const Size& size)
 {
     Point tl = rect.tl();
+
     tl.x = tl.x - ((double)size.width - rect.width) / 2;
     tl.y = tl.y - ((double)size.height - rect.height) / 2;
     Point br = rect.br();
     br.x = br.x + ((double)size.width - rect.width) / 2;
     br.y = br.y + ((double)size.height - rect.height) / 2;
 
-	return Rect(tl, br);
+    return Rect(tl, br);
 }
 
 
@@ -135,21 +136,21 @@ Rect AdjustRect(const Rect& frame, float ratio)
 }
 
 
-bool RescaleRect(const Rect& the_rect, Rect& output_rect, const Mat &image_cool, double scale_up)
+bool RescaleRect(const Rect& the_rect, Rect& output_rect, const Mat& image_cool, double scale_up)
 {
     // takes the rect the_rect and resizes it larger by 1+scale_up percent
-	// outputs resized rect in output_rect
-	int width  = the_rect.width  * (1.0 + scale_up / 100.0);
-	int height = the_rect.height * (1.0 + scale_up / 100.0);
+    // outputs resized rect in output_rect
+    int width  = the_rect.width * (1.0 + scale_up / 100.0);
+    int height = the_rect.height * (1.0 + scale_up / 100.0);
 
     output_rect = ResizeRect(the_rect, Size(width, height));
 
-	if ((output_rect.x < 0) || (output_rect.y < 0) || 
-	    (output_rect.br().x > image_cool.cols) || (output_rect.br().y > image_cool.rows))
-	{
-		cout << "Rectangle out of bounds!" << endl;
-		return false;
-	}
+    if ((output_rect.x < 0) || (output_rect.y < 0) ||
+        (output_rect.br().x > image_cool.cols) || (output_rect.br().y > image_cool.rows))
+    {
+        cout << "Rectangle out of bounds!" << endl;
+        return false;
+    }
     return true;
 }
 
@@ -243,7 +244,7 @@ vector<string> Arguments(int argc, char *argv[])
             {
                 try
                 {
-                    if (stoi(argv[i + 1]) < 1)
+                    if (stoi(argv[i + 1]) < 0)
                     {
                         cout << "Cannot resize below 0%!" << endl;
                         break;
@@ -337,6 +338,8 @@ int main(int argc, char *argv[])
     createTrackbar("ValMax", "RangeControl", &g_v_max, 255);
 #endif
 
+	RNG rng(time(NULL));
+
     String vid_name = "";
     Mat    mid      = Mat_<Vec3b>(1, 1) << Vec3b((g_h_min + g_h_max) / 2, (g_s_min + g_s_max) / 2, (g_v_min + g_v_max) / 2);
     cvtColor(mid, mid, CV_HSV2BGR);
@@ -355,75 +358,82 @@ int main(int argc, char *argv[])
         Mat frame;
         Mat hsv_input;
 
-        int  count   = 0;
-        bool isColor = true;
+        Mat   temp;
+        Mat   tempm;
+        Mat   gframe;
+        Mat   variancem;
+        int   frame_counter;
 
-        Mat           temp;
-        Mat           hue;
-        Mat           sat;
-        Mat           val;
-        Mat           rgbVal;
-        Mat           ret;
-        Mat           gframe;
-        Mat           variancem;
-        Mat           tempm;
-        float         variance;
-        vector<float> lblur(g_num_frames);
-        int           frame_counter = 0;
-        int           frame_holder[g_num_frames];
-        while (1)
+        typedef pair<float, int>   Blur_Entry;
+        vector<Blur_Entry> lblur;
+
+#ifndef DEBUG
+        for (frame_counter = 0; frame_video.read(frame); frame_counter += 1)
         {
-            frame_counter = frame_video.get(CV_CAP_PROP_POS_MSEC);
-            frame_video.read(frame);
-            if (frame.empty())
-            {
-                break;
-            }
-            frame_counter++;
-            bool exists;
             Rect bounding_rect;
-            Rect temp_rect;
             cvtColor(frame, hsv_input, CV_BGR2HSV);
-            exists = FindRect(hsv_input, bounding_rect);
-            if (exists == false)
+            if (FindRect(hsv_input, bounding_rect))
             {
-                continue;
-            }
-#if 0
-            bounding_rect = AdjustRect(bounding_rect, 1.0);
-            exists        = RescaleRect(bounding_rect, temp_rect, hsv_input);
-            if (exists == false)
-            {
-                continue;
-            }
-#endif
-            cvtColor(frame, gframe, CV_BGR2GRAY);
-            Laplacian(gframe, temp, CV_8UC1);
-            meanStdDev(temp, tempm, variancem);
-            variance = pow(variancem.at<Scalar>(0, 0)[0], 2);
-            int min_pos = distance(lblur.begin(), min_element(lblur.begin(), lblur.end()));
-            if (variance > lblur[min_pos])
-            {
-                lblur[min_pos]        = variance;
-                frame_holder[min_pos] = frame_counter;
+                cvtColor(frame, gframe, CV_BGR2GRAY);
+                Laplacian(gframe, temp, CV_8UC1);
+                meanStdDev(temp, tempm, variancem);
+                float variance = pow(variancem.at<Scalar>(0, 0)[0], 2);
+                lblur.push_back(Blur_Entry(variance, frame_counter));
             }
         }
-        for (int j = 0; j < g_num_frames; j++)
+#else
+		lblur.push_back(Blur_Entry(1,137));
+#endif
+        sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
+        cout << "Read " << lblur.size() << " valid frames from video of " << frame_counter << " total" << endl;
+
+        int          frame_count = 0;
+        vector<bool> frame_used(frame_counter);
+        const int    frame_range = 10;      // Try to space frames out by this many unused frames
+        for (auto it = lblur.begin(); (frame_count < g_num_frames) && (it != lblur.end()); ++it)
         {
-            frame_video.set(CV_CAP_PROP_POS_MSEC, frame_holder[j]);
+            // Check to see that we haven't used a frame close to this one
+            // already - hopefully this will give some variety in the frames
+            // which are used
+            int  this_frame      = it->second;
+            bool frame_too_close = false;
+            for (int j = max(this_frame - frame_range + 1, 0); !frame_too_close && (j < min((int)frame_used.size(), this_frame + frame_range)); j++)
+            {
+                if (frame_used[j])
+                {
+                    frame_too_close = true;
+                }
+            }
+
+            if (frame_too_close)
+            {
+                continue;
+            }
+
+            frame_used[this_frame] = true;
+
+            frame_video.set(CV_CAP_PROP_POS_FRAMES, this_frame);
             frame_video >> frame;
-            Rect bounding_rect;
-            Rect final_rect;
+#ifdef DEBUG
+			imshow("Frame at read", frame);
+#endif
             cvtColor(frame, hsv_input, CV_BGR2HSV);
-            FindRect(hsv_input, bounding_rect);
+
+			// This should never fail since it worked when
+			// initially scanning the frames.
+            Rect bounding_rect;
+			if (!FindRect(hsv_input, bounding_rect))
+				continue;
+
             Mat btrack;
             inRange(hsv_input, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), btrack);
+#ifdef DEBUG
+			imshow("Initial btrack", btrack);
+#endif
             vector<vector<Point> > contours;
             vector<Vec4i>          hierarchy;
-            int contour_index;
-            Mat btrack_cp;
-            btrack_cp = btrack;
-            findContours(btrack_cp, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+            int contour_index = contours.size(); // init to out of bounds in case there's no matches
+            findContours(btrack, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
             for (size_t i = 0; i < hierarchy.size(); i++)
             {
                 if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
@@ -437,17 +447,26 @@ int main(int argc, char *argv[])
                 continue;
             }
             drawContours(btrack, contours, contour_index, Scalar(255), CV_FILLED);
-            int dilation_type = MORPH_RECT;
+#ifdef DEBUG
+			imshow("drawContours btrack", btrack);
+#endif
+            int dilation_type = MORPH_ELLIPSE;
             int dilation_size = 1;
             Mat element       = getStructuringElement(dilation_type,
                                                       Size(2 * dilation_size + 1, 2 * dilation_size + 1),
                                                       Point(dilation_size, dilation_size));
             dilate(btrack, btrack, element);
+#ifdef DEBUG
+			imshow("dilate btrack", btrack);
+#endif
             int erosion_size = 5;
             element = getStructuringElement(dilation_type,
                                             Size(2 * erosion_size + 1, 2 * erosion_size + 1),
                                             Point(erosion_size, erosion_size));
             erode(btrack, btrack, element);
+#ifdef DEBUG
+			imshow("erode btrack", btrack);
+#endif
             for (int k = 0; k < btrack.rows; k++)
             {
                 for (int l = 0; l < btrack.cols; l++)
@@ -459,27 +478,61 @@ int main(int argc, char *argv[])
                     }
                 }
             }
-            for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 20)
-            {
-                threshold(btrack, btrack, 128, 255, THRESH_BINARY);
-                bounding_rect = AdjustRect(bounding_rect, 1.0);
-#ifdef DEUBG
-                imshow("Btrack", btrack);
-#endif
-                Mat hsv_final;
-                cvtColor(frame, hsv_final, CV_BGR2HSV);
 #ifdef DEBUG
-                imshow("HSV", hsv_final);
+			imshow("Frame a after set with mid", frame);
 #endif
-                hsv_final.convertTo(hsv_final, CV_16UC3);
-                add(hsv_final, Scalar(hueAdjust, 0, 0), hsv_final, btrack);
-                for (int l = 0; l < hsv_final.rows; l++)
+            threshold(btrack, btrack, 128, 255, THRESH_BINARY);
+            bounding_rect = AdjustRect(bounding_rect, 1.0);
+#ifdef DEBUG
+            imshow("Btrack", btrack);
+#endif
+            Mat hsvframe;
+            cvtColor(frame, hsvframe, CV_BGR2HSV);
+#ifdef DEBUG
+            imshow("HSV", hsvframe);
+#endif
+            /*hsvframe.convertTo(hsvframe, CV_16UC3);
+             *add(hsvframe, Scalar(hueAdjust, 0, 0), hsvframe, btrack);
+             * for (int l = 0; l < hsvframe.rows; l++)
+             * {
+             *  for (int m = 0; m < hsvframe.cols; m++)
+             *  {
+             *      hsvframe.at<Vec3b>(l, m)[0] = hsvframe.at<Vec3b>(l, m)[0] % 180;
+             *  }
+             * }*/
+            hsvframe.convertTo(hsvframe, CV_32FC3);
+            Mat splitMat[3];
+            /*Possible alt method of adjusting hue
+            split(hsvframe, splitMat);
+            double min, max;
+            minMaxLoc(splitMat[0], &min, &max, NULL, NULL, btrack);
+            int step = (179 - max + min) / 8.;*/
+            for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 30)
+            {
+				int rndHueAdjust = max(hueAdjust + rng.uniform(-10,10), 0);
+                add(hsvframe, Scalar(rndHueAdjust, 0, 0), hsvframe, btrack);
+                for (int l = 0; l < hsvframe.rows; l++)
                 {
-                    for (int m = 0; m < hsv_final.cols; m++)
+                    for (int m = 0; m < hsvframe.cols; m++)
                     {
-                        hsv_final.at<Vec3b>(l, m)[0] = hsv_final.at<Vec3b>(l, m)[0] % 180;
+						float val = hsvframe.at<Vec3f>(l, m)[0];
+						if (val >= 180.)
+							hsvframe.at<Vec3f>(l, m)[0] = val - 180.0;
                     }
                 }
+                Mat noise = Mat(hsvframe.size(), CV_32F);
+                randn(noise, 0.0, g_noise);
+                split(hsvframe, splitMat);
+                //subtract(splitMat[0], Scalar(min - hueAdjust), splitMat[0], btrack);
+                for (int i = 1; i <= 2; i++)
+                {
+                    double min, max;
+                    minMaxLoc(splitMat[i], &min, &max, NULL, NULL, btrack);
+                    add(splitMat[i], noise, splitMat[i], btrack);
+                    normalize(splitMat[i], splitMat[i], min, max, NORM_MINMAX, -1, btrack);
+                }
+                Mat hsv_final;
+                merge(splitMat, 3, hsv_final);
                 hsv_final.convertTo(hsv_final, CV_8UC3);
 #ifdef DEBUG
                 imshow("HSV mod", hsv_final);
@@ -487,31 +540,33 @@ int main(int argc, char *argv[])
                 cvtColor(hsv_final, frame, CV_HSV2BGR);
 #ifdef DEBUG
                 imshow("Modified", frame);
-                waitKey(3000);
+                waitKey(0);
 #endif
-				double scale_adder;
-				if (g_files_per == 1)
-					scale_adder =  g_max_resize + 1;
-				else
-					scale_adder = (g_max_resize - g_min_resize) / (g_files_per - 1);
 
-                for (double scale_up = g_min_resize; scale_up <= g_max_resize; scale_up += scale_adder)
+				int fail_count = 0;
+                for (int i = 0; (i < g_files_per) && (fail_count < 100); )
                 {
+					double scale_up = rng.uniform((double)g_min_resize, g_max_resize+1.0);
+					Rect final_rect;
                     if (RescaleRect(bounding_rect, final_rect, hsv_input, scale_up))
-					{
-						stringstream write_name;
-						int          frame_num = frame_video.get(CV_CAP_PROP_POS_FRAMES) - 1;
-						write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << frame_num;
-						write_name << "_" << setw(4) << final_rect.x;
-						write_name << "_" << setw(4) << final_rect.y;
-						write_name << "_" << setw(4) << final_rect.width;
-						write_name << "_" << setw(4) << final_rect.height;
-						write_name << "_" << setw(3) << hueAdjust;
-						write_name << ".png";
-						imwrite(write_name.str().c_str(), frame(final_rect));
-					}
+                    {
+                        stringstream write_name;
+                        write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << this_frame;
+                        write_name << "_" << setw(4) << final_rect.x;
+                        write_name << "_" << setw(4) << final_rect.y;
+                        write_name << "_" << setw(4) << final_rect.width;
+                        write_name << "_" << setw(4) << final_rect.height;
+                        write_name << "_" << setw(3) << rndHueAdjust;
+                        write_name << ".png";
+                        imwrite(write_name.str().c_str(), frame(final_rect));
+						i++;
+						fail_count = 0;
+                    }
+					else
+						fail_count += 1;
                 }
             }
+            frame_count += 1;
         }
 
         /*for(int j = 0; j < g_num_frames; j++)

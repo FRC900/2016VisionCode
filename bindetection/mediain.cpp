@@ -1,27 +1,33 @@
 #include "mediain.hpp"
-#include <iostream>
-
-using namespace std;
 
 MediaIn::MediaIn()
 {
 }
 
-int MediaIn::frameCount(void)
+int MediaIn::frameCount(void) const
 {
-   return -1;
+	return -1;
 }
 
-int MediaIn::frameCounter(void)
+int MediaIn::frameCounter(void) const
 {
-   return -1;
+	return -1;
 }
 
 void MediaIn::frameCounter(int frameCount)
 {
+	(void)frameCount;
+}
+
+bool MediaIn::getDepthMat(cv::Mat &depthMat)
+{
+	depthMat = Mat(); // return empty mat to indicate no depth info
+	return false;     // in addition to returning false
 }
 
 double MediaIn::getDepth(int x, int y)
 {
-   return -1000.;
+	(void)x;
+	(void)y;
+	return -1000.;
 }
