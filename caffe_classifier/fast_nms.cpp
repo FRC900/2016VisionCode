@@ -44,8 +44,6 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 	// Sort input rects by decreasing score - i.e. look at best
 	// values first
 	std::sort(dpi.begin(), dpi.end(), std::greater<DetectedPlusIndex>());
-	for (auto it = dpi.cbegin(); it != dpi.cend(); ++it)
-		std::cerr << it->rect_<< " " << it->score_ << " " << it->index_ << std::endl;
 
 	// Start by assuming all of the input rects are non-overlapping
 	std::vector<bool> validList(dpi.size(), true);
