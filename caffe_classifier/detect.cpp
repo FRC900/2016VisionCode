@@ -23,7 +23,7 @@ static double gtod_wrapper(void)
 // original input images
 template<class MatT>
 void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
-                                      cv::Mat&                   depthMat,
+                                      const cv::Mat&             depthMat,
                                       const cv::Size&            minSize,
                                       const cv::Size&            maxSize,
                                       double                     scaleFactor,
@@ -147,7 +147,7 @@ void NNDetect<MatT>::runNMS(const std::vector<Window>& windows,
 template<class MatT>
 void NNDetect<MatT>::generateInitialWindows(
     const MatT& input,
-    cv::Mat& depthIn,
+    const cv::Mat& depthIn,
     const cv::Size& minSize,
     const cv::Size& maxSize,
     int wsize,

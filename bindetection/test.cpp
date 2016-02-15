@@ -13,11 +13,9 @@
 
 #include <zmq.hpp>
 
-#include "classifierio.hpp"
 #include "detectstate.hpp"
 #include "frameticker.hpp"
 #include "groundtruth.hpp"
-#include "objdetect.hpp"
 #include "videoin.hpp"
 #include "imagein.hpp"
 #include "camerain.hpp"
