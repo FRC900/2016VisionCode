@@ -53,7 +53,6 @@ vector<Rect> GroundTruth::get(unsigned int frame) const
 	auto it = map_.find(frame);
 	if (it == map_.end())
 	{
-		cout << "Not found" << endl;
 		return vector<Rect>();
 	}
 
