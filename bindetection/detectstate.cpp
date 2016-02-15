@@ -5,9 +5,10 @@
 
 using namespace std;
 
-DetectState::DetectState(const ClassifierIO &classifierIO, bool gpu) :
+DetectState::DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, bool gpu) :
     detector_(NULL),
-	classifierIO_(classifierIO),
+	d12IO_(d12IO),
+	d24IO_(d24IO),
 	gpu_(gpu),
 	reload_(true)
 {
@@ -19,27 +20,31 @@ bool DetectState::update(void)
    if (reload_ == false)
 	  return true;
 
-	//string name = classifierIO_.getClassifierName();
-	//cerr << name << endl;
 	if (detector_)
 	   delete detector_;
 
-	// Create a new CPU or GPU classifier based on the
-	// user's selection
-	//if (gpu_)
-	//	detector_ = new GPU_CascadeDetect(name.c_str());
-	//else
-    vector<string> files = classifierIO_.getClassifierFiles();
-    for (int i = 0; i < files.size(); ++i)
+    vector<string> d12Files = d12IO_.getClassifierFiles();
+    for (size_t i = 0; i < d12Files.size(); ++i)
     {
-        cerr << "files[" << i << "] = " << files[i] << endl;
+        cerr << "D12Files[" << i << "] = " << d12Files[i] << endl;
     }
-    if (files.size() != 4)
+    if (d12Files.size() != 4)
     {
-        cerr << "No files to load classifier" << endl;
+        cerr << "No Files to load classifier" << endl;
         return false;
     }
-		detector_ = new GPU_NNDetect(files[0], files[1], files[2], files[3]);
+
+    vector<string> d24Files = d24IO_.getClassifierFiles();
+    for (size_t i = 0; i < d24Files.size(); ++i)
+    {
+        cerr << "D24Files[" << i << "] = " << d24Files[i] << endl;
+    }
+    if (d24Files.size() != 4)
+    {
+        cerr << "No Files to load classifier" << endl;
+        return false;
+    }
+	detector_ = new GPU_NNDetect(d12Files, d24Files);
 
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )
@@ -57,19 +62,31 @@ void DetectState::toggleGPU(void)
    reload_ = true;
 }
 
-void DetectState::changeSubModel(bool increment)
+void DetectState::changeD12SubModel(bool increment)
 {
-   if (classifierIO_.findNextClassifierStage(increment))
+   if (d12IO_.findNextClassifierStage(increment))
 	  reload_ = true;
 }
 
-void DetectState::changeModel(bool increment)
+void DetectState::changeD12Model(bool increment)
 {
-   if (classifierIO_.findNextClassifierDir(increment))
+   if (d12IO_.findNextClassifierDir(increment))
+	  reload_ = true;
+}
+
+void DetectState::changeD24SubModel(bool increment)
+{
+   if (d24IO_.findNextClassifierStage(increment))
+	  reload_ = true;
+}
+
+void DetectState::changeD24Model(bool increment)
+{
+   if (d24IO_.findNextClassifierDir(increment))
 	  reload_ = true;
 }
 
 std::string DetectState::print(void) const
 {
-   return classifierIO_.print();
+   return d12IO_.print() + "," + d24IO_.print();
 }

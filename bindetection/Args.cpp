@@ -21,9 +21,12 @@ static void Usage(void)
    cout << "\t--save               write processed video to output file" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
    cout << "\t--no-tracking        start with tracking rectangles disabled" << endl;
-   cout << "\t--classifierBase=    base directory for classifier info" << endl;
-   cout << "\t--classifierDir=     pick classifier dir and stage number" << endl;
-   cout << "\t--classifierStage=   from command line" << endl;
+   cout << "\t--d12Base=           base directory for d12 info" << endl;
+   cout << "\t--d12Dir=            pick d12 dir and stage number" << endl;
+   cout << "\t--d12Stage=          from command line" << endl;
+   cout << "\t--d24Base=           base directory for d24 info" << endl;
+   cout << "\t--d24Dir=            pick d24 dir and stage number" << endl;
+   cout << "\t--d24Stage=          from command line" << endl;
    cout << "\t--groundTruth        only test frames which have ground truth data " << endl;
    cout << endl;
    cout << "Examples:" << endl;
@@ -42,9 +45,12 @@ Args::Args(void)
 	calibrate          = false;
 	writeVideo         = false;
 	saveVideo          = false;
-	classifierBaseDir  = "/home/ubuntu/2016VisionCode/bindetection/d";
-	classifierDirNum   = 0;
-	classifierStageNum = 0;
+	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";
+	d12DirNum          = -1;
+	d12StageNum        = 0;
+	d24BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d24";
+	d24DirNum          = -1;
+	d24StageNum        = 0;
 	frameStart         = 0.0;
 	groundTruth        = false;
 }
@@ -60,9 +66,12 @@ bool Args::processArgs(int argc, const char **argv)
 	const string saveVideoOpt       = "--save";            // write processed video to output file
 	const string rectsOpt           = "--no-rects";        // start with detection rectangles disabled
 	const string trackingOpt        = "--no-tracking";     // start with tracking rectangles disabled
-	const string classifierBaseOpt  = "--classifierBase="; // classifier base dir
-	const string classifierDirOpt   = "--classifierDir=";  // pick classifier dir and stage number
-	const string classifierStageOpt = "--classifierStage=";// from command line
+	const string d12BaseOpt         = "--d12Base=";        // d12 base dir
+	const string d12DirOpt          = "--d12Dir=";         // pick d12 dir and stage number
+	const string d12StageOpt        = "--d12Stage=";       // from command line
+	const string d24BaseOpt         = "--d24Base=";        // d24 base dir
+	const string d24DirOpt          = "--d24Dir=";         // pick d24 dir and stage number
+	const string d24StageOpt        = "--d24Stage=";       // from command line
 	const string groundTruthOpt     = "--groundTruth";     // only test frames which have ground truth data
 	const string badOpt             = "--";
 	// Read through command line args, extract
@@ -88,12 +97,18 @@ bool Args::processArgs(int argc, const char **argv)
 			tracking = false;
 		else if (rectsOpt.compare(0, rectsOpt.length(), argv[fileArgc], rectsOpt.length()) == 0)
 			rects = false;
-		else if (classifierBaseOpt.compare(0, classifierBaseOpt.length(), argv[fileArgc], classifierBaseOpt.length()) == 0)
-			classifierBaseDir = string(argv[fileArgc] + classifierBaseOpt.length());
-		else if (classifierDirOpt.compare(0, classifierDirOpt.length(), argv[fileArgc], classifierDirOpt.length()) == 0)
-			classifierDirNum = atoi(argv[fileArgc] + classifierDirOpt.length());
-		else if (classifierStageOpt.compare(0, classifierStageOpt.length(), argv[fileArgc], classifierStageOpt.length()) == 0)
-			classifierStageNum = atoi(argv[fileArgc] + classifierStageOpt.length());
+		else if (d12BaseOpt.compare(0, d12BaseOpt.length(), argv[fileArgc], d12BaseOpt.length()) == 0)
+			d12BaseDir = string(argv[fileArgc] + d12BaseOpt.length());
+		else if (d12DirOpt.compare(0, d12DirOpt.length(), argv[fileArgc], d12DirOpt.length()) == 0)
+			d12DirNum = atoi(argv[fileArgc] + d12DirOpt.length());
+		else if (d12StageOpt.compare(0, d12StageOpt.length(), argv[fileArgc], d12StageOpt.length()) == 0)
+			d12StageNum = atoi(argv[fileArgc] + d12StageOpt.length());
+		else if (d24BaseOpt.compare(0, d24BaseOpt.length(), argv[fileArgc], d24BaseOpt.length()) == 0)
+			d24BaseDir = string(argv[fileArgc] + d24BaseOpt.length());
+		else if (d24DirOpt.compare(0, d24DirOpt.length(), argv[fileArgc], d24DirOpt.length()) == 0)
+			d24DirNum = atoi(argv[fileArgc] + d24DirOpt.length());
+		else if (d24StageOpt.compare(0, d24StageOpt.length(), argv[fileArgc], d24StageOpt.length()) == 0)
+			d24StageNum = atoi(argv[fileArgc] + d24StageOpt.length());
 		else if (groundTruthOpt.compare(0, groundTruthOpt.length(), argv[fileArgc], groundTruthOpt.length()) == 0)
 			groundTruth = true;
 		else if (badOpt.compare(0, badOpt.length(), argv[fileArgc], badOpt.length()) == 0) // unknown option

@@ -13,7 +13,8 @@ public:
 		string getClassifierDir(void) const;
 		bool findNextClassifierStage(bool increment);
 		bool findNextClassifierDir(bool increment);
-    vector<string> getClassifierFiles(void) const;
+		bool createFullPath(const std::string &fileName, std::string &output) const;
+		vector<string> getClassifierFiles(void) const;
 		string print(void) const;
 private:
 		string baseDir_;

@@ -5,32 +5,33 @@
 #include "objdetect.hpp"
 
 // A class to manage the currently loaded detector plus the state loaded
-// into that detector. Right now it is hardcoded for cascade classifiers
-// TODO : figure out how to combine, say, a NN-based classifer as well
+// into that detector.
 class DetectState
 {
-
-   public:
-      DetectState(const ClassifierIO &classifierIO, bool gpu = false);
-      ~DetectState()
-      {
-	if (detector_)
-	   delete detector_;
-      }
-      bool update(void);
-      void toggleGPU(void);
-      void changeModel(bool increment);
-      void changeSubModel(bool increment);
-      std::string print(void) const;
-      ObjDetect *detector(void)
-      {
-	 return detector_;
-      }
-   private:
-      ObjDetect    *detector_;
-      ClassifierIO  classifierIO_;
-      bool          gpu_;
-      bool          reload_;
+	public:
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, bool gpu = false);
+		~DetectState()
+		{
+			if (detector_)
+				delete detector_;
+		}
+		bool update(void);
+		void toggleGPU(void);
+		void changeD12Model(bool increment);
+		void changeD12SubModel(bool increment);
+		void changeD24Model(bool increment);
+		void changeD24SubModel(bool increment);
+		std::string print(void) const;
+		ObjDetect *detector(void)
+		{
+			return detector_;
+		}
+	private:
+		ObjDetect    *detector_;
+		ClassifierIO  d12IO_;
+		ClassifierIO  d24IO_;
+		bool          gpu_;
+		bool          reload_;
 };
 
 #endif

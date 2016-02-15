@@ -164,7 +164,8 @@ int main( int argc, const char** argv )
 	FrameTicker frameTicker;
 
 	DetectState detectState(
-		  ClassifierIO(args.classifierBaseDir, args.classifierDirNum, args.classifierStageNum),
+		  ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
+		  ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
 		  gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
@@ -176,12 +177,11 @@ int main( int argc, const char** argv )
 		cap->frameCounter(frameNum);
 	}
 
-
 	//Creating Goaldetection object
-
 	GoalDetector gd;
   	Mat depth;
 	Rect boundRect;
+
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -213,7 +213,7 @@ int main( int argc, const char** argv )
 		// being used - this forces a reload
 		// Finally, it allows a switch between CPU and GPU on the fly
 		if (detectState.update() == false)
-		break;
+			break;
 
 		//Getting depth matrix
 
@@ -277,8 +277,8 @@ int main( int argc, const char** argv )
 				zmqString << "0.00 0.00 0.00 ";
 		}
 
-		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
-		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+		//cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
+		//cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
 		zmq::message_t grequest(gString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
@@ -442,19 +442,35 @@ int main( int argc, const char** argv )
 			}
 			else if (c == '.') // higher classifier stage
 			{
-				detectState.changeSubModel(true);
+				detectState.changeD12SubModel(true);
 			}
 			else if (c == ',') // lower classifier stage
 			{
-				detectState.changeSubModel(false);
+				detectState.changeD12SubModel(false);
 			}
 			else if (c == '>') // higher classifier dir num
 			{
-				detectState.changeModel(true);
+				detectState.changeD12Model(true);
 			}
 			else if (c == '<') // lower classifier dir num
 			{
-				detectState.changeModel(false);
+				detectState.changeD12Model(false);
+			}
+			else if (c == 'm') // higher classifier stage
+			{
+				detectState.changeD24SubModel(true);
+			}
+			else if (c == 'n') // lower classifier stage
+			{
+				detectState.changeD24SubModel(false);
+			}
+			else if (c == 'M') // higher classifier dir num
+			{
+				detectState.changeD24Model(true);
+			}
+			else if (c == 'N') // lower classifier dir num
+			{
+				detectState.changeD24Model(false);
 			}
 			else if (isdigit(c)) // save a single detected image
 			{

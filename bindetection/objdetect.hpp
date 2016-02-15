@@ -63,15 +63,10 @@ class ObjDetect
 class GPU_NNDetect : public ObjDetect
 {
 	public :
-		GPU_NNDetect(const std::string &model_file,
-					 const std::string &trained_file,
-					 const std::string &mean_file,
-					 const std::string &label_file):	
+		GPU_NNDetect(const std::vector<std::string> &d12Info,
+					 const std::vector<std::string> &d24Info) :
 						ObjDetect(),
-						classifier_(model_file,
-							trained_file,
-							mean_file,
-							label_file)
+						classifier_(d12Info, d24Info)
 		{
 			/* struct stat statbuf;		
 			   if (stat(cascadeName, &statbuf) != 0)

@@ -17,19 +17,27 @@ static double gtod_wrapper(void)
 
 int main(int argc, char *argv[])
 {
-   if (argc != 6) 
+   if (argc != 10) 
    {
       std::cerr << "Usage: " << argv[0]
-	 << " deploy.prototxt network.caffemodel"
-	 << " mean.binaryproto labels.txt vid.svo" << std::endl;
+	 << " d12-deploy.prototxt d12-network.caffemodel"
+	 << " d12-mean.binaryproto d12-labels.txt " 
+	 << " d24-deploy.prototxt d24-network.caffemodel"
+	 << " d24-mean.binaryproto d24-labels.txt img.jpg" << std::endl;
       return 1;
    }
    ::google::InitGoogleLogging(argv[0]);
-   std::string model_file   = argv[1];
-   std::string trained_file = argv[2];
-   std::string mean_file    = argv[3];
-   std::string label_file   = argv[4];
-   std::string file         = argv[5];
+   std::vector<std::string> d12Info;
+   std::vector<std::string> d24Info;
+   d12Info.push_back(argv[1]);
+   d12Info.push_back(argv[2]);
+   d12Info.push_back(argv[3]);
+   d12Info.push_back(argv[4]);
+   d24Info.push_back(argv[5]);
+   d24Info.push_back(argv[6]);
+   d24Info.push_back(argv[7]);
+   d24Info.push_back(argv[8]);
+   std::string file = argv[9];
    Mat frame;
    ZedIn* cap;
    cap = new ZedIn(argv[5]);
@@ -38,14 +46,14 @@ int main(int argc, char *argv[])
       std::cerr << "err" << std::endl;
       return 1;
    }
-   NNDetect<cv::gpu::GpuMat> detect(model_file, trained_file, mean_file, label_file);
+   NNDetect<cv::Mat> detect(d12Info, d24Info);
    cv::Mat emptyMat;
    cv::Size minSize(40,40);
    cv::Size maxSize(700,700);
    std::vector<cv::Rect> rectsOut;
    std::vector<cv::Rect> depthRectsOut;
    std::vector<double> detectThresholds;
-   detectThresholds.push_back(0.85);
+   detectThresholds.push_back(0.75);
    detectThresholds.push_back(0.5);
    Mat depthMat;
    while(1)
