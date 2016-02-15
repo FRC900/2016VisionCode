@@ -38,7 +38,7 @@ class NNDetect
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				double scaleFactor,
-				double nmsThreshold,
+				const std::vector<double> &nmsThreshold,
 				const std::vector<double> &detectThreshold,
 				std::vector<cv::Rect> &rectsOut);
 

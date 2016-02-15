@@ -101,7 +101,8 @@ class GPU_NNDetect : public ObjDetect
 };
 
 extern int scale;
-extern int nmsThreshold;
+extern int d12NmsThreshold;
+extern int d24NmsThreshold;
 extern int minDetectSize;
 extern int maxDetectSize;
 extern int d12Threshold;

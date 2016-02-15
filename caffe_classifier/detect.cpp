@@ -27,7 +27,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
                                       const cv::Size&            minSize,
                                       const cv::Size&            maxSize,
                                       double                     scaleFactor,
-                                      double                     nmsThreshold,
+                                      const std::vector<double>& nmsThreshold,
                                       const std::vector<double>& detectThreshold,
                                       std::vector<cv::Rect>&     rectsOut)
 {
@@ -69,7 +69,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     std::cout << "d12 windows in = " << windowsIn.size() << std::endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsOut, scores);
     std::cout << "d12 windows out = " << windowsOut.size() << std::endl;
-    runNMS(windowsOut, scores, scaledImages12, nmsThreshold, windowsIn);
+    runNMS(windowsOut, scores, scaledImages12, nmsThreshold[0], windowsIn);
     std::cout << "d12 nms windows out = " << windowsIn.size() << std::endl;
 
     // Double the size of the rects to get from a 12x12 to 24x24
@@ -86,7 +86,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
         std::cout << "d24 windows in = " << windowsIn.size() << std::endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
         std::cout << "d24 windows out = " << windowsOut.size() << std::endl;
-        runNMS(windowsOut, scores, scaledImages24, nmsThreshold, windowsIn);
+        runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
 		std::cout << "d24 nms windows out = " << windowsIn.size() << std::endl;
     }
 
