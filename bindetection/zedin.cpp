@@ -3,6 +3,7 @@
 using namespace std;
 
 #ifdef ZED_SUPPORT
+#include <opencv2/imgproc/imgproc.hpp>
 
 using namespace cv;
 
@@ -29,6 +30,11 @@ ZedIn::ZedIn(const char *filename)
 			width_     = zed_->getImageSize().width;
 			height_    = zed_->getImageSize().height;
 			frameRGBA_ = Mat(height_, width_, CV_8UC4);
+			while (height_ > 800)
+			{
+				width_ /= 2;
+				height_ /= 2;
+			}
 			frameCounter_ = 0;
 		}
 	}
@@ -54,6 +60,12 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 
 		slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
 
+		while (frame_.rows > 800)
+		{
+			pyrDown(frame_, frame_);
+			pyrDown(depthMat_, depthMat_);
+		}
+
 		frameCounter_ += 1;
 	}
 	frame = frame_.clone();
@@ -68,7 +80,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool pause)
 double ZedIn::getDepth(int x, int y) 
 {
 	float* ptr_image_num = (float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
-	return ptr_image_num[x] / 1000.f;
+	return ptr_image_num[x] / 1000;
 }
 
 bool ZedIn::getDepthMat(Mat &depthMat)
