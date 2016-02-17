@@ -178,7 +178,7 @@ void NNDetect<MatT>::generateInitialWindows(
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
         float frac_size = (wsize * wsize) / ((float)scaledImages[scale].first.rows * (float)scaledImages[scale].first.cols);
-        float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
+        float depth_min = (323.2 * pow(frac_size, -.486)) - 300.;
         float depth_max = depth_min + 600.;
         std::cout << "Min/Max: " << depth_min << " " << depth_max << std::endl;
         // Start at the upper left corner.  Loop through the rows and cols until
