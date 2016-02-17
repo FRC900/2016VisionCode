@@ -105,6 +105,9 @@ TrackedObject::TrackedObject( int id,
 // than just copy a pointer to the same array
 TrackedObject::TrackedObject(const TrackedObject &object)
 {
+	_fov_size = object._fov_size;
+	_frame_size = object._frame_size;
+
 	_listLength    = object._listLength;
 	_dataLength    = object._dataLength;
 	_detectArray   = new bool[object._listLength];
@@ -118,6 +121,9 @@ TrackedObject::TrackedObject(const TrackedObject &object)
 
 TrackedObject &TrackedObject::operator=(const TrackedObject &object)
 {
+	_fov_size = object._fov_size;
+	_frame_size = object._frame_size;
+
 	_listLength = object._listLength;
 	_dataLength = object._dataLength;
 	delete [] _detectArray;
@@ -140,7 +146,6 @@ TrackedObject::~TrackedObject()
 // Set the position based on a rect on the screen and depth info from the zed
 void TrackedObject::setPosition(const cv::Rect &screen_position, const double avg_depth)
 {
-	_screen_position = screen_position;
 	/*
 	Method:
 		find the center of the rect
@@ -221,6 +226,38 @@ void TrackedObject::nextFrame(void)
 	clearDetected();
 }
 
+cv::Rect TrackedObject::getScreenPosition() const 
+{
+	float r = sqrt(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+	std::cout << "Position: " << _position << std::endl;
+	float thx = -atan2( sqrt(_position.x * _position.x + _position.y * _position.y), _position.z ) + (M_PI/2.0);
+	float thy = -atan2( _position.y , _position.x ) + (M_PI/2.0);
+	std::cout << "thx: " << thx << " thy: " << thy << std::endl;
+	
+
+	cv::Point2f percent_fov = cv::Point2f(thx / _fov_size.x, thy / _fov_size.y);
+	std::cout << "Percent fov: " << percent_fov << std::endl;
+	cv::Point dist_to_center = cv::Point(percent_fov.x * _frame_size.x, percent_fov.y * _frame_size.y);
+
+	cv::Point rect_center;
+	rect_center.x = dist_to_center.x + (_frame_size.x / 2);
+	rect_center.y = dist_to_center.y + (_frame_size.y / 2);
+
+	cv::Point2f angular_size = cv::Point2f( atan(_type.width() / (2.0*r)), atan(_type.height() / (2.0*r)));
+	cv::Point2f screen_size;
+	screen_size.x = angular_size.x * (_frame_size.x / _fov_size.x);
+	screen_size.y = angular_size.y * (_frame_size.y / _fov_size.y);
+
+	cv::Point topLeft;
+	topLeft.x = rect_center.x - (screen_size.x / 2);
+	topLeft.y = rect_center.y - (screen_size.y / 2);
+
+	std::cout << "Rect center: " << rect_center << std::endl;
+	std::cout << "Rect size: " << screen_size << std::endl;
+	return cv::Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
+}
+
+
 // Return the area of the boundingRect of the object
 double TrackedObject::rectArea(void) const
 {
@@ -284,7 +321,6 @@ cv::Point3f TrackedObject::getAveragePosition(cv::Point3f &variance) const
 	average.y = sum.y / validCount;
 	average.z = sum.z / validCount;
 
-	double sumSquare = 0.0;
 	for (size_t i = _listIndex; (seenCount < _listLength) && (validCount < _dataLength); i--)
 	{
 		if (_detectArray[i % _listLength]) {
@@ -421,10 +457,9 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect, float depth,
 		distance.z = new_object_pos.z - it->getPosition().z;
 		float distance_hyp = sqrt(distance.x * distance.x + distance.y * distance.y + distance.z * distance.z);
 
-		float distance_threshold = 3.0; // tune me! (this is in m)
+		float distance_threshold = 1.0; // tune me! (this is in m)
 		if( distance_hyp < distance_threshold)
 		{
-				it->setScreenPosition(detectedRect);
 				it->setPosition(new_object_pos);
 				it->setDetected();
 				return;

@@ -178,12 +178,15 @@ int main( int argc, const char** argv )
 	}
 
 	cap->getNextFrame(frame, pause);
-	//FovisLocalizer fvlc(cap->getCameraParams(true), cap->width(), cap->height(), frame);
+	FovisLocalizer fvlc(cap->getCameraParams(true), cap->width(), cap->height(), frame);
 	//Creating Goaldetection object
 
 	GoalDetector gd;
   	Mat depth;
 	Rect boundRect;
+
+	int64 stepTimer;	
+	
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -214,24 +217,29 @@ int main( int argc, const char** argv )
 		break;
 
 		//Getting depth matrix
-
 		cap->getDepthMat(depth);
 
 		//run Goaldetector and FovisLocator code
 
+		stepTimer = cv::getTickCount();
 		gd.processFrame(frame, depth, boundRect);
+		cout << "Time to run goaldetection - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+
 		float gdistance = gd.dist_to_goal();
 		float gangle = gd.angle_to_goal();
 
-
-		//fvlc.processFrame(frame,depth);
-
+		stepTimer = cv::getTickCount();
+		fvlc.processFrame(frame,depth);
+		cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
 		Mat dummyMat;
+
+		stepTimer = cv::getTickCount();
 		detectState.detector()->Detect(frame, dummyMat, detectRects);
+		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -246,7 +254,8 @@ int main( int argc, const char** argv )
 			drawRects(frame,detectRects);
 
 		//adjust locations of objects based on fovis results
-		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
+
+		objectTrackingList.adjustLocation(fvlc.transform_eigen());
 
 		// Process this detected rectangle - either update the nearest
 		// object or add it as a new one
@@ -272,8 +281,28 @@ int main( int argc, const char** argv )
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
+		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) {
 		    drawTrackingInfo(frame, displayList);
+
+			Point2f top_locRange = Point2f(-2,2); //not truly an x and y, actually more like a range
+			Point top_imageSize = Point(640,640);
+			Point top_imageCenter = Point(top_imageSize.x / 2, top_imageSize.y / 2);
+			int top_rectSize = 40;
+
+			Mat top_frame(top_imageSize.y,top_imageSize.x,CV_8UC3, Scalar(0,0,0) );
+			circle(top_frame,top_imageCenter, 10, Scalar(0,0,255));
+			line(top_frame, top_imageCenter, top_imageCenter - Point(0,top_imageSize.x / 2), Scalar(0,0,255), 3);
+			for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
+		   	{
+			  	Point top_rectPos;
+				top_rectPos.x = -(it->position.x * (top_imageSize.x / (top_locRange.y - top_locRange.x)) - top_locRange.x);
+				top_rectPos.y = -(it->position.y * (top_imageSize.y / (top_locRange.y - top_locRange.x)) - top_locRange.x);
+				top_rectPos += top_imageCenter;
+				circle(top_frame, top_rectPos, top_rectSize, Scalar(255,0,0), 5);
+				
+		   	}
+			imshow("Top view", top_frame);
+		}
 
 		for (size_t i = 0; i < netTableArraySize; i++)
 		{

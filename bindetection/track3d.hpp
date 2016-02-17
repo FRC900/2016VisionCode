@@ -47,7 +47,6 @@ private:
 
   //called by constructor to compute properties
   void computeProperties(void);
-
 };
 
 
@@ -107,12 +106,11 @@ class TrackedObject
     // Update current object position based on a 3d position or
     //input rect on screen and depth
     void setPosition(const cv::Point3f &new_position) { _position = new_position; }
-	void setScreenPosition(const cv::Rect &screen_position) { _screen_position = screen_position; }
     void setPosition(const cv::Rect &screen_position, const double avg_depth);
 
     //get position of a rect on the screen corresponding to the object size and location
     //inverse of setPosition(Rect,depth)
-    cv::Rect getScreenPosition() const { return _screen_position; }
+    cv::Rect getScreenPosition() const;
     cv::Point3f getPosition() const { 	return _position; }
 
     //averages the position over the past frames
@@ -141,8 +139,6 @@ class TrackedObject
     // and to figure out which tracked objects are persistent
     // enough to care about
     bool    *_detectArray;
-
-	cv::Rect _screen_position;
 
     //runtime constants needed for computing position from rect
     cv::Point2f _fov_size;
