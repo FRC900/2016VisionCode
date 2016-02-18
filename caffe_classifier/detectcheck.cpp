@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
    std::vector<double> detectThresholds;
    detectThresholds.push_back(0.75);
    detectThresholds.push_back(0.5);
+   std::vector<double> nmsThresholds;
+   nmsThresholds.push_back(0.5);
+   nmsThresholds.push_back(0.75);
    Mat depthMat;
    while(1)
    {
@@ -68,8 +71,8 @@ int main(int argc, char *argv[])
    // image will be scaled so that these min and max sizes
    // line up with the classifier input size.  Other scales will
    // fill in the range between those two end points.
-   detect.detectMultiscale(frame, emptyMat, minSize, maxSize, 1.15, 0.4, detectThresholds, rectsOut);
-   detect.detectMultiscale(frame, depthMat, minSize, maxSize, 1.15, 0.4, detectThresholds, rectsOut);
+   detect.detectMultiscale(frame, emptyMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, rectsOut);
+   detect.detectMultiscale(frame, depthMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, rectsOut);
    namedWindow("Image", cv::WINDOW_AUTOSIZE);
    for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
       rectangle(frame, *it, cv::Scalar(0,0,255));
