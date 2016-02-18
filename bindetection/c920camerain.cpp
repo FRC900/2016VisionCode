@@ -116,7 +116,7 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 			camera_.RetrieveMat(frame_);
 		if( frame_.empty() )
 			return false;
-		if (frame_.rows > 800)
+		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
 		frameCounter_ += 1;
 	}
@@ -132,6 +132,14 @@ int C920CameraIn::width(void) const
 
 	v4l2::GetCaptureSize(captureSize_, width, height);
 
+	// getNextFrame sizes down large images
+	// adjust width and height to match that
+	while (height > 800)
+	{
+		width /= 2;
+		height /= 2;
+	}
+
 	return width;
 }
 
@@ -141,6 +149,14 @@ int C920CameraIn::height(void) const
 	unsigned int height;
 
 	v4l2::GetCaptureSize(captureSize_, width, height);
+
+	// getNextFrame sizes down large images
+	// adjust width and height to match that
+	while (height > 800)
+	{
+		width /= 2;
+		height /= 2;
+	}
 
 	return height;
 }

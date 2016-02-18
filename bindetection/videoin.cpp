@@ -12,6 +12,13 @@ VideoIn::VideoIn(const char *path) :
 	{
 		width_  = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
 		height_ = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
+		// getNextFrame scales down large inputs
+		// make width and height match adjusted frame size
+		while (height_ > 800)
+		{
+			width_ /= 2;
+			height_ /= 2;
+		}
 		frames_ = cap_.get(CV_CAP_PROP_FRAME_COUNT);
 		frameCounter_ = 0;
 	}
@@ -28,7 +35,7 @@ bool VideoIn::getNextFrame(Mat &frame, bool pause)
 		cap_ >> frame_;
 		if (frame_.empty())
 			return false;
-		if (frame_.rows > 800)
+		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
 		frameCounter_ += 1;
 	}

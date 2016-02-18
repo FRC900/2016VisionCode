@@ -23,11 +23,11 @@ static double gtod_wrapper(void)
 // original input images
 template<class MatT>
 void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
-                                      cv::Mat&                   depthMat,
+                                      const cv::Mat&             depthMat,
                                       const cv::Size&            minSize,
                                       const cv::Size&            maxSize,
                                       double                     scaleFactor,
-                                      double                     nmsThreshold,
+                                      const std::vector<double>& nmsThreshold,
                                       const std::vector<double>& detectThreshold,
                                       std::vector<cv::Rect>&     rectsOut)
 {
@@ -69,7 +69,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     std::cout << "d12 windows in = " << windowsIn.size() << std::endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsOut, scores);
     std::cout << "d12 windows out = " << windowsOut.size() << std::endl;
-    runNMS(windowsOut, scores, scaledImages12, nmsThreshold, windowsIn);
+    runNMS(windowsOut, scores, scaledImages12, nmsThreshold[0], windowsIn);
     std::cout << "d12 nms windows out = " << windowsIn.size() << std::endl;
 
     // Double the size of the rects to get from a 12x12 to 24x24
@@ -86,7 +86,7 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
         std::cout << "d24 windows in = " << windowsIn.size() << std::endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
         std::cout << "d24 windows out = " << windowsOut.size() << std::endl;
-        runNMS(windowsOut, scores, scaledImages24, nmsThreshold, windowsIn);
+        runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
 		std::cout << "d24 nms windows out = " << windowsIn.size() << std::endl;
     }
 
@@ -149,7 +149,7 @@ void NNDetect<MatT>::runNMS(const std::vector<Window>& windows,
 template<class MatT>
 void NNDetect<MatT>::generateInitialWindows(
     const MatT& input,
-    cv::Mat& depthIn,
+    const cv::Mat& depthIn,
     const cv::Size& minSize,
     const cv::Size& maxSize,
     int wsize,
@@ -179,8 +179,8 @@ void NNDetect<MatT>::generateInitialWindows(
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
-        float frac_size = (wsize * wsize) / ((float)scaledImages[scale].first.rows * (float)scaledImages[scale].first.cols); 
-        float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
+        float frac_size = (wsize * wsize) / ((float)scaledImages[scale].first.rows * (float)scaledImages[scale].first.cols);
+        float depth_min = (323.2 * pow(frac_size, -.486)) - 300.;
         float depth_max = depth_min + 600.;
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image

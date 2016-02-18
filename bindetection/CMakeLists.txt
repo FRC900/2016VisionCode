@@ -18,17 +18,20 @@ if (${ZED_FOUND})
 endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(CUDA REQUIRED)
-find_package(Boost COMPONENTS system REQUIRED)
+find_package(Boost COMPONENTS filesystem system serialization iostreams REQUIRED)
 find_package(Threads)
 find_package(OpenCV REQUIRED)
 find_package(ZMQ REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} /home/ubuntu/caffe/build/install/include /home/ubuntu/caffe/build/include /home/ubuntu-bvlc/caffe/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} ../goal-detection)
+
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
+
+include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${CAFFE_BASE_DIR}/build/install/include ${CAFFE_BASE_DIR}/build/include ${CAFFE_BASE_DIR}/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} ../goal-detection)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 
-add_executable(zv test.cpp objdetect.cpp ../goal-detection/GoalDetector.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp zedin.cpp groundtruth.cpp) 
+add_executable(zv test.cpp objdetect.cpp ../goal-detection/GoalDetector.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp zedin.cpp groundtruth.cpp )  
 
-find_library (LibCaffe caffe PATH  /home/ubuntu/caffe/build/lib)
+find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
