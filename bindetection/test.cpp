@@ -28,9 +28,11 @@
 #include "WriteOnFrame.hpp"
 #include "GoalDetector.hpp"
 #include "FovisLocalizer.hpp"
+#include "Utilities.hpp"
 
 using namespace std;
 using namespace cv;
+using namespace utils;
 
 const float HFOV = 84.14 * (M_PI / 180.0);  
 const float VFOV = 53.836 * (M_PI / 180.0); 
@@ -74,7 +76,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
-	  if (it->ratio >= 0.15)
+	  if (it->ratio >= 0.05)
 	  {
 		 const int roundPosTo = 2;
 		 std::cout << "Ratio: " << it->ratio << std::endl;
@@ -260,11 +262,15 @@ int main( int argc, const char** argv )
 		// Process this detected rectangle - either update the nearest
 		// object or add it as a new one
 		//also compute the average depth of the region since that is necessary for the processing
+		float depthRectScale = 0.2;
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) {
-			cout << "Detected object at: " << (*it).tl().x << "," << (*it).tl().y << endl;
-			Mat rectDepthMat(depth,*it);
-			objectTrackingList.processDetect(*it,cv::mean(rectDepthMat)[0] / 1000.0, ObjectType(1));
-			cout << "Depth: " << cv::mean(rectDepthMat)[0] / 1000.0 << endl;
+			Rect depthRect = *it;
+			
+			shrinkRect(depthRect,depthRectScale);
+			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
+			
+			objectTrackingList.processDetect(*it, minOfDepthMat(depth, emptyMask, depthRect, 10).first, ObjectType(1));
+			cout << "Object depth: " << minOfDepthMat(depth, emptyMask, depthRect, 10).first << endl;
 		}
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
@@ -284,7 +290,9 @@ int main( int argc, const char** argv )
 		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) {
 		    drawTrackingInfo(frame, displayList);
 
-			Point2f top_locRange = Point2f(-2,2); //not truly an x and y, actually more like a range
+			//create a top view image of the robot and all detected objects
+			Range top_xRange = Range(-2,2);
+			Range top_yRange = Range(-2,2);
 			Point top_imageSize = Point(640,640);
 			Point top_imageCenter = Point(top_imageSize.x / 2, top_imageSize.y / 2);
 			int top_rectSize = 40;
@@ -294,11 +302,11 @@ int main( int argc, const char** argv )
 			line(top_frame, top_imageCenter, top_imageCenter - Point(0,top_imageSize.x / 2), Scalar(0,0,255), 3);
 			for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
 		   	{
-			  	Point top_rectPos;
-				top_rectPos.x = -(it->position.x * (top_imageSize.x / (top_locRange.y - top_locRange.x)) - top_locRange.x);
-				top_rectPos.y = -(it->position.y * (top_imageSize.y / (top_locRange.y - top_locRange.x)) - top_locRange.x);
-				top_rectPos += top_imageCenter;
-				circle(top_frame, top_rectPos, top_rectSize, Scalar(255,0,0), 5);
+				Point2f top_realPos = Point2f(it->position.x, it->position.y);
+			  	Point top_imagePos;
+				top_imagePos.x = top_realPos.x * (top_imageSize.x / top_xRange.size()) + (top_imageSize.x / 2);
+				top_imagePos.y = -(top_realPos.y * (top_imageSize.y / top_yRange.size())) + (top_imageSize.y / 2);
+				circle(top_frame, top_imagePos, top_rectSize, Scalar(255,0,0), 5);
 				
 		   	}
 			imshow("Top view", top_frame);
