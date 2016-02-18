@@ -36,7 +36,7 @@ void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
-string getVideoOutName(bool raw = true, bool zms = false)
+string getVideoOutName(bool raw = true);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
 
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
@@ -188,6 +188,7 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
 	{
+		
 		frameTicker.start(); // start time for this frame
 		if (--videoWritePollCount == 0)
 		{
@@ -229,6 +230,7 @@ int main( int argc, const char** argv )
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
 		detectState.detector()->Detect(frame, depth, detectRects);
+
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -557,7 +559,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
-		cap	= new ZedIn(NULL, args.writeVideo ? getVideoOutName(true, true) : NULL );
+		cap	= new ZedIn();
 		Mat	mat;
 		if(!cap->getNextFrame(mat))
 		{
@@ -577,7 +579,6 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		else
 		{
 			ss << "Zed Camera ";
-			args.writeVideo = false;
 		}
 		ss << camera;
 		windowName = ss.str();
@@ -589,10 +590,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		     hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG")))
 			cap = new ImageIn(fileName.c_str());
 		else if (hasSuffix(fileName, ".svo"))
-		{
-			cap = new ZedIn(fileName.c_str(), args.writeVideo ? getVideoOutName(true, true) : NULL);
-			args.writeVideo = false;
-		}
+			cap = new ZedIn(fileName.c_str());
 		else
 			cap = new VideoIn(fileName.c_str());
 
@@ -606,7 +604,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 }
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
-string getVideoOutName(bool raw, bool zms)
+string getVideoOutName(bool raw)
 {
 	int index = 0;
 	int rc;
@@ -625,10 +623,7 @@ string getVideoOutName(bool raw, bool zms)
 		ss << index++;
 		if (raw == false)
 		   ss << "_processed";
-		if (zms == false)
-			ss << ".avi";
-		else
-			ss << ".zms";
+		ss << ".avi";
 		rc = stat(ss.str().c_str(), &statbuf);
 	}
 	while (rc == 0);

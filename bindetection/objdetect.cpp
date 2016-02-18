@@ -37,7 +37,7 @@ void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rec
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it
 	vector<double> detectThreshold;
-	detectThreshold.push_back(d12Threshold ? d12Threshold / 100. : 0.01);
+	detectThreshold.push_back(d12Threshold / 100.);
 	detectThreshold.push_back(d24Threshold / 100.);
 
 	vector<double> nmsThreshold;

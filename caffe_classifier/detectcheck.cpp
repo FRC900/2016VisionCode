@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
    }
    NNDetect<cv::Mat> detect(d12Info, d24Info);
    cv::Mat emptyMat;
-   cv::Size minSize(40,40);
+   cv::Size minSize(30,30);
    cv::Size maxSize(700,700);
    std::vector<cv::Rect> rectsOut;
    std::vector<cv::Rect> depthRectsOut;
@@ -72,16 +72,27 @@ int main(int argc, char *argv[])
    // line up with the classifier input size.  Other scales will
    // fill in the range between those two end points.
    detect.detectMultiscale(frame, emptyMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, rectsOut);
-   detect.detectMultiscale(frame, depthMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, rectsOut);
+   detect.detectMultiscale(frame, depthMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, depthRectsOut);
    namedWindow("Image", cv::WINDOW_AUTOSIZE);
    for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
+   {
+      std::cout << "TL: " << it->tl() << std::endl;
+      std::cout << "Depth: " << cap->getDepth((it->tl().x+it->br().x)/2, (it->tl().y+it->br().y)/2) << std::endl;
+      std::cout << "Allowable Mid: " << (192.9 * pow(((float)it->width*(float)it->height)/((float)cap->width()*(float)cap->height()), -.534)) << std::endl;
       rectangle(frame, *it, cv::Scalar(0,0,255));
+   }
    for (std::vector<cv::Rect>::const_iterator it = depthRectsOut.begin(); it != depthRectsOut.end(); ++it)
+   {
+      std::cout << "Made it through!" << std::endl;
       rectangle(frame, *it, cv::Scalar(255,0,0));
+   }
    imshow("Image", frame);
    //imwrite("detect.png", inputImg);
-   cv::waitKey(0);
-   return 0;
+   char c = cv::waitKey(5);
+   if(c == ' ')
+   {
+      cv::waitKey(0);
+   }
    }
 }
 
