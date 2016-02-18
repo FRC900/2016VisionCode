@@ -37,7 +37,7 @@ class ZedIn : public MediaIn
 		cv::Mat depthMat_;
 		int width_;
 		int height_;
-		int frameCounter_;
+		int frameNumber_;
 #endif
 };
 #endif

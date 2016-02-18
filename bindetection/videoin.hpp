@@ -13,8 +13,8 @@ class VideoIn : public MediaIn
       int width() const;
       int height() const;
       int frameCount(void) const;
-      int frameCounter(void) const;
-      void frameCounter(int frameCounter);
+      int frameNumber(void) const;
+      void frameNumber(int frameNumber);
 
    private:
       cv::VideoCapture cap_;
@@ -22,7 +22,7 @@ class VideoIn : public MediaIn
 	  int              width_;
 	  int              height_;
 	  int              frames_;
-	  int              frameCounter_;
+	  int              frameNumber_;
 };
 #endif
 

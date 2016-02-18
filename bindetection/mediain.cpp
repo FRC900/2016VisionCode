@@ -9,14 +9,14 @@ int MediaIn::frameCount(void) const
 	return -1;
 }
 
-int MediaIn::frameCounter(void) const
+int MediaIn::frameNumber(void) const
 {
 	return -1;
 }
 
-void MediaIn::frameCounter(int frameCount)
+void MediaIn::frameNumber(int frameNumber)
 {
-	(void)frameCount;
+	(void)frameNumber;
 }
 
 bool MediaIn::getDepthMat(cv::Mat &depthMat)

@@ -30,7 +30,7 @@ using namespace std;
 using namespace cv;
 
 //function prototypes
-void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
+void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
@@ -117,7 +117,7 @@ int main( int argc, const char** argv )
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
-		cap->frameCounter(args.frameStart);
+		cap->frameNumber(args.frameStart);
 
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
@@ -173,7 +173,7 @@ int main( int argc, const char** argv )
 		int frameNum = groundTruth.nextFrameNumber();
 		if (frameNum == -1)
 			return 0;
-		cap->frameCounter(frameNum);
+		cap->frameNumber(frameNum);
 	}
 
 	//Creating Goaldetection object
@@ -238,10 +238,10 @@ int main( int argc, const char** argv )
 		// input image
 		if (args.captureAll)
 			for (size_t index = 0; index < detectRects.size(); index++)
-				writeImage(frame, detectRects, index, capPath.c_str(), cap->frameCounter());
+				writeImage(frame, detectRects, index, capPath.c_str(), cap->frameNumber());
 
 		// Draw detected rectangles on frame
-		if (!args.batchMode && args.rects && ((cap->frameCounter() % frameDisplayFrequency) == 0))
+		if (!args.batchMode && args.rects && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 			drawRects(frame,detectRects);
 
 		// Process this detected rectangle - either update the nearest
@@ -263,7 +263,7 @@ int main( int argc, const char** argv )
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
+		if (args.tracking && !args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		    drawTrackingInfo(frame, displayList);
 
 		for (size_t i = 0; i < netTableArraySize; i++)
@@ -298,8 +298,8 @@ int main( int argc, const char** argv )
 		// For args.batch mode, only update every frameTicksLength frames to
 		// avoid printing too much stuff
 	    if (frameTicker.valid() &&
-			( (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && ((cap->frameCounter() % 50) == 0))))
+			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
+			  ( args.batchMode && ((cap->frameNumber() % 50) == 0))))
 	    {
 			stringstream ss;
 			// If in args.batch mode and reading a video, display
@@ -307,7 +307,7 @@ int main( int argc, const char** argv )
 			int frames = cap->frameCount();
 			if (args.batchMode && (frames > 0))
 			{
-				ss << cap->frameCounter();
+				ss << cap->frameNumber();
 				if (frames > 0)
 				   ss << '/' << frames;
 				ss << " : ";
@@ -324,14 +324,14 @@ int main( int argc, const char** argv )
 		// but not on camera input
 		vector<Rect> groundTruthHitList;
 		if (cap->frameCount() >= 0)
-			groundTruthHitList = groundTruth.processFrame(cap->frameCounter() - 1, detectRects);
+			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
 
 
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
 		// 3, 5 or whatever frames instead.
-		if (!args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0))
+		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
 			// Put an A on the screen if capture-all is enabled so
 			// users can keep track of that toggle's mode
@@ -343,7 +343,7 @@ int main( int argc, const char** argv )
 			if (printFrames && (frames > 0))
 			{
 				stringstream ss;
-				ss << cap->frameCounter() << '/' << frames;
+				ss << cap->frameNumber() << '/' << frames;
 				putText(frame, ss.str(),
 				        Point(frame.cols - 15 * ss.str().length(), 20),
 						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
@@ -363,7 +363,7 @@ int main( int argc, const char** argv )
 
 			// Draw ground truth info for this frame. Will be a no-op
 			// if none is available for this particular video frame
-			drawRects(frame, groundTruth.get(cap->frameCounter() - 1), Scalar(255,0,0), false);
+			drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(255,0,0), false);
 			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
 			rectangle(frame, boundRect, Scalar(255,0,0));
 
@@ -396,7 +396,7 @@ int main( int argc, const char** argv )
 					if (frame == -1)
 						break;
 					// Otherwise, if not paused, move to the next frame
-					cap->frameCounter(frame);
+					cap->frameNumber(frame);
 				}
 				cap->getNextFrame(frame, false);
 			}
@@ -419,11 +419,11 @@ int main( int argc, const char** argv )
 				Mat frameCopy;
 				cap->getNextFrame(frameCopy, true);
 				for (size_t index = 0; index < detectRects.size(); index++)
-					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameCounter());
+					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
 			}
 			else if (c == 'p') // print frame number to console
 			{
-				cout << cap->frameCounter() << endl;
+				cout << cap->frameNumber() << endl;
 			}
 			else if (c == 'P') // Toggle frame # printing to display
 			{
@@ -477,7 +477,7 @@ int main( int argc, const char** argv )
 			{
 				Mat frameCopy;
 				cap->getNextFrame(frameCopy, true);
-				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameCounter());
+				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
 			}
 		}
 
@@ -491,7 +491,7 @@ int main( int argc, const char** argv )
 				break;
 			// Otherwise, if not paused, move to the next frame
 			if (!pause)
-				cap->frameCounter(frame);
+				cap->frameNumber(frame);
 		}
 		// Skip over frames if needed - useful for batch extracting hard negatives
 		// so we don't get negatives from every frame. Sequential frames will be
@@ -499,9 +499,9 @@ int main( int argc, const char** argv )
 		else if (!pause && (args.skip > 0))
 		{	
 			// Exit if the next skip puts the frame beyond the end of the video
-			if ((cap->frameCounter() + args.skip) >= cap->frameCount())
+			if ((cap->frameNumber() + args.skip) >= cap->frameCount())
 				break;
-			cap->frameCounter(cap->frameCounter() + args.skip - 1);
+			cap->frameNumber(cap->frameNumber() + args.skip - 1);
 		}
 
 		// Check for running still images in batch mode - only
@@ -518,14 +518,14 @@ int main( int argc, const char** argv )
 }
 
 // Write out the selected rectangle from the input frame
-void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter)
+void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber)
 {
    mkdir("negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
    if (index < rects.size())
    {
       // Create filename, save image
       stringstream fn;
-      fn << "negative/" << path << "_" << frameCounter << "_" << index;
+      fn << "negative/" << path << "_" << frameNumber << "_" << index;
       imwrite(fn.str() + ".png", frame(rects[index]));
    }
 }

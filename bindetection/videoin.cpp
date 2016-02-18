@@ -20,7 +20,7 @@ VideoIn::VideoIn(const char *path) :
 			height_ /= 2;
 		}
 		frames_ = cap_.get(CV_CAP_PROP_FRAME_COUNT);
-		frameCounter_ = 0;
+		frameNumber_ = 0;
 	}
 	else
 		std::cerr << "Could not open input video "<< path;
@@ -37,7 +37,7 @@ bool VideoIn::getNextFrame(Mat &frame, bool pause)
 			return false;
 		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
-		frameCounter_ += 1;
+		frameNumber_ += 1;
 	}
 	frame = frame_.clone();
 
@@ -59,16 +59,16 @@ int VideoIn::frameCount(void) const
 	return frames_;
 }
 
-int VideoIn::frameCounter(void) const
+int VideoIn::frameNumber(void) const
 {
-	return frameCounter_;
+	return frameNumber_;
 }
 
-void VideoIn::frameCounter(int frameCounter)
+void VideoIn::frameNumber(int frameNumber)
 {
-	if (frameCounter < frames_)
+	if (frameNumber < frames_)
 	{
-		cap_.set(CV_CAP_PROP_POS_FRAMES, frameCounter);
-		frameCounter_ = frameCounter;
+		cap_.set(CV_CAP_PROP_POS_FRAMES, frameNumber);
+		frameNumber_ = frameNumber;
 	}
 }

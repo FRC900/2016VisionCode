@@ -21,8 +21,8 @@ class MediaIn
       virtual int    frameCount(void) const; 
 
 	  // Get and set current frame number
-      virtual int    frameCounter(void) const;
-      virtual void   frameCounter(int framecount);
+      virtual int    frameNumber(void) const;
+      virtual void   frameNumber(int frameNumber);
 
 	  // Get depth info for current frame
 	  virtual bool   getDepthMat(cv::Mat &depthMat);

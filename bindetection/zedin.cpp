@@ -35,7 +35,7 @@ ZedIn::ZedIn(const char *filename)
 				width_ /= 2;
 				height_ /= 2;
 			}
-			frameCounter_ = 0;
+			frameNumber_ = 0;
 		}
 	}
 }
@@ -66,7 +66,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 			pyrDown(depthMat_, depthMat_);
 		}
 
-		frameCounter_ += 1;
+		frameNumber_ += 1;
 	}
 
 	frame = frame_.clone();
