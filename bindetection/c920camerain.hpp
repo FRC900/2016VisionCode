@@ -21,6 +21,8 @@ class C920CameraIn : public MediaIn
       int width(void) const;
       int height(void) const;
 
+	  int frameCounter(void) const;
+
    private:
 #ifdef __linux__
       bool initCamera(bool gui);

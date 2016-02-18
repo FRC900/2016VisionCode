@@ -161,6 +161,11 @@ int C920CameraIn::height(void) const
 	return height;
 }
 
+int C920CameraIn::frameCounter(void) const
+{
+	return frameCounter_;
+}
+
 void brightnessCallback(int value, void *data)
 {
 	C920CameraIn *camPtr = (C920CameraIn *)data;
