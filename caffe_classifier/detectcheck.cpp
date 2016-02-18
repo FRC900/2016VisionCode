@@ -37,10 +37,10 @@ int main(int argc, char *argv[])
    d24Info.push_back(argv[6]);
    d24Info.push_back(argv[7]);
    d24Info.push_back(argv[8]);
-   std::string file = argv[9];
    Mat frame;
    ZedIn* cap;
-   cap = new ZedIn(argv[5]);
+std::cout << argv[9] << std::endl;
+   cap = new ZedIn(argv[9]);
    if(!cap->getNextFrame(frame, false))
    {
       std::cerr << "err" << std::endl;
