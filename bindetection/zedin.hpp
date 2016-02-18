@@ -28,6 +28,13 @@ class ZedIn : public MediaIn
 		int    height(void) const;
 
 #ifdef ZED_SUPPORT
+		// How many frames?
+		int    frameCount(void) const; 
+
+		// Get and set current frame number
+		int    frameCounter(void) const;
+		void   frameCounter(int framecount);
+
 		void   deletePointers(void);
 		bool   getDepthMat(cv::Mat &depthMat);
 		double getDepth(int x, int y);
@@ -53,6 +60,7 @@ class ZedIn : public MediaIn
 		std::ofstream *serializeOut_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::output> filtSBOut_;
 		boost::archive::binary_oarchive *archiveOut_;
+		int serializeFrameSize_;
 #endif
 };
 #endif

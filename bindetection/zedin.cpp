@@ -14,10 +14,14 @@ using namespace cv;
 
 ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 	zed_(NULL),
+	width_(0),
+	height_(0),
+	frameCounter_(0),
 	serializeIn_(NULL), 
 	archiveIn_(NULL),
 	serializeOut_(NULL),
-	archiveOut_(NULL)
+	archiveOut_(NULL),
+	serializeFrameSize_(0)
 {
 	if (inFileName)
 	{
@@ -28,7 +32,9 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		else if ((fnExt == "zms") || (fnExt == "ZMS"))
 		{
 			// ZMS file is home-brewed serialization format
-			// which just dumps raw Mat data to a file.  
+			// which just dumps raw a image and depth Mat data to a file.  
+			// Apply a light bit of compression because
+			// the files will get out of hand quickly otherwise
 			serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
 			if (serializeIn_ && serializeIn_->is_open())
 			{
@@ -45,9 +51,12 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		else
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
-	else
+	else // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::VGA, 30);
 
+	// Save the raw camera stream to disk.  This uses a home-brew
+	// method to serialize image and depth data to disk rather than
+	// relying on Stereolab's SVO format.
 	if (outFileName)
 	{
 		serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
@@ -60,6 +69,9 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		else
 		{
 			cerr << "Zed init : could not open output file " << outFileName << endl;
+			// Don't want to close the input stream since we
+			// still want to run even if we can't capture for
+			// whatever reason (disk full, etc)
 			if (serializeOut_)
 				delete serializeOut_;
 			serializeOut_ = NULL;
@@ -82,31 +94,30 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		{
 			width_     = zed_->getImageSize().width;
 			height_    = zed_->getImageSize().height;
-			while (height_ > 800)
-			{
-				width_ /= 2;
-				height_ /= 2;
-			}
 		}
 	}
 	else if (serializeIn_ && serializeIn_->is_open())
 	{
 		// Zed == NULL and serializeStream_ means reading from 
 		// a serialized file. Grab height_ and width_
-		*archiveIn_ >> frame_;
+		// Also figure out how big a frame is so we can
+		// use random access to get at any frame
+		*archiveIn_ >> frame_ >> depthMat_;
+		serializeFrameSize_ = serializeIn_->tellg();
 		width_  = frame_.cols;
 		height_ = frame_.rows;
-		while (height_ > 800)
-		{
-			width_ /= 2;
-			height_ /= 2;
-		}
+		
 		// Jump back to start of file
 		serializeIn_->clear();
 		serializeIn_->seekg(0);
 	}
-	frameCounter_ = 0;
+	while (height_ > 800)
+	{
+		width_  /= 2;
+		height_ /= 2;
+	}
 }
+
 
 void ZedIn::deletePointers(void)
 {
@@ -182,10 +193,53 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 	return true;
 }
 
+
 bool ZedIn::getNextFrame(Mat &frame, bool pause) 
 {
 	return getNextFrame(frame, true, pause);
 }
+
+
+int ZedIn::frameCount(void) const
+{
+	// If we're using an input file we can calculate this.
+	// If using a video, there's no way to tell
+	if (serializeIn_ && serializeIn_->is_open() && serializeFrameSize_)
+		return (serializeIn_->tellg() / serializeFrameSize_);
+
+	// Luckily getSVONumberOfFrames() returns -1 if we're
+	// capturing from a camera, which is also what the rest
+	// of our code expects in that case
+	if (zed_)
+		return zed_->getSVONumberOfFrames();
+		
+	return -1;
+}
+
+
+int ZedIn::frameCounter(void) const
+{
+	return frameCounter_;
+}
+
+
+// Seek to a given frame number. This is possible if the
+// input is a video. If reading live camera data it will
+// fail, but nothing we can do about that so fail silently
+void ZedIn::frameCounter(int frameCount)
+{
+	if (serializeIn_ && serializeIn_->is_open() && serializeFrameSize_)
+	{
+		serializeIn_->seekg(frameCount * serializeFrameSize_);
+		frameCounter_ = frameCount;
+	}
+	else if (zed_)
+	{
+		if (zed_->setSVOPosition(frameCount))
+			frameCounter_ = frameCount;
+	}
+}
+
 
 double ZedIn::getDepth(int x, int y) 
 {
@@ -193,16 +247,19 @@ double ZedIn::getDepth(int x, int y)
 	return ptr_image_num[x];
 }
 
+
 bool ZedIn::getDepthMat(Mat &depthMat)
 {
 	depthMat_.copyTo(depthMat); //not normalized depth
 	return true;
 }
 
+
 int ZedIn::width(void) const
 {
 	return width_;
 }
+
 
 int ZedIn::height(void) const
 {
@@ -215,21 +272,25 @@ ZedIn::~ZedIn()
 {
 }
 
+
 int ZedIn::width(void) const
 {
 	return 0;
 }
+
 
 int ZedIn::height(void) const
 {
 	return 0;
 }
 
+
 ZedIn::ZedIn(const char *filename)
 {
 	(void)filename;
 	cerr << "Zed support not compiled in" << endl;
 }
+
 
 bool ZedIn::getNextFrame(Mat &frame, bool pause) 
 {
