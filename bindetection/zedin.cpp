@@ -69,9 +69,6 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		frameCounter_ += 1;
 	}
 
-
-        cout << "Zed Size W x H " << width_ << " x " << height_ << endl;
-	cout << "Zed Frame Size " << frame_.size() << endl;
 	frame = frame_.clone();
 	return true;
 }
