@@ -96,9 +96,11 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
     {
         double   scale = scaledImages24[it->second].second;
+        std::cout << "Mid Depth at Scale: " << 192.9* pow(((float)wsize*(float)wsize*4)/((float)inputImg.rows*(float)inputImg.cols/(scale*scale)), -.534) << std::endl;
         cv::Rect rect(it->first);
         cv::Rect scaledRect(cv::Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         rectsOut.push_back(scaledRect);
+
     }
 }
 
@@ -177,10 +179,9 @@ void NNDetect<MatT>::generateInitialWindows(
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
-        float frac_size = (wsize * wsize) / ((float)scaledImages[scale].first.rows * (float)scaledImages[scale].first.cols);
+        float frac_size = (wsize * wsize) / ((float)scaledImages[scale].first.rows * (float)scaledImages[scale].first.cols); 
         float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
         float depth_max = depth_min + 600.;
-        std::cout << "Min/Max: " << depth_min << " " << depth_max << std::endl;
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image
         for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
@@ -290,7 +291,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         {
             if (it->first == label)
             {
-                if (it->second > threshold)
+                if (it->second >= threshold)
                 {
                     detected.push_back(i);
                     scores.push_back(it->second);

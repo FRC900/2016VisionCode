@@ -189,6 +189,7 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
 	{
+		
 		frameTicker.start(); // start time for this frame
 		if (--videoWritePollCount == 0)
 		{
@@ -230,6 +231,7 @@ int main( int argc, const char** argv )
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
 		detectState.detector()->Detect(frame, depth, detectRects);
+
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else

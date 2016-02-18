@@ -56,6 +56,10 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 
 		frameCounter_ += 1;
 	}
+
+
+        cout << "Zed Size W x H " << width_ << " x " << height_ << endl;
+	cout << "Zed Frame Size " << frame_.size() << endl;
 	frame = frame_.clone();
 	return true;
 }
@@ -68,7 +72,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool pause)
 double ZedIn::getDepth(int x, int y) 
 {
 	float* ptr_image_num = (float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
-	return ptr_image_num[x] / 1000.f;
+	return ptr_image_num[x];
 }
 
 bool ZedIn::getDepthMat(Mat &depthMat)
