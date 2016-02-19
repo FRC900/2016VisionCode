@@ -32,8 +32,8 @@
 using namespace std;
 using namespace cv;
 
-const float HFOV = 84.14 * (M_PI / 180.0);  
-const float VFOV = 53.836 * (M_PI / 180.0); 
+static const float HFOV = 84.14 * (M_PI / 180.0);  
+static const float VFOV = 53.836 * (M_PI / 180.0); 
 
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameCounter);
@@ -146,9 +146,9 @@ int main( int argc, const char** argv )
 
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
-	TrackedObjectList objectTrackingList(Point(cap->width(),cap->height()), Point2f(HFOV,VFOV));
+	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), Point2f(HFOV,VFOV));
 	
-	zmq::context_t context (1);
+	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
 
 	std::cout<< "Starting network publisher 5800" << std::endl;
@@ -254,22 +254,26 @@ int main( int argc, const char** argv )
 			drawRects(frame,detectRects);
 
 		//adjust locations of objects based on fovis results
-
 		objectTrackingList.adjustLocation(fvlc.transform_eigen());
 
-		// Process this detected rectangle - either update the nearest
-		// object or add it as a new one
-		//also compute the average depth of the region since that is necessary for the processing
+		// Process detected rectangles - either match up with the nearest object
+		// add it as a new one
+		// also compute the average depth of the region since that is necessary for the processing
+		vector<float> depths;
+		vector<ObjectType> objTypes;
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) {
-			cout << "Detected object at: " << (*it).tl().x << "," << (*it).tl().y << endl;
-			Mat rectDepthMat(depth,*it);
-			objectTrackingList.processDetect(*it,cv::mean(rectDepthMat)[0] / 1000.0, ObjectType(1));
+			cout << "Detected object at: " << it->tl() << endl;
+			Mat rectDepthMat(depth, *it);
+			depth.push_back(cv::mean(rectDepthMat)[0] / 1000.f);
 			cout << "Depth: " << cv::mean(rectDepthMat)[0] / 1000.0 << endl;
+			objTypes.push_back(ObjectType(1));
 		}
+		objectTrackingList.processDetect(detectRects, depths, objTypes);
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
 		objectTrackingList.getDisplay(displayList);
+
 		//Creates immutable strings for 0MQ Output
 		stringstream zmqString;
 		zmqString << "V ";
@@ -281,7 +285,8 @@ int main( int argc, const char** argv )
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) {
+		if (args.tracking && !args.batchMode && ((cap->frameCounter() % frameDisplayFrequency) == 0)) 
+		{
 		    drawTrackingInfo(frame, displayList);
 
 			Point2f top_locRange = Point2f(-2,2); //not truly an x and y, actually more like a range
@@ -325,12 +330,6 @@ int main( int argc, const char** argv )
 		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
 		publisher.send(request);
 		publisher.send(grequest);
-
-		// Don't update to next frame if paused to prevent
-		// objects missing from this frame to be aged out
-		// as the current frame is redisplayed over and over
-		if (!pause)
-			objectTrackingList.nextFrame();
 
 		// For interactive mode, update the FPS as soon as we have
 		// a complete array of frame time entries

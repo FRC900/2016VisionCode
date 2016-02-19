@@ -3,9 +3,7 @@
 
 #include <opencv2/core/core.hpp>
 
-#include <zed/Mat.hpp>
 #include <zed/Camera.hpp>
-#include <zed/utils/GlobalDefine.hpp>
 
 using namespace cv;
 
