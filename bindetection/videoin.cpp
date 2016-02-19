@@ -23,7 +23,7 @@ VideoIn::VideoIn(const char *path) :
 		frameNumber_ = 0;
 	}
 	else
-		std::cerr << "Could not open input video "<< path;
+		std::cerr << "Could not open input video "<< path << std::endl;
 }
 
 bool VideoIn::getNextFrame(Mat &frame, bool pause)

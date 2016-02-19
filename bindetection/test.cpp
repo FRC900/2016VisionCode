@@ -34,9 +34,9 @@ void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const
 string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui);
+void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
-string getVideoOutName(bool raw = true);
+string getVideoOutName(bool raw = true, bool zms = false);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
 
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
@@ -110,7 +110,8 @@ int main( int argc, const char** argv )
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
-	openMedia(args.inputName, cap, capPath, windowName, !args.batchMode);
+	openMedia(args.inputName, cap, capPath, windowName, 
+			  !args.batchMode, args.writeVideo);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
@@ -550,7 +551,7 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 }
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui)
+void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (fileName.length() == 0 ||
@@ -559,7 +560,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
-		cap	= new ZedIn();
+		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL );
 		Mat	mat;
 		if(!cap->getNextFrame(mat))
 		{
@@ -579,6 +580,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		else
 		{
 			ss << "Zed Camera ";
+			writeVideo = false;
 		}
 		ss << camera;
 		windowName = ss.str();
@@ -586,11 +588,15 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 	else // has to be a file name, we hope
 	{
-		if ((hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
-		     hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG")))
+		if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
+		    hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG"))
 			cap = new ImageIn(fileName.c_str());
-		else if (hasSuffix(fileName, ".svo"))
-			cap = new ZedIn(fileName.c_str());
+		else if (hasSuffix(fileName, ".svo") || hasSuffix(fileName, ".SVO") ||
+		         hasSuffix(fileName, ".zms") || hasSuffix(fileName, ".ZMS"))
+		{
+			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL);
+			writeVideo = false;
+		}
 		else
 			cap = new VideoIn(fileName.c_str());
 
@@ -604,7 +610,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 }
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
-string getVideoOutName(bool raw)
+string getVideoOutName(bool raw, bool zms)
 {
 	int index = 0;
 	int rc;
@@ -623,7 +629,10 @@ string getVideoOutName(bool raw)
 		ss << index++;
 		if (raw == false)
 		   ss << "_processed";
-		ss << ".avi";
+		if (zms == false)
+			ss << ".avi";
+		else
+			ss << ".zms";
 		rc = stat(ss.str().c_str(), &statbuf);
 	}
 	while (rc == 0);
