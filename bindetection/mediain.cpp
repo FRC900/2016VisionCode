@@ -26,6 +26,7 @@ bool MediaIn::getDepthMat(cv::Mat &depthMat)
 }
 
 sl::zed::CamParameters MediaIn::getCameraParams(bool left) {
+	(void)left;
 	return sl::zed::CamParameters();
 }
 
