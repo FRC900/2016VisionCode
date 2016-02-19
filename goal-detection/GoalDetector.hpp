@@ -6,6 +6,8 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/core/core.hpp"
 
+#include "Utilities.hpp"
+
 class GoalDetector {
 public:
 
@@ -35,18 +37,4 @@ private:
     float _angle_to_goal;
 
     bool generateThreshold(const cv::Mat& ImageIn, cv::Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX);
-
-    std::pair<float, float> minOfMat(const cv::Mat& img, const cv::Mat& mask, bool (*f)(float), const cv::Rect& bound_rect, int range=10);
-
-    static bool countPixel(float v)
-    {
-        if (isnan(v) || (v <= 0))
-        {
-            return false;
-        }
-        else
-        {
-            return true; 
-        }
-    }                                                                                               //small inline function to pass to minOfMat
 };

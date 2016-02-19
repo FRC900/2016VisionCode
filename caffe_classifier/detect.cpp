@@ -174,13 +174,21 @@ void NNDetect<MatT>::generateInitialWindows(
         scalefactor(depthGpu, cv::Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
     }
     scalefactor(input, cv::Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
-    float frac_size = (wsize * wsize) / ((float)input.rows * (float)input.cols);
-    float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
-    float depth_max = depth_min + 600.;
-
     // Main loop.  Look at each scaled image in turn
+	std::cout << "Scaled images size: " <<  scaledImages.size() << std::endl;
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
+		float depth_multiplier = 0.5;
+		float ball_real_size = 266.7;
+		float fov_size = 84.14 * (M_PI / 180.0);
+
+        float percent_image = (float)wsize / scaledImages[scale].first.cols;
+		float size_fov = percent_image * fov_size; //TODO fov size
+		float depth_avg = (ball_real_size / (2.0 * tan(size_fov / 2.0))) * 1.113057936;
+		
+        float depth_min = depth_avg - depth_avg * depth_multiplier;
+        float depth_max = depth_avg + depth_avg * depth_multiplier;
+        std::cout << "Min/Max: " << depth_min << " " << depth_max << std::endl;
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image
         for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
