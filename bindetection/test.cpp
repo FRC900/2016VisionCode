@@ -28,9 +28,11 @@
 #include "WriteOnFrame.hpp"
 #include "GoalDetector.hpp"
 #include "FovisLocalizer.hpp"
+#include "Utilities.hpp"
 
 using namespace std;
 using namespace cv;
+using namespace utils;
 
 static const float HFOV = 84.14 * (M_PI / 180.0);  
 static const float VFOV = 53.836 * (M_PI / 180.0); 
@@ -74,10 +76,9 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
-	  if (it->ratio >= 0.15)
+	  if (it->ratio >= 0.05)
 	  {
 		 const int roundPosTo = 2;
-		 std::cout << "Ratio: " << it->ratio << std::endl;
 		 // Color moves from red to green (via brown, yuck)
 		 // as the detected ratio goes up
 		 Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
@@ -226,6 +227,7 @@ int main( int argc, const char** argv )
 		cout << "Time to run goaldetection - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		float gdistance = gd.dist_to_goal();
+		cout << "distance to goal: " << gdistance << endl;
 		float gangle = gd.angle_to_goal();
 
 		stepTimer = cv::getTickCount();
@@ -238,7 +240,7 @@ int main( int argc, const char** argv )
 		Mat dummyMat;
 
 		stepTimer = cv::getTickCount();
-		detectState.detector()->Detect(frame, dummyMat, detectRects);
+		detectState.detector()->Detect(frame, depth, detectRects);
 		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
@@ -259,16 +261,26 @@ int main( int argc, const char** argv )
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
 		// also compute the average depth of the region since that is necessary for the processing
+		vector<Rect>depthFilteredDetectRects;
 		vector<float> depths;
 		vector<ObjectType> objTypes;
+		const float depthRectScale = 0.2;
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) {
-			cout << "Detected object at: " << it->tl() << endl;
-			Mat rectDepthMat(depth, *it);
-			depth.push_back(cv::mean(rectDepthMat)[0] / 1000.f);
-			cout << "Depth: " << cv::mean(rectDepthMat)[0] / 1000.0 << endl;
-			objTypes.push_back(ObjectType(1));
+			cout << "Detected object at: " << *it << endl;
+			Rect depthRect = *it;
+			
+			shrinkRect(depthRect,depthRectScale);
+			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
+			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+			cout << "Depth: " << objectDepth << endl;
+			if(objectDepth > 0)
+			{
+				depthFilteredDetectRects.push_back(*it);
+				depth.push_back(objectDepth);
+				objTypes.push_back(ObjectType(1));
+			}
 		}
-		objectTrackingList.processDetect(detectRects, depths, objTypes);
+		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
@@ -289,7 +301,9 @@ int main( int argc, const char** argv )
 		{
 		    drawTrackingInfo(frame, displayList);
 
-			Point2f top_locRange = Point2f(-2,2); //not truly an x and y, actually more like a range
+			//create a top view image of the robot and all detected objects
+			Range top_xRange = Range(-2,2);
+			Range top_yRange = Range(-2,2);
 			Point top_imageSize = Point(640,640);
 			Point top_imageCenter = Point(top_imageSize.x / 2, top_imageSize.y / 2);
 			int top_rectSize = 40;
@@ -299,11 +313,11 @@ int main( int argc, const char** argv )
 			line(top_frame, top_imageCenter, top_imageCenter - Point(0,top_imageSize.x / 2), Scalar(0,0,255), 3);
 			for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
 		   	{
-			  	Point top_rectPos;
-				top_rectPos.x = -(it->position.x * (top_imageSize.x / (top_locRange.y - top_locRange.x)) - top_locRange.x);
-				top_rectPos.y = -(it->position.y * (top_imageSize.y / (top_locRange.y - top_locRange.x)) - top_locRange.x);
-				top_rectPos += top_imageCenter;
-				circle(top_frame, top_rectPos, top_rectSize, Scalar(255,0,0), 5);
+				Point2f top_realPos = Point2f(it->position.x, it->position.y);
+			  	Point top_imagePos;
+				top_imagePos.x = top_realPos.x * (top_imageSize.x / top_xRange.size()) + (top_imageSize.x / 2);
+				top_imagePos.y = -(top_realPos.y * (top_imageSize.y / top_yRange.size())) + (top_imageSize.y / 2);
+				circle(top_frame, top_imagePos, top_rectSize, Scalar(255,0,0), 5);
 				
 		   	}
 			imshow("Top view", top_frame);

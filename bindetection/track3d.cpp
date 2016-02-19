@@ -233,9 +233,7 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	std::cout << "Position: " << _position << std::endl;
 	float thx = -atan2( sqrtf(_position.x * _position.x + _position.y * _position.y), _position.z ) + (M_PI/2.0);
 	float thy = -atan2( _position.y , _position.x ) + (M_PI/2.0);
-	std::cout << "thx: " << thx << " thy: " << thy << std::endl;
 	
-
 	cv::Point2f percent_fov = cv::Point2f(thx / fov_size.x, thy / fov_size.y);
 	std::cout << "Percent fov: " << percent_fov << std::endl;
 	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
@@ -245,7 +243,7 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
 	rect_center.y = dist_to_center.y + (frame_size.height / 2.0);
 
-	cv::Point2f angular_size = cv::Point2f( atan(_type.width() / (2.0*r)), atan(_type.height() / (2.0*r)));
+	cv::Point2f angular_size = cv::Point2f( atan2(_type.width(), (2.0*r)), atan2(_type.height(), (2.0*r)));
 	cv::Point2f screen_size;
 	screen_size.x = angular_size.x * (frame_size.width / fov_size.x);
 	screen_size.y = angular_size.y * (frame_size.height / fov_size.y);
@@ -254,8 +252,6 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	topLeft.x = cvRound(rect_center.x - (screen_size.x / 2.0));
 	topLeft.y = cvRound(rect_center.y - (screen_size.y / 2.0));
 
-	std::cout << "Rect center: " << rect_center << std::endl;
-	std::cout << "Rect size: " << screen_size << std::endl;
 	return cv::Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
 }
 
