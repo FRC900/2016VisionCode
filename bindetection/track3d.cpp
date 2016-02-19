@@ -91,7 +91,7 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 	cv::Point2f dist_to_center;
 	dist_to_center.x = rect_center.x - (frame_size.width / 2.0);
 	dist_to_center.y = -rect_center.y + (frame_size.height / 2.0);
-	std::cout << "Distance to center: " << dist_to_center << std::endl; 
+	//std::cout << "Distance to center: " << dist_to_center << std::endl; 
 	
 	cv::Point2f percent_fov;
 	percent_fov.x = (float)dist_to_center.x / (float)frame_size.width;
@@ -99,14 +99,14 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 	float azimuth = percent_fov.x * fov_size.x;
 	float inclination = percent_fov.y * fov_size.y;
 	
-	std::cout << "Actual Inclination: " << inclination << std::endl;
-	std::cout << "Actual Azimuth: " << azimuth << std::endl;
+	//std::cout << "Actual Inclination: " << inclination << std::endl;
+	//std::cout << "Actual Azimuth: " << azimuth << std::endl;
 
 	cv::Point3f retPt;
 	retPt.x = avg_depth * cos(inclination) * sin(azimuth);
 	retPt.y = avg_depth * cos(inclination) * cos(azimuth);
 	retPt.z = avg_depth * sin(inclination);
-	std::cout << "Actual location: " << retPt << std::endl;
+	//std::cout << "Actual location: " << retPt << std::endl;
 	return retPt;
 }
 
@@ -121,13 +121,15 @@ TrackedObject::TrackedObject( int id,
 	float       accel_noise_mag,
     size_t historyLength) :
 	_type(type_in),
-	_position(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size)),
 	_historyIndex(0),
 	_detectHistory(std::vector<bool>(historyLength, false)),
 	_KF(_position, dt, accel_noise_mag),
 	missedFrameCount_(0),
 	positionHistoryMax_(historyLength)
 {
+	setPosition(screen_position, avg_depth, fov_size, frame_size);
+	setDetected();
+
 	// Label with base-26 letter ID (A, B, C .. Z, AA, AB, AC, etc)
 	do
 	{
@@ -236,14 +238,14 @@ void TrackedObject::nextFrame(void)
 cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
 {
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
-	std::cout << "Position: " << _position << std::endl;
+	//std::cout << "Position: " << _position << std::endl;
 	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asin( _position.z / r );
-	std::cout << "Computed Azimuth: " << azimuth << std::endl;
-	std::cout << "Computed Inclination: " << inclination << std::endl;
+	//std::cout << "Computed Azimuth: " << azimuth << std::endl;
+	//std::cout << "Computed Inclination: " << inclination << std::endl;
 	
 	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
-	std::cout << "Computed Percent fov: " << percent_fov << std::endl;
+	//std::cout << "Computed Percent fov: " << percent_fov << std::endl;
 	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
 			                   percent_fov.y * frame_size.height);
 
@@ -344,12 +346,14 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 									  const std::vector<ObjectType> &types)
 {
 	std::vector<cv::Point3f> detectedPositions;
+	std::cout << "---------- Start of process detect --------------" << std::endl;
+	print();
 
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
 				screenToWorldCoords(detectedRects[i], depths[i], _fovSize, _imageSize));
-		std::cout << "Detected positions[i] :" << detectedPositions[detectedPositions.size()-1] << std::endl;
+		std::cout << "Detected rect [" << i << "] = " << detectedRects[i] << " positions[" << detectedPositions.size() - 1 << "] :" << detectedPositions[detectedPositions.size()-1] << std::endl;
 	}
 	// TODO :: Combine overlapping detections into one?
 
@@ -372,9 +376,13 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 			// cout << prediction << endl;
 			for(size_t d = 0; d < detections; d++)
 			{
+				std::cout << it->getPosition() << " " << detectedPositions[d];
 				cv::Point3f diff = it->getPosition() - detectedPositions[d];
+				std::cout << diff ;
 				Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+				std::cout << Cost[t][d] << " " << std::endl;
 			}
+			std::cout<< std::endl;
 		}
 
 		// Solving assignment problem (find minimum-cost assignment 
@@ -398,10 +406,8 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 	{
 		if (find(assignment.begin(), assignment.end(), i) == assignment.end())
 		{
-			std::cout << "New assignment created"<<std::endl;
-			TrackedObject new_object(_detectCount++,types[i], detectedRects[i], depths[i], _fovSize, _imageSize);
-			new_object.setDetected(); // make constructor set this?
-			_list.push_back(new_object);
+			std::cout << "New assignment created " << i << std::endl;
+			_list.push_back(TrackedObject(_detectCount++,types[i], detectedRects[i], depths[i], _fovSize, _imageSize));
 		}
 	}
 
@@ -448,4 +454,6 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 			++it;
 		}
 	}
+	print();
+	std::cout << "---------- End of process detect --------------" << std::endl;
 }

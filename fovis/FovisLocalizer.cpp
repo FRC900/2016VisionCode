@@ -3,14 +3,14 @@
 using namespace std;
 using namespace cv;
 
-FovisLocalizer::FovisLocalizer(const sl::zed::CamParameters &input_params,int in_width, int in_height, const cv::Mat& initial_frame) 
+FovisLocalizer::FovisLocalizer(const sl::zed::CamParameters &input_params, const cv::Mat& initial_frame) :
+	_rect(NULL),
+	_odom(NULL)
 {
 	memset(&_rgb_params,0,sizeof(_rgb_params)); //set params to 0 to be sure
 
-	_rgb_params.width = in_width;
-	_rgb_params.height = in_height; //get width and height from the camera
-	_im_width = in_width; //save for later
-	_im_height = in_height;
+	_rgb_params.width = initial_frame.cols;
+	_rgb_params.height = initial_frame.rows; //get width and height from the camera
 
 	_rgb_params.fx = input_params.fx;
 	_rgb_params.fy = input_params.fy;
@@ -19,7 +19,7 @@ FovisLocalizer::FovisLocalizer(const sl::zed::CamParameters &input_params,int in
 
 	_rect = new fovis::Rectification(_rgb_params);
 
-	initial_frame.copyTo(prev);
+	cvtColor(initial_frame, prevGray, CV_BGR2GRAY);
 
 	reloadFovis();
 }
@@ -33,18 +33,26 @@ void FovisLocalizer::reloadFovis()
 	options["feature-window-size"] = to_string(fv_param_feature_window_size);
 	options["target-pixels-per-feature"] = to_string(fv_param_target_ppf);
 
+	if (_odom)
+		delete _odom;
 	_odom = new fovis::VisualOdometry(_rect, options);
+}
+
+FovisLocalizer::~FovisLocalizer()
+{
+	if (_rect)
+		delete _rect;
+	if (_odom)
+		delete _odom;
 }
 
 void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in)
 {
 	if (depth_in.empty())
 		return;
-	img_in.copyTo(frame);
-	depth_in.copyTo(depthFrame);	
+	depthFrame = depth_in.clone();
 
-	cvtColor(frame,frameGray,CV_BGR2GRAY); //convert to grayscale 
-	cvtColor(prev,prevGray,CV_BGR2GRAY);
+	cvtColor(img_in, frameGray, CV_BGR2GRAY); // convert to grayscale 
 
 	int num_optical_flow_sectors = num_optical_flow_sectors_x * num_optical_flow_sectors_y;
 
@@ -57,10 +65,10 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 
 	goodFeaturesToTrack(prevGray, prevCorner, num_optical_flow_points, 0.01, 30);
 	calcOpticalFlowPyrLK(prevGray, frameGray, prevCorner, currCorner, status, err); //calculate optical flow
+	prevGray = frameGray.clone();
 
-
-	int flow_sector_size_x = frame.cols / num_optical_flow_sectors_x;
-	int flow_sector_size_y = frame.rows / num_optical_flow_sectors_y;
+	int flow_sector_size_x = img_in.cols / num_optical_flow_sectors_x;
+	int flow_sector_size_y = img_in.rows / num_optical_flow_sectors_y;
 
 	for(int i = 0; i < num_optical_flow_sectors_x; i++) {
 		for(int j = 0; j < num_optical_flow_sectors_y; j++) {
@@ -105,12 +113,13 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 			sum += optical_flow_magnitude[i]; //calculate the mean
 		}
 		mag_mean = sum / (float)optical_flow_magnitude.size();
-		//
+
 		//this loop iterates through the points and checks if they 
 		//are outside a range. if they are, then they are eliminated 
 		//and the mean is recalculated
 		for(size_t i = 0; i < flow_good_sectors.size(); i++) { 
-			if(abs(optical_flow_magnitude[i]) > (flow_arbitrary_outlier_threshold_int / 100.0) * abs(mag_mean) && flow_good_sectors[i] || optical_flow_magnitude[i] == 0) { 
+			if((optical_flow_magnitude[i]== 0) || 
+			   (flow_good_sectors[i] && abs(optical_flow_magnitude[i]) > (flow_arbitrary_outlier_threshold_int / 100.0) * abs(mag_mean))) { 
 				flow_good_sectors[i] = false;
 			}
 		}
@@ -125,14 +134,11 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	}
 	float* ptr_depthFrame;
 
-	int sectors_passed = 0;
 	for(size_t i = 0; i < flow_good_sectors.size(); i++) { //implement the optical flow into the depth data
 		if(!flow_good_sectors[i]) { //true if the sector is bad
 			Mat sector_submatrix = Mat(depthFrame,Range(flow_rects[i].tl().y,flow_rects[i].br().y), Range(flow_rects[i].tl().x,flow_rects[i].br().x));
 			Mat(sector_submatrix.rows,sector_submatrix.cols,CV_32FC1,Scalar(-2.0)).copyTo(sector_submatrix); //copy
-			rectangle(frame,flow_rects[i],Scalar(0,0,255),5);
-		} else {
-			sectors_passed++;		
+			cout << "Sector " << i << " bad" << endl;
 		}
 	}
 
@@ -142,12 +148,17 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 			if(ptr_depthFrame[i] <= 0) {
 				ptr_depthFrame[i] = NAN; //set to NaN if negative
 			} else {
-				ptr_depthFrame[i] = ptr_depthFrame[i] / 1000.0; //convert to m
+				ptr_depthFrame[i] /= 1000.0; //convert to m
 			}
 		}
 	}
 
-	fovis::DepthImage depthSource(_rgb_params, _im_width, _im_height);
+	fovis::DepthImage depthSource(_rgb_params, frameGray.cols, frameGray.rows);
+	cout << "params.fx = " << _rgb_params.fx << endl;
+	cout << "params.fy = " << _rgb_params.fy << endl;
+	cout << "params.cx = " << _rgb_params.cx << endl;
+	cout << "params.cy = " << _rgb_params.cy << endl;
+
 	depthSource.setDepthImage((float*)depthFrame.data); //pass the data into fovis
 
 	uint8_t* pt = (uint8_t*)frameGray.data; //cast to unsigned integer and create pointer to data
@@ -167,6 +178,7 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	_transform.second[1] = rpy(1) * 180/M_PI;
 	_transform.second[2] = rpy(2) * 180/M_PI;
 
+	cout << "transform " << _transform.first << " " << _transform.second << endl;
 	for(int i = 0; i < 3; i++) {
 		if(_transform.second[i] >= 90) {
 			_transform.second[i] = _transform.second[i] - 180;
@@ -174,6 +186,4 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 			_transform.second[i] = _transform.second[i] + 180;
 		}
 	}
-
-
 }

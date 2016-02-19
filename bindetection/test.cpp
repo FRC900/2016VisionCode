@@ -207,7 +207,7 @@ int main( int argc, const char** argv )
 	}
 
 	cap->getNextFrame(frame, pause);
-	FovisLocalizer fvlc(cap->getCameraParams(true), cap->width(), cap->height(), frame);
+	FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
 	//Creating Goaldetection object
 	GoalDetector gd;

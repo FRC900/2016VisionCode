@@ -287,10 +287,19 @@ int ZedIn::height(void) const
 
 sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
 {
-	if(left)
-		return (zed_->getParameters())->LeftCam;
-	else
+	if (zed_)
+	{
+		if(left)
+			return (zed_->getParameters())->LeftCam;
 		return (zed_->getParameters())->RightCam;
+	}
+	// Take a guess based on one of our cameras
+	sl::zed::CamParameters params;
+	params.fx = 720;
+	params.fy = 720;
+	params.cx = height_/2;
+	params.cy = width_/2;
+	return params;
 }
 
 #else

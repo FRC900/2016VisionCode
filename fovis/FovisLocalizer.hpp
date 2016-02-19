@@ -19,7 +19,9 @@ class FovisLocalizer {
 
 public:
 
-	FovisLocalizer(const sl::zed::CamParameters &input_params,int in_width, int in_height, const cv::Mat& initial_frame);
+	FovisLocalizer(const sl::zed::CamParameters &input_params,
+			       const cv::Mat& initial_frame);
+	~FovisLocalizer();
 
 	void processFrame(const cv::Mat& img, const cv::Mat& depth);
 	std::pair<cv::Vec3f,cv::Vec3f> getTransform() const { return _transform; }
@@ -33,7 +35,7 @@ public:
 
 	int num_optical_flow_sectors_x = 8;
 	int num_optical_flow_sectors_y = 6; //optical flow parameters
-	int num_optical_flow_points = 2000;
+	int num_optical_flow_points = 500;
 	int flow_arbitrary_outlier_threshold_int = 500;
 
 private:
@@ -45,9 +47,6 @@ private:
 	fovis::Rectification* _rect;
 	fovis::VisualOdometry* _odom;
 
-	cv::Mat frame, frameGray, prev, prevGray, depthFrame;
-
-	int _im_height;
-	int _im_width;
+	cv::Mat frameGray, prevGray, depthFrame;
 
 };
