@@ -30,9 +30,9 @@ TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
 			1,0,0, dt, 0,  0,   
 			0,1,0, 0,  dt, 0, 
 			0,0,1, 0,  0,  dt,  
-			0,0,0, 1,  0,  0,  
-			0,0,0, 0,  1,  0,
-			0,0,0, 0,  0,  1);
+			0,0,0, 0.5,  0,  0,  
+			0,0,0, 0,  0.5,  0,
+			0,0,0, 0,  0,  0.5);
 
 #if 0
 	// Add gravity to z position and velocity.  Probably

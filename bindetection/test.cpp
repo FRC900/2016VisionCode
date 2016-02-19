@@ -240,7 +240,7 @@ int main( int argc, const char** argv )
 		Mat dummyMat;
 
 		stepTimer = cv::getTickCount();
-		detectState.detector()->Detect(frame, depth, detectRects);
+		detectState.detector()->Detect(frame, dummyMat, detectRects);
 		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
@@ -265,7 +265,8 @@ int main( int argc, const char** argv )
 		vector<float> depths;
 		vector<ObjectType> objTypes;
 		const float depthRectScale = 0.2;
-		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) {
+		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) 
+		{
 			cout << "Detected object at: " << *it << endl;
 			Rect depthRect = *it;
 			
@@ -276,10 +277,17 @@ int main( int argc, const char** argv )
 			if(objectDepth > 0)
 			{
 				depthFilteredDetectRects.push_back(*it);
-				depth.push_back(objectDepth);
+				depths.push_back(objectDepth);
 				objTypes.push_back(ObjectType(1));
 			}
-		}
+		} 
+		/*
+		Rect testRect = Rect(Point(20,260), Point(130,370));
+		rectangle(frame,testRect,Scalar(0,0,255), 10);
+		depthFilteredDetectRects.push_back(testRect);
+		depths.push_back(1.96);
+		objTypes.push_back(ObjectType(1));
+		*/
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
