@@ -229,21 +229,18 @@ void TrackedObject::nextFrame(void)
 cv::Rect TrackedObject::getScreenPosition() const 
 {
 	float r = sqrt(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
-	std::cout << "Position: " << _position << std::endl;
 	float thx = -atan2( sqrt(_position.x * _position.x + _position.y * _position.y), _position.z ) + (M_PI/2.0);
 	float thy = -atan2( _position.y , _position.x ) + (M_PI/2.0);
-	std::cout << "thx: " << thx << " thy: " << thy << std::endl;
 	
 
 	cv::Point2f percent_fov = cv::Point2f(thx / _fov_size.x, thy / _fov_size.y);
-	std::cout << "Percent fov: " << percent_fov << std::endl;
 	cv::Point dist_to_center = cv::Point(percent_fov.x * _frame_size.x, percent_fov.y * _frame_size.y);
 
 	cv::Point rect_center;
 	rect_center.x = dist_to_center.x + (_frame_size.x / 2);
 	rect_center.y = dist_to_center.y + (_frame_size.y / 2);
 
-	cv::Point2f angular_size = cv::Point2f( atan(_type.width() / (2.0*r)), atan(_type.height() / (2.0*r)));
+	cv::Point2f angular_size = cv::Point2f( atan2(_type.width(), (2.0*r)), atan2(_type.height(), (2.0*r)));
 	cv::Point2f screen_size;
 	screen_size.x = angular_size.x * (_frame_size.x / _fov_size.x);
 	screen_size.y = angular_size.y * (_frame_size.y / _fov_size.y);
@@ -252,8 +249,6 @@ cv::Rect TrackedObject::getScreenPosition() const
 	topLeft.x = rect_center.x - (screen_size.x / 2);
 	topLeft.y = rect_center.y - (screen_size.y / 2);
 
-	std::cout << "Rect center: " << rect_center << std::endl;
-	std::cout << "Rect size: " << screen_size << std::endl;
 	return cv::Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
 }
 
@@ -415,8 +410,7 @@ void TrackedObjectList::print(void) const
 	{
 		double variance;
 		cv::Point3f average = it->getAveragePosition(variance);
-		std::cout << it->getId() << " location ";
-		std::cout << "(" << average.x << "," << average.y << "," << average.z << ")";
+		std::cout << it->getId() << " location: " << average;
 		std::cout << "+-" << variance << " " << std::endl;
 	}
 }
@@ -457,7 +451,7 @@ void TrackedObjectList::processDetect(const cv::Rect &detectedRect, float depth,
 		distance.z = new_object_pos.z - it->getPosition().z;
 		float distance_hyp = sqrt(distance.x * distance.x + distance.y * distance.y + distance.z * distance.z);
 
-		float distance_threshold = 1.0; // tune me! (this is in m)
+		float distance_threshold = 0.5; // tune me! (this is in m)
 		if( distance_hyp < distance_threshold)
 		{
 				it->setPosition(new_object_pos);

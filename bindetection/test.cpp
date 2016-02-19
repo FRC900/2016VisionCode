@@ -79,7 +79,6 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 	  if (it->ratio >= 0.05)
 	  {
 		 const int roundPosTo = 2;
-		 std::cout << "Ratio: " << it->ratio << std::endl;
 		 // Color moves from red to green (via brown, yuck)
 		 // as the detected ratio goes up
 		 Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
@@ -228,6 +227,7 @@ int main( int argc, const char** argv )
 		cout << "Time to run goaldetection - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		float gdistance = gd.dist_to_goal();
+		cout << "distance to goal: " << gdistance << endl;
 		float gangle = gd.angle_to_goal();
 
 		stepTimer = cv::getTickCount();
@@ -240,7 +240,7 @@ int main( int argc, const char** argv )
 		Mat dummyMat;
 
 		stepTimer = cv::getTickCount();
-		detectState.detector()->Detect(frame, dummyMat, detectRects);
+		detectState.detector()->Detect(frame, depth, detectRects);
 		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
@@ -268,9 +268,9 @@ int main( int argc, const char** argv )
 			
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
-			
-			objectTrackingList.processDetect(*it, minOfDepthMat(depth, emptyMask, depthRect, 10).first, ObjectType(1));
-			cout << "Object depth: " << minOfDepthMat(depth, emptyMask, depthRect, 10).first << endl;
+			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+			if(objectDepth > 0)
+				objectTrackingList.processDetect(*it, objectDepth, ObjectType(1));
 		}
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
