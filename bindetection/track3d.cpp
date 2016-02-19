@@ -374,7 +374,9 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 			{
 				cv::Point3f diff = it->getPosition() - detectedPositions[d];
 				Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+				std::cout << Cost[t][d] << " ";
 			}
+			std::cout<< std::endl;
 		}
 
 		// Solving assignment problem (find minimum-cost assignment 
