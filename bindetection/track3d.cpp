@@ -341,6 +341,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 	{
 		detectedPositions.push_back(
 				screenToWorldCoords(detectedRects[i], depths[i], _fovSize, _imageSize));
+		std::cout << "Detected positions[i] :" << detectedPositions[detectedPositions.size()-1] << std::endl;
 	}
 	// TODO :: Combine overlapping detections into one?
 
@@ -373,6 +374,9 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		AssignmentProblemSolver APS;
 		APS.Solve(Cost, assignment, AssignmentProblemSolver::optimal);
 
+		std::cout << "After APS : "<<std::endl;
+		for(size_t i = 0; i < assignment.size(); i++)
+			std::cout << assignment[i] <<" " << std::endl;
 		// clear assignment from pairs with large distance
 		for(size_t i = 0; i < assignment.size(); i++)
 			if ((assignment[i] != -1) && (Cost[i][assignment[i]] > dist_thresh_))
@@ -386,6 +390,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 	{
 		if (find(assignment.begin(), assignment.end(), i) == assignment.end())
 		{
+			std::cout << "New assignment created"<<std::endl;
 			TrackedObject new_object(_detectCount++,types[i], detectedRects[i], depths[i], _fovSize, _imageSize);
 			new_object.setDetected(); // make constructor set this?
 			_list.push_back(new_object);
@@ -399,6 +404,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		// If track updated less than one time, than filter state is not correct.
 		std::cout << "Predict : " << std::endl;
 		cv::Point3f prediction = tr->predictKF();
+		std::cout << "prediction :" << prediction << std::endl;
 
 		tr->nextFrame();
 

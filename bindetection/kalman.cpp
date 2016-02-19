@@ -93,8 +93,7 @@ TKalmanFilter::~TKalmanFilter()
 Point3f TKalmanFilter::GetPrediction()
 {
 	Mat prediction = kalman.predict();
-	cout <<  "Predict, state out : " << endl;
-	cout << kalman.statePost << endl;
+	cout <<  "Predict, state out : " << kalman.statePost << endl;
 	return Point3f(prediction.at<float>(0),prediction.at<float>(1),prediction.at<float>(2)); 
 }
 //---------------------------------------------------------------------------
