@@ -586,10 +586,11 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 	else // has to be a file name, we hope
 	{
-		if ((hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
-		     hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG")))
+		if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
+		    hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG"))
 			cap = new ImageIn(fileName.c_str());
-		else if (hasSuffix(fileName, ".svo"))
+		else if (hasSuffix(fileName, ".svo") || hasSuffix(fileName, ".SVO") ||
+		         hasSuffix(fileName, ".zms") || hasSuffix(fileName, ".ZMS"))
 		{
 			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL);
 			writeVideo = false;

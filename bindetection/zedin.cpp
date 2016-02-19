@@ -106,10 +106,25 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		serializeFrameSize_ = serializeIn_->tellg();
 		width_  = frame_.cols;
 		height_ = frame_.rows;
-		
-		// Jump back to start of file
-		serializeIn_->clear();
-		serializeIn_->seekg(0);
+
+#if 0
+		delete archiveIn_;
+		delete serializeIn_;
+
+		serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
+		if (serializeIn_ && serializeIn_->is_open())
+		{
+				filtSBIn_.reset();
+				//filtSBIn_.push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
+				filtSBIn_.push(*serializeIn_);
+				archiveIn_ = new boost::archive::binary_iarchive(filtSBIn_);
+		}
+		else
+		{
+				cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
+				deletePointers();
+		}
+#endif
 	}
 	while (height_ > 800)
 	{
