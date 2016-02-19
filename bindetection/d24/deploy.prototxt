@@ -6,9 +6,18 @@ input_shape {
   dim: 24
 }
 layer {
+  name: "scale_d24"
+  type: "Power"
+  bottom: "data"
+  top: "scale_d24"
+  power_param {
+    scale: 0.00390625
+  }
+}
+layer {
   name: "conv1_d24"
   type: "Convolution"
-  bottom: "data"
+  bottom: "scale_d24"
   top: "conv1_d24"
   param {
     lr_mult: 1.0
@@ -20,7 +29,7 @@ layer {
   }
   convolution_param {
     num_output: 6
-    kernel_size: 2
+    kernel_size: 3
     stride: 1
     weight_filler {
       type: "xavier"
@@ -37,8 +46,8 @@ layer {
   top: "pool1_d24"
   pooling_param {
     pool: MAX
-    kernel_size: 4
-    stride: 1
+    kernel_size: 3
+    stride: 2
   }
 }
 layer {
@@ -48,9 +57,51 @@ layer {
   top: "pool1_d24"
 }
 layer {
+  name: "conv1a_d24"
+  type: "Convolution"
+  bottom: "pool1_d24"
+  top: "conv1a_d24"
+  param {
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  convolution_param {
+    num_output: 6
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool1a_d24"
+  type: "Pooling"
+  bottom: "conv1a_d24"
+  top: "pool1a_d24"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "relu1a_d24"
+  type: "ReLU"
+  bottom: "pool1a_d24"
+  top: "pool1a_d24"
+}
+layer {
   name: "fc1_d24"
   type: "InnerProduct"
-  bottom: "pool1_d24"
+  bottom: "pool1a_d24"
   top: "fc1_d24"
   param {
     lr_mult: 1.0
@@ -61,7 +112,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 12
+    num_output: 20
     weight_filler {
       type: "xavier"
     }
@@ -75,6 +126,15 @@ layer {
   type: "ReLU"
   bottom: "fc1_d24"
   top: "fc1_d24"
+}
+layer {
+  name: "drop1_d24"
+  type: "Dropout"
+  bottom: "fc1_d24"
+  top: "fc1_d24"
+  dropout_param {
+    dropout_ratio: 0.5
+  }
 }
 layer {
   name: "fc2_d24"

@@ -27,9 +27,9 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 	{
 		// Might be svo, might be zms
 		string fnExt = path(inFileName).extension().string();
-		if ((fnExt == "svo") || (fnExt == "SVO"))
+		if ((fnExt == ".svo") || (fnExt == ".SVO"))
 			zed_ = new sl::zed::Camera(inFileName);
-		else if ((fnExt == "zms") || (fnExt == "ZMS"))
+		else if ((fnExt == ".zms") || (fnExt == ".ZMS"))
 		{
 			// ZMS file is home-brewed serialization format
 			// which just dumps raw a image and depth Mat data to a file.  
