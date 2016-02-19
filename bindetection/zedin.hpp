@@ -33,6 +33,7 @@ class ZedIn : public MediaIn
 		int    frameNumber(void) const;
 		void   frameNumber(int frameNumber);
 
+		sl::zed::CamParameters getCameraParams(bool left) const;
 		bool   getDepthMat(cv::Mat &depthMat);
 		double getDepth(int x, int y);
 #endif

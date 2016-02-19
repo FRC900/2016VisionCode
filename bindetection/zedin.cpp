@@ -106,9 +106,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		// a serialized file. Grab height_ and width_
 		// Also figure out how big a frame is so we can
 		// use random access to get at any frame
-		cerr << "1";
 		*archiveIn_ >> frame_ >> depthMat_;
-		cerr << "2";
 		frameNumber_ += 1;
 #if 0
 		serializeFrameSize_ = serializeIn_->tellg();
@@ -285,6 +283,14 @@ int ZedIn::width(void) const
 int ZedIn::height(void) const
 {
 	return height_;
+}
+
+sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
+{
+	if(left)
+		return (zed_->getParameters())->LeftCam;
+	else
+		return (zed_->getParameters())->RightCam;
 }
 
 #else

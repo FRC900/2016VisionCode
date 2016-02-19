@@ -21,19 +21,26 @@
 #include "camerain.hpp"
 #include "c920camerain.hpp"
 #include "zedin.hpp"
-#include "track.hpp"
+#include "track3d.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
 #include "GoalDetector.hpp"
+#include "FovisLocalizer.hpp"
+#include "Utilities.hpp"
 
 using namespace std;
 using namespace cv;
+using namespace utils;
+
+static const float HFOV = 84.14 * (M_PI / 180.0);  
+static const float VFOV = 53.836 * (M_PI / 180.0); 
 
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
+void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
@@ -68,11 +75,9 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
-	  if (it->ratio >= 0.15)
+	  if (it->ratio >= 0.05)
 	  {
-		 const int roundAngTo = 2;
-		 const int roundDistTo = 2;
-
+		 const int roundPosTo = 2;
 		 // Color moves from red to green (via brown, yuck)
 		 // as the detected ratio goes up
 		 Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
@@ -80,14 +85,35 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 		 rectangle(frame, it->rect, rectColor, 3);
 		 // Write detect ID, distance and angle data
 		 putText(frame, it->id, Point(it->rect.x+25, it->rect.y+30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
-		 stringstream distLabel;
-		 distLabel << "D=" << fixed << setprecision(roundDistTo) << it->distance;
-		 putText(frame, distLabel.str(), Point(it->rect.x+10, it->rect.y-10), FONT_HERSHEY_PLAIN, 1.2, rectColor);
-		 stringstream angleLabel;
-		 angleLabel << "A=" << fixed << setprecision(roundAngTo) << it->angle;
-		 putText(frame, angleLabel.str(), Point(it->rect.x+10, it->rect.y+it->rect.height+20), FONT_HERSHEY_PLAIN, 1.2, rectColor);
+		 stringstream label;
+		 label << fixed << setprecision(roundPosTo);
+		 label << "(" << it->position.x << "," << it->position.y << "," << it->position.z << ")";
+		 putText(frame, label.str(), Point(it->rect.x+10, it->rect.y-10), FONT_HERSHEY_PLAIN, 1.2, rectColor);
 	  }
    }
+}
+
+void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
+{
+	//create a top view image of the robot and all detected objects
+	Range xRange = Range(-2,2);
+	Range yRange = Range(-2,2);
+	Point imageSize = Point(640,640);
+	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
+	int rectSize = 40;
+
+	frame = Mat(imageSize.y,imageSize.x,CV_8UC3, Scalar(0,0,0) );
+	circle(frame,imageCenter, 10, Scalar(0,0,255));
+	line(frame, imageCenter, imageCenter - Point(0,imageSize.x / 2), Scalar(0,0,255), 3);
+	for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
+	{
+		Point2f realPos = Point2f(it->position.x, it->position.y);
+		Point2f imagePos;
+		imagePos.x = realPos.x * (imageSize.x / xRange.size()) + (imageSize.x / 2.0);
+		imagePos.y = -(realPos.y * (imageSize.y / yRange.size())) + (imageSize.y / 2.0);
+		circle(frame, imagePos, rectSize, Scalar(255,0,0), 5);
+
+	}
 }
 
 int main( int argc, const char** argv )
@@ -123,7 +149,10 @@ int main( int argc, const char** argv )
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
 
+	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
+  	Mat depth;
+	Mat top_frame; // top-down view of tracked objects
 
 	// TODO : Figure this out 
 	//minDetectSize = cap->width() * 0.05;
@@ -145,9 +174,9 @@ int main( int argc, const char** argv )
 
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
-	TrackedObjectList binTrackingList(8.0, cap->width());
+	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), Point2f(HFOV,VFOV));
 	
-	zmq::context_t context (1);
+	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
 
 	std::cout<< "Starting network publisher 5800" << std::endl;
@@ -177,11 +206,14 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
+	cap->getNextFrame(frame, pause);
+	FovisLocalizer fvlc(cap->getCameraParams(true), cap->width(), cap->height(), frame);
+
 	//Creating Goaldetection object
 	GoalDetector gd;
-  	Mat depth;
-	Rect boundRect;
 
+	int64 stepTimer;	
+	
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -189,7 +221,6 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
 	{
-		
 		frameTicker.start(); // start time for this frame
 		if (--videoWritePollCount == 0)
 		{
@@ -202,12 +233,6 @@ int main( int argc, const char** argv )
 		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, NULL, true);
 		}
 
-		//TODO : grab angle delta from robot
-		// Adjust the position of all of the detected objects
-		// to account for movement of the robot between frames
-		Mat transformMat;
-		binTrackingList.adjustPosition(transformMat);
-
 		// This code will load a classifier if none is loaded - this handles
 		// initializing the classifier the first time through the loop.
 		// It also handles cases where the user changes the classifer
@@ -217,21 +242,31 @@ int main( int argc, const char** argv )
 			break;
 
 		//Getting depth matrix
-
 		cap->getDepthMat(depth);
 
-		//Initiallizing Goaldetector object
+		//run Goaldetector and FovisLocator code
 
-		gd.processFrame(frame, depth, boundRect);
-		float gdistance = gd.dist_to_goal();
-		float gangle = gd.angle_to_goal();
-			
+		stepTimer = cv::getTickCount();
+		Rect goalBoundRect;
+		gd.processFrame(frame, depth, goalBoundRect);
+
+		float gDistance = gd.dist_to_goal();
+		cout << "distance to goal: " << gDistance;
+		float gAngle = gd.angle_to_goal();
+		cout << " angle to goal: " << gAngle << endl;
+
+		stepTimer = cv::getTickCount();
+		fvlc.processFrame(frame,depth);
+		cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
-		detectState.detector()->Detect(frame, depth, detectRects);
+		Mat dummyMat;
 
+		stepTimer = cv::getTickCount();
+		detectState.detector()->Detect(frame, dummyMat, detectRects);
+		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -245,54 +280,79 @@ int main( int argc, const char** argv )
 		if (!args.batchMode && args.rects && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 			drawRects(frame,detectRects);
 
-		// Process this detected rectangle - either update the nearest
-		// object or add it as a new one
-		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
-			binTrackingList.processDetect(*it);
+		//adjust locations of objects based on fovis results
+		objectTrackingList.adjustLocation(fvlc.transform_eigen());
+
+		// Process detected rectangles - either match up with the nearest object
+		// add it as a new one
+		// also compute the average depth of the region since that is necessary for the processing
+		vector<Rect>depthFilteredDetectRects;
+		vector<float> depths;
+		vector<ObjectType> objTypes;
+		const float depthRectScale = 0.2;
+		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) 
+		{
+			cout << "Detected object at: " << *it;
+			Rect depthRect = *it;
+			
+			shrinkRect(depthRect,depthRectScale);
+			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
+			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+			cout << " Depth: " << objectDepth << endl;
+			if(objectDepth > 0)
+			{
+				depthFilteredDetectRects.push_back(*it);
+				depths.push_back(objectDepth);
+				objTypes.push_back(ObjectType(1));
+			}
+		} 
+		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
-		binTrackingList.getDisplay(displayList);
+		objectTrackingList.getDisplay(displayList);
+
 		//Creates immutable strings for 0MQ Output
-		stringstream zmqString;
-		zmqString << "V ";
 		stringstream gString;
 		gString << "G ";
-		gString << fixed << setprecision(2) << gdistance << " ";
-		gString << fixed << setprecision(2) << gangle;
+		gString << fixed << setprecision(2) << gDistance << " ";
+		gString << fixed << setprecision(2) << gAngle;
+
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
 		if (args.tracking && !args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
+		{
 		    drawTrackingInfo(frame, displayList);
 
+			drawTrackingTopDown(top_frame, displayList);
+			imshow("Top view", top_frame);
+		}
+
+		stringstream zmqString;
+		zmqString << "V ";
 		for (size_t i = 0; i < netTableArraySize; i++)
 		{
 			if (i < displayList.size())
 			{
 				zmqString << fixed << setprecision(2) << displayList[i].ratio << " " ;
-				zmqString << fixed << setprecision(2) << (float)displayList[i].distance << " " ;
-				zmqString << fixed << setprecision(2) << displayList[i].angle << " " ;
+				zmqString << fixed << setprecision(2) << displayList[i].position.x << " " ;
+				zmqString << fixed << setprecision(2) << displayList[i].position.y << " " ;
+				zmqString << fixed << setprecision(2) << displayList[i].position.z << " " ;
 			}
 			else
-				zmqString << "0.00 0.00 0.00 ";
+				zmqString << "0.00 0.00 0.00 0.00 ";
 		}
 
-		//cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
-		//cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+		cout << "ZMQ : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
+		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
 		zmq::message_t request(zmqString.str().length() - 1);
 		zmq::message_t grequest(gString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
 		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
 		publisher.send(request);
 		publisher.send(grequest);
-
-		// Don't update to next frame if paused to prevent
-		// objects missing from this frame to be aged out
-		// as the current frame is redisplayed over and over
-		if (!pause)
-			binTrackingList.nextFrame();
 
 		// For interactive mode, update the FPS as soon as we have
 		// a complete array of frame time entries
@@ -318,7 +378,7 @@ int main( int argc, const char** argv )
 			if (!args.batchMode)
 				putText(frame, ss.str(), Point(frame.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			else
-				cout << ss.str() << endl;
+				cerr << ss.str() << endl;
 	    }
 
 		// Check ground truth data on videos and images,
@@ -366,7 +426,8 @@ int main( int argc, const char** argv )
 			// if none is available for this particular video frame
 			drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(255,0,0), false);
 			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
-			rectangle(frame, boundRect, Scalar(255,0,0));
+
+			rectangle(frame, goalBoundRect, Scalar(255,0,0));
 
 			// Main call to display output for this frame after all
 			// info has been written on it.

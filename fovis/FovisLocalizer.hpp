@@ -6,7 +6,7 @@
 #include "opencv2/core/core.hpp"
 
 //fovis include
-#include "zedin.hpp"
+//#include "zedin.hpp"
 
 #include <fovis.hpp>
 
@@ -19,9 +19,9 @@ class FovisLocalizer {
 
 public:
 
-	FovisLocalizer(sl::zed::CamParameters input_params,int in_width, int in_height, cv::Mat& initial_frame);
+	FovisLocalizer(const sl::zed::CamParameters &input_params,int in_width, int in_height, const cv::Mat& initial_frame);
 
-	void processFrame(cv::Mat& img, cv::Mat& depth);
+	void processFrame(const cv::Mat& img, const cv::Mat& depth);
 	std::pair<cv::Vec3f,cv::Vec3f> getTransform() const { return _transform; }
 	Eigen::Isometry3d transform_eigen() const { return _transform_eigen; }
 	void reloadFovis();

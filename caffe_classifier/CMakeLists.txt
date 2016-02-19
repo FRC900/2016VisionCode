@@ -19,9 +19,9 @@ find_package( ZED QUIET )
 if (${ZED_FOUND})
   add_definitions(-DZED_SUPPORT)
 endif()
-find_package( Boost COMPONENTS system REQUIRED )
+find_package( Boost COMPONENTS system filesystem iostreams serialization REQUIRED )
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe-bvlc")
 
 include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CAFFE_BASE_DIR}/build/include ${CAFFE_BASE_DIR}/include ${Boost_INCLUDE_DIR} ../bindetection)
 
