@@ -77,12 +77,12 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 		convert to degrees based on fov and image size
 		do a polar to cartesian cordinate conversion to find x,y,z of object
 	Equations:
-		x=rsin(thy) * cos(thx)
-		y=rsin(thy) * sin(thx)
-		z=rcos(thy)
+		x=rsin(inclination) * cos(azimuth)
+		y=rsin(inclination) * sin(azimuth)
+		z=rcos(inclination)
 	Notes:
 		Z is up, X is left-right, and Y is forward
-		0,0,0 = right in front of you
+		(0,0,0) = (r,0,0) = right in front of you
 	*/
 
 	cv::Point2f rect_center;
@@ -90,17 +90,23 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 	rect_center.y = screen_position.tl().y + (screen_position.height / 2.0);
 	cv::Point2f dist_to_center;
 	dist_to_center.x = rect_center.x - (frame_size.width / 2.0);
-	dist_to_center.y = (frame_size.width / 2.0) - rect_center.y;
+	dist_to_center.y = -rect_center.y + (frame_size.height / 2.0);
+	std::cout << "Distance to center: " << dist_to_center << std::endl; 
 	
 	cv::Point2f percent_fov;
 	percent_fov.x = (float)dist_to_center.x / (float)frame_size.width;
 	percent_fov.y = (float)dist_to_center.y / (float)frame_size.height;
-	cv::Point2f angle = cv::Point2f(percent_fov.x * fov_size.x, percent_fov.y * fov_size.y);
+	float azimuth = percent_fov.x * fov_size.x;
+	float inclination = percent_fov.y * fov_size.y;
+	
+	std::cout << "Actual Inclination: " << inclination << std::endl;
+	std::cout << "Actual Azimuth: " << azimuth << std::endl;
 
 	cv::Point3f retPt;
-	retPt.z = avg_depth * sin(angle.x) * cos(angle.y);
-	retPt.x = avg_depth * sin(angle.x) * sin(angle.y);
-	retPt.y = avg_depth * cos(angle.x);
+	retPt.x = avg_depth * cos(inclination) * sin(azimuth);
+	retPt.y = avg_depth * cos(inclination) * cos(azimuth);
+	retPt.z = avg_depth * sin(inclination);
+	std::cout << "Actual location: " << retPt << std::endl;
 	return retPt;
 }
 
@@ -231,17 +237,19 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 {
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
 	std::cout << "Position: " << _position << std::endl;
-	float thx = -atan2( sqrtf(_position.x * _position.x + _position.y * _position.y), _position.z ) + (M_PI/2.0);
-	float thy = -atan2( _position.y , _position.x ) + (M_PI/2.0);
+	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
+	float inclination = asin( _position.z / r );
+	std::cout << "Computed Azimuth: " << azimuth << std::endl;
+	std::cout << "Computed Inclination: " << inclination << std::endl;
 	
-	cv::Point2f percent_fov = cv::Point2f(thx / fov_size.x, thy / fov_size.y);
-	std::cout << "Percent fov: " << percent_fov << std::endl;
+	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
+	std::cout << "Computed Percent fov: " << percent_fov << std::endl;
 	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
 			                   percent_fov.y * frame_size.height);
 
 	cv::Point2f rect_center;
 	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
-	rect_center.y = dist_to_center.y + (frame_size.height / 2.0);
+	rect_center.y = -dist_to_center.y + (frame_size.height / 2.0);
 
 	cv::Point2f angular_size = cv::Point2f( atan2(_type.width(), (2.0*r)), atan2(_type.height(), (2.0*r)));
 	cv::Point2f screen_size;

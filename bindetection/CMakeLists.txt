@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -23,14 +23,14 @@ find_package(Threads)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} /home/ubuntu/caffe-bvlc/build/install/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ../goal-detection ../bindetection /home/ubuntu/2016VisionCode/libfovis/build/include/fovis ../fovis)
+include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} /home/ubuntu/caffe/build/install/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ../goal-detection ../bindetection /home/ubuntu/2016VisionCode/libfovis/build/include/fovis ../fovis)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
 add_executable(zv test.cpp objdetect.cpp ../goal-detection/GoalDetector.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track3d.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp zedin.cpp groundtruth.cpp Utilities.cpp ../fovis/FovisLocalizer.cpp kalman.cpp hungarian.cpp)  
 
-find_library (LibCaffe caffe PATH  /home/ubuntu/caffe-bvlc/build/lib)
+find_library (LibCaffe caffe PATH  /home/ubuntu/caffe/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
@@ -52,7 +52,7 @@ target_link_libraries( zv ${OpenCV_LIBS} ${LibCaffe} fovis ${CMAKE_THREAD_LIBS_I
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
 
-add_executable(tt trackTest.cpp track3d.cpp kalman.cpp hungarian.cpp)
-target_link_libraries( tt ${OpenCV_LIBS} )
-add_executable(kt ktest.cpp)
-target_link_libraries( kt ${OpenCV_LIBS} )
+#add_executable(tt trackTest.cpp track3d.cpp kalman.cpp hungarian.cpp)
+#target_link_libraries( tt ${OpenCV_LIBS} )
+#add_executable(kt ktest.cpp)
+#target_link_libraries( kt ${OpenCV_LIBS} )
