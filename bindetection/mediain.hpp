@@ -27,7 +27,7 @@ class MediaIn
       virtual void   frameNumber(int frameNumber);
 
 	  // Get depth info for current frame
-	  virtual sl::zed::CamParameters getCameraParams(bool left);
+	  virtual sl::zed::CamParameters getCameraParams(bool left) const;
 	  virtual bool   getDepthMat(cv::Mat &depthMat);
       virtual double getDepth(int x, int y);
 };
