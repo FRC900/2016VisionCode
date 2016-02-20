@@ -346,6 +346,8 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 									  const std::vector<float> depths, 
 									  const std::vector<ObjectType> &types)
 {
+	std::cout << "---------- Start of process detect --------------" << std::endl;
+	print();
 	std::vector<cv::Point3f> detectedPositions;
 
 	for (size_t i = 0; i < detectedRects.size(); i++)
@@ -378,7 +380,6 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 				cv::Point3f diff = it->getPosition() - detectedPositions[d];
 				Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
 			}
-			std::cout<< std::endl;
 		}
 
 		// Solving assignment problem (find minimum-cost assignment 
