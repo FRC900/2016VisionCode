@@ -21,26 +21,74 @@ find_package(CUDA REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams REQUIRED)
 find_package(Threads)
 find_package(OpenCV REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
-include_directories(${OpenCV_INCLUDE_DIRS} ../caffe_classifier ../C920VideoCap ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${CAFFE_BASE_DIR}/build/install/include ${CAFFE_BASE_DIR}/build/include ${CAFFE_BASE_DIR}/include ${Boost_INCLUDE_DIR} ${ZMQ_INCLUDE_DIRS} ../goal-detection)
+include_directories(${OpenCV_INCLUDE_DIRS} 
+	../caffe_classifier ../C920VideoCap 
+	${ZED_INCLUDE_DIRS} 
+	${CUDA_INCLUDE_DIRS} 
+	${CAFFE_BASE_DIR}/build/install/include 
+	${CAFFE_BASE_DIR}/build/include 
+	${CAFFE_BASE_DIR}/include 
+	${Boost_INCLUDE_DIR} 
+	${ZMQ_INCLUDE_DIRS}
+   	${EIGEN3_INCLUDE_DIR} 
+	../bindetection
+	../goal-detection 
+	../fovis 
+	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
+
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
+link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
-add_executable(zv test.cpp objdetect.cpp ../goal-detection/GoalDetector.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp detectstate.cpp mediain.cpp videoin.cpp camerain.cpp ../C920VideoCap/C920Camera.cpp c920camerain.cpp imagein.cpp track.cpp classifierio.cpp Args.cpp WriteOnFrame.cpp zedin.cpp groundtruth.cpp )  
+add_executable(zv
+	test.cpp
+	objdetect.cpp
+	../goal-detection/GoalDetector.cpp
+	../caffe_classifier/detect.cpp
+	../caffe_classifier/CaffeBatchPrediction.cpp
+	../caffe_classifier/fast_nms.cpp
+	../caffe_classifier/scalefactor.cpp
+	detectstate.cpp
+	mediain.cpp
+	videoin.cpp
+	camerain.cpp
+	../C920VideoCap/C920Camera.cpp
+	c920camerain.cpp
+	imagein.cpp
+	classifierio.cpp
+	Args.cpp
+	WriteOnFrame.cpp
+	zedin.cpp
+	groundtruth.cpp
+	Utilities.cpp
+	track3d.cpp
+	../fovis/FovisLocalizer.cpp
+	kalman.cpp
+	hungarian.cpp)
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
-target_link_libraries( zv ${OpenCV_LIBS} ${LibCaffe} ${CMAKE_THREAD_LIBS_INIT} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} ${ZMQ_LIBRARIES})
-
-# Code to test for bugs in GPU classifier code. Think this is fixed
-# so for now don't build this code
-#add_executable( gputest gputest.cpp objdetect.cpp classifierio.cpp )
-#target_link_libraries( gputest ${OpenCV_LIBS} )
+target_link_libraries( zv
+	${OpenCV_LIBS}
+	${LibCaffe}
+	fovis
+	${CMAKE_THREAD_LIBS_INIT}
+	${ZED_LIBRARIES}
+	${CUDA_LIBRARIES}
+	${CUDA_nppi_LIBRARY}
+	${CUDA_npps_LIBRARY}
+	${Boost_LIBRARIES}
+	${LibGLOG}
+	${LibProtobuf}
+	${ZMQ_LIBRARIES})
 
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
+

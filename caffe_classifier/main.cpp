@@ -51,10 +51,13 @@ int main(int argc, char *argv[])
    std::vector<double> detectThresholds;
    detectThresholds.push_back(0.75);
    detectThresholds.push_back(0.5);
+   std::vector<double> nmsThresholds;
+   nmsThresholds.push_back(0.5);
+   nmsThresholds.push_back(0.75);
 
    NNDetect<cv::Mat> detect(d12Info, d24Info);
    cv::Mat emptyMat;
-   detect.detectMultiscale(inputImg, emptyMat, minSize, maxSize, 1.15, 0.4, detectThresholds, rectsOut);
+   detect.detectMultiscale(inputImg, emptyMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, rectsOut);
    namedWindow("Image", cv::WINDOW_AUTOSIZE);
    for (std::vector<cv::Rect>::const_iterator it = rectsOut.begin(); it != rectsOut.end(); ++it)
       rectangle(inputImg, *it, cv::Scalar(0,0,255));

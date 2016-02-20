@@ -7,7 +7,7 @@
 using namespace cv;
 
 CameraIn::CameraIn(int stream, bool gui) : 
-	frameCounter_(0),
+	frameNumber_(0),
 	width_(800),
     height_(600),
 	cap_(stream)
@@ -41,7 +41,7 @@ bool CameraIn::getNextFrame(Mat &frame, bool pause)
 			return false;
 		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
-		frameCounter_ += 1;
+		frameNumber_ += 1;
 	}
 	frame = frame_.clone();
 
@@ -58,7 +58,7 @@ int CameraIn::height(void) const
    return height_;
 }
 
-int CameraIn::frameCounter(void) const
+int CameraIn::frameNumber(void) const
 {
-   return frameCounter_;
+   return frameNumber_;
 }

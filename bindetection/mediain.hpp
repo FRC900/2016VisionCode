@@ -3,6 +3,8 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <zed/Camera.hpp>
+
 using namespace cv;
 
 // Base class for input.  Derived classes are cameras, videos, etc
@@ -21,10 +23,11 @@ class MediaIn
       virtual int    frameCount(void) const; 
 
 	  // Get and set current frame number
-      virtual int    frameCounter(void) const;
-      virtual void   frameCounter(int framecount);
+      virtual int    frameNumber(void) const;
+      virtual void   frameNumber(int frameNumber);
 
 	  // Get depth info for current frame
+	  virtual sl::zed::CamParameters getCameraParams(bool left) const;
 	  virtual bool   getDepthMat(cv::Mat &depthMat);
       virtual double getDepth(int x, int y);
 };

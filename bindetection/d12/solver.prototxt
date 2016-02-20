@@ -1,6 +1,6 @@
 test_iter: 5551
 test_interval: 6505
-base_lr: 0.0009
+base_lr: 0.0005
 display: 20
 max_iter: 130100
 lr_policy: "step"

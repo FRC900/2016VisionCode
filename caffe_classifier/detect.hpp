@@ -77,7 +77,7 @@ class NNDetect
 				double nmsThreshold,
 				std::vector<Window> &windowsOut);
 
-		bool depthInRange(float depth_min, float depth_max, cv::Mat &detectCheck);
+		bool depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck);
 };
 
 #endif

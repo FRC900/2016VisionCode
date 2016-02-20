@@ -5,8 +5,8 @@ int d12NmsThreshold = 40;
 int d24NmsThreshold = 75;
 int minDetectSize = 44;
 int maxDetectSize = 450;
-int d12Threshold  = 65;
-int d24Threshold  = 65;
+int d12Threshold  = 75;
+int d24Threshold  = 85;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios
@@ -37,7 +37,7 @@ void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rec
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it
 	vector<double> detectThreshold;
-	detectThreshold.push_back(d12Threshold ? d12Threshold / 100. : 0.01);
+	detectThreshold.push_back(d12Threshold / 100.);
 	detectThreshold.push_back(d24Threshold / 100.);
 
 	vector<double> nmsThreshold;

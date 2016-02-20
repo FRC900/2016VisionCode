@@ -101,7 +101,7 @@ bool C920CameraIn::initCamera(bool gui)
 		cv::createTrackbar("Focus", "Adjustments", &focus_, 256, focusCallback, this);
 	}
 
-	frameCounter_ = 0;
+	frameNumber_ = 0;
 	return true;
 }
 
@@ -118,7 +118,7 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 			return false;
 		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
-		frameCounter_ += 1;
+		frameNumber_ += 1;
 	}
 
 	frame = frame_.clone();
@@ -159,6 +159,11 @@ int C920CameraIn::height(void) const
 	}
 
 	return height;
+}
+
+int C920CameraIn::frameNumber(void) const
+{
+	return frameNumber_;
 }
 
 void brightnessCallback(int value, void *data)

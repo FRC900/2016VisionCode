@@ -39,7 +39,7 @@ int ImageIn::frameCount(void) const
 	return 1;
 }
 
-int ImageIn::frameCounter(void) const
+int ImageIn::frameNumber(void) const
 {
 	return 1;
 }

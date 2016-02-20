@@ -21,6 +21,8 @@ class C920CameraIn : public MediaIn
       int width(void) const;
       int height(void) const;
 
+	  int frameNumber(void) const;
+
    private:
 #ifdef __linux__
       bool initCamera(bool gui);
@@ -47,7 +49,7 @@ class C920CameraIn : public MediaIn
       int               autoExposure_;
       int               backlightCompensation_;
       int               whiteBalanceTemperature_;
-	  int               frameCounter_;
+	  int               frameNumber_;
 	  v4l2::CaptureSize captureSize_;
 #endif
 };

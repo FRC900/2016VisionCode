@@ -96,9 +96,11 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
     {
         double   scale = scaledImages24[it->second].second;
+        std::cout << "Mid Depth at Scale: " << 192.9* pow(((float)wsize*(float)wsize*4)/((float)inputImg.rows*(float)inputImg.cols/(scale*scale)), -.534) << std::endl;
         cv::Rect rect(it->first);
         cv::Rect scaledRect(cv::Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         rectsOut.push_back(scaledRect);
+
     }
 }
 
@@ -156,6 +158,7 @@ void NNDetect<MatT>::generateInitialWindows(
     std::vector<Window>& windows)
 {
     windows.clear();
+    size_t windowsChecked = 0;
 
     // How many pixels to move the window for each step
     // We use 4 - the calibration step can adjust +/- 2 pixels
@@ -163,8 +166,6 @@ void NNDetect<MatT>::generateInitialWindows(
     // anything which is actually centered in one of the
     // pixels we step over.
     const int step = 4;
-
-    double start = gtod_wrapper(); // grab start time
 
     // Create array of scaled images
     std::vector<std::pair<MatT, double> > scaledDepth;
@@ -175,32 +176,41 @@ void NNDetect<MatT>::generateInitialWindows(
     }
     scalefactor(input, cv::Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
     // Main loop.  Look at each scaled image in turn
+	std::cout << "Scaled images size: " <<  scaledImages.size() << std::endl;
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
-        float frac_size = (wsize * wsize) / ((float)scaledImages[scale].first.rows * (float)scaledImages[scale].first.cols);
-        float depth_min = (192.9 * pow(frac_size, -.534)) - 300.;
-        float depth_max = depth_min + 600.;
-        std::cout << "Min/Max: " << depth_min << " " << depth_max << std::endl;
+		float depth_multiplier = 0.2;
+		float ball_real_size = 247.6; // ball is 9.75in diameter = 247.6 mm
+		float fov_size = 51.3 * (M_PI / 180.0); // empirically determined
+
+        float percent_image = (float)wsize / scaledImages[scale].first.cols;
+		float size_fov = percent_image * fov_size; //TODO fov size
+		float depth_avg = (ball_real_size / (2.0 * tan(size_fov / 2.0))) - 4.572;
+		
+        float depth_min = depth_avg - depth_avg * depth_multiplier;
+        float depth_max = depth_avg + depth_avg * depth_multiplier;
+        std::cout << "Target size:" << wsize / scaledImages[scale].second << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max << std::endl;
+
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image
         for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
         {
             for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
             {
+				windowsChecked += 1;
                 if (!depthIn.empty())
                 {
                     cv::Mat detectCheck = cv::Mat(scaledDepth[scale].first(cv::Rect(c, r, wsize, wsize)));
                     if(!depthInRange(depth_min, depth_max, detectCheck))
                     {
-                        break;
+                        continue;
                     }
                 }
                 windows.push_back(Window(cv::Rect(c, r, wsize, wsize), scale));
             }
         }
     }
-    double end = gtod_wrapper();
-    std::cout << "Generate initial windows time = " << (end - start) << std::endl;
+    std::cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << std::endl;
 }
 
 
@@ -290,7 +300,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         {
             if (it->first == label)
             {
-                if (it->second > threshold)
+                if (it->second >= threshold)
                 {
                     detected.push_back(i);
                     scores.push_back(it->second);
@@ -301,15 +311,19 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
     }
 }
 
+// Be conservative here - if any of the depth values in the target rect
+// are in the expected range, consider the rect in range.  Also 
+// say that it is in range if any of the depth values are negative (i.e. no
+// depth info for those pixels)
 template <class MatT>
-bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, cv::Mat &detectCheck)
+bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
-        float *p = detectCheck.ptr<float>(py);
+        const float *p = detectCheck.ptr<float>(py);
         for (int px = 0; px < detectCheck.cols; px++)
         {
-            if ((p[px] < depth_max) && (p[px] > depth_min))
+            if ((p[px] < 0.0) ||((p[px] < depth_max) && (p[px] > depth_min)))
             {
                 return true;
             }
