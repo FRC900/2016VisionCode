@@ -2,55 +2,49 @@ layer {
   name: "data"
   type: "Data"
   top: "data"
-  top: "label_d24"
+  top: "label"
   include {
     phase: TRAIN
   }
   transform_param {
-    mirror: true
-    crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160213-180149-7dd2/mean.binaryproto"
+    mean_file: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160213-180149-7dd2/train_db"
-    batch_size: 16
-    backend: LMDB
-  }
-  image_data_param {
+    source: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/train_db"
     batch_size: 256
-    shuffle: true
-    new_height: 24
-    new_width: 24
+    backend: LMDB
   }
 }
 layer {
   name: "data"
   type: "Data"
   top: "data"
-  top: "label_d24"
+  top: "label"
   include {
     phase: TEST
   }
   transform_param {
-    mirror: false
-    crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160213-180149-7dd2/mean.binaryproto"
+    mean_file: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160213-180149-7dd2/val_db"
-    batch_size: 16
+    source: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/val_db"
+    batch_size: 100
     backend: LMDB
   }
-  image_data_param {
-    batch_size: 50
-    new_height: 24
-    new_width: 24
+}
+layer {
+  name: "scale_d24"
+  type: "Power"
+  bottom: "data"
+  top: "scale_d24"
+  power_param {
+    scale: 0.00390625
   }
 }
 layer {
   name: "conv1_d24"
   type: "Convolution"
-  bottom: "data"
+  bottom: "scale_d24"
   top: "conv1_d24"
   param {
     lr_mult: 1.0
@@ -61,8 +55,8 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 6
-    kernel_size: 2
+    num_output: 8
+    kernel_size: 3
     stride: 1
     weight_filler {
       type: "xavier"
@@ -79,8 +73,8 @@ layer {
   top: "pool1_d24"
   pooling_param {
     pool: MAX
-    kernel_size: 4
-    stride: 1
+    kernel_size: 3
+    stride: 2
   }
 }
 layer {
@@ -103,7 +97,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 12
+    num_output: 16
     weight_filler {
       type: "xavier"
     }
@@ -117,6 +111,15 @@ layer {
   type: "ReLU"
   bottom: "fc1_d24"
   top: "fc1_d24"
+}
+layer {
+  name: "drop1_d24"
+  type: "Dropout"
+  bottom: "fc1_d24"
+  top: "fc1_d24"
+  dropout_param {
+    dropout_ratio: 0.5
+  }
 }
 layer {
   name: "fc2_d24"
@@ -142,18 +145,18 @@ layer {
   }
 }
 layer {
-  name: "loss_d24"
+  name: "loss"
   type: "SoftmaxWithLoss"
   bottom: "fc2_d24"
-  bottom: "label_d24"
-  top: "loss_d24"
+  bottom: "label"
+  top: "loss"
 }
 layer {
-  name: "accuracy_d24"
+  name: "accuracy"
   type: "Accuracy"
   bottom: "fc2_d24"
-  bottom: "label_d24"
-  top: "accuracy_d24"
+  bottom: "label"
+  top: "accuracy"
   include {
     phase: TEST
   }
