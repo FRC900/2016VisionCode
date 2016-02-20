@@ -18,9 +18,9 @@ ObjectType::ObjectType(int contour_type_id=1) {
 
 		case 1: //a ball!
 			_contour.push_back(cv::Point2f(0,0));
-			_contour.push_back(cv::Point2f(0,0.254));
-			_contour.push_back(cv::Point2f(0.254,0.254));
-			_contour.push_back(cv::Point2f(0.254,0));
+			_contour.push_back(cv::Point2f(0,0.248));
+			_contour.push_back(cv::Point2f(0.248,0.248));
+			_contour.push_back(cv::Point2f(0.248,0));
 			break;
 
 		case 2: //a bin (just because)
