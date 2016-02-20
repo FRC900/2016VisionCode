@@ -6,18 +6,18 @@ input_shape {
   dim: 12
 }
 layer {
-  name: "scale"
+  name: "scale_d12"
   type: "Power"
   bottom: "data"
-  top: "scale"
+  top: "scale_d12"
   power_param {
-    scale: 0.0125000001863
+    scale: 0.00390625
   }
 }
 layer {
   name: "conv1_d12"
   type: "Convolution"
-  bottom: "scale"
+  bottom: "scale_d12"
   top: "conv1_d12"
   param {
     lr_mult: 1.0
@@ -28,8 +28,8 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 2
-    kernel_size: 2
+    num_output: 7
+    kernel_size: 3
     stride: 1
     weight_filler {
       type: "xavier"
@@ -40,21 +40,21 @@ layer {
   }
 }
 layer {
+  name: "relu1_d12"
+  type: "ReLU"
+  bottom: "conv1_d12"
+  top: "conv1_d12"
+}
+layer {
   name: "pool1_d12"
   type: "Pooling"
   bottom: "conv1_d12"
   top: "pool1_d12"
   pooling_param {
     pool: MAX
-    kernel_size: 2
+    kernel_size: 3
     stride: 2
   }
-}
-layer {
-  name: "relu1_d12"
-  type: "ReLU"
-  bottom: "pool1_d12"
-  top: "pool1_d12"
 }
 layer {
   name: "fc1_d12"
@@ -70,7 +70,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 4
+    num_output: 9
     weight_filler {
       type: "xavier"
     }
@@ -80,7 +80,7 @@ layer {
   }
 }
 layer {
-  name: "relu3_d12"
+  name: "relu2_d12"
   type: "ReLU"
   bottom: "fc1_d12"
   top: "fc1_d12"

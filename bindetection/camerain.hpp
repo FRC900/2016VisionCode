@@ -13,10 +13,10 @@ class CameraIn : public MediaIn
 
       int width(void) const;
       int height(void) const;
-      int frameCounter(void) const;
+      int frameNumber(void) const;
 
    private:
-      int              frameCounter_;
+      int              frameNumber_;
 	  int              width_;
 	  int              height_;
       cv::Mat          frame_;

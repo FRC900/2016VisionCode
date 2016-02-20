@@ -15,12 +15,23 @@ endif()
 
 find_package( OpenCV REQUIRED )
 find_package( CUDA REQUIRED )
-find_package( Boost COMPONENTS system REQUIRED )
-include_directories( ${OpenCV_INCLUDE_DIRS} /home/marshall/caffe /home/marshall/caffe/build-6.5/include /home/marshall/caffe/include ${Boost_INCLUDE_DIR} )
+find_package( ZED QUIET )
+if (${ZED_FOUND})
+  add_definitions(-DZED_SUPPORT)
+endif()
+find_package( Boost COMPONENTS system filesystem iostreams serialization REQUIRED )
 
-find_library (LibCaffe caffe PATH  /home/marshall/caffe/build-6.5/lib)
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe-bvlc")
+
+include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CAFFE_BASE_DIR}/build/include ${CAFFE_BASE_DIR}/include ${Boost_INCLUDE_DIR} ../bindetection)
+
+link_directories( ${ZED_LIBRARY_DIR} )
+
+find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
 cuda_add_executable( CaffeBatchPrediction CaffeBatchPrediction.cpp fast_nms.cpp scalefactor.cpp main.cpp detect.cpp )
+cuda_add_executable( DetectCheck CaffeBatchPrediction.cpp detectcheck.cpp fast_nms.cpp scalefactor.cpp detect.cpp ../bindetection/mediain.cpp ../bindetection/zedin.cpp)
 target_link_libraries( CaffeBatchPrediction ${OpenCV_LIBS} ${LibCaffe} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} )
+target_link_libraries( DetectCheck ${ZED_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} )

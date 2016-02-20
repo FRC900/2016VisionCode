@@ -1,3 +1,4 @@
+#include <opencv2/highgui/highgui.hpp>
 #include "GoalDetector.hpp"
 
 using namespace std;
@@ -14,9 +15,10 @@ GoalDetector::GoalDetector()
     _goal_shape_contour.push_back(Point(812.8, 609.6));
     _goal_shape_contour.push_back(Point(812.8, 0));
     _goal_shape_rect = boundingRect(_goal_shape_contour);
+	_goal_found = false;
 }
 
-bool GoalDetector::processFrame(const Mat& image, const Mat& depth, Rect &bound)
+void GoalDetector::processFrame(const Mat& image, const Mat& depth, Rect &bound)
 {
     Mat threshold_image;
     Mat contour_mask(image.rows, image.cols, CV_8UC1, Scalar(0));
@@ -26,51 +28,58 @@ bool GoalDetector::processFrame(const Mat& image, const Mat& depth, Rect &bound)
     Point2f                center_of_area;
     Rect                   contour_rect;
 
+	_goal_found = false;
 	if(!generateThreshold(image, threshold_image, _hue_min, _hue_max, _sat_min, _sat_max, _val_min, _val_max))
 	{
 		_dist_to_goal = -1.0;
 		_angle_to_goal = -1.0;
 		bound = Rect(0,0,0,0);
-		return false;
+		return;
 	}
     findContours(threshold_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 //find contours in the thresholded image
 
-    float max_contour_area = 0;
+    float max_contour_area = 0.f;
 
     for (size_t i = 0; i < contours.size(); i++)
     {
-        if (contourArea(contours[i]) > max_contour_area)                                                                                                             //if this contour is the biggest one pick it
+		float cArea = contourArea(contours[i]);
+        if (cArea > max_contour_area)                                   //if this contour is the biggest one pick it
 		{
 			Moments mu = moments(contours[i], false);                   //get the center of area of the contour
 			center_of_area = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00); //this could be used possibly for comparison to the center of area of the shape
 
 			bound = boundingRect(contours[i]);                   //bounding box of the target
-			
-			contour_mask.setTo(Scalar(0));
-			drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
-			std::pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, bound,10);  //get the minimum and maximum depth values in the contour
-
-			float depth_z_min = minMax.first;
-			float depth_z_max = minMax.second;                         //actually does some averaging
-			float h_dist_with_min = hypotf(depth_z_min, _goal_height); //uses pythagorean theorem to determine horizontal distance to goal using minimum
-
-			float h_dist_with_max = hypotf(depth_z_max, _goal_height + (_goal_shape_rect.height / 1000.0)); //this one uses maximum
-
-			float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;     //average of the two is more accurate
-
-			float goal_to_center_px  = ((float)bound.tl().x + ((float)bound.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
-			float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
-			if (depth_z_min == -1.0)
+			if ((cArea / bound.area()) > .4)
 			{
-				h_dist = -1.0;
+					cout << "Rejected contour since it was too densly filled" << endl;
 			}
-			_dist_to_goal    = h_dist;
-			_angle_to_goal   = goal_to_center_deg * (180.0 / M_PI);
-			max_contour_area = contourArea(contours[i]);     //set variables
+			else
+			{
+				contour_mask.setTo(Scalar(0));
+				drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
+				std::pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, bound,10);  //get the minimum and maximum depth values in the contour
+
+				float depth_z_min = minMax.first;
+				if (depth_z_min > 0.)
+				{
+					float depth_z_max = minMax.second;                         //actually does some averaging
+					float h_dist_with_min = hypotf(depth_z_min, _goal_height); //uses pythagorean theorem to determine horizontal distance to goal using minimum
+
+					float h_dist_with_max = hypotf(depth_z_max, _goal_height + (_goal_shape_rect.height / 1000.0)); //this one uses maximum
+
+					float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;     //average of the two is more accurate
+
+					float goal_to_center_px  = ((float)bound.tl().x + ((float)bound.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
+					float goal_to_center_deg = _camera_hfov * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
+					_dist_to_goal    = h_dist;
+					_angle_to_goal   = goal_to_center_deg * (180.0 / M_PI);
+					max_contour_area = contourArea(contours[i]);     //set variables
+					_goal_found = true;
+				}
+			}
 		}
 	}
-	return true;
 }
 
 

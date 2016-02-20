@@ -17,11 +17,14 @@ class DetectedPlusIndex
 		DetectedPlusIndex(const cv::Rect &rect, double score, size_t index) :
 			rect_(rect),
 			score_(score),
-			index_(index)
+			index_(index),
+			valid_(true)
 	{}
+
 		cv::Rect rect_;
 		float    score_;
 		size_t   index_;
+		bool     valid_;
 
 		bool operator> (const DetectedPlusIndex &other) const
 		{
@@ -38,68 +41,67 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 	// index into the list as it was passed in.  Keep the index
 	// so we can pass the original unsorted index back to the caller.
 	size_t idx = 0;
-	for (auto it = detected.cbegin(); it != detected.cend(); ++it)
+	for (auto it = detected.cbegin(); it != detected.end(); ++it)
 		dpi.push_back(DetectedPlusIndex(it->first, it->second, idx++));
 
 	// Sort input rects by decreasing score - i.e. look at best
 	// values first
 	std::sort(dpi.begin(), dpi.end(), std::greater<DetectedPlusIndex>());
 
-	// Start by assuming all of the input rects are non-overlapping
-	std::vector<bool> validList(dpi.size(), true);
-
-	// Loop while there's anything valid left in rects array
-	bool anyValid;
+	// Loop through the dpi array. Each time through, grab
+	// the highest scoring remaining rect. Invalidate rects
+	// which overlap and have lower scores. Repeat until
+	// every rect has been the "best" or has been invalidated
+	auto it = dpi.begin();
+	auto dpi_end = dpi.end();
 	do
 	{
-		anyValid = false; // assume there's nothing valid, adjust later if needed
-
 		// Look for the highest scoring unprocessed 
 		// rectangle left in the list
-		size_t i;
-		for (i = 0; i < validList.size(); ++i)
-			if (validList[i])
-				break;
+		while ((it != dpi_end) && !it->valid_)
+			++it;
 
 		// Exit if everything has been processed
-		if (i == validList.size())
-			break;
-
-		// Save the index of the highest ranked remaining Rect
-		// and invalidate it - this means we've already
-		// processed it
-		filteredList.push_back(dpi[i].index_);
-		validList[i] = false;
-
-		// Save this rect to compare against the
-		// remaining lower-scoring ones
-		cv::Rect topRect = dpi[i].rect_;
-
-		// Loop through the rest of the array, looking
-		// for entries which overlap with the current "good"
-		// one being processed
-		for (++i; i < dpi.size(); ++i) 
+		if (it != dpi_end)
 		{
-			// Only check entries which haven't 
-			// been removed already
-			if (validList[i])
+			// Save the index of the highest ranked remaining Rect
+			// and invalidate it - this means we've already
+			// processed it
+			filteredList.push_back(it->index_);
+			it->valid_ = false;
+
+			// Save this rect to compare against the
+			// remaining lower-scoring ones
+			cv::Rect topRect = it->rect_;
+
+			// Set up to continue processing next
+			// rectangle next time through
+			++it;
+
+			// Loop through the rest of the array, looking
+			// for entries which overlap with the current "good"
+			// one being processed
+			for (auto jt = it; jt != dpi_end; ++jt) 
 			{
-				cv::Rect thisRect = dpi[i].rect_;
+				// Only check entries which haven't 
+				// been removed already
+				if (jt->valid_)
+				{
+					cv::Rect thisRect = jt->rect_;
 
-				// Look at the Intersection over Union ratio.
-				// The higher this is, the closer the two rects are
-				// to overlapping
-				double intersectArea = (topRect & thisRect).area();
-				double unionArea     = topRect.area() + thisRect.area() - intersectArea;
+					// Look at the Intersection over Union ratio.
+					// The higher this is, the closer the two rects are
+					// to overlapping
+					double intersectArea = (topRect & thisRect).area();
+					double unionArea     = topRect.area() + thisRect.area() - intersectArea;
 
-				if ((intersectArea > 0.0) && ((intersectArea / unionArea) <= overlap_th))
-					validList[i] = false; // invalidate Rects which overlap
-				else
-					anyValid = true;      // otherwise indicate that there's stuff left to do next time
+					if ((intersectArea > 0.0) && ((1-(intersectArea / unionArea)) <= overlap_th))
+						jt->valid_ = false; // invalidate Rects which overlap
+				}
 			}
 		}
 	}
-	while (anyValid);
+	while (it != dpi_end);
 }
 
 #if 0
