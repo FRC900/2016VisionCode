@@ -57,7 +57,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
 	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::VGA,60);
+		zed_ = new sl::zed::Camera(sl::zed::VGA);
 
 	// Save the raw camera stream to disk.  This uses a home-brew
 	// method to serialize image and depth data to disk rather than
