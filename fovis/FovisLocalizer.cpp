@@ -164,7 +164,9 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	uint8_t* pt = (uint8_t*)frameGray.data; //cast to unsigned integer and create pointer to data
 
 	_odom->processFrame(pt, &depthSource); //run visual odometry
+
 	Eigen::Isometry3d m = _odom->getMotionEstimate(); //estimate motion
+
 	_transform_eigen = m;
 
 	Eigen::Vector3d xyz = m.translation();
@@ -174,16 +176,22 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	_transform.first[1] = xyz(1);
 	_transform.first[2] = xyz(2);
 
-	_transform.second[0] = rpy(0) * 180/M_PI;
-	_transform.second[1] = rpy(1) * 180/M_PI;
-	_transform.second[2] = rpy(2) * 180/M_PI;
+	_transform.second[0] = rpy(0);
+	_transform.second[1] = rpy(1);
+	_transform.second[2] = rpy(2);
 
-	cout << "transform " << _transform.first << " " << _transform.second << endl;
 	for(int i = 0; i < 3; i++) {
-		if(_transform.second[i] >= 90) {
-			_transform.second[i] = _transform.second[i] - 180;
-		} else if(_transform.second[i] <= -90) {
-			_transform.second[i] = _transform.second[i] + 180;
-		}
+		if(_transform.second[i] < -(M_PI/2.0) + (M_PI/4.0))
+			while(_transform.second[i] <= -(M_PI/2.0) + (M_PI/4.0))
+				_transform.second[i] += M_PI/2.0;
+		else
+			while(_transform.second[i] >= M_PI/2.0 - (M_PI/4.0))
+				_transform.second[i] -= M_PI/2.0;
 	}
+	
+	cout << "Camera X rotation: " << _transform.second[0] << endl;
+	cout << "Camera Y rotation: " << _transform.second[1] << endl;
+	cout << "Camera Z rotation: " << _transform.second[2] << endl;
+
+
 }

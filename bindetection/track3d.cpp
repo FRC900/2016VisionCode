@@ -56,6 +56,18 @@ ObjectType::ObjectType(const std::vector< cv::Point2f > &contour_in) :
 	computeProperties();
 }
 
+ObjectType::ObjectType(const std::vector< cv::Point > &contour_in) {
+
+for(int i = 0; i < contour_in.size(); i++) {
+	cv::Point2f p;
+	p.x = (float)contour_in[i].x;
+	p.y = (float)contour_in[i].y;
+	_contour.push_back(p);
+}
+computeProperties();
+
+}
+
 void ObjectType::computeProperties() {
 	//create a bounding rectangle and use it to find width and height
 	cv::Rect br = cv::boundingRect(_contour);
@@ -162,9 +174,27 @@ void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_dept
 
 void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
+	Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
+
 	Eigen::Vector3d old_pos_vec(_position.x, _position.y, _position.z);
 	Eigen::Vector3d new_pos_vec = delta_robot.inverse() * old_pos_vec;
+	std::cout << "Rotation: " << delta_robot.rotation().eulerAngles(0,1,2) << std::endl;
+	std::cout << "Old: " << old_pos_vec << std::endl;
+	std::cout << "New: " << new_pos_vec << std::endl;
+	
+	//float r_old = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+	//float azimuth_old = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
+	//float inclination_old = asin( _position.z / r_old );
+
 	_position = cv::Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
+
+	//float r_new = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);	
+	//float azimuth_new = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
+	//float inclination_new = asin( _position.z / r_new );
+
+	//std::cout << "Change in inclination: " << inclination_new - inclination_old << std::endl;
+	//std::cout << "Change in azimuth: " << azimuth_new - azimuth_old << std::endl;
+
 	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
@@ -290,9 +320,14 @@ cv::Point3f TrackedObject::predictKF(void)
 	return _KF.GetPrediction();
 }
 
-cv::Point3f TrackedObject::updateKF(const cv::Point3f &pt)
-{
+cv::Point3f TrackedObject::updateKF(cv::Point3f pt)
+{	
 	return _KF.Update(pt);
+}
+
+void TrackedObject::adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
+{
+	_KF.adjustPrediction(delta_robot);
 }
 
 //Create a tracked object list
@@ -344,7 +379,9 @@ const double dist_thresh_ = 1.0; // FIX ME!
 // if not, be added as new object to the list
 void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects, 
 									  const std::vector<float> depths, 
-									  const std::vector<ObjectType> &types)
+									  const std::vector<ObjectType> &types,
+									  const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot
+)
 {
 	std::cout << "---------- Start of process detect --------------" << std::endl;
 	print();
@@ -418,6 +455,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		std::cout << "prediction:" << prediction << std::endl;
 
 		tr->nextFrame();
+		tr->adjustKF(delta_robot);
 
 		if(*as != -1) // If we have assigned detect, then update using its coordinates
 		{

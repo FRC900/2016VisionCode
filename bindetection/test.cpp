@@ -96,8 +96,8 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
 	//create a top view image of the robot and all detected objects
-	Range xRange = Range(-2,2);
-	Range yRange = Range(-2,2);
+	Range xRange = Range(-4,4);
+	Range yRange = Range(-4,4);
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
@@ -210,7 +210,7 @@ int main( int argc, const char** argv )
 	FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
 	//Creating Goaldetection object
-	GoalDetector gd;
+	GoalDetector gd(Point2f(HFOV,VFOV), Size(cap->width(),cap->height()));
 
 	int64 stepTimer;	
 	
@@ -255,7 +255,7 @@ int main( int argc, const char** argv )
 		cout << " angle to goal: " << gAngle << endl;
 
 		//stepTimer = cv::getTickCount();
-		//fvlc.processFrame(frame,depth);
+		fvlc.processFrame(frame,depth);
 		//cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
@@ -278,7 +278,15 @@ int main( int argc, const char** argv )
 			drawRects(frame,detectRects);
 
 		//adjust locations of objects based on fovis results
-		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
+		utils::printIsometry(fvlc.transform_eigen());
+
+		cout << "Locations before adjustment: " << endl;
+		objectTrackingList.print();
+
+		objectTrackingList.adjustLocation(fvlc.transform_eigen());
+
+		cout << "Locations after adjustment: " << endl;
+		objectTrackingList.print();
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
@@ -304,7 +312,7 @@ int main( int argc, const char** argv )
 				objTypes.push_back(ObjectType(1));
 			}
 		} 
-		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
+		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes, fvlc.transform_eigen());
 		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers

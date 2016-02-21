@@ -88,4 +88,19 @@ namespace utils {
 
 	}
 
+	void printIsometry(const Eigen::Transform<double, 3, Eigen::Isometry> m) {
+
+		Eigen::Vector3d xyz = m.translation();
+		Eigen::Vector3d rpy = m.rotation().eulerAngles(0, 1, 2);
+		cout << "Camera Translation: " << xyz << endl;
+		cout << "Camera Rotation: " << rpy << endl;
+		
+	}
+
+	double normalCFD(double mean, double stddev, double value)
+	{
+		double z_score = (value - mean) / stddev;
+   		return 0.5 * erfc(-z_score * M_SQRT1_2);
+	}
+
 }
