@@ -16,7 +16,7 @@ void shrinkRect(cv::Rect &rect_in, float shrink_factor);
 
 void printIsometry(const Eigen::Transform<double, 3, Eigen::Isometry> m);
 
-double normalCFD(double mean, double stddev, double value);
+double normalCFD(const std::pair<double, double> &meanAndStdev, double value);
 
 }
 

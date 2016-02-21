@@ -4,7 +4,8 @@
 using namespace std;
 using namespace cv;
 
-GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size)
+GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size) :
+	_goal_shape(3)
 {
 	_goal_found = false;
 	_fov_size = fov_size;
@@ -13,15 +14,17 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size)
 
 void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 {
-    Mat threshold_image;
+	// Use to mask the contour off from the rest of the 
+	// image - used when grabbing depth data for the contour
     Mat contour_mask(image.rows, image.cols, CV_8UC1, Scalar(0));
 
-    vector<vector<Point> > contours;
-    vector<Vec4i>          hierarchy;
-    Point2f                center_of_area;
-    Rect                   contour_rect;
-
+	// Reset goal_found flag for each frame. Set it later if
+	// the goal is found
 	_goal_found = false;
+
+	// Look for parts the the image which are within the
+	// expected bright green color range
+    Mat threshold_image;
 	if(!generateThreshold(image, threshold_image, _hue_min, _hue_max, _sat_min, _sat_max, _val_min, _val_max))
 	{
 		_dist_to_goal = -1.0;
@@ -29,64 +32,78 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 		bound = Rect(0,0,0,0);
 		return;
 	}
+
+	// find contours in the thresholded image - these will be blobs
+	// of green to check later on to see how well they match the
+	// expected shape of the goal
+    vector<vector<Point> > contours;
+    vector<Vec4i>          hierarchy;
     findContours(threshold_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-//find contours in the thresholded image
 
     float maxConfidence = 0.f;
-	int detectCount = 0;
-	cout << contours.size() << " contours" << endl;
+	cout << contours.size() << " goalDetect contours found" << endl;
+
+	//center of mass as a percentage of the object size from top left
+	Point2f com_percent_expected(_goal_shape.com().x / _goal_shape.width(),
+								 _goal_shape.com().y / _goal_shape.height());
 
     for (size_t i = 0; i < contours.size(); i++)
     {
-
 		contour_mask.setTo(Scalar(0));
 		drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
-		std::pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, bound,10);  //get the minimum and maximum depth values in the contour
+
+		// get the minimum and maximum depth values in the contour,
+		// copy them into individual floats
+		std::pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, bound,10);  
 		float depth_z_min = minMax.first;
-		float depth_z_max = minMax.second;                         //actually does some averaging
+		float depth_z_max = minMax.second;                         
 
 		//make sure the depth exists before doing other things
 		//if(depth_z_min < 0.)
 		//	continue;
 
-		//ObjectType computes a ton of useful properties so create one for what we're looking at and one for what we expect
-		ObjectType goal_shape(3);
+		// ObjectType computes a ton of useful properties so create 
+		// one for what we're looking at
 		ObjectType goal_actual(contours[i]);
 
 		//create a trackedobject to get x,y,z of the goal
-		TrackedObject goal_tracked_obj(detectCount++, goal_shape, boundingRect(contours[i]), (minMax.first + minMax.second) / 2.0, _fov_size, _frame_size);
+		TrackedObject goal_tracked_obj(0, _goal_shape, boundingRect(contours[i]), (minMax.first + minMax.second) / 2.0, _fov_size, _frame_size);
 
 		//percentage of the object filled in
-		float filledPercentageActual = goal_actual.area() / goal_actual.boundingArea();
-		float filledPercentageExpected = goal_shape.area() / goal_shape.boundingArea();
+		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
+		float filledPercentageExpected = _goal_shape.area() / _goal_shape.boundingArea();
+		cout << "Filled area (act, exp):" << filledPercentageActual << filledPercentageExpected << endl;
 
 		//center of mass as a percentage of the object size from top left
-		Point2f com_percent_actual;
-		com_percent_actual.x = goal_actual.com().x / goal_actual.width();
-		com_percent_actual.y = goal_actual.com().y / goal_actual.height();
-
-		Point2f com_percent_expected;
-		com_percent_expected.x = goal_shape.com().x / goal_shape.width();
-		com_percent_expected.y = goal_shape.com().y / goal_shape.height();
+		Point2f com_percent_actual(goal_actual.com().x / goal_actual.width(),
+								   goal_actual.com().y / goal_actual.height());
+		cout << "comPercent (act, exp):" << com_percent_actual << "," << com_percent_expected << endl;;
 
 		//width to height ratio
-		float ratio = goal_actual.width() / goal_actual.height();
-		float expectedRatio = goal_shape.width() / goal_shape.height();
+		float actualRatio   = goal_actual.width() / goal_actual.height();
+		float expectedRatio = _goal_shape.width() / _goal_shape.height();
+		cout << "Width to height ratio (act, exp):" << actualRatio << " " << expectedRatio << endl;
 
 		//parameters for the normal distributions
 		_height_normal = std::make_pair(_goal_height, 0.2);
-		_com_x_normal = std::make_pair(com_percent_expected.x, 0.2);
-		_com_y_normal = std::make_pair(com_percent_expected.y, 0.2);
-		_area_normal = std::make_pair(filledPercentageExpected, 0.2);
-		_ratio_normal = std::make_pair(expectedRatio,0.1);
+		_com_x_normal  = std::make_pair(com_percent_expected.x, 0.2);
+		_com_y_normal  = std::make_pair(com_percent_expected.y, 0.2);
+		_area_normal   = std::make_pair(filledPercentageExpected, 0.2);
+		_ratio_normal  = std::make_pair(expectedRatio, 0.1);
 
 		//confidence is near 0.5 when value is near the mean
 		//confidence is small or large when value is not near mean
-		float confidence_height = utils::normalCFD(_height_normal.first, _height_normal.second, goal_tracked_obj.getPosition().z);
-		float confidence_com_x = utils::normalCFD(_com_x_normal.first, _com_x_normal.second, com_percent_actual.x);
-		float confidence_com_y = utils::normalCFD(_com_y_normal.first, _com_y_normal.second, com_percent_actual.y);
-		float confidence_area = utils::normalCFD(_area_normal.first, _area_normal.second, filledPercentageActual);
-		float confidence_ratio = utils::normalCFD(_ratio_normal.first, _ratio_normal.first, ratio);
+		float confidence_height = utils::normalCFD(_height_normal, goal_tracked_obj.getPosition().z);
+		float confidence_com_x  = utils::normalCFD(_com_x_normal,  com_percent_actual.x);
+		float confidence_com_y  = utils::normalCFD(_com_y_normal,  com_percent_actual.y);
+		float confidence_area   = utils::normalCFD(_area_normal,   filledPercentageActual);
+		float confidence_ratio  = utils::normalCFD(_ratio_normal,  actualRatio);
+
+		cout << "confidence_height: " << confidence_height << endl;
+		cout << "confidence_com_x: " << confidence_com_x << endl;
+		cout << "confidence_com_y: " << confidence_com_y << endl;
+		cout << "confidence_area: " << confidence_area << endl;
+		cout << "confidence_ratio: " << confidence_ratio << endl;
 
 		//when confidence is near 0.5 set it to 1
 		//when confidence is near 0 set it to 0
@@ -97,13 +114,14 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 		confidence_area = confidence_area > 0.5 ? 1 - confidence_area : confidence_area;
 		confidence_ratio = confidence_ratio > 0.5 ? 1 - confidence_ratio : confidence_ratio;
 		
+		cout << "-------------------------------------------" << endl;
 		cout << "confidence_height: " << confidence_height << endl;
 		cout << "confidence_com_x: " << confidence_com_x << endl;
 		cout << "confidence_com_y: " << confidence_com_y << endl;
 		cout << "confidence_area: " << confidence_area << endl;
 		cout << "confidence_ratio: " << confidence_ratio << endl;
 
-		//higher is better
+		// higher is better
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_area + confidence_ratio) / 5.0;
 
 		cout << "confidence: " << confidence << endl;		
@@ -113,7 +131,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 
 		if(confidence > maxConfidence) {
 			float h_dist_with_min = hypotf(depth_z_min, _goal_height); //uses pythagorean theorem to determine horizontal distance to goal using minimum
-			float h_dist_with_max = hypotf(depth_z_max, _goal_height + (goal_shape.height())); //this one uses maximum
+			float h_dist_with_max = hypotf(depth_z_max, _goal_height + _goal_shape.height()); //this one uses maximum
 			float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;     //average of the two is more accurate
 			float goal_to_center_px  = ((float)bound.tl().x + ((float)bound.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
 			float goal_to_center_deg = _fov_size.x * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
@@ -137,8 +155,8 @@ bool GoalDetector::generateThreshold(const Mat& ImageIn, Mat& ImageOut, int H_MI
 
     cvtColor(ImageIn, ThresholdLocalImage, CV_BGR2HSV, 0);
     split(ThresholdLocalImage, SplitImage);
-    int max[3] = { H_MAX, S_MAX, V_MAX };
-    int min[3] = { H_MIN, S_MIN, V_MIN };
+    Vec3i max( H_MAX, S_MAX, V_MAX );
+    Vec3i min( H_MIN, S_MIN, V_MIN );
     for (size_t i = 0; i < SplitImage.size(); i++)
     {
         compare(SplitImage[i], min[i], SplitImageGE, cv::CMP_GE);

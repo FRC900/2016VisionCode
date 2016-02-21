@@ -97,9 +97,9 @@ namespace utils {
 		
 	}
 
-	double normalCFD(double mean, double stddev, double value)
+	double normalCFD(const pair<double,double> &meanAndStddev, double value)
 	{
-		double z_score = (value - mean) / stddev;
+		double z_score = (value - meanAndStddev.first) / meanAndStddev.second;
    		return 0.5 * erfc(-z_score * M_SQRT1_2);
 	}
 
