@@ -33,12 +33,12 @@ ObjectType::ObjectType(int contour_type_id=1) {
 		case 3: //the vision goal
 						//probably needs more code to work well but keep it in here anyways
 			_contour.push_back(cv::Point2f(0, 0));
-			_contour.push_back(cv::Point2f(0, 0.6096));
-			_contour.push_back(cv::Point2f(0.0508, 0.6096));
+			_contour.push_back(cv::Point2f(0, 0.3048));
+			_contour.push_back(cv::Point2f(0.0508, 0.3048));
 			_contour.push_back(cv::Point2f(0.0508, 0.0508));
 			_contour.push_back(cv::Point2f(0.762, 0.0508));
-			_contour.push_back(cv::Point2f(0.762, 0.6096));
-			_contour.push_back(cv::Point2f(0.8128, 0.6096));
+			_contour.push_back(cv::Point2f(0.762, 0.3048));
+			_contour.push_back(cv::Point2f(0.8128, 0.3048));
 			_contour.push_back(cv::Point2f(0.8128, 0));
 			break;
 

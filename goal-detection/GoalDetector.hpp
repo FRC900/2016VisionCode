@@ -17,33 +17,34 @@ public:
     float dist_to_goal(void) const { return _goal_found ? _dist_to_goal : -1.0; }   //floor distance to goal in m
     float angle_to_goal(void) const { return _goal_found ? _angle_to_goal : -1.0; } //angle robot has to turn to face goal in degrees
 
-    void processFrame(const cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
+    void processFrame(cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
 
 private:
 
     cv::Point2f _fov_size;
 	cv::Size _frame_size;
     float _goal_height = 2.159;                   //in m
-/*
+
     int _hue_min = 60;                            //60-95 is a good range for bright green
     int _hue_max = 95;
     int _sat_min = 180;
     int _sat_max = 255;
     int _val_min = 67;
     int _val_max = 255;
-*/
 
-	int _hue_min = 60;                            //60-95 is a good range for bright green
+
+	/*int _hue_min = 0;                            //60-95 is a good range for bright green
     int _hue_max = 90;
     int _sat_min = 0;
     int _sat_max = 255;
     int _val_min = 0;
-    int _val_max = 255;
+    int _val_max = 255; */
 
 	std::pair<float,float> _height_normal;
 	std::pair<float,float> _com_x_normal;
 	std::pair<float,float> _com_y_normal;
 	std::pair<float,float> _area_normal;
+	std::pair<float,float> _ratio_normal;
 
     float _dist_to_goal;
     float _angle_to_goal;
