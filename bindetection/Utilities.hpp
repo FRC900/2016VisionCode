@@ -1,6 +1,7 @@
 //standard include
 #include <math.h>
 #include <iostream>
+#include <fstream>
 
 #include <Eigen/Geometry>
 #include <cmath>
