@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_CXX_FLAGS "-std=c++11 -DZED_SUPPORT")
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++11)
+set(CMAKE_BUILD_TYPE Debug)
 project( goal_detect )
+set(CMAKE_CXX_FLAGS "-std=c++11 -DZED_SUPPORT -Wall")
 
 find_package(OpenCV REQUIRED )
 find_package(ZED REQUIRED)

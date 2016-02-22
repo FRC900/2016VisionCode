@@ -12,7 +12,6 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-
    ZedIn *cap = NULL;
    if(argc == 2) {
   	cap = new ZedIn(argv[1]);
@@ -26,6 +25,18 @@ int main(int argc, char **argv)
    cap->left(true);
 
    GoalDetector gd(Point2f(84.14 * (M_PI / 180.0), 53.836 * (M_PI / 180.0)), Size(cap->width(),cap->height()));
+
+    namedWindow("RangeControl", WINDOW_AUTOSIZE);
+
+    createTrackbar("HueMin","RangeControl", &gd._hue_min, 179);
+    createTrackbar("HueMax","RangeControl", &gd._hue_max, 179);
+
+    createTrackbar("SatMin","RangeControl", &gd._sat_min, 255);
+    createTrackbar("SatMax","RangeControl", &gd._sat_max, 255);
+
+    createTrackbar("ValMin","RangeControl", &gd._val_min, 255);
+    createTrackbar("ValMax","RangeControl", &gd._val_max, 255);
+
    Mat image;
    Mat depth;
    Rect bound;
@@ -41,6 +52,9 @@ int main(int argc, char **argv)
 	cout << "Angle to goal: " << gd.angle_to_goal() << endl;
 	imshow ("Image", image);
 
-	waitKey(5);
+	if ((uchar)waitKey(5) == 27)
+	{
+		break;
+	}
    }
 }

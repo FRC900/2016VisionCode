@@ -11,8 +11,8 @@ namespace utils {
 		if ((img.rows != mask.rows) || (img.cols != mask.cols))
 			return make_pair(-2,-2);
 
-		double min = numeric_limits<float>::max();
-		double max = numeric_limits<float>::min();
+		float min = numeric_limits<float>::max();
+		float max = numeric_limits<float>::min();
 		int min_loc_x;
 		int min_loc_y;
 		int max_loc_x;

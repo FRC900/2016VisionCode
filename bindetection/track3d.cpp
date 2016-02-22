@@ -9,6 +9,7 @@
 #include "hungarian.hpp"
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <limits>
 
 const int missedFrameCountMax = 5;
 
@@ -31,16 +32,19 @@ ObjectType::ObjectType(int contour_type_id=1) {
 			break;
 
 		case 3: //the vision goal
+{
 						//probably needs more code to work well but keep it in here anyways
-			_contour.push_back(cv::Point2f(0, 0));
-			_contour.push_back(cv::Point2f(0, 0.3048));
-			_contour.push_back(cv::Point2f(0.0508, 0.3048));
-			_contour.push_back(cv::Point2f(0.0508, 0.0508));
-			_contour.push_back(cv::Point2f(0.762, 0.0508));
-			_contour.push_back(cv::Point2f(0.762, 0.3048));
-			_contour.push_back(cv::Point2f(0.8128, 0.3048));
-			_contour.push_back(cv::Point2f(0.8128, 0));
+			float max_y = .3048;
+			_contour.push_back(cv::Point2f(0, max_y - 0));
+			_contour.push_back(cv::Point2f(0, max_y - 0.3048));
+			_contour.push_back(cv::Point2f(0.0508, max_y - 0.3048));
+			_contour.push_back(cv::Point2f(0.0508, max_y - 0.0508));
+			_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.0508));
+			_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.3048));
+			_contour.push_back(cv::Point2f(0.508, max_y - 0.3048));
+			_contour.push_back(cv::Point2f(0.508, max_y - 0));
 			break;
+}
 
 		default:
 			std::cerr << "error initializing object!" << std::endl;
@@ -58,7 +62,7 @@ ObjectType::ObjectType(const std::vector< cv::Point2f > &contour_in) :
 
 ObjectType::ObjectType(const std::vector< cv::Point > &contour_in) {
 
-for(int i = 0; i < contour_in.size(); i++) {
+for(size_t i = 0; i < contour_in.size(); i++) {
 	cv::Point2f p;
 	p.x = (float)contour_in[i].x;
 	p.y = (float)contour_in[i].y;
@@ -69,16 +73,26 @@ computeProperties();
 }
 
 void ObjectType::computeProperties() {
-	//create a bounding rectangle and use it to find width and height
-	cv::Rect br = cv::boundingRect(_contour);
-	_width = br.width;
-	_height = br.height;
+	float min_x = std::numeric_limits<float>::max();
+	float min_y = std::numeric_limits<float>::max();
+	float max_x = std::numeric_limits<float>::min();
+	float max_y = std::numeric_limits<float>::min();
+	for (auto it = _contour.cbegin(); it != _contour.cend(); ++it)
+	{
+		min_x = std::min(min_x, it->x);
+		min_y = std::min(min_y, it->y);
+		max_x = std::max(max_x, it->x);
+		max_y = std::max(max_y, it->y);
+	}
+	_width = max_x - min_x;
+	_height = max_y - min_y;
 	_area = cv::contourArea(_contour);
 
 	//compute moments and use them to find center of mass
 	cv::Moments mu = moments(_contour, false);
 	_com = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
+
 
 static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size) 
 {
