@@ -34,21 +34,15 @@ public:
     int _val_min = 67;
     int _val_max = 255;*/
 
-	bool _draw = false;
+	bool _draw;
 
 private:
+	void wrapConfidence(float &confidence);
 	ObjectType _goal_shape;
     cv::Point2f _fov_size;
 	cv::Size _frame_size;
     const float _goal_height = 2.159;                   //in m
     //const float _goal_height = 0;                   //in m - for testing
-
-	std::pair<float,float> _height_normal;
-	std::pair<float,float> _com_x_normal;
-	std::pair<float,float> _com_y_normal;
-	std::pair<float,float> _area_normal;
-	std::pair<float,float> _ratio_normal;
-	std::pair<float,float> _size_normal;
 
     float _dist_to_goal;
     float _angle_to_goal;
