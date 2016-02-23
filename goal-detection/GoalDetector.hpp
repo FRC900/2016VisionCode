@@ -17,7 +17,7 @@ public:
     float dist_to_goal(void) const { return _goal_found ? _dist_to_goal : -1.0; }   //floor distance to goal in m
     float angle_to_goal(void) const { return _goal_found ? _angle_to_goal : -1.0; } //angle robot has to turn to face goal in degrees
 
-    void processFrame(cv::Mat& image, const cv::Mat& depth, cv::Rect &bound, utils::DataRecorder &info_writer); //this updates dist_to_goal and angle_to_goal
+    void processFrame(cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
 
    
     int _hue_min = 80;                            //60-95 is a good range for bright green

@@ -12,7 +12,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size) :
 	_frame_size = frame_size;
 }
 
-void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound, utils::DataRecorder &info_writer)
+void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 {
 	
 	float confidence_height;
@@ -122,7 +122,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound, utils
 		// higher is better
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_area + confidence_ratio) / 5.0;
 
-
+		/*
 		cout << "-------------------------------------------" << endl;
 		cout << "Contour " << i << endl;
 		cout << "Area: " << goal_actual.area() << endl;
@@ -133,7 +133,8 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound, utils
 		cout << "confidence_ratio: " << confidence_ratio << endl;
 		cout << "confidence: " << confidence << endl;		
 		cout << "-------------------------------------------" << endl;
-		
+		*/
+
 		if(_draw) {
 			drawContours(image, contours,i,Scalar(0,0,255),3);
 			rectangle(image, br, Scalar(255,0,0), 2);
@@ -156,7 +157,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound, utils
 			_goal_found = true;
 		}
 
-		vector<string> info;
+		/*vector<string> info;
 		info.push_back(to_string(confidence_height));
 		info.push_back(to_string(confidence_com_x));
 		info.push_back(to_string(confidence_com_y));
@@ -165,6 +166,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound, utils
 		info.push_back(to_string(confidence));
 		info.push_back(to_string(h_dist));
 		info.push_back(to_string(goal_to_center_deg));
+		info_writer.log(info); */
 		
 		
 		
