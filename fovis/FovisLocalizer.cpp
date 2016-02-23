@@ -90,29 +90,46 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	}
 
 	vector< float > optical_flow_magnitude;
+	vector< bool > flow_good_sectors(prevCorner2.size(),true); //mark all sectors initially as good
 
 	Mat rigid_transform;
 	for(size_t i = 0; i < prevCorner2.size(); i++) { //for each sector calculate the magnitude of the movement
-		if(prevCorner2[i].size() >= 3 && currCorner2[i].size() >= 3) { //don't calculate if no points in the sector
+		if(prevCorner2[i].size() >= 3 && currCorner2[i].size() >= 3) 
+		{ //don't calculate if no points in the sector
 			rigid_transform = estimateRigidTransform(prevCorner2[i], currCorner2[i], false);
+			if (rigid_transform.empty())
+				flow_good_sectors[i] = false;
 			optical_flow_magnitude.push_back(norm(rigid_transform,NORM_L2));
 		}
+		else
+		{
+			// Put dummy values here so flow_good_sectors indexes
+			// line up with sector_rect indexes above and below
+			flow_good_sectors[i] = false;
+			optical_flow_magnitude.push_back(0.0);
+		}
 	}
-
-	vector< bool > flow_good_sectors(optical_flow_magnitude.size(),true); //mark all sectors initially as good
 
 	size_t num_sectors_left = flow_good_sectors.size();
 
 	while(1) {
 		float mag_mean;
-		float sum = 0;
+		float sum = 0.;
 
 		size_t good_sectors_prev_size = num_sectors_left;
 
+		//calculate the mean flow magnitude of the remaining good sectors
+		int num_good_sectors = 0;
 		for(size_t i = 0; i < flow_good_sectors.size(); i++) {
-			sum += optical_flow_magnitude[i]; //calculate the mean
+			if (flow_good_sectors[i])
+			{
+				sum += optical_flow_magnitude[i]; 
+				num_good_sectors += 1;
+			}
 		}
-		mag_mean = sum / (float)optical_flow_magnitude.size();
+		if (num_good_sectors == 0)
+			break;
+		mag_mean = sum / (float)num_good_sectors;
 
 		//this loop iterates through the points and checks if they 
 		//are outside a range. if they are, then they are eliminated 
@@ -142,9 +159,9 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 		}
 	}
 
-	for(int j = 0;j < depthFrame.rows;j++){ //for each row
+	for(int j = 0; j < depthFrame.rows; j++){ //for each row
 		ptr_depthFrame = depthFrame.ptr<float>(j);
-		for(int i = 0;i < depthFrame.cols;i++){ //for each pixel in row
+		for(int i = 0; i < depthFrame.cols; i++){ //for each pixel in row
 			if(ptr_depthFrame[i] <= 0) {
 				ptr_depthFrame[i] = NAN; //set to NaN if negative
 			} else {
@@ -180,6 +197,27 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	_transform.second[1] = rpy(1);
 	_transform.second[2] = rpy(2);
 
+	// If there were errors calculating the transformation
+	// matrix, zero out everything so that this pose update
+	// is ignored. 
+	if (isnan(_transform.first[0]) ||
+	    isnan(_transform.first[1]) ||
+	    isnan(_transform.first[2]) ||
+	    isnan(_transform.second[0]) ||
+	    isnan(_transform.second[1]) ||
+		isnan(_transform.second[2]) )
+	{
+		_transform.first[0] = 0;
+		_transform.first[1] = 0;
+		_transform.first[2] = 0;
+		_transform.second[0] = 0;
+		_transform.second[1] = 0;
+		_transform.second[2] = 0;
+	}
+
+
+	//TODO : check that 2 180 rotations don't add up
+	//to no rotation?
 	for(int i = 0; i < 3; i++) {
 		if(_transform.second[i] < -(M_PI/2.0) + (M_PI/4.0))
 			while(_transform.second[i] <= -(M_PI/2.0) + (M_PI/4.0))
@@ -192,6 +230,4 @@ void FovisLocalizer::processFrame(const cv::Mat& img_in, const cv::Mat& depth_in
 	cout << "Camera X rotation: " << _transform.second[0] << endl;
 	cout << "Camera Y rotation: " << _transform.second[1] << endl;
 	cout << "Camera Z rotation: " << _transform.second[2] << endl;
-
-
 }

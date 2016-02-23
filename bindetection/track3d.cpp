@@ -18,10 +18,13 @@ ObjectType::ObjectType(int contour_type_id=1) {
 		//loads one of the preset shapes into the
 
 		case 1: //a ball!
-			_contour.push_back(cv::Point2f(0,0));
-			_contour.push_back(cv::Point2f(0,0.248));
-			_contour.push_back(cv::Point2f(0.248,0.248));
-			_contour.push_back(cv::Point2f(0.248,0));
+			{
+				float ball_diameter = 0.2476; // meters
+				_contour.push_back(cv::Point2f(0,0));
+				_contour.push_back(cv::Point2f(0,ball_diameter));
+				_contour.push_back(cv::Point2f(ball_diameter,ball_diameter));
+				_contour.push_back(cv::Point2f(ball_diameter,0));
+			}
 			break;
 
 		case 2: //a bin (just because)
@@ -32,19 +35,18 @@ ObjectType::ObjectType(int contour_type_id=1) {
 			break;
 
 		case 3: //the vision goal
-{
-						//probably needs more code to work well but keep it in here anyways
-			float max_y = .3048;
-			_contour.push_back(cv::Point2f(0, max_y - 0));
-			_contour.push_back(cv::Point2f(0, max_y - 0.3048));
-			_contour.push_back(cv::Point2f(0.0508, max_y - 0.3048));
-			_contour.push_back(cv::Point2f(0.0508, max_y - 0.0508));
-			_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.0508));
-			_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.3048));
-			_contour.push_back(cv::Point2f(0.508, max_y - 0.3048));
-			_contour.push_back(cv::Point2f(0.508, max_y - 0));
+			{
+				float max_y = .3048;
+				_contour.push_back(cv::Point2f(0, max_y - 0));
+				_contour.push_back(cv::Point2f(0, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.0508, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.0508, max_y - 0.0508));
+				_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.0508));
+				_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.508, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.508, max_y - 0));
+			}
 			break;
-}
 
 		default:
 			std::cerr << "error initializing object!" << std::endl;
@@ -280,9 +282,10 @@ void TrackedObject::nextFrame(void)
 	_historyIndex += 1;
 }
 
+
 cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
 {
-	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
 	//std::cout << "Position: " << _position << std::endl;
 	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asin( _position.z / r );
@@ -298,7 +301,7 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
 	rect_center.y = -dist_to_center.y + (frame_size.height / 2.0);
 
-	cv::Point2f angular_size = cv::Point2f( atan2(_type.width(), (2.0*r)), atan2(_type.height(), (2.0*r)));
+	cv::Point2f angular_size = cv::Point2f( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
 	cv::Point2f screen_size;
 	screen_size.x = angular_size.x * (frame_size.width / fov_size.x);
 	screen_size.y = angular_size.y * (frame_size.height / fov_size.y);
@@ -307,7 +310,7 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	topLeft.x = cvRound(rect_center.x - (screen_size.x / 2.0));
 	topLeft.y = cvRound(rect_center.y - (screen_size.y / 2.0));
 
-	return cv::Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
+	return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
 
