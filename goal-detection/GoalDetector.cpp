@@ -70,7 +70,8 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 		float depth_z_max = minMax.second;                        
 
 		//make sure the depth exists before doing other things
-		if ((depth_z_min < 0.) || (depth_z_max < 0.)) 
+		//also don't bother with targets too close to see (need more exact value here)
+		if ((depth_z_min < 1.) || (depth_z_max < 1.)) 
 			continue;
 
 		// ObjectType computes a ton of useful properties so create 
@@ -125,7 +126,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 		// higher is better
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_area + confidence_ratio + confidence_ideal_area) / 6.0;
 
-		/*
+#if 0
 		cout << "-------------------------------------------" << endl;
 		cout << "Contour " << i << endl;
 		cout << "confidence_height: " << confidence_height << endl;
@@ -136,7 +137,10 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 		cout << "confidence_ideal_area: " << confidence_ideal_area << endl;
 		cout << "confidence: " << confidence << endl;		
 		cout << "-------------------------------------------" << endl;
-		*/
+#endif
+
+		if (confidence < 0.13)
+			continue;
 
 		if(_draw) {
 			drawContours(image, contours,i,Scalar(0,0,255),3);

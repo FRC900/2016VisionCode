@@ -24,7 +24,9 @@ int main(int argc, char **argv)
 
    cap->left(true);
 
-   GoalDetector gd(Point2f(84.14 * (M_PI / 180.0), 53.836 * (M_PI / 180.0)), Size(cap->width(),cap->height()));
+const float HFOV =  51.3 * M_PI / 180.;
+   GoalDetector gd(Point2f(HFOV, HFOV * 480. / 640.), Size(cap->width(),cap->height()));
+gd._draw = true;
 
     namedWindow("RangeControl", WINDOW_AUTOSIZE);
 

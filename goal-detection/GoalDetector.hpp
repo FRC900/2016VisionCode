@@ -20,11 +20,11 @@ public:
     void processFrame(cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
 
    
-    int _hue_min = 80;                            //60-95 is a good range for bright green
-    int _hue_max = 120;
-    int _sat_min = 145;
+    int _hue_min = 70;                            //60-95 is a good range for bright green
+    int _hue_max = 100;
+    int _sat_min =  45;
     int _sat_max = 255;
-    int _val_min = 151;
+    int _val_min = 175;
     int _val_max = 255;
 
     /*int _hue_min = 60;                            //60-95 is a good range for bright green
@@ -41,8 +41,7 @@ private:
 	ObjectType _goal_shape;
     cv::Point2f _fov_size;
 	cv::Size _frame_size;
-    const float _goal_height = 2.159;                   //in m
-    //const float _goal_height = 0;                   //in m - for testing
+    const float _goal_height = 2.159 - 1;  // goal height minus camera mounting ht
 
     float _dist_to_goal;
     float _angle_to_goal;
