@@ -18,7 +18,7 @@
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL);
+		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false);
 		~ZedIn();
 		bool getNextFrame(cv::Mat &frame, bool pause = false);
 
@@ -51,6 +51,13 @@ class ZedIn : public MediaIn
 		int height_;
 		int frameNumber_;
 
+		int brightness_;
+		int contrast_;
+		int hue_;
+		int saturation_;
+		int gain_;
+		int whiteBalance_;
+
 		// Hack up a way to save zed data - serialize both 
 		// BGR frame and depth frame
 		std::ifstream *serializeIn_;
@@ -59,6 +66,14 @@ class ZedIn : public MediaIn
 		std::ofstream *serializeOut_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::output> filtSBOut_;
 		boost::archive::binary_oarchive *archiveOut_;
+
+		// Mark these as friends so they can access private class data
+		friend void brightnessCallback(int value, void *data);
+		friend void contrastCallback(int value, void *data);
+		friend void hueCallback(int value, void *data);
+		friend void saturationCallback(int value, void *data);
+		friend void gainCallback(int value, void *data);
+		friend void whiteBalanceTemperatureCallback(int value, void *data);
 #if 0
 		int serializeFrameSize_;
 #endif

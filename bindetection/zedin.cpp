@@ -12,10 +12,17 @@ using namespace std;
 using namespace cv;
 using namespace boost::filesystem;
 
-ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
-	zed_(NULL),
-	width_(0),
-	height_(0),
+void brightnessCallback(int value, void *data);
+void contrastCallback(int value, void *data);
+void hueCallback(int value, void *data);
+void saturationCallback(int value, void *data);
+void gainCallback(int value, void *data);
+void whiteBalanceTemperatureCallback(int value, void *data);
+
+ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
+		zed_(NULL),
+		width_(0),
+		height_(0),
 	frameNumber_(0),
 	serializeIn_(NULL), 
 	archiveIn_(NULL),
@@ -98,6 +105,38 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		{
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
+
+#if 0
+			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
+			contrast_ = zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST);
+			hue_ = zed_->getCameraSettingsValue(sl::zed::ZED_HUE);
+			saturation_ = zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION);
+			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
+			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
+#endif
+			brightness_ = 5;
+			contrast_ = 5;
+			hue_ = 6;
+			saturation_ = 3;
+			gain_ = 2;
+			whiteBalance_ = 3100;
+
+			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
+			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
+			cout << "hue_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_HUE) << endl;
+			cout << "saturation_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION) << endl;
+			cout << "gain_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_GAIN) << endl;
+			cout << "whiteBalance_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE) << endl;
+if (gui)
+{
+		cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
+		cv::createTrackbar("Brightness", "Adjustments", &brightness_, 9, brightnessCallback, this);
+		cv::createTrackbar("Contrast", "Adjustments", &contrast_, 9, contrastCallback, this);
+		cv::createTrackbar("Hue", "Adjustments", &hue_, 12, hueCallback, this);
+		cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, saturationCallback, this);
+		cv::createTrackbar("Gain", "Adjustments", &gain_, 9, gainCallback, this);
+		cv::createTrackbar("White Balance Temperature", "Adjustments", &whiteBalance_, 6501, whiteBalanceTemperatureCallback, this);
+}
 		}
 	}
 	else if (serializeIn_ && serializeIn_->is_open())
@@ -172,6 +211,12 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		// a previously-serialized ZMS file
 		if (zed_)
 		{
+			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
+			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
+			cout << "hue_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_HUE) << endl;
+			cout << "saturation_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION) << endl;
+			cout << "gain_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_GAIN) << endl;
+			cout << "whiteBalance_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE) << endl;
 			zed_->grab(sl::zed::RAW);
 
 			slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
@@ -252,7 +297,8 @@ void ZedIn::frameNumber(int frameNumber)
 	}
 	else 
 #endif
-	if (zed_)
+	if (zed_)  
+
 	{
 		if (zed_->setSVOPosition(frameNumber))
 			frameNumber_ = frameNumber;
@@ -302,6 +348,60 @@ sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
 	return params;
 }
 
+void brightnessCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->brightness_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value);
+	}
+}
+void contrastCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->contrast_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value);
+	}
+}
+void hueCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->hue_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value);
+	}
+}
+void saturationCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->saturation_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value);
+	}
+}
+void gainCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->gain_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value);
+	}
+}
+void whiteBalanceTemperatureCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->whiteBalance_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value);
+	}
+}
 #else
 
 ZedIn::~ZedIn()
