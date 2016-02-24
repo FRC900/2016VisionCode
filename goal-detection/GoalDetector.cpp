@@ -27,17 +27,15 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 	// Reset goal_found flag for each frame. Set it later if
 	// the goal is found
 	_goal_found = false;
+	_dist_to_goal = -1.0;
+	_angle_to_goal = -1.0;
+	bound = Rect(0,0,0,0);
 
 	// Look for parts the the image which are within the
 	// expected bright green color range
     Mat threshold_image;
 	if(!generateThreshold(image, threshold_image, _hue_min, _hue_max, _sat_min, _sat_max, _val_min, _val_max))
-	{
-		_dist_to_goal = -1.0;
-		_angle_to_goal = -1.0;
-		bound = Rect(0,0,0,0);
 		return;
-	}
 
 	// find contours in the thresholded image - these will be blobs
 	// of green to check later on to see how well they match the
@@ -62,7 +60,6 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 	
 		drawContours(contour_mask, contours, i, Scalar(255), CV_FILLED); //create a mask on the contour
 
-		bound = boundingRect(contours[i]);
 		// get the minimum and maximum depth values in the contour,
 		// copy them into individual floats
 		pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, br, 10);  
