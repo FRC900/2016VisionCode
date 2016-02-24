@@ -68,12 +68,12 @@ class ZedIn : public MediaIn
 		boost::archive::binary_oarchive *archiveOut_;
 
 		// Mark these as friends so they can access private class data
-		friend void brightnessCallback(int value, void *data);
-		friend void contrastCallback(int value, void *data);
-		friend void hueCallback(int value, void *data);
-		friend void saturationCallback(int value, void *data);
-		friend void gainCallback(int value, void *data);
-		friend void whiteBalanceTemperatureCallback(int value, void *data);
+		friend void zedBrightnessCallback(int value, void *data);
+		friend void zedContrastCallback(int value, void *data);
+		friend void zedHueCallback(int value, void *data);
+		friend void zedSaturationCallback(int value, void *data);
+		friend void zedGainCallback(int value, void *data);
+		friend void zedWhiteBalanceCallback(int value, void *data);
 #if 0
 		int serializeFrameSize_;
 #endif
