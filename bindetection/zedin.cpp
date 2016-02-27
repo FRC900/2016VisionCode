@@ -69,10 +69,10 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	{
 		// init computation mode of the zed
 		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::QUALITY, -1, true);
-		cout << sl::zed::errcode2str(err) << endl;
 		// Quit if an error occurred
 		if (err != sl::zed::SUCCESS) 
 		{
+			cout << sl::zed::errcode2str(err) << endl;
 			delete zed_;
 			zed_ = NULL;
 		}
@@ -114,7 +114,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			}
 		}
 	}
-	else if (serializeIn_ && serializeIn_->is_open())
+	else if (archiveIn_)
 	{
 		// Zed == NULL and serializeStream_ means reading from 
 		// a serialized file. Grab height_ and width_
@@ -151,8 +151,10 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	deleteInputPointers();
 	serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
 	if (!serializeIn_ || !serializeIn_->is_open())
+	{
+		cerr << "Coulnd not open ifstream(" << inFileName << endl;
 		return false;
-	cerr << "Loading " << inFileName << " for reading" << endl;
+	}
 
 	filtSBIn_= new boost::iostreams::filtering_streambuf<boost::iostreams::input>;
 	if (!filtSBIn_)
@@ -185,7 +187,7 @@ bool ZedIn::openSerializeOutput(const char *outFileName)
 	serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
 	if (!serializeOut_ || !serializeOut_->is_open())
 	{
-		cerr << "Coulnd not open ofstream(" << outFileName<< endl;
+		cerr << "Coulnd not open ofstream(" << outFileName << endl;
 		return false;
 	}
 	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
@@ -247,6 +249,7 @@ void ZedIn::deleteOutputPointers(void)
 	}
 }
 
+
 void ZedIn::deletePointers(void)
 {
 	deleteInputPointers();
@@ -264,8 +267,7 @@ ZedIn::~ZedIn()
 
 bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 {
-	if ((zed_ == NULL) && 
-		!(serializeIn_ && serializeIn_->is_open() && archiveIn_))
+	if ((zed_ == NULL) && (archiveIn_ == NULL))
 		return false;
 
 	if (pause == false)
@@ -281,7 +283,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 
 			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
 		}
-		else if (serializeIn_ && serializeIn_->is_open())
+		else if (archiveIn_)
 		{
 			// Ugly try-catch to detect EOF
 			try
@@ -295,7 +297,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		}
 
 		// Write output to serialized file if it is open
-		if (serializeOut_ && serializeOut_->is_open())
+		if (archiveOut_)
 		{
 			*archiveOut_ << frame_ << depthMat_;
 			if ((frameNumber_ > 0) && ((frameNumber_ % 300) == 0))
@@ -330,7 +332,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool pause)
 int ZedIn::frameCount(void) const
 {
 	// If we're using an input file we can calculate this.
-	if (serializeIn_ && serializeIn_->is_open() && serializeFrameSize_)
+	if (archiveIn_ && serializeFrameSize_)
 		return (((int)serializeIn_->tellg() - serializeFrameStart_) / serializeFrameSize_);
 
 	// Luckily getSVONumberOfFrames() returns -1 if we're
@@ -355,7 +357,7 @@ int ZedIn::frameNumber(void) const
 // fail, but nothing we can do about that so fail silently
 void ZedIn::frameNumber(int frameNumber)
 {
-	if (serializeIn_ && serializeIn_->is_open() && serializeFrameSize_)
+	if (archiveIn_ && serializeFrameSize_)
 	{
 		serializeIn_->seekg(serializeFrameStart_ + frameNumber_ * serializeFrameSize_);
 		frameNumber_ = frameNumber;
@@ -368,19 +370,25 @@ void ZedIn::frameNumber(int frameNumber)
 }
 
 
-double ZedIn::getDepth(int x, int y) 
+float ZedIn::getDepth(int x, int y) 
 {
-	float* ptr_image_num = (float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
+	const float* ptr_image_num = (const float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
 	return ptr_image_num[x];
 }
 
 
-bool ZedIn::getDepthMat(Mat &depthMat)
+bool ZedIn::getDepthMat(Mat &depthMat) const
 {
 	depthMat_.copyTo(depthMat); //not normalized depth
 	return true;
 }
 
+bool ZedIn::getNormalDepthMat(Mat &normDepthMat) const
+{
+	slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
+	normDepthMat_.copyTo(normDepthMat); 
+	return true;
+}
 
 int ZedIn::width(void) const
 {
