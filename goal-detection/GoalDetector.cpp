@@ -11,6 +11,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size) :
 	_fov_size = fov_size;
 	_frame_size = frame_size;
 	_draw = false;
+	_min_valid_confidence = 0.2;
 }
 
 void GoalDetector::wrapConfidence(float &confidence)
@@ -44,7 +45,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
     vector<Vec4i>          hierarchy;
     findContours(threshold_image, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
-    float maxConfidence = 0.f;
+    float maxConfidence = _min_valid_confidence;
 	//cout << contours.size() << " goalDetect contours found" << endl;
 
 	int best_contour_index;
@@ -135,9 +136,6 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 		cout << "confidence: " << confidence << endl;		
 		cout << "-------------------------------------------" << endl;
 #endif
-
-		if (confidence < 0.13)
-			continue;
 
 		if(_draw) {
 			drawContours(image, contours,i,Scalar(0,0,255),3);
