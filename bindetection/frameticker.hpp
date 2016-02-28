@@ -44,6 +44,5 @@ class FrameTicker
 		double  divider_;
 };
 
-
 #endif
 
