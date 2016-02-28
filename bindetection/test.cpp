@@ -221,7 +221,7 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
 	{
-		frameTicker.start(); // start time for this frame
+		frameTicker.mark(); // mark start of new frame
 
 		//Getting depth matrix
 		cap->getDepthMat(depth);
@@ -329,7 +329,9 @@ int main( int argc, const char** argv )
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking && !args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
+		if (args.tracking && 
+			!args.batchMode && 
+			((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
 		    drawTrackingInfo(frame, displayList);
 
@@ -367,13 +369,13 @@ int main( int argc, const char** argv )
 		// avoid printing too much stuff
 	    if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && ((cap->frameNumber() % 50) == 0))))
+			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 50) == 0))))
 	    {
 			stringstream ss;
 			// If in args.batch mode and reading a video, display
 			// the frame count
 			int frames = cap->frameCount();
-			if (args.batchMode && (frames > 0))
+			if (args.batchMode)
 			{
 				ss << cap->frameNumber();
 				if (frames > 0)
@@ -577,9 +579,6 @@ int main( int argc, const char** argv )
 		// process the image once rather than looping forever
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
-	
-		// Save frame time for the current frame
-		frameTicker.end();
 	}
 	groundTruth.print();
 

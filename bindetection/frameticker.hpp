@@ -2,45 +2,46 @@
 #define INC_FRAMETICKER_HPP__
 
 #include <opencv2/opencv.hpp>
+#include <boost/circular_buffer.hpp>
+
 class FrameTicker
 {
-   public :
-	  FrameTicker()
-	  {
-		 _start       = 0;
-		 _Index       = 0;
-		 _Length      = 6;
-		 _frameTicks  = new double[_Length];
-	  }
-	  void start(void)
-	  {
-		 _start = cv::getTickCount();
-	  }
+	public :
+		FrameTicker() :
+			frameTicks_{5},
+			start_(0),
+			divider_(cv::getTickFrequency())
+		{
+		}
 
-	  void end(void)
-	  {
-		 int64 end = cv::getTickCount();
-		 _frameTicks[_Index++ % _Length] = (double)(end - _start) / cv::getTickFrequency();
-		 _start = 0;
-	  }
+		// Save an elapsed time since last call
+		// to mark, re-init start_ to right now
+		void mark(void)
+		{
+			if (start_)
+			{
+				double end = cv::getTickCount();
+				frameTicks_.push_back((end - start_) / divider_); 
+			}
+			start_ = cv::getTickCount();
+		}
 
-	  bool valid(void) const
-	  {
-		 return _Index >= _Length;
-	  }
+		bool valid(void) const
+		{
+			return frameTicks_.full();
+		}
 
-	  double getFPS(void) const
-	  {
-		 double sum = 0.0;
-		 for (size_t i = 0; i < _Length; i++)
-			sum += _frameTicks[i];
-		 return _Length / sum;
-	  }
-   private :
-	  double *_frameTicks;
-	  size_t  _Length;
-	  size_t  _Index;
-	  int64   _start;
+		double getFPS(void) const
+		{
+			double sum = 0.0;
+			for (auto it = frameTicks_.begin(); it != frameTicks_.end(); ++it)
+				sum += *it;
+			return frameTicks_.size() / sum;
+		}
+	private :
+		boost::circular_buffer<double> frameTicks_;
+		int64   start_;
+		double  divider_;
 };
 
 
