@@ -152,7 +152,8 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
 	if (!serializeIn_ || !serializeIn_->is_open())
 	{
-		cerr << "Coulnd not open ifstream(" << inFileName << endl;
+		cerr << "Could not open ifstream(" << inFileName << ")" << endl;
+		deleteInputPointers();
 		return false;
 	}
 
@@ -187,7 +188,8 @@ bool ZedIn::openSerializeOutput(const char *outFileName)
 	serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
 	if (!serializeOut_ || !serializeOut_->is_open())
 	{
-		cerr << "Coulnd not open ofstream(" << outFileName << endl;
+		cerr << "Could not open ofstream(" << outFileName << ")" << endl;
+		deleteOutputPointers();
 		return false;
 	}
 	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
