@@ -9,6 +9,7 @@
 #include "hungarian.hpp"
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <limits>
 
 const int missedFrameCountMax = 5;
 
@@ -17,10 +18,13 @@ ObjectType::ObjectType(int contour_type_id=1) {
 		//loads one of the preset shapes into the
 
 		case 1: //a ball!
-			_contour.push_back(cv::Point2f(0,0));
-			_contour.push_back(cv::Point2f(0,0.248));
-			_contour.push_back(cv::Point2f(0.248,0.248));
-			_contour.push_back(cv::Point2f(0.248,0));
+			{
+				float ball_diameter = 0.2476; // meters
+				_contour.push_back(cv::Point2f(0,0));
+				_contour.push_back(cv::Point2f(0,ball_diameter));
+				_contour.push_back(cv::Point2f(ball_diameter,ball_diameter));
+				_contour.push_back(cv::Point2f(ball_diameter,0));
+			}
 			break;
 
 		case 2: //a bin (just because)
@@ -31,15 +35,17 @@ ObjectType::ObjectType(int contour_type_id=1) {
 			break;
 
 		case 3: //the vision goal
-						//probably needs more code to work well but keep it in here anyways
-			_contour.push_back(cv::Point2f(0, 0));
-			_contour.push_back(cv::Point2f(0, 0.6096));
-			_contour.push_back(cv::Point2f(0.0508, 0.6096));
-			_contour.push_back(cv::Point2f(0.0508, 0.0508));
-			_contour.push_back(cv::Point2f(0.762, 0.0508));
-			_contour.push_back(cv::Point2f(0.762, 0.6096));
-			_contour.push_back(cv::Point2f(0.8128, 0.6096));
-			_contour.push_back(cv::Point2f(0.8128, 0));
+			{
+				float max_y = .3048;
+				_contour.push_back(cv::Point2f(0, max_y - 0));
+				_contour.push_back(cv::Point2f(0, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.0508, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.0508, max_y - 0.0508));
+				_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.0508));
+				_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.508, max_y - 0.3048));
+				_contour.push_back(cv::Point2f(0.508, max_y - 0));
+			}
 			break;
 
 		default:
@@ -56,17 +62,39 @@ ObjectType::ObjectType(const std::vector< cv::Point2f > &contour_in) :
 	computeProperties();
 }
 
+ObjectType::ObjectType(const std::vector< cv::Point > &contour_in) {
+
+for(size_t i = 0; i < contour_in.size(); i++) {
+	cv::Point2f p;
+	p.x = (float)contour_in[i].x;
+	p.y = (float)contour_in[i].y;
+	_contour.push_back(p);
+}
+computeProperties();
+
+}
+
 void ObjectType::computeProperties() {
-	//create a bounding rectangle and use it to find width and height
-	cv::Rect br = cv::boundingRect(_contour);
-	_width = br.width;
-	_height = br.height;
+	float min_x = std::numeric_limits<float>::max();
+	float min_y = std::numeric_limits<float>::max();
+	float max_x = std::numeric_limits<float>::min();
+	float max_y = std::numeric_limits<float>::min();
+	for (auto it = _contour.cbegin(); it != _contour.cend(); ++it)
+	{
+		min_x = std::min(min_x, it->x);
+		min_y = std::min(min_y, it->y);
+		max_x = std::max(max_x, it->x);
+		max_y = std::max(max_y, it->y);
+	}
+	_width = max_x - min_x;
+	_height = max_y - min_y;
 	_area = cv::contourArea(_contour);
 
 	//compute moments and use them to find center of mass
 	cv::Moments mu = moments(_contour, false);
 	_com = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
+
 
 static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size) 
 {
@@ -162,9 +190,27 @@ void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_dept
 
 void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
+	Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
+
 	Eigen::Vector3d old_pos_vec(_position.x, _position.y, _position.z);
 	Eigen::Vector3d new_pos_vec = delta_robot.inverse() * old_pos_vec;
+	std::cout << "Rotation: " << delta_robot.rotation().eulerAngles(0,1,2) << std::endl;
+	std::cout << "Old: " << old_pos_vec << std::endl;
+	std::cout << "New: " << new_pos_vec << std::endl;
+	
+	//float r_old = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+	//float azimuth_old = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
+	//float inclination_old = asin( _position.z / r_old );
+
 	_position = cv::Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
+
+	//float r_new = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);	
+	//float azimuth_new = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
+	//float inclination_new = asin( _position.z / r_new );
+
+	//std::cout << "Change in inclination: " << inclination_new - inclination_old << std::endl;
+	//std::cout << "Change in azimuth: " << azimuth_new - azimuth_old << std::endl;
+
 	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
@@ -236,9 +282,10 @@ void TrackedObject::nextFrame(void)
 	_historyIndex += 1;
 }
 
+
 cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
 {
-	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
+	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
 	//std::cout << "Position: " << _position << std::endl;
 	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asin( _position.z / r );
@@ -254,7 +301,7 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
 	rect_center.y = -dist_to_center.y + (frame_size.height / 2.0);
 
-	cv::Point2f angular_size = cv::Point2f( atan2(_type.width(), (2.0*r)), atan2(_type.height(), (2.0*r)));
+	cv::Point2f angular_size = cv::Point2f( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
 	cv::Point2f screen_size;
 	screen_size.x = angular_size.x * (frame_size.width / fov_size.x);
 	screen_size.y = angular_size.y * (frame_size.height / fov_size.y);
@@ -263,7 +310,7 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	topLeft.x = cvRound(rect_center.x - (screen_size.x / 2.0));
 	topLeft.y = cvRound(rect_center.y - (screen_size.y / 2.0));
 
-	return cv::Rect(topLeft.x, topLeft.y, screen_size.x, screen_size.y);
+	return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
 
@@ -290,9 +337,14 @@ cv::Point3f TrackedObject::predictKF(void)
 	return _KF.GetPrediction();
 }
 
-cv::Point3f TrackedObject::updateKF(const cv::Point3f &pt)
-{
+cv::Point3f TrackedObject::updateKF(cv::Point3f pt)
+{	
 	return _KF.Update(pt);
+}
+
+void TrackedObject::adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
+{
+	_KF.adjustPrediction(delta_robot);
 }
 
 //Create a tracked object list
@@ -344,7 +396,9 @@ const double dist_thresh_ = 1.0; // FIX ME!
 // if not, be added as new object to the list
 void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects, 
 									  const std::vector<float> depths, 
-									  const std::vector<ObjectType> &types)
+									  const std::vector<ObjectType> &types,
+									  const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot
+)
 {
 	std::cout << "---------- Start of process detect --------------" << std::endl;
 	print();
@@ -418,6 +472,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		std::cout << "prediction:" << prediction << std::endl;
 
 		tr->nextFrame();
+		tr->adjustKF(delta_robot);
 
 		if(*as != -1) // If we have assigned detect, then update using its coordinates
 		{

@@ -18,7 +18,7 @@
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL);
+		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false);
 		~ZedIn();
 		bool getNextFrame(cv::Mat &frame, bool pause = false);
 
@@ -34,34 +34,56 @@ class ZedIn : public MediaIn
 		void   frameNumber(int frameNumber);
 
 		sl::zed::CamParameters getCameraParams(bool left) const;
-		bool   getDepthMat(cv::Mat &depthMat);
-		double getDepth(int x, int y);
+		bool  getDepthMat(cv::Mat &depthMat) const;
+		float getDepth(int x, int y);
+		bool  getNormalDepthMat(cv::Mat &depthMat) const;
 #endif
 
 	private:
-		void   deletePointers(void);
 #ifdef ZED_SUPPORT
+		void deletePointers(void);
+		void deleteInputPointers(void);
+		void deleteOutputPointers(void);
+		bool openSerializeInput(const char *filename);
+		bool openSerializeOutput(const char *filename);
 		bool getNextFrame(cv::Mat &frame, bool left, bool pause);
 
 		sl::zed::Camera* zed_;
 		cv::Mat frameRGBA_;
 		cv::Mat frame_;
 		cv::Mat depthMat_;
+		cv::Mat normDepthMat_;
 		int width_;
 		int height_;
 		int frameNumber_;
 
+		int brightness_;
+		int contrast_;
+		int hue_;
+		int saturation_;
+		int gain_;
+		int whiteBalance_;
+
+		std::string outFileName_;
+
 		// Hack up a way to save zed data - serialize both 
 		// BGR frame and depth frame
 		std::ifstream *serializeIn_;
-		boost::iostreams::filtering_streambuf<boost::iostreams::input> filtSBIn_;
+		boost::iostreams::filtering_streambuf<boost::iostreams::input> *filtSBIn_;
 		boost::archive::binary_iarchive *archiveIn_;
 		std::ofstream *serializeOut_;
-		boost::iostreams::filtering_streambuf<boost::iostreams::output> filtSBOut_;
+		boost::iostreams::filtering_streambuf<boost::iostreams::output> *filtSBOut_;
 		boost::archive::binary_oarchive *archiveOut_;
-#if 0
+
+		// Mark these as friends so they can access private class data
+		friend void zedBrightnessCallback(int value, void *data);
+		friend void zedContrastCallback(int value, void *data);
+		friend void zedHueCallback(int value, void *data);
+		friend void zedSaturationCallback(int value, void *data);
+		friend void zedGainCallback(int value, void *data);
+		friend void zedWhiteBalanceCallback(int value, void *data);
+		int serializeFrameStart_;
 		int serializeFrameSize_;
-#endif
 #endif
 };
 #endif

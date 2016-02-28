@@ -82,7 +82,7 @@ TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
 	cout << "processNoiseCov: " << endl << kalman.processNoiseCov << endl;
 	cout << "statePost " << endl << kalman.statePost << endl;
 #endif
-	cout << "KF created : statePre " << endl << kalman.statePre << endl;
+	cout << "KF created : statePre=" << kalman.statePre << endl;
 }
 
 //---------------------------------------------------------------------------
@@ -109,3 +109,22 @@ Point3f TKalmanFilter::Update(Point3f p)
 	return Point3f(estimated.at<float>(0), estimated.at<float>(1), estimated.at<float>(2));
 }
 //---------------------------------------------------------------------------
+
+void TKalmanFilter::adjustPrediction(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
+{
+
+	Eigen::Vector3d prediction_vec = Eigen::Vector3d(kalman.statePre.at<float>(0), kalman.statePre.at<float>(1), kalman.statePre.at<float>(2));
+	Eigen::Vector3d prediction_rot_vec =  Eigen::Vector3d(kalman.statePre.at<float>(3), kalman.statePre.at<float>(4), kalman.statePre.at<float>(5));
+	prediction_vec = delta_robot.inverse() * prediction_vec;
+	prediction_rot_vec = delta_robot.inverse().rotation() * prediction_rot_vec;
+
+	kalman.statePre.at<float>(0) = prediction_vec(0);
+	kalman.statePre.at<float>(1) = prediction_vec(1);
+	kalman.statePre.at<float>(2) = prediction_vec(2);
+
+	kalman.statePre.at<float>(3) = prediction_rot_vec(0);
+	kalman.statePre.at<float>(4) = prediction_rot_vec(1);
+	kalman.statePre.at<float>(5) = prediction_rot_vec(2);
+
+}
+

@@ -7,31 +7,41 @@
 #include "opencv2/core/core.hpp"
 
 #include "Utilities.hpp"
+#include "track3d.hpp"
 
 class GoalDetector {
 public:
 
-    GoalDetector();
+    GoalDetector(cv::Point2f fov_size, cv::Size frame_size);
 
     float dist_to_goal(void) const { return _goal_found ? _dist_to_goal : -1.0; }   //floor distance to goal in m
     float angle_to_goal(void) const { return _goal_found ? _angle_to_goal : -1.0; } //angle robot has to turn to face goal in degrees
 
-    void processFrame(const cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
+    void processFrame(cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
 
-private:
+   
+    int _hue_min = 70;                            //60-95 is a good range for bright green
+    int _hue_max = 100;
+    int _sat_min =  45;
+    int _sat_max = 255;
+    int _val_min = 175;
+    int _val_max = 255;
 
-    std::vector<cv::Point2f> _goal_shape_contour; //hold the shape of the goal so we can easily get info from it
-    cv::Rect _goal_shape_rect;
-    float _camera_hfov = 84.14 * (M_PI / 180.0);  //determined experimentally
-    float _camera_vfov = 53.836 * (M_PI / 180.0); //determined experimentally
-    float _goal_height = 2.159;                   //in m
-
-    int _hue_min = 60;                            //60-95 is a good range for bright green
+    /*int _hue_min = 60;                            //60-95 is a good range for bright green
     int _hue_max = 95;
     int _sat_min = 180;
     int _sat_max = 255;
     int _val_min = 67;
-    int _val_max = 255;
+    int _val_max = 255;*/
+
+	bool _draw;
+
+private:
+	void wrapConfidence(float &confidence);
+	ObjectType _goal_shape;
+    cv::Point2f _fov_size;
+	cv::Size _frame_size;
+    const float _goal_height = 2.159 - 1;  // goal height minus camera mounting ht
 
     float _dist_to_goal;
     float _angle_to_goal;

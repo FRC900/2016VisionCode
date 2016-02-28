@@ -32,8 +32,8 @@ using namespace std;
 using namespace cv;
 using namespace utils;
 
-static const float HFOV = 84.14 * (M_PI / 180.0);  
-static const float VFOV = 53.836 * (M_PI / 180.0); 
+static const float HFOV = 51.3 * (M_PI / 180.0);  
+static const float VFOV = HFOV * 480./ 640.; // pixels are square
 
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);
@@ -96,8 +96,8 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
 	//create a top view image of the robot and all detected objects
-	Range xRange = Range(-2,2);
-	Range yRange = Range(-2,2);
+	Range xRange = Range(-4,4);
+	Range yRange = Range(-4,4);
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
@@ -210,7 +210,7 @@ int main( int argc, const char** argv )
 	FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
 	//Creating Goaldetection object
-	GoalDetector gd;
+	GoalDetector gd(Point2f(HFOV,VFOV), Size(cap->width(),cap->height()));
 
 	int64 stepTimer;	
 	
@@ -221,7 +221,7 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
 	{
-		frameTicker.start(); // start time for this frame
+		frameTicker.mark(); // mark start of new frame
 
 		//Getting depth matrix
 		cap->getDepthMat(depth);
@@ -255,7 +255,7 @@ int main( int argc, const char** argv )
 		cout << " angle to goal: " << gAngle << endl;
 
 		//stepTimer = cv::getTickCount();
-		//fvlc.processFrame(frame,depth);
+		fvlc.processFrame(frame,depth);
 		//cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
@@ -278,7 +278,15 @@ int main( int argc, const char** argv )
 			drawRects(frame,detectRects);
 
 		//adjust locations of objects based on fovis results
-		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
+		utils::printIsometry(fvlc.transform_eigen());
+
+		cout << "Locations before adjustment: " << endl;
+		objectTrackingList.print();
+
+		objectTrackingList.adjustLocation(fvlc.transform_eigen());
+
+		cout << "Locations after adjustment: " << endl;
+		objectTrackingList.print();
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
@@ -304,7 +312,7 @@ int main( int argc, const char** argv )
 				objTypes.push_back(ObjectType(1));
 			}
 		} 
-		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
+		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes, fvlc.transform_eigen());
 		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
@@ -321,7 +329,9 @@ int main( int argc, const char** argv )
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking && !args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
+		if (args.tracking && 
+			!args.batchMode && 
+			((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
 		    drawTrackingInfo(frame, displayList);
 
@@ -359,13 +369,13 @@ int main( int argc, const char** argv )
 		// avoid printing too much stuff
 	    if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && ((cap->frameNumber() % 50) == 0))))
+			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 50) == 0))))
 	    {
 			stringstream ss;
 			// If in args.batch mode and reading a video, display
 			// the frame count
 			int frames = cap->frameCount();
-			if (args.batchMode && (frames > 0))
+			if (args.batchMode)
 			{
 				ss << cap->frameNumber();
 				if (frames > 0)
@@ -569,9 +579,6 @@ int main( int argc, const char** argv )
 		// process the image once rather than looping forever
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
-	
-		// Save frame time for the current frame
-		frameTicker.end();
 	}
 	groundTruth.print();
 

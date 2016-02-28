@@ -12,19 +12,26 @@ using namespace std;
 using namespace cv;
 using namespace boost::filesystem;
 
-ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
+void zedBrightnessCallback(int value, void *data);
+void zedContrastCallback(int value, void *data);
+void zedHueCallback(int value, void *data);
+void zedSaturationCallback(int value, void *data);
+void zedGainCallback(int value, void *data);
+void zedWhiteBalanceCallback(int value, void *data);
+
+ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	zed_(NULL),
 	width_(0),
 	height_(0),
 	frameNumber_(0),
 	serializeIn_(NULL), 
+	filtSBIn_(NULL),
 	archiveIn_(NULL),
 	serializeOut_(NULL),
-	archiveOut_(NULL)
-#if 0
-	,
+	filtSBOut_(NULL),
+	archiveOut_(NULL) ,
+	serializeFrameStart_(0),
 	serializeFrameSize_(0)
-#endif
 {
 	if (inFileName)
 	{
@@ -38,20 +45,9 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 			// which just dumps raw a image and depth Mat data to a file.  
 			// Apply a light bit of compression because
 			// the files will get out of hand quickly otherwise
-			serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
-			if (serializeIn_ && serializeIn_->is_open())
-			{
-				cerr << "Loading " << inFileName << " for reading" << endl;
-
-				filtSBIn_.push(boost::iostreams::zlib_decompressor());
-				filtSBIn_.push(*serializeIn_);
-				archiveIn_ = new boost::archive::binary_iarchive(filtSBIn_);
-			}
-			else
-			{
+			cerr << "Loading " << inFileName << " for reading" << endl;
+			if (!openSerializeInput(inFileName))
 				cerr << "Zed init : Could not open " << inFileName << " for reading" << endl;
-				deletePointers();
-			}
 		}
 		else
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
@@ -64,33 +60,19 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 	// relying on Stereolab's SVO format.
 	if (outFileName)
 	{
-		serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
-		if (serializeOut_ && serializeOut_->is_open())
-		{
-			filtSBOut_.push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
-			filtSBOut_.push(*serializeOut_);
-			archiveOut_ = new boost::archive::binary_oarchive(filtSBOut_);
-		}
-		else
-		{
+		outFileName_ = outFileName;
+		if (!openSerializeOutput(outFileName_.c_str()))
 			cerr << "Zed init : could not open output file " << outFileName << endl;
-			// Don't want to close the input stream since we
-			// still want to run even if we can't capture for
-			// whatever reason (disk full, etc)
-			if (serializeOut_)
-				delete serializeOut_;
-			serializeOut_ = NULL;
-		}
 	}
 
 	if (zed_)
 	{
 		// init computation mode of the zed
 		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::QUALITY, -1, true);
-		cout << sl::zed::errcode2str(err) << endl;
 		// Quit if an error occurred
 		if (err != sl::zed::SUCCESS) 
 		{
+			cout << sl::zed::errcode2str(err) << endl;
 			delete zed_;
 			zed_ = NULL;
 		}
@@ -98,27 +80,58 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 		{
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
+
+#if 0
+			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
+			contrast_ = zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST);
+			hue_ = zed_->getCameraSettingsValue(sl::zed::ZED_HUE);
+			saturation_ = zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION);
+			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
+			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
+#endif
+			zedBrightnessCallback(3, this);
+			zedContrastCallback(5, this);
+			zedHueCallback(6, this);
+			zedSaturationCallback(3, this);
+			zedGainCallback(1, this);
+			zedWhiteBalanceCallback(3100, this);
+
+			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
+			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
+			cout << "hue_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_HUE) << endl;
+			cout << "saturation_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION) << endl;
+			cout << "gain_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_GAIN) << endl;
+			cout << "whiteBalance_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE) << endl;
+			if (gui)
+			{
+				cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
+				cv::createTrackbar("Brightness", "Adjustments", &brightness_, 9, zedBrightnessCallback, this);
+				cv::createTrackbar("Contrast", "Adjustments", &contrast_, 9, zedContrastCallback, this);
+				cv::createTrackbar("Hue", "Adjustments", &hue_, 12, zedHueCallback, this);
+				cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
+				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
+				cv::createTrackbar("White Balance", "Adjustments", &whiteBalance_, 6501, zedWhiteBalanceCallback, this);
+			}
 		}
 	}
-	else if (serializeIn_ && serializeIn_->is_open())
+	else if (archiveIn_)
 	{
 		// Zed == NULL and serializeStream_ means reading from 
 		// a serialized file. Grab height_ and width_
+#if 0
 		// Also figure out how big a frame is so we can
 		// use random access to get at any frame
+		serializeFrameStart_ = serializeIn_->tellg();
+#endif
 		*archiveIn_ >> frame_ >> depthMat_;
 		frameNumber_ += 1;
 #if 0
-		serializeFrameSize_ = serializeIn_->tellg();
+		serializeFrameSize_ = serializeIn_->tellg() - serializeFrameStart_;
+		if (!openSerializeInput(inFileName))
+			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 #endif
 		width_  = frame_.cols;
 		height_ = frame_.rows;
-		
-#if 0
-		// Jump back to start of file
-		serializeIn_->clear();
-		serializeIn_->seekg(0);
-#endif
 	}
 #if 0
 	while (height_ > 800)
@@ -129,34 +142,126 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName) :
 #endif
 }
 
+// Input needs 3 things. First is a standard ifstream to read from
+// Next is an (optional) filtered stream buffer. This is used to
+// uncompress on the fly - uncompressed files take up way too
+// much space. Last item is the actual boost binary archive template
+// If all three are opened, return true. If not, delete and set to
+// NULL all pointers related to serialized Input
+bool ZedIn::openSerializeInput(const char *inFileName)
+{
+	deleteInputPointers();
+	serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
+	if (!serializeIn_ || !serializeIn_->is_open())
+	{
+		cerr << "Coulnd not open ifstream(" << inFileName << endl;
+		return false;
+	}
 
-void ZedIn::deletePointers(void)
+	filtSBIn_= new boost::iostreams::filtering_streambuf<boost::iostreams::input>;
+	if (!filtSBIn_)
+	{
+		cerr << "Could not create filtering_streambuf<input>" << endl;
+		deleteInputPointers();
+		return false;
+	}
+	filtSBIn_->push(boost::iostreams::zlib_decompressor());
+	filtSBIn_->push(*serializeIn_);
+	archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
+	if (!archiveIn_)
+	{
+		cerr << "Could not create new binary_iarchive" << endl;
+		deleteInputPointers();
+		return false;
+	}
+	return true;
+}
+
+// Output needs 3 things. First is a standard ofstream to write to
+// Next is an (optional) filtered stream buffer. This is used to
+// compress on the fly - uncompressed files take up way too
+// much space. Last item is the actual boost binary archive template
+// If all three are opened, return true. If not, delete and set to
+// NULL all pointers related to serialized Output
+bool ZedIn::openSerializeOutput(const char *outFileName)
+{
+	deleteOutputPointers();
+	serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
+	if (!serializeOut_ || !serializeOut_->is_open())
+	{
+		cerr << "Coulnd not open ofstream(" << outFileName << endl;
+		return false;
+	}
+	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
+	if (!filtSBOut_)
+	{
+		cerr << "Could not create filtering_streambuf<output> in constructor" <<endl;
+		deleteOutputPointers();
+		return false;
+	}
+	filtSBOut_->push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
+	filtSBOut_->push(*serializeOut_);
+	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
+	if (!archiveOut_)
+	{
+		cerr << "Could not create binary_oarchive in constructor" <<endl;
+		deleteOutputPointers();
+		return false;
+	}
+	return true;
+}
+
+// Helper to easily delete and NULL out input file pointers
+void ZedIn::deleteInputPointers(void)
 {
 	if (archiveIn_)
 	{
 		delete archiveIn_;
 		archiveIn_ = NULL;
 	}
-	if (archiveOut_)
-	{
-		delete archiveOut_;
-		archiveOut_ = NULL;
-	}
 	if (serializeIn_)
 	{
 		delete serializeIn_;
 		serializeIn_ = NULL;
+	}
+	if (filtSBIn_)
+	{
+		delete filtSBIn_;
+		filtSBIn_ = NULL;
+	}
+}
+
+// Helper to easily delete and NULL out output file pointers
+void ZedIn::deleteOutputPointers(void)
+{
+	if (archiveOut_)
+	{
+		delete archiveOut_;
+		archiveOut_ = NULL;
 	}
 	if (serializeOut_)
 	{
 		delete serializeOut_;
 		serializeOut_ = NULL;
 	}
+	if (filtSBOut_)
+	{
+		delete filtSBOut_;
+		filtSBOut_ = NULL;
+	}
+}
+
+
+void ZedIn::deletePointers(void)
+{
+	deleteInputPointers();
+	deleteOutputPointers();
 }
 
 
 ZedIn::~ZedIn()
 {
+	deletePointers();
 	if (zed_)
 		delete zed_;
 }
@@ -164,8 +269,7 @@ ZedIn::~ZedIn()
 
 bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 {
-	if ((zed_ == NULL) && 
-		!(serializeIn_ && serializeIn_->is_open() && archiveIn_))
+	if ((zed_ == NULL) && (archiveIn_ == NULL))
 		return false;
 
 	if (pause == false)
@@ -181,7 +285,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 
 			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
 		}
-		else if (serializeIn_ && serializeIn_->is_open())
+		else if (archiveIn_)
 		{
 			// Ugly try-catch to detect EOF
 			try
@@ -195,8 +299,19 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		}
 
 		// Write output to serialized file if it is open
-		if (serializeOut_ && serializeOut_->is_open())
+		if (archiveOut_)
+		{
 			*archiveOut_ << frame_ << depthMat_;
+			if ((frameNumber_ > 0) && ((frameNumber_ % 300) == 0))
+			{
+				stringstream ofName;
+				ofName << outFileName_;
+				ofName << ".";
+				ofName << (frameNumber_ / 300);
+				if (!openSerializeOutput(ofName.str().c_str()))
+					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
+			}
+		}
 
 #if 0
 		while (frame_.rows > 800)
@@ -220,12 +335,9 @@ bool ZedIn::getNextFrame(Mat &frame, bool pause)
 
 int ZedIn::frameCount(void) const
 {
-#if 0
 	// If we're using an input file we can calculate this.
-	// If using a video, there's no way to tell
-	if (serializeIn_ && serializeIn_->is_open() && serializeFrameSize_)
-		return (serializeIn_->tellg() / serializeFrameSize_);
-#endif
+	if (archiveIn_ && serializeFrameSize_)
+		return (((int)serializeIn_->tellg() - serializeFrameStart_) / serializeFrameSize_);
 
 	// Luckily getSVONumberOfFrames() returns -1 if we're
 	// capturing from a camera, which is also what the rest
@@ -233,6 +345,7 @@ int ZedIn::frameCount(void) const
 	if (zed_)
 		return zed_->getSVONumberOfFrames();
 		
+	// If using a video, there's no way to tell
 	return -1;
 }
 
@@ -248,15 +361,12 @@ int ZedIn::frameNumber(void) const
 // fail, but nothing we can do about that so fail silently
 void ZedIn::frameNumber(int frameNumber)
 {
-#if 0
-	if (serializeIn_ && serializeIn_->is_open() && serializeFrameSize_)
+	if (archiveIn_ && serializeFrameSize_)
 	{
-		serializeIn_->seekg(frameCount * serializeFrameSize_);
+		serializeIn_->seekg(serializeFrameStart_ + frameNumber_ * serializeFrameSize_);
 		frameNumber_ = frameNumber;
 	}
-	else 
-#endif
-	if (zed_)
+	else if (zed_)  
 	{
 		if (zed_->setSVOPosition(frameNumber))
 			frameNumber_ = frameNumber;
@@ -264,19 +374,25 @@ void ZedIn::frameNumber(int frameNumber)
 }
 
 
-double ZedIn::getDepth(int x, int y) 
+float ZedIn::getDepth(int x, int y) 
 {
-	float* ptr_image_num = (float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
+	const float* ptr_image_num = (const float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
 	return ptr_image_num[x];
 }
 
 
-bool ZedIn::getDepthMat(Mat &depthMat)
+bool ZedIn::getDepthMat(Mat &depthMat) const
 {
 	depthMat_.copyTo(depthMat); //not normalized depth
 	return true;
 }
 
+bool ZedIn::getNormalDepthMat(Mat &normDepthMat) const
+{
+	slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
+	normDepthMat_.copyTo(normDepthMat); 
+	return true;
+}
 
 int ZedIn::width(void) const
 {
@@ -330,6 +446,60 @@ sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
 	return params;
 }
 
+void zedBrightnessCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->brightness_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value);
+	}
+}
+void zedContrastCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->contrast_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value);
+	}
+}
+void zedHueCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->hue_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value);
+	}
+}
+void zedSaturationCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->saturation_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value);
+	}
+}
+void zedGainCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->gain_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value);
+	}
+}
+void zedWhiteBalanceCallback(int value, void *data)
+{
+    ZedIn *zedPtr = (ZedIn *)data;
+	zedPtr->whiteBalance_ = value;
+	if (zedPtr->zed_)
+	{
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value);
+	}
+}
 #else
 
 ZedIn::~ZedIn()

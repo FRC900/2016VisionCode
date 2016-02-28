@@ -22,6 +22,7 @@ class ObjectType {
 
 		//this constructor takes a custom contour
 		ObjectType(const std::vector< cv::Point2f > &contour_in);
+		ObjectType(const std::vector< cv::Point > &contour_in);
 
 		//get the contour associated with the object type. Useful for shape comparison
 		std::vector< cv::Point2f > shape (void) const { return _contour; }
@@ -31,6 +32,7 @@ class ObjectType {
 		float width (void) const {return _width; }
 		float height (void) const {return _height; }
 		float area (void) const { return _area; }
+		float boundingArea (void) const { return _width * _height; }
 
 	private:
 		std::vector< cv::Point2f > _contour;
@@ -109,8 +111,9 @@ class TrackedObject
 		cv::Rect getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const;
 		cv::Point3f getPosition(void) const { return _position; }
 
+		void adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		cv::Point3f predictKF(void);
-		cv::Point3f updateKF(const cv::Point3f &pt);
+		cv::Point3f updateKF(cv::Point3f pt);
 
 		std::string getId(void) const { return _id; }
 
@@ -186,7 +189,9 @@ class TrackedObjectList
 		// if not, be added as new object to the list
 		void processDetect(const std::vector<cv::Rect> &detectedRects, 
 						   const std::vector<float> depths, 
-						   const std::vector<ObjectType> &types);
+						   const std::vector<ObjectType> &types,
+						   const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot
+							);
 
 	private :
 		std::list<TrackedObject> _list; // list of currently valid detected objects
