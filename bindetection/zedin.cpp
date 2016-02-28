@@ -219,15 +219,15 @@ void ZedIn::deleteInputPointers(void)
 		delete archiveIn_;
 		archiveIn_ = NULL;
 	}
-	if (serializeIn_)
-	{
-		delete serializeIn_;
-		serializeIn_ = NULL;
-	}
 	if (filtSBIn_)
 	{
 		delete filtSBIn_;
 		filtSBIn_ = NULL;
+	}
+	if (serializeIn_)
+	{
+		delete serializeIn_;
+		serializeIn_ = NULL;
 	}
 }
 
@@ -239,15 +239,15 @@ void ZedIn::deleteOutputPointers(void)
 		delete archiveOut_;
 		archiveOut_ = NULL;
 	}
-	if (serializeOut_)
-	{
-		delete serializeOut_;
-		serializeOut_ = NULL;
-	}
 	if (filtSBOut_)
 	{
 		delete filtSBOut_;
 		filtSBOut_ = NULL;
+	}
+	if (serializeOut_)
+	{
+		delete serializeOut_;
+		serializeOut_ = NULL;
 	}
 }
 
@@ -304,12 +304,12 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		if (archiveOut_)
 		{
 			*archiveOut_ << frame_ << depthMat_;
-			if ((frameNumber_ > 0) && ((frameNumber_ % 300) == 0))
+			const int frameSplitCount = 10 ;
+			if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 			{
 				stringstream ofName;
-				ofName << outFileName_;
-				ofName << ".";
-				ofName << (frameNumber_ / 300);
+				ofName << change_extension(outFileName_, "").string() << "_" ;
+				ofName << (frameNumber_ / frameSplitCount) << ".zms";
 				if (!openSerializeOutput(ofName.str().c_str()))
 					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
 			}
