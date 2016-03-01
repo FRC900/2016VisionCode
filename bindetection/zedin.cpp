@@ -53,7 +53,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
 	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::VGA, 30);
+		zed_ = new sl::zed::Camera(sl::zed::VGA);
 
 	// Save the raw camera stream to disk.  This uses a home-brew
 	// method to serialize image and depth data to disk rather than
@@ -152,7 +152,8 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
 	if (!serializeIn_ || !serializeIn_->is_open())
 	{
-		cerr << "Coulnd not open ifstream(" << inFileName << endl;
+		cerr << "Could not open ifstream(" << inFileName << ")" << endl;
+		deleteInputPointers();
 		return false;
 	}
 
@@ -187,7 +188,8 @@ bool ZedIn::openSerializeOutput(const char *outFileName)
 	serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
 	if (!serializeOut_ || !serializeOut_->is_open())
 	{
-		cerr << "Coulnd not open ofstream(" << outFileName << endl;
+		cerr << "Could not open ofstream(" << outFileName << ")" << endl;
+		deleteOutputPointers();
 		return false;
 	}
 	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
@@ -217,15 +219,15 @@ void ZedIn::deleteInputPointers(void)
 		delete archiveIn_;
 		archiveIn_ = NULL;
 	}
-	if (serializeIn_)
-	{
-		delete serializeIn_;
-		serializeIn_ = NULL;
-	}
 	if (filtSBIn_)
 	{
 		delete filtSBIn_;
 		filtSBIn_ = NULL;
+	}
+	if (serializeIn_)
+	{
+		delete serializeIn_;
+		serializeIn_ = NULL;
 	}
 }
 
@@ -237,15 +239,15 @@ void ZedIn::deleteOutputPointers(void)
 		delete archiveOut_;
 		archiveOut_ = NULL;
 	}
-	if (serializeOut_)
-	{
-		delete serializeOut_;
-		serializeOut_ = NULL;
-	}
 	if (filtSBOut_)
 	{
 		delete filtSBOut_;
 		filtSBOut_ = NULL;
+	}
+	if (serializeOut_)
+	{
+		delete serializeOut_;
+		serializeOut_ = NULL;
 	}
 }
 
@@ -279,9 +281,10 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 			zed_->grab(sl::zed::RAW);
 
 			slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
-			cvtColor(frameRGBA_, frame_, CV_RGBA2RGB);
-
 			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
+			slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
+
+			cvtColor(frameRGBA_, frame_, CV_RGBA2RGB);
 		}
 		else if (archiveIn_)
 		{
@@ -294,18 +297,19 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 			{
 				return false;
 			}
+			normalize(depthMat_, normDepthMat_, 0, 255, NORM_MINMAX, CV_8UC1);
 		}
 
 		// Write output to serialized file if it is open
 		if (archiveOut_)
 		{
 			*archiveOut_ << frame_ << depthMat_;
-			if ((frameNumber_ > 0) && ((frameNumber_ % 300) == 0))
+			const int frameSplitCount = 10 ;
+			if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 			{
 				stringstream ofName;
-				ofName << outFileName_;
-				ofName << ".";
-				ofName << (frameNumber_ / 300);
+				ofName << change_extension(outFileName_, "").string() << "_" ;
+				ofName << (frameNumber_ / frameSplitCount) << ".zms";
 				if (!openSerializeOutput(ofName.str().c_str()))
 					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
 			}
@@ -315,6 +319,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		{
 			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
+			pyrDown(normDepthMat_, normDepthMat_);
 		}
 		frameNumber_ += 1;
 	}
@@ -383,12 +388,13 @@ bool ZedIn::getDepthMat(Mat &depthMat) const
 	return true;
 }
 
-bool ZedIn::getNormalDepthMat(Mat &normDepthMat) const
+
+bool ZedIn::getNormDepthMat(Mat &normDepthMat) const
 {
-	slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
 	normDepthMat_.copyTo(normDepthMat); 
 	return true;
 }
+
 
 int ZedIn::width(void) const
 {
@@ -401,6 +407,7 @@ int ZedIn::height(void) const
 	return height_;
 }
 
+
 sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
 {
 	if (zed_)
@@ -409,14 +416,39 @@ sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
 			return (zed_->getParameters())->LeftCam;
 		return (zed_->getParameters())->RightCam;
 	}
-	// Take a guess based on one of our cameras
+	// Take a guess based on acutal values from one of our cameras
 	sl::zed::CamParameters params;
-	params.fx = 720;
-	params.fy = 720;
-	params.cx = height_/2;
-	params.cy = width_/2;
+	if (width_ == 640)
+	{
+		params.fx = 705.768;
+		params.fy = 705.768;
+		params.cx = 326.848;
+		params.cy = 240.039;
+	}
+	else if (width_ == 1280)
+	{
+		params.fx = 686.07;
+		params.fy = 686.07;
+		params.cx = 662.955;
+		params.cy = 361.614;
+	}
+	else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
+	{
+		params.fx = 1401.88;
+		params.fy = 1401.88;
+		params.cx = 977.193 / (1920 / width_); // Is this correct - downsized
+		params.cy = 540.036 / (1920 / width_); // image needs downsized cx?
+	}
+	else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
+	{
+		params.fx = 1385.4;
+		params.fy = 1385.4;
+		params.cx = 1124.74 / (2208 / width_);
+		params.cy = 1124.74 / (2208 / width_);
+	}
 	return params;
 }
+
 
 void zedBrightnessCallback(int value, void *data)
 {
@@ -427,6 +459,8 @@ void zedBrightnessCallback(int value, void *data)
 		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value);
 	}
 }
+
+
 void zedContrastCallback(int value, void *data)
 {
     ZedIn *zedPtr = (ZedIn *)data;
@@ -436,6 +470,8 @@ void zedContrastCallback(int value, void *data)
 		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value);
 	}
 }
+
+
 void zedHueCallback(int value, void *data)
 {
     ZedIn *zedPtr = (ZedIn *)data;
@@ -445,6 +481,8 @@ void zedHueCallback(int value, void *data)
 		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value);
 	}
 }
+
+
 void zedSaturationCallback(int value, void *data)
 {
     ZedIn *zedPtr = (ZedIn *)data;
@@ -454,6 +492,8 @@ void zedSaturationCallback(int value, void *data)
 		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value);
 	}
 }
+
+
 void zedGainCallback(int value, void *data)
 {
     ZedIn *zedPtr = (ZedIn *)data;
@@ -463,6 +503,8 @@ void zedGainCallback(int value, void *data)
 		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value);
 	}
 }
+
+
 void zedWhiteBalanceCallback(int value, void *data)
 {
     ZedIn *zedPtr = (ZedIn *)data;
@@ -472,6 +514,8 @@ void zedWhiteBalanceCallback(int value, void *data)
 		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value);
 	}
 }
+
+
 #else
 
 ZedIn::~ZedIn()
@@ -504,5 +548,6 @@ bool ZedIn::getNextFrame(Mat &frame, bool pause)
 	(void)pause;
 	return false;
 }
+
 
 #endif

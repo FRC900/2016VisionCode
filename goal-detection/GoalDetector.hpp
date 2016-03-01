@@ -46,6 +46,7 @@ private:
     float _dist_to_goal;
     float _angle_to_goal;
     bool  _goal_found;
+	float _min_valid_confidence;
 
     bool generateThreshold(const cv::Mat& ImageIn, cv::Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX);
 };
