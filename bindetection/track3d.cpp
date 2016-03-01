@@ -190,7 +190,7 @@ void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_dept
 
 void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
-	Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
+	//Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
 
 	Eigen::Vector3d old_pos_vec(_position.x, _position.y, _position.z);
 	Eigen::Vector3d new_pos_vec = delta_robot.inverse() * old_pos_vec;
@@ -337,15 +337,18 @@ cv::Point3f TrackedObject::predictKF(void)
 	return _KF.GetPrediction();
 }
 
+
 cv::Point3f TrackedObject::updateKF(cv::Point3f pt)
 {	
 	return _KF.Update(pt);
 }
 
+
 void TrackedObject::adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
 	_KF.adjustPrediction(delta_robot);
 }
+
 
 //Create a tracked object list
 // those stay constant for the entire length of the run
@@ -360,7 +363,10 @@ TrackedObjectList::TrackedObjectList(const cv::Size &imageSize, const cv::Point2
 void TrackedObjectList::adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
 	for (auto it = _list.begin(); it != _list.end(); ++it)
+	{
 		it->adjustPosition(delta_robot);
+		it->adjustKF(delta_robot);
+	}
 }
 
 // Simple printout of list into stdout
@@ -396,9 +402,7 @@ const double dist_thresh_ = 1.0; // FIX ME!
 // if not, be added as new object to the list
 void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects, 
 									  const std::vector<float> depths, 
-									  const std::vector<ObjectType> &types,
-									  const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot
-)
+									  const std::vector<ObjectType> &types)
 {
 	std::cout << "---------- Start of process detect --------------" << std::endl;
 	print();
@@ -472,7 +476,6 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		std::cout << "prediction:" << prediction << std::endl;
 
 		tr->nextFrame();
-		tr->adjustKF(delta_robot);
 
 		if(*as != -1) // If we have assigned detect, then update using its coordinates
 		{

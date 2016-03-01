@@ -312,7 +312,7 @@ int main( int argc, const char** argv )
 				objTypes.push_back(ObjectType(1));
 			}
 		} 
-		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes, fvlc.transform_eigen());
+		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers

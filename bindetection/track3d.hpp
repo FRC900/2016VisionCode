@@ -189,9 +189,7 @@ class TrackedObjectList
 		// if not, be added as new object to the list
 		void processDetect(const std::vector<cv::Rect> &detectedRects, 
 						   const std::vector<float> depths, 
-						   const std::vector<ObjectType> &types,
-						   const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot
-							);
+						   const std::vector<ObjectType> &types);
 
 	private :
 		std::list<TrackedObject> _list; // list of currently valid detected objects
