@@ -221,10 +221,10 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(cap->getNextFrame(frame, pause))
 	{
-		frameTicker.mark(); // mark start of new frame
-
 		//Getting depth matrix
 		cap->getDepthMat(depth);
+
+		frameTicker.mark(); // mark start of new frame
 
 		if (--videoWritePollCount == 0)
 		{
