@@ -5,10 +5,10 @@
 #include "GoalDetector.hpp"
 #include "Utilities.hpp"
 #include "track3d.hpp"
+#include "frameticker.hpp"
 
 using namespace cv;
 using namespace std;
-
 
 int main(int argc, char **argv)
 {
@@ -39,11 +39,13 @@ gd._draw = true;
     createTrackbar("ValMin","RangeControl", &gd._val_min, 255);
     createTrackbar("ValMax","RangeControl", &gd._val_max, 255);
 
+	FrameTicker frameTicker;
    Mat image;
    Mat depth;
    Rect bound;
    while(true)
    {
+	   frameTicker.mark();
 	cap->update();
 	cap->getFrame().copyTo(image);
 	cap->getDepth().copyTo(depth);
@@ -52,6 +54,12 @@ gd._draw = true;
 	gd.processFrame(image,depth,bound);
 	cout << "Distance to goal: " << gd.dist_to_goal() << endl;
 	cout << "Angle to goal: " << gd.angle_to_goal() << endl;
+	stringstream ss;
+	if (frameTicker.valid())
+	{
+		ss << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
+		putText(image, ss.str(), Point(image.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+	}
 	imshow ("Image", image);
 
 	if ((uchar)waitKey(5) == 27)
