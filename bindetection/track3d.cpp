@@ -193,28 +193,14 @@ void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isom
 	//Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
 
 	Eigen::Vector3d old_pos_vec(_position.x, _position.y, _position.z);
-	Eigen::Vector3d new_pos_vec = delta_robot.inverse() * old_pos_vec;
-	std::cout << "Rotation: " << delta_robot.rotation().eulerAngles(0,1,2) << std::endl;
-	std::cout << "Old: " << old_pos_vec << std::endl;
-	std::cout << "New: " << new_pos_vec << std::endl;
-	
-	//float r_old = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
-	//float azimuth_old = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
-	//float inclination_old = asin( _position.z / r_old );
+	Eigen::Vector3d new_pos_vec = delta_robot * old_pos_vec;
 
 	_position = cv::Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
-
-	//float r_new = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);	
-	//float azimuth_new = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
-	//float inclination_new = asin( _position.z / r_new );
-
-	//std::cout << "Change in inclination: " << inclination_new - inclination_old << std::endl;
-	//std::cout << "Change in azimuth: " << azimuth_new - azimuth_old << std::endl;
 
 	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
-		Eigen::Vector3d new_pos_vector = delta_robot.inverse() * old_pos_vector;
+		Eigen::Vector3d new_pos_vector = delta_robot * old_pos_vector;
 		*it = cv::Point3f(new_pos_vector[0], new_pos_vector[1], new_pos_vector[2]);
 	}
 }
