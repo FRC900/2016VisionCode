@@ -185,7 +185,7 @@ int main( int argc, const char** argv )
 	const size_t netTableArraySize = 7; // 7 bins?
 
 	// Code to write video frames to avi file on disk
-	VideoWriter outputVideo;
+	VideoWriter rawVideo;
 	VideoWriter markedupVideo;
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
@@ -210,8 +210,8 @@ int main( int argc, const char** argv )
 	FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
 	//Creating Goaldetection object
-	GoalDetector gd(Point2f(HFOV,VFOV), Size(cap->width(),cap->height()));
-
+	GoalDetector gd(Point2f(HFOV,VFOV), Size(cap->width(),cap->height()), !args.batchMode);
+	
 	int64 stepTimer;	
 	
 	// Start of the main loop
@@ -234,7 +234,7 @@ int main( int argc, const char** argv )
 		
 		if (args.writeVideo)
 		{
-		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, NULL, true);
+		   writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
 		}
 
 		// This code will load a classifier if none is loaded - this handles
@@ -246,13 +246,13 @@ int main( int argc, const char** argv )
 			break;
 
 		//run Goaldetector and FovisLocator code
-		Rect goalBoundRect;
-		gd.processFrame(frame, depth, goalBoundRect);
+		gd.processFrame(frame, depth);
 
 		float gDistance = gd.dist_to_goal();
 		cout << "distance to goal: " << gDistance;
 		float gAngle = gd.angle_to_goal();
 		cout << " angle to goal: " << gAngle << endl;
+		Rect goalBoundRect = gd.goal_rect();
 
 		//stepTimer = cv::getTickCount();
 		fvlc.processFrame(frame,depth);
@@ -507,6 +507,10 @@ int main( int argc, const char** argv )
 			else if (c == 's')
 			{
 				frameDisplayFrequency = max(1, frameDisplayFrequency - 1);
+			}
+			else if (c == 'g') // toggle Goal Detect drawing
+			{
+				gd.draw(!gd.draw());
 			}
 			else if (c == 'G') // toggle CPU/GPU mode
 			{

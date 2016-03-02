@@ -9,44 +9,49 @@
 #include "Utilities.hpp"
 #include "track3d.hpp"
 
-class GoalDetector {
-public:
+class GoalDetector 
+{
+	public:
 
-    GoalDetector(cv::Point2f fov_size, cv::Size frame_size);
+		GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui = false);
 
-    float dist_to_goal(void) const { return _goal_found ? _dist_to_goal : -1.0; }   //floor distance to goal in m
-    float angle_to_goal(void) const { return _goal_found ? _angle_to_goal : -1.0; } //angle robot has to turn to face goal in degrees
+		cv::Rect goal_rect(void) const;
+		float dist_to_goal(void) const;
+		float angle_to_goal(void) const;
 
-    void processFrame(cv::Mat& image, const cv::Mat& depth, cv::Rect &bound); //this updates dist_to_goal and angle_to_goal
+		// Get and set drawing flags
+		void draw(bool drawFlag);
+		bool draw(void) const;
 
-   
-    int _hue_min = 70;                            //60-95 is a good range for bright green
-    int _hue_max = 100;
-    int _sat_min =  45;
-    int _sat_max = 255;
-    int _val_min = 175;
-    int _val_max = 255;
+		void processFrame(cv::Mat& image, const cv::Mat& depth); //this updates dist_to_goal, angle_to_goal, and _goal_rect
 
-    /*int _hue_min = 60;                            //60-95 is a good range for bright green
-    int _hue_max = 95;
-    int _sat_min = 180;
-    int _sat_max = 255;
-    int _val_min = 67;
-    int _val_max = 255;*/
+	private:
+		void wrapConfidence(float &confidence);
+		ObjectType _goal_shape;
+		cv::Point2f _fov_size;
+		cv::Size _frame_size;
+		const float _goal_height = 2.159 - 1 - (17 * 2.54) / 100.;  // goal height minus camera mounting ht minus chopping off 17 inches.  TODO : remeasure me!
 
-	bool _draw;
+		bool  _draw;
 
-private:
-	void wrapConfidence(float &confidence);
-	ObjectType _goal_shape;
-    cv::Point2f _fov_size;
-	cv::Size _frame_size;
-    const float _goal_height = 2.159 - 1;  // goal height minus camera mounting ht
+		bool  _goal_found;
+		float _dist_to_goal;
+		float _angle_to_goal;
+		cv::Rect _goal_rect;
 
-    float _dist_to_goal;
-    float _angle_to_goal;
-    bool  _goal_found;
-	float _min_valid_confidence;
+		float _min_valid_confidence;
 
-    bool generateThreshold(const cv::Mat& ImageIn, cv::Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX);
+		int  _use_add_subtract;
+		int  _blue_scale;
+		int  _red_scale;
+
+		int _hue_min;
+		int _hue_max;
+		int _sat_min;
+		int _sat_max;
+		int _val_min;
+		int _val_max;
+
+		bool generateThreshold(const cv::Mat& imageIn, cv::Mat& imageOut);
+		bool generateThresholdAddSubtract(const cv::Mat& imageIn, cv::Mat& imageOut);
 };
