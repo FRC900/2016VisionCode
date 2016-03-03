@@ -12,7 +12,7 @@ class TKalmanFilter
 		cv::Point3f GetPrediction();
 		cv::Point3f Update(cv::Point3f p);
 		void adjustPrediction(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
-
+		void adjustPrediction(cv::Point3f delta_pos);
 	private:
 		cv::KalmanFilter kalman;
 };
