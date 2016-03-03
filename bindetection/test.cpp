@@ -33,8 +33,8 @@ using namespace std;
 using namespace cv;
 using namespace utils;
 
-static const float HFOV = 51.3 * (M_PI / 180.0);  
-static const float VFOV = HFOV * 480./ 640.; // pixels are square
+static const float HFOV = 105. * (M_PI / 180.0);  
+static const float VFOV = HFOV * 720./ 1280.; // pixels are square
 
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);

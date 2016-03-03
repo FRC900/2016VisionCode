@@ -244,12 +244,12 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 	
 	//correct the position
 	cv::Mat new_screen_pos_mat = transform_mat * pos_mat;
-	cv::Point new_screen_pos = cv::Point(new_screen_pos_mat.at<float>(0),new_screen_pos_mat.at<float>(0));
+	cv::Point new_screen_pos = cv::Point(new_screen_pos_mat.at<float>(0),new_screen_pos_mat.at<float>(1));
 
 	//create a dummy bounding rect because setPosition requires a bounding rect as an input rather than a point
 	cv::Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
+	std::cout << "Moved object from: " << screen_pos << " to " << new_screen_pos << std::endl;
 	setPosition(new_screen_rect,depth,fov_size,frame_size);
-
 	//update the history
 	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
 	{
