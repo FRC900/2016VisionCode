@@ -323,6 +323,11 @@ int main( int argc, const char** argv )
 				objTypes.push_back(ObjectType(1));
 			}
 		} 
+
+		vector<Rect> fakeRects;
+		vector<float> fakeDepths;
+		vector<ObjectType> fakeTypes;
+
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
@@ -655,7 +660,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL );
+		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui );
 		Mat	mat;
 		if(!cap->getNextFrame(mat))
 		{
