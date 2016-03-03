@@ -89,12 +89,12 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(3, this);
-			zedContrastCallback(5, this);
-			zedHueCallback(6, this);
-			zedSaturationCallback(3, this);
-			zedGainCallback(1, this);
-			zedWhiteBalanceCallback(3100, this);
+			zedBrightnessCallback(4, this);
+			zedContrastCallback(6, this);
+			zedHueCallback(7, this);
+			zedSaturationCallback(4, this);
+			zedGainCallback(2, this);
+			zedWhiteBalanceCallback(3101, this);
 
 			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
 			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
@@ -421,14 +421,14 @@ CameraParams ZedIn::getCameraParams(bool left) const
 	else
 	{
 		// Take a guess based on acutal values from one of our cameras
-		if (width_ == 640)
+		if (height_ == 480)
 		{
 			zedp.fx = 705.768;
 			zedp.fy = 705.768;
 			zedp.cx = 326.848;
 			zedp.cy = 240.039;
 		}
-		else if (width_ == 1280)
+		else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
 		{
 			zedp.fx = 686.07;
 			zedp.fy = 686.07;
@@ -458,11 +458,15 @@ CameraParams ZedIn::getCameraParams(bool left) const
 			zedp.cy = 0;
 		}
 	}
-	CameraParams params;
-	if (height_ == 480)
-		params.fov = Point2f(51.3 * M_PI / 180, 51.3 * 480. / 640. * M_PI / 180);
+	float hFovDegrees;
+	if (height_ == 480) // can't work based on width, since 1/2 of 720P is 640, as is 640x480
+		hFovDegrees = 51.3;
 	else
-		params.fov = Point2f(105. * M_PI / 180, 105. * 720. / 1280. * M_PI / 180); // Guessing all 16:9 resolutions are the same
+		hFovDegrees = 105.; // hope all the HD & 2k res are the same
+	float hFovRadians = hFovDegrees * M_PI / 180.0;
+
+	CameraParams params;
+	params.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
 	params.fx = zedp.fx;
 	params.fy = zedp.fy;
 	params.cx = zedp.cx;
