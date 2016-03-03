@@ -27,6 +27,7 @@
 #include "GoalDetector.hpp"
 #include "FovisLocalizer.hpp"
 #include "Utilities.hpp"
+#include "FlowLocalizer.hpp"
 
 using namespace std;
 using namespace cv;
@@ -212,7 +213,9 @@ int main( int argc, const char** argv )
 		return 0;
 	}
 
-	FovisLocalizer fvlc(camParams, frame);
+	cap->getNextFrame(frame, pause);
+	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
+	FlowLocalizer fllc(frame);
 
 	//Creating Goaldetection object
 	GoalDetector gd(camParams.fov, Size(cap->width(),cap->height()), !args.batchMode);
@@ -260,7 +263,8 @@ int main( int argc, const char** argv )
 		Rect goalBoundRect = gd.goal_rect();
 
 		//stepTimer = cv::getTickCount();
-		fvlc.processFrame(frame,depth);
+		//fvlc.processFrame(frame,depth);
+		fllc.processFrame(frame);
 		//cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
@@ -284,12 +288,13 @@ int main( int argc, const char** argv )
 			drawRects(frame,detectRects);
 
 		//adjust locations of objects based on fovis results
-		utils::printIsometry(fvlc.transform_eigen());
+		//utils::printIsometry(fvlc.transform_eigen());
 
 		cout << "Locations before adjustment: " << endl;
 		objectTrackingList.print();
 
-		objectTrackingList.adjustLocation(fvlc.transform_eigen());
+		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
+		objectTrackingList.adjustLocation(fllc.transform_mat());
 
 		cout << "Locations after adjustment: " << endl;
 		objectTrackingList.print();

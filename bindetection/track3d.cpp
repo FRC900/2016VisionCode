@@ -138,6 +138,31 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 	return retPt;
 }
 
+static cv::Rect worldToScreenCoords(const cv::Point3f &_position, ObjectType _type, const cv::Point2f &fov_size, const cv::Size &frame_size)
+{
+	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
+	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
+	float inclination = asin( _position.z / r );
+	
+	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
+	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
+			                   percent_fov.y * frame_size.height);
+
+	cv::Point2f rect_center;
+	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
+	rect_center.y = -dist_to_center.y + (frame_size.height / 2.0);
+
+	cv::Point2f angular_size = cv::Point2f( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
+	cv::Point2f screen_size;
+	screen_size.x = angular_size.x * (frame_size.width / fov_size.x);
+	screen_size.y = angular_size.y * (frame_size.height / fov_size.y);
+
+	cv::Point topLeft;
+	topLeft.x = cvRound(rect_center.x - (screen_size.x / 2.0));
+	topLeft.y = cvRound(rect_center.y - (screen_size.y / 2.0));
+
+	return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
+}
 
 TrackedObject::TrackedObject( int id,
     const ObjectType &type_in,
@@ -193,30 +218,52 @@ void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isom
 	//Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
 
 	Eigen::Vector3d old_pos_vec(_position.x, _position.y, _position.z);
-	Eigen::Vector3d new_pos_vec = delta_robot.inverse() * old_pos_vec;
-	std::cout << "Rotation: " << delta_robot.rotation().eulerAngles(0,1,2) << std::endl;
-	std::cout << "Old: " << old_pos_vec << std::endl;
-	std::cout << "New: " << new_pos_vec << std::endl;
-	
-	//float r_old = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
-	//float azimuth_old = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
-	//float inclination_old = asin( _position.z / r_old );
+	Eigen::Vector3d new_pos_vec = delta_robot * old_pos_vec;
 
 	_position = cv::Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
-
-	//float r_new = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);	
-	//float azimuth_new = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
-	//float inclination_new = asin( _position.z / r_new );
-
-	//std::cout << "Change in inclination: " << inclination_new - inclination_old << std::endl;
-	//std::cout << "Change in azimuth: " << azimuth_new - azimuth_old << std::endl;
 
 	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
-		Eigen::Vector3d new_pos_vector = delta_robot.inverse() * old_pos_vector;
+		Eigen::Vector3d new_pos_vector = delta_robot * old_pos_vector;
 		*it = cv::Point3f(new_pos_vector[0], new_pos_vector[1], new_pos_vector[2]);
 	}
+}
+
+void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, const cv::Point2f &fov_size, const cv::Size &frame_size)
+{
+	//get the position of the object on the screen
+	cv::Rect screen_rect = getScreenPosition(fov_size,frame_size);
+	cv::Point screen_pos = cv::Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
+
+	//create a matrix to hold positon for matrix multiplication
+	cv::Mat pos_mat(3,1,CV_64FC1);
+	pos_mat.at<float>(0,0) = screen_pos.x;
+	pos_mat.at<float>(0,1) = screen_pos.y;
+	pos_mat.at<float>(0,2) = 1.0;
+	
+	//correct the position
+	cv::Mat new_screen_pos_mat = transform_mat * pos_mat;
+	cv::Point new_screen_pos = cv::Point(new_screen_pos_mat.at<float>(0),new_screen_pos_mat.at<float>(0));
+
+	//create a dummy bounding rect because setPosition requires a bounding rect as an input rather than a point
+	cv::Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
+	setPosition(new_screen_rect,depth,fov_size,frame_size);
+
+	//update the history
+	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
+	{
+		screen_rect = worldToScreenCoords(*it,_type,fov_size,frame_size);
+		screen_pos = cv::Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
+		pos_mat.at<float>(0,0) = screen_pos.x;
+		pos_mat.at<float>(0,1) = screen_pos.y;
+		pos_mat.at<float>(0,2) = 1.0;
+		cv::Mat new_screen_pos_mat = transform_mat * pos_mat;
+		cv::Point new_screen_pos = cv::Point(new_screen_pos_mat.at<float>(0),new_screen_pos_mat.at<float>(0));
+		cv::Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
+		*it = screenToWorldCoords(new_screen_rect,depth,fov_size,frame_size);
+	}
+	
 }
 
 // Mark the object as detected in this frame
@@ -285,32 +332,7 @@ void TrackedObject::nextFrame(void)
 
 cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
 {
-	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
-	//std::cout << "Position: " << _position << std::endl;
-	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
-	float inclination = asin( _position.z / r );
-	//std::cout << "Computed Azimuth: " << azimuth << std::endl;
-	//std::cout << "Computed Inclination: " << inclination << std::endl;
-	
-	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
-	//std::cout << "Computed Percent fov: " << percent_fov << std::endl;
-	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
-			                   percent_fov.y * frame_size.height);
-
-	cv::Point2f rect_center;
-	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
-	rect_center.y = -dist_to_center.y + (frame_size.height / 2.0);
-
-	cv::Point2f angular_size = cv::Point2f( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
-	cv::Point2f screen_size;
-	screen_size.x = angular_size.x * (frame_size.width / fov_size.x);
-	screen_size.y = angular_size.y * (frame_size.height / fov_size.y);
-
-	cv::Point topLeft;
-	topLeft.x = cvRound(rect_center.x - (screen_size.x / 2.0));
-	topLeft.y = cvRound(rect_center.y - (screen_size.y / 2.0));
-
-	return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
+	return worldToScreenCoords(_position, _type, fov_size, frame_size);
 }
 
 
@@ -349,6 +371,11 @@ void TrackedObject::adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> 
 	_KF.adjustPrediction(delta_robot);
 }
 
+void TrackedObject::adjustKF(cv::Point3f delta_pos)
+{
+	_KF.adjustPrediction(delta_pos);
+}
+
 
 //Create a tracked object list
 // those stay constant for the entire length of the run
@@ -359,13 +386,29 @@ TrackedObjectList::TrackedObjectList(const cv::Size &imageSize, const cv::Point2
 {
 }
 
-// Adjust position for camera motion between frames
+// Adjust position for camera motion between frames using fovis
 void TrackedObjectList::adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
 	for (auto it = _list.begin(); it != _list.end(); ++it)
 	{
 		it->adjustPosition(delta_robot);
 		it->adjustKF(delta_robot);
+	}
+}
+
+// Adjust position for camera motion between frames using optical flow
+void TrackedObjectList::adjustLocation(const cv::Mat &transform_mat)
+{
+	for (auto it = _list.begin(); it != _list.end(); ++it)
+	{
+		//measure the amount that the position changed and apply the same change to the kalman filter
+		cv::Point3f old_pos = it->getPosition();
+		//compute r and use it for depth (assume depth doesn't change)
+		float r = sqrt(it->getPosition().x * it->getPosition().x + it->getPosition().y * it->getPosition().y + it->getPosition().z * it->getPosition().z);
+		it->adjustPosition(transform_mat,r,_fovSize,_imageSize);
+		cv::Point3f delta_pos = it->getPosition() - old_pos;
+
+		it->adjustKF(delta_pos);
 	}
 }
 

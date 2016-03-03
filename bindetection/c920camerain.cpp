@@ -175,9 +175,9 @@ CameraParams C920CameraIn::getCameraParams(bool left) const
 	v4l2::GetCaptureSize(captureSize_, width, height);
 	CameraParams cp;
 	if (width == 640)
-		cp.fov = Point2f(69.0, 0.0); // need VFOV, other resolutions
+		cp.fov = Point2f(69.0 * M_PI / 180., 0.0); // need VFOV, other resolutions
 	else
-		cp.fov = Point2f(77, 0.0);
+		cp.fov = Point2f(77 * M_PI / 180., 0.0);
 	return cp;
 }
 

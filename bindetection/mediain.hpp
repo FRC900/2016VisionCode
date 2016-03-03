@@ -9,7 +9,7 @@ class CameraParams
 {
 	public:
 		CameraParams() :
-			fov(51.3, 51.3 * 480. / 640.), // Default to zed params?
+			fov(51.3 * M_PI / 180., 51.3 * 480. / 640. * M_PI / 180.), // Default to zed params?
 			fx(0),
 			fy(0),
 			cx(0),
