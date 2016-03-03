@@ -32,9 +32,6 @@ using namespace std;
 using namespace cv;
 using namespace utils;
 
-static const float HFOV = 51.3 * (M_PI / 180.0);  
-static const float VFOV = HFOV * 480./ 640.; // pixels are square
-
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
@@ -172,9 +169,10 @@ int main( int argc, const char** argv )
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
 	}
 
+	CameraParams camParams = cap->getCameraParams(true);
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
-	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), Point2f(HFOV,VFOV));
+	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
 	
 	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
@@ -197,7 +195,7 @@ int main( int argc, const char** argv )
 		detectState = new DetectState(
 				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
-				gpu::getCudaEnabledDeviceCount() > 0);
+				camParams.fov.x, gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
 	if (args.groundTruth)
@@ -214,10 +212,10 @@ int main( int argc, const char** argv )
 		return 0;
 	}
 
-	FovisLocalizer fvlc(cap->getCameraParams(true), frame);
+	FovisLocalizer fvlc(camParams, frame);
 
 	//Creating Goaldetection object
-	GoalDetector gd(Point2f(HFOV,VFOV), Size(cap->width(),cap->height()), !args.batchMode);
+	GoalDetector gd(camParams.fov, Size(cap->width(),cap->height()), !args.batchMode);
 	
 	int64 stepTimer;	
 	

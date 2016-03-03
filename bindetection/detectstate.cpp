@@ -5,10 +5,11 @@
 
 using namespace std;
 
-DetectState::DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, bool gpu) :
+DetectState::DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, float hfov, bool gpu) :
     detector_(NULL),
 	d12IO_(d12IO),
 	d24IO_(d24IO),
+	hfov_(hfov),
 	gpu_(gpu),
 	reload_(true)
 {
@@ -44,7 +45,7 @@ bool DetectState::update(void)
         cerr << "No Files to load classifier" << endl;
         return false;
     }
-	detector_ = new GPU_NNDetect(d12Files, d24Files);
+	detector_ = new GPU_NNDetect(d12Files, d24Files, hfov_);
 
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )

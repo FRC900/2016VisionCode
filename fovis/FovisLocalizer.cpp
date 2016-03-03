@@ -1,9 +1,11 @@
+#include <iostream>
+#include <opencv2/opencv.hpp>
 #include "FovisLocalizer.hpp"
 
 using namespace std;
 using namespace cv;
 
-FovisLocalizer::FovisLocalizer(const sl::zed::CamParameters &input_params, const cv::Mat& initial_frame) :
+FovisLocalizer::FovisLocalizer(const CameraParams &input_params, const cv::Mat& initial_frame) :
 	_rect(NULL),
 	_odom(NULL)
 {

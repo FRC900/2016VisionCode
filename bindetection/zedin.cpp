@@ -408,44 +408,57 @@ int ZedIn::height(void) const
 }
 
 
-sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
+CameraParams ZedIn::getCameraParams(bool left) const
 {
+	sl::zed::CamParameters zedp;
 	if (zed_)
 	{
 		if(left)
-			return (zed_->getParameters())->LeftCam;
-		return (zed_->getParameters())->RightCam;
+			zedp = zed_->getParameters()->LeftCam;
+		else
+			zedp = zed_->getParameters()->RightCam;
 	}
-	// Take a guess based on acutal values from one of our cameras
-	sl::zed::CamParameters params;
+	else
+	{
+		// Take a guess based on acutal values from one of our cameras
+		if (width_ == 640)
+		{
+			zedp.fx = 705.768;
+			zedp.fy = 705.768;
+			zedp.cx = 326.848;
+			zedp.cy = 240.039;
+		}
+		else if (width_ == 1280)
+		{
+			zedp.fx = 686.07;
+			zedp.fy = 686.07;
+			zedp.cx = 662.955;
+			zedp.cy = 361.614;
+		}
+		else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
+		{
+			zedp.fx = 1401.88;
+			zedp.fy = 1401.88;
+			zedp.cx = 977.193 / (1920 / width_); // Is this correct - downsized
+			zedp.cy = 540.036 / (1920 / width_); // image needs downsized cx?
+		}
+		else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
+		{
+			zedp.fx = 1385.4;
+			zedp.fy = 1385.4;
+			zedp.cx = 1124.74 / (2208 / width_);
+			zedp.cy = 1124.74 / (2208 / width_);
+		}
+	}
+	CameraParams params;
 	if (width_ == 640)
-	{
-		params.fx = 705.768;
-		params.fy = 705.768;
-		params.cx = 326.848;
-		params.cy = 240.039;
-	}
-	else if (width_ == 1280)
-	{
-		params.fx = 686.07;
-		params.fy = 686.07;
-		params.cx = 662.955;
-		params.cy = 361.614;
-	}
-	else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
-	{
-		params.fx = 1401.88;
-		params.fy = 1401.88;
-		params.cx = 977.193 / (1920 / width_); // Is this correct - downsized
-		params.cy = 540.036 / (1920 / width_); // image needs downsized cx?
-	}
-	else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
-	{
-		params.fx = 1385.4;
-		params.fy = 1385.4;
-		params.cx = 1124.74 / (2208 / width_);
-		params.cy = 1124.74 / (2208 / width_);
-	}
+		params.fov = Point2f(51.3, 51.3 / 480. * 640.);
+	else
+		params.fov = Point2f(105, 105 / 720. * 1280.); // Guessing all 16:9 resolutions are the same
+	params.fx = zedp.fx;
+	params.fy = zedp.fy;
+	params.cx = zedp.cx;
+	params.cy = zedp.cy;
 	return params;
 }
 
