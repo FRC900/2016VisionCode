@@ -456,7 +456,7 @@ void zedBrightnessCallback(int value, void *data)
 	zedPtr->brightness_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value - 1, value == 0);
 	}
 }
 
@@ -467,7 +467,7 @@ void zedContrastCallback(int value, void *data)
 	zedPtr->contrast_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value - 1, value == 0);
 	}
 }
 
@@ -478,7 +478,7 @@ void zedHueCallback(int value, void *data)
 	zedPtr->hue_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value - 1, value == 0);
 	}
 }
 
@@ -489,7 +489,7 @@ void zedSaturationCallback(int value, void *data)
 	zedPtr->saturation_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value - 1, value == 0);
 	}
 }
 
@@ -500,7 +500,7 @@ void zedGainCallback(int value, void *data)
 	zedPtr->gain_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value - 1, value == 0);
 	}
 }
 
@@ -511,7 +511,7 @@ void zedWhiteBalanceCallback(int value, void *data)
 	zedPtr->whiteBalance_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value - 1, value == 0);
 	}
 }
 
