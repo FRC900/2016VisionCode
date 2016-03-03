@@ -459,10 +459,10 @@ CameraParams ZedIn::getCameraParams(bool left) const
 		}
 	}
 	CameraParams params;
-	if (width_ == 640)
+	if (height_ == 480)
 		params.fov = Point2f(51.3 * M_PI / 180, 51.3 * 480. / 640. * M_PI / 180);
 	else
-		params.fov = Point2f(105 * M_PI / 180, 105 * 720. / 1280. * M_PI / 180); // Guessing all 16:9 resolutions are the same
+		params.fov = Point2f(105. * M_PI / 180, 105. * 720. / 1280. * M_PI / 180); // Guessing all 16:9 resolutions are the same
 	params.fx = zedp.fx;
 	params.fy = zedp.fy;
 	params.cx = zedp.cx;
