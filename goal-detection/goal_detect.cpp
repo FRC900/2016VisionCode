@@ -14,8 +14,8 @@ int main(int argc, char **argv)
 {
 	ZedIn cap(argc == 2 ? argv[1] : NULL, NULL, true);
 
-	const float HFOV =  51.3 * M_PI / 180.;
-	GoalDetector gd(Point2f(HFOV, HFOV * 480. / 640.), Size(cap.width(),cap.height()));
+	const float HFOV =  105 * M_PI / 180.;
+	GoalDetector gd(Point2f(HFOV, HFOV * 720. / 1280.), Size(cap.width(),cap.height()));
 	gd._draw = true;
 
 	namedWindow("RangeControl", WINDOW_AUTOSIZE);

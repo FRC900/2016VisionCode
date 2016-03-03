@@ -53,7 +53,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
 	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::VGA);
+		zed_ = new sl::zed::Camera(sl::zed::HD720);
 
 	// Save the raw camera stream to disk.  This uses a home-brew
 	// method to serialize image and depth data to disk rather than
@@ -68,7 +68,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	if (zed_)
 	{
 		// init computation mode of the zed
-		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::QUALITY, -1, true);
+		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::PERFORMANCE, -1, true);
 		// Quit if an error occurred
 		if (err != sl::zed::SUCCESS) 
 		{
@@ -133,7 +133,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		width_  = frame_.cols;
 		height_ = frame_.rows;
 	}
-	while (height_ > 800)
+	while (height_ > 700)
 	{
 		width_  /= 2;
 		height_ /= 2;
@@ -315,7 +315,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 			}
 		}
 
-		while (frame_.rows > 800)
+		while (frame_.rows > 700)
 		{
 			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
