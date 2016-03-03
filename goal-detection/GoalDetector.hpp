@@ -41,16 +41,8 @@ class GoalDetector
 
 		float _min_valid_confidence;
 
-		int  _use_add_subtract;
 		int  _blue_scale;
 		int  _red_scale;
-
-		int _hue_min;
-		int _hue_max;
-		int _sat_min;
-		int _sat_max;
-		int _val_min;
-		int _val_max;
 
 		bool generateThreshold(const cv::Mat& imageIn, cv::Mat& imageOut);
 		bool generateThresholdAddSubtract(const cv::Mat& imageIn, cv::Mat& imageOut);
