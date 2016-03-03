@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size) :
+GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
 	_goal_shape(3)
 {
 	_goal_found = false;
@@ -12,6 +12,41 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size) :
 	_frame_size = frame_size;
 	_draw = false;
 	_min_valid_confidence = 0.2;
+
+    _hue_min = 70;        //60-95 is a good range for bright green
+    _hue_max = 100;
+    _sat_min =  45;
+    _sat_max = 255;
+    _val_min = 175;
+    _val_max = 255;
+
+    /*_hue_min = 60;      //60-95 is a good range for bright green
+    _hue_max = 95;
+    _sat_min = 180;
+    _sat_max = 255;
+    _val_min = 67;
+    _val_max = 255;*/
+
+	_use_add_subtract = 0;
+	_blue_scale = 75;
+	_red_scale  = 100;
+
+	if (gui)
+	{
+		cv::namedWindow("Goal Detect Adjustments", CV_WINDOW_NORMAL);
+		createTrackbar("Use Add Subtract","Goal Detect Adjustments", &_use_add_subtract, 1);
+		createTrackbar("HueMin","Goal Detect Adjustments", &_hue_min, 179);
+		createTrackbar("HueMax","Goal Detect Adjustments", &_hue_max, 179);
+
+		createTrackbar("SatMin","Goal Detect Adjustments", &_sat_min, 255);
+		createTrackbar("SatMax","Goal Detect Adjustments", &_sat_max, 255);
+
+		createTrackbar("ValMin","Goal Detect Adjustments", &_val_min, 255);
+		createTrackbar("ValMax","Goal Detect Adjustments", &_val_max, 255);
+
+		createTrackbar("Blue Scale","Goal Detect Adjustments", &_blue_scale, 100);
+		createTrackbar("Red Scale","Goal Detect Adjustments", &_red_scale, 100);
+	}
 }
 
 void GoalDetector::wrapConfidence(float &confidence)
@@ -19,7 +54,7 @@ void GoalDetector::wrapConfidence(float &confidence)
 	confidence = confidence > 0.5 ? 1 - confidence : confidence;
 }
 
-void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
+void GoalDetector::processFrame(Mat& image, const Mat& depth)
 {
 	// Use to mask the contour off from the rest of the 
 	// image - used when grabbing depth data for the contour
@@ -30,13 +65,18 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 	_goal_found = false;
 	_dist_to_goal = -1.0;
 	_angle_to_goal = -1.0;
-	bound = Rect(0,0,0,0);
+	_goal_rect = Rect(0,0,0,0);
 
 	// Look for parts the the image which are within the
 	// expected bright green color range
     Mat threshold_image;
-	if(!generateThreshold(image, threshold_image, _hue_min, _hue_max, _sat_min, _sat_max, _val_min, _val_max))
+	if((!_use_add_subtract && !generateThreshold(image, threshold_image)) ||
+	   ( _use_add_subtract && !generateThresholdAddSubtract(image, threshold_image)))
+	{
+		imshow("Threshold No Detect", threshold_image);
 		return;
+	}
+	imshow("Threshold With Detect", threshold_image);
 
 	// find contours in the thresholded image - these will be blobs
 	// of green to check later on to see how well they match the
@@ -150,9 +190,9 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 			float h_dist          = (h_dist_with_max + h_dist_with_min) / 2.0;     //average of the two is more accurate
 			float goal_to_center_px  = ((float)br.tl().x + ((float)br.width / 2.0)) - ((float)image.cols / 2.0);                                     //number of pixels from center of contour to center of image (e.g. how far off center it is)
 			float goal_to_center_deg = _fov_size.x * (goal_to_center_px / (float)image.cols);                                                                           //converts to angle using the field of view
-			_dist_to_goal    = h_dist;
-			_angle_to_goal   = goal_to_center_deg * (180.0 / M_PI);
-			bound = br;
+			_dist_to_goal  = h_dist;
+			_angle_to_goal = goal_to_center_deg * (180.0 / M_PI);
+			_goal_rect     = br;
 
 			maxConfidence = confidence;
 			best_contour_index = i;
@@ -175,7 +215,7 @@ void GoalDetector::processFrame(Mat& image, const Mat& depth, Rect &bound)
 }
 
 
-bool GoalDetector::generateThreshold(const Mat& ImageIn, Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX)
+bool GoalDetector::generateThreshold(const Mat& imageIn, Mat& imageOut)
 {
     Mat ThresholdLocalImage;
 
@@ -183,22 +223,69 @@ bool GoalDetector::generateThreshold(const Mat& ImageIn, Mat& ImageOut, int H_MI
     Mat         SplitImageLE;
     Mat         SplitImageGE;
 
-    cvtColor(ImageIn, ThresholdLocalImage, CV_BGR2HSV, 0);
+    cvtColor(imageIn, ThresholdLocalImage, CV_BGR2HSV, 0);
     split(ThresholdLocalImage, SplitImage);
-    Vec3i max( H_MAX, S_MAX, V_MAX );
-    Vec3i min( H_MIN, S_MIN, V_MIN );
+    Vec3i max( _hue_max, _sat_max, _val_max);
+    Vec3i min( _hue_min, _sat_min, _val_min);
     for (size_t i = 0; i < SplitImage.size(); i++)
     {
         compare(SplitImage[i], min[i], SplitImageGE, cv::CMP_GE);
         compare(SplitImage[i], max[i], SplitImageLE, cv::CMP_LE);
         bitwise_and(SplitImageGE, SplitImageLE, SplitImage[i]);
     }
-    bitwise_and(SplitImage[0], SplitImage[1], ImageOut);
-    bitwise_and(SplitImage[2], ImageOut, ImageOut);
+    bitwise_and(SplitImage[0], SplitImage[1], imageOut);
+    bitwise_and(SplitImage[2], imageOut, imageOut);
 
     Mat erodeElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
     Mat dilateElement(getStructuringElement(MORPH_ELLIPSE, Size(2, 2)));
-    erode(ImageOut, ImageOut, erodeElement, Point(-1, -1), 2);
-    dilate(ImageOut, ImageOut, dilateElement, Point(-1, -1), 2);
-    return (countNonZero(ImageOut) != 0);
+    erode(imageOut, imageOut, erodeElement, Point(-1, -1), 2);
+    dilate(imageOut, imageOut, dilateElement, Point(-1, -1), 2);
+    return (countNonZero(imageOut) != 0);
+}
+
+bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOut)
+{
+    vector<Mat> splitImage;
+    Mat         bluePlusRed;
+
+    split(imageIn, splitImage);
+	addWeighted(splitImage[0], _blue_scale / 100.0, 
+			    splitImage[2], _red_scale / 100.0, 0.0,
+				bluePlusRed);
+	subtract(splitImage[1], bluePlusRed, imageOut);
+
+    Mat erodeElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
+    Mat dilateElement(getStructuringElement(MORPH_ELLIPSE, Size(2, 2)));
+    erode(imageOut, imageOut, erodeElement, Point(-1, -1), 2);
+    dilate(imageOut, imageOut, dilateElement, Point(-1, -1), 2);
+
+	//adaptiveThreshold(imageOut, imageOut, 255.0, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 11, 2);
+	threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+    return (countNonZero(imageOut) != 0);
+}
+
+float GoalDetector::dist_to_goal(void) const 
+{
+ 	//floor distance to goal in m 
+	return _goal_found ? _dist_to_goal : -1.0; 
+}
+float GoalDetector::angle_to_goal(void) const 
+{ 
+	//angle robot has to turn to face goal in degrees
+	return _goal_found ? _angle_to_goal : -1.0; 
+}  
+		
+Rect GoalDetector::goal_rect(void) const
+{
+	return _goal_found ? _goal_rect : Rect(); 
+}
+
+void GoalDetector::draw(bool drawFlag)
+{
+	_draw = drawFlag;
+}
+
+bool GoalDetector::draw(void) const
+{
+	return _draw;
 }

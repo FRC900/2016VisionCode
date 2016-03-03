@@ -9,7 +9,7 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, bool gpu = false);
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, float hfov, bool gpu = false);
 		~DetectState()
 		{
 			if (detector_)
@@ -30,6 +30,7 @@ class DetectState
 		ObjDetect    *detector_;
 		ClassifierIO  d12IO_;
 		ClassifierIO  d24IO_;
+		float         hfov_;
 		bool          gpu_;
 		bool          reload_;
 };

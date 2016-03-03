@@ -33,9 +33,6 @@ using namespace std;
 using namespace cv;
 using namespace utils;
 
-static const float HFOV = 105. * (M_PI / 180.0);  
-static const float VFOV = HFOV * 720./ 1280.; // pixels are square
-
 //function prototypes
 void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
@@ -173,9 +170,10 @@ int main( int argc, const char** argv )
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
 	}
 
+	CameraParams camParams = cap->getCameraParams(true);
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
-	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), Point2f(HFOV,VFOV));
+	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
 	
 	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
@@ -186,17 +184,19 @@ int main( int argc, const char** argv )
 	const size_t netTableArraySize = 7; // 7 bins?
 
 	// Code to write video frames to avi file on disk
-	VideoWriter outputVideo;
+	VideoWriter rawVideo;
 	VideoWriter markedupVideo;
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
 
 	FrameTicker frameTicker;
 
-	DetectState detectState(
-		  ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
-		  ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
-		  gpu::getCudaEnabledDeviceCount() > 0);
+	DetectState *detectState = NULL;
+	if (args.detection)
+		detectState = new DetectState(
+				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
+				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
+				camParams.fov.x, gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
 	if (args.groundTruth)
@@ -207,13 +207,19 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
+	if (cap->getNextFrame(frame, pause) == false)
+	{
+		cerr << "Could not open input file " << args.inputName << endl;
+		return 0;
+	}
+
 	cap->getNextFrame(frame, pause);
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 	FlowLocalizer fllc(frame);
 
 	//Creating Goaldetection object
-	GoalDetector gd(Point2f(HFOV,VFOV), Size(cap->width(),cap->height()));
-
+	GoalDetector gd(camParams.fov, Size(cap->width(),cap->height()), !args.batchMode);
+	
 	int64 stepTimer;	
 	
 	// Start of the main loop
@@ -236,7 +242,7 @@ int main( int argc, const char** argv )
 		
 		if (args.writeVideo)
 		{
-		   writeVideoToFile(outputVideo, getVideoOutName().c_str(), frame, NULL, true);
+		   writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
 		}
 
 		// This code will load a classifier if none is loaded - this handles
@@ -244,17 +250,17 @@ int main( int argc, const char** argv )
 		// It also handles cases where the user changes the classifer
 		// being used - this forces a reload
 		// Finally, it allows a switch between CPU and GPU on the fly
-		if (detectState.update() == false)
+		if (detectState && (detectState->update() == false))
 			break;
 
 		//run Goaldetector and FovisLocator code
-		Rect goalBoundRect;
-		gd.processFrame(frame, depth, goalBoundRect);
+		gd.processFrame(frame, depth);
 
 		float gDistance = gd.dist_to_goal();
 		cout << "distance to goal: " << gDistance;
 		float gAngle = gd.angle_to_goal();
 		cout << " angle to goal: " << gAngle << endl;
+		Rect goalBoundRect = gd.goal_rect();
 
 		//stepTimer = cv::getTickCount();
 		//fvlc.processFrame(frame,depth);
@@ -265,7 +271,8 @@ int main( int argc, const char** argv )
 		// detectRects is a vector of rectangles, one for each detected object
 		stepTimer = cv::getTickCount();
 		vector<Rect> detectRects;
-		detectState.detector()->Detect(frame, depth, detectRects);
+		if (detectState)
+			detectState->detector()->Detect(frame, depth, detectRects);
 		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
@@ -424,9 +431,10 @@ int main( int argc, const char** argv )
 			}
 
 			// Display current classifier under test
-			putText(frame, detectState.print(),
-			        Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
-					1.5, Scalar(0,0,255));
+			if (detectState)
+				putText(frame, detectState->print(),
+						Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
+						1.5, Scalar(0,0,255));
 
 			// Display crosshairs so we can line up the camera
 			if (args.calibrate)
@@ -512,41 +520,54 @@ int main( int argc, const char** argv )
 			{
 				frameDisplayFrequency = max(1, frameDisplayFrequency - 1);
 			}
+			else if (c == 'g') // toggle Goal Detect drawing
+			{
+				gd.draw(!gd.draw());
+			}
 			else if (c == 'G') // toggle CPU/GPU mode
 			{
-				detectState.toggleGPU();
+				if (detectState)
+					detectState->toggleGPU();
 			}
 			else if (c == '.') // higher classifier stage
 			{
-				detectState.changeD12SubModel(true);
+				if (detectState)
+				detectState->changeD12SubModel(true);
 			}
 			else if (c == ',') // lower classifier stage
 			{
-				detectState.changeD12SubModel(false);
+				if (detectState)
+				detectState->changeD12SubModel(false);
 			}
 			else if (c == '>') // higher classifier dir num
 			{
-				detectState.changeD12Model(true);
+				if (detectState)
+				detectState->changeD12Model(true);
 			}
 			else if (c == '<') // lower classifier dir num
 			{
-				detectState.changeD12Model(false);
+				if (detectState)
+				detectState->changeD12Model(false);
 			}
 			else if (c == 'm') // higher classifier stage
 			{
-				detectState.changeD24SubModel(true);
+				if (detectState)
+				detectState->changeD24SubModel(true);
 			}
 			else if (c == 'n') // lower classifier stage
 			{
-				detectState.changeD24SubModel(false);
+				if (detectState)
+				detectState->changeD24SubModel(false);
 			}
 			else if (c == 'M') // higher classifier dir num
 			{
-				detectState.changeD24Model(true);
+				if (detectState)
+				detectState->changeD24Model(true);
 			}
 			else if (c == 'N') // lower classifier dir num
 			{
-				detectState.changeD24Model(false);
+				if (detectState)
+				detectState->changeD24Model(false);
 			}
 			else if (isdigit(c)) // save a single detected image
 			{
@@ -585,6 +606,9 @@ int main( int argc, const char** argv )
 			break;
 	}
 	groundTruth.print();
+
+	if (detectState)
+		delete detectState;
 
 	return 0;
 }

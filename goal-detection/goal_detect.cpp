@@ -14,20 +14,9 @@ int main(int argc, char **argv)
 {
 	ZedIn cap(argc == 2 ? argv[1] : NULL, NULL, true);
 
-	const float HFOV =  105 * M_PI / 180.;
-	GoalDetector gd(Point2f(HFOV, HFOV * 720. / 1280.), Size(cap.width(),cap.height()));
-	gd._draw = true;
-
-	namedWindow("RangeControl", WINDOW_AUTOSIZE);
-
-	createTrackbar("HueMin","RangeControl", &gd._hue_min, 179);
-	createTrackbar("HueMax","RangeControl", &gd._hue_max, 179);
-
-	createTrackbar("SatMin","RangeControl", &gd._sat_min, 255);
-	createTrackbar("SatMax","RangeControl", &gd._sat_max, 255);
-
-	createTrackbar("ValMin","RangeControl", &gd._val_min, 255);
-	createTrackbar("ValMax","RangeControl", &gd._val_max, 255);
+	const float HFOV = cap.getCameraParams(left).fov.x;
+	GoalDetector gd(Point2f(HFOV, HFOV * 480. / 640.), Size(cap.width(),cap.height()), true);
+	gd.draw(true);
 
 	Mat image;
 	Mat depth;
@@ -41,7 +30,8 @@ int main(int argc, char **argv)
 		frameTicker.mark();
 		imshow ("Normalized Depth", depthNorm);
 
-		gd.processFrame(image,depth,bound);
+		gd.processFrame(image,depth);
+		bound = gd.goal_rect();
 		cout << "Distance to goal: " << gd.dist_to_goal() << endl;
 		cout << "Angle to goal: " << gd.angle_to_goal() << endl;
 		stringstream ss;

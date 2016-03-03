@@ -23,6 +23,10 @@ class C920CameraIn : public MediaIn
 
 	  int frameNumber(void) const;
 
+#ifdef __linux__
+	  CameraParams getCameraParams(bool left) const;
+#endif
+
    private:
 #ifdef __linux__
       bool initCamera(bool gui);
