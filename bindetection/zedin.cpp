@@ -89,12 +89,12 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(3, this);
-			zedContrastCallback(5, this);
-			zedHueCallback(6, this);
-			zedSaturationCallback(3, this);
-			zedGainCallback(1, this);
-			zedWhiteBalanceCallback(3100, this);
+			zedBrightnessCallback(4, this);
+			zedContrastCallback(6, this);
+			zedHueCallback(7, this);
+			zedSaturationCallback(4, this);
+			zedGainCallback(2, this);
+			zedWhiteBalanceCallback(3101, this);
 
 			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
 			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
