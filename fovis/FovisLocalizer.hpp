@@ -6,20 +6,15 @@
 #include "opencv2/core/core.hpp"
 
 //fovis include
-//#include "zedin.hpp"
+#include "mediain.hpp"
 
 #include <fovis.hpp>
-
-//zed include
-#include <zed/Mat.hpp>
-#include <zed/Camera.hpp>
-#include <zed/utils/GlobalDefine.hpp>
 
 class FovisLocalizer {
 
 public:
 
-	FovisLocalizer(const sl::zed::CamParameters &input_params,
+	FovisLocalizer(const CameraParams &input_params,
 			       const cv::Mat& initial_frame);
 	~FovisLocalizer();
 
@@ -33,10 +28,10 @@ public:
 	int fv_param_feature_window_size = 9; //fovis parameters
 	int fv_param_target_ppf = 250;
 
-	int num_optical_flow_sectors_x = 8;
-	int num_optical_flow_sectors_y = 6; //optical flow parameters
-	int num_optical_flow_points = 2000;
-	int flow_arbitrary_outlier_threshold_int = 500;
+	int num_optical_flow_sectors_x = 4;
+	int num_optical_flow_sectors_y = 3; //optical flow parameters
+	int num_optical_flow_points = 200;
+	int flow_arbitrary_outlier_threshold_int = 200;
 
 private:
 

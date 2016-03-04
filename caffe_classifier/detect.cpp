@@ -181,7 +181,7 @@ void NNDetect<MatT>::generateInitialWindows(
     {
 		float depth_multiplier = 0.2;
 		float ball_real_size = 247.6; // ball is 9.75in diameter = 247.6 mm
-		float fov_size = 51.3 * (M_PI / 180.0); // empirically determined
+		float fov_size = hfov_ * (M_PI / 180.0); // empirically determined
 
         float percent_image = (float)wsize / scaledImages[scale].first.cols;
 		float size_fov = percent_image * fov_size; //TODO fov size

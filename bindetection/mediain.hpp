@@ -3,9 +3,25 @@
 
 #include <opencv2/core/core.hpp>
 
-#include <zed/Camera.hpp>
-
 using namespace cv;
+
+class CameraParams
+{
+	public:
+		CameraParams() :
+			fov(51.3 * M_PI / 180., 51.3 * 480. / 640. * M_PI / 180.), // Default to zed params?
+			fx(0),
+			fy(0),
+			cx(0),
+			cy(0)
+		{}
+		cv::Point2f fov;
+		float       fx;
+		float       fy;
+		float       cx;
+		float       cy;
+		double      disto[5];
+};
 
 // Base class for input.  Derived classes are cameras, videos, etc
 class MediaIn
@@ -27,9 +43,10 @@ class MediaIn
       virtual void   frameNumber(int frameNumber);
 
 	  // Get depth info for current frame
-	  virtual sl::zed::CamParameters getCameraParams(bool left) const;
-	  virtual bool   getDepthMat(cv::Mat &depthMat);
-      virtual double getDepth(int x, int y);
+	  virtual CameraParams getCameraParams(bool left) const;
+	  virtual bool  getDepthMat(cv::Mat &depthMat) const;
+	  virtual bool  getNormDepthMat(cv::Mat &normDepthMat) const;
+      virtual float getDepth(int x, int y);
 };
 #endif
 

@@ -166,6 +166,22 @@ int C920CameraIn::frameNumber(void) const
 	return frameNumber_;
 }
 
+CameraParams C920CameraIn::getCameraParams(bool left) const
+{
+	(void)left;
+	unsigned int width;
+	unsigned int height;
+
+	v4l2::GetCaptureSize(captureSize_, width, height);
+	CameraParams cp;
+	if (width == 640)
+		cp.fov = Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.); // need VFOV, other resolutions
+	else
+		cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
+	return cp;
+}
+
+
 void brightnessCallback(int value, void *data)
 {
 	C920CameraIn *camPtr = (C920CameraIn *)data;
