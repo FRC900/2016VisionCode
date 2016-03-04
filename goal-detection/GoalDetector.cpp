@@ -13,7 +13,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_draw = false;
 	_min_valid_confidence = 0.2;
 
-	_blue_scale = 50;
+	_blue_scale = 30;
 	_red_scale  = 100;
 
 	if (gui)
