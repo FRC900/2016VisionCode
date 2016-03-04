@@ -323,6 +323,11 @@ int main( int argc, const char** argv )
 				objTypes.push_back(ObjectType(1));
 			}
 		} 
+
+		vector<Rect> fakeRects;
+		vector<float> fakeDepths;
+		vector<ObjectType> fakeTypes;
+
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
