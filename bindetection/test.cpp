@@ -655,7 +655,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL );
+		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui );
 		Mat	mat;
 		if(!cap->getNextFrame(mat))
 		{
@@ -689,7 +689,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		else if (hasSuffix(fileName, ".svo") || hasSuffix(fileName, ".SVO") ||
 		         hasSuffix(fileName, ".zms") || hasSuffix(fileName, ".ZMS"))
 		{
-			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL);
+			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui);
 			writeVideo = false;
 		}
 		else
