@@ -81,8 +81,8 @@ TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
 	cout << "measurementNoiseCov: " << endl << kalman.measurementNoiseCov << endl;
 	cout << "processNoiseCov: " << endl << kalman.processNoiseCov << endl;
 	cout << "statePost " << endl << kalman.statePost << endl;
-#endif
 	cout << "KF created : statePre=" << kalman.statePre << endl;
+#endif
 }
 
 //---------------------------------------------------------------------------
