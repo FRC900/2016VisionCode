@@ -44,6 +44,7 @@ bool C920CameraIn::initCamera(bool gui)
 	// TODO - do we want to set these or go
 	// with the values set above?
 	captureSize_ = v4l2::CAPTURE_SIZE_640x480;
+//	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
 		return false;
@@ -84,7 +85,7 @@ bool C920CameraIn::initCamera(bool gui)
 
 	// force focus to farthest distance, non-auto
 	focusCallback(1, this); 
-	autoExposureCallback(1, this);
+	autoExposureCallback(3, this);
 
 	if (gui)
 	{

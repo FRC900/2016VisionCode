@@ -91,11 +91,11 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
    }
 }
 
-void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
+void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, const Point3f &goalPos)
 {
 	//create a top view image of the robot and all detected objects
-	Range xRange = Range(-4,4);
-	Range yRange = Range(-4,4);
+	Range xRange = Range(-2,6);
+	Range yRange = Range(-2,6);
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
@@ -107,10 +107,17 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 	{
 		Point2f realPos = Point2f(it->position.x, it->position.y);
 		Point2f imagePos;
-		imagePos.x = realPos.x * (imageSize.x / xRange.size()) + (imageSize.x / 2.0);
-		imagePos.y = -(realPos.y * (imageSize.y / yRange.size())) + (imageSize.y / 2.0);
+		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
+		imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
 		circle(frame, imagePos, rectSize, Scalar(255,0,0), 5);
-
+	}
+	if (goalPos != Point3f())
+	{
+		Point2f realPos = Point2f(goalPos.x, goalPos.y);
+		Point2f imagePos;
+		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
+		imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
+		circle(frame, imagePos, rectSize, Scalar(255,255,0), 5);
 	}
 }
 
@@ -119,6 +126,7 @@ int main( int argc, const char** argv )
 	// Flags for various UI features
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
+	bool gdDraw = false;      // draw goal detect details
 	int frameDisplayFrequency = 1;
 
 	// Hopefully this turns off any logging
@@ -157,7 +165,7 @@ int main( int argc, const char** argv )
 	minDetectSize = 40;
 
 	// If UI is up, pop up the parameters window
-	if (!args.batchMode)
+	if (!args.batchMode && args.detection)
 	{
 		string detectWindowName = "Detection Parameters";
 		namedWindow(detectWindowName);
@@ -255,25 +263,26 @@ int main( int argc, const char** argv )
 
 		//run Goaldetector and FovisLocator code
 		gd.processFrame(frame, depth);
+		if (gdDraw)
+			gd.drawOnFrame(frame);
 
 		float gDistance = gd.dist_to_goal();
-		cout << "distance to goal: " << gDistance;
 		float gAngle = gd.angle_to_goal();
-		cout << " angle to goal: " << gAngle << endl;
 		Rect goalBoundRect = gd.goal_rect();
 
 		//stepTimer = cv::getTickCount();
 		//fvlc.processFrame(frame,depth);
-		fllc.processFrame(frame);
+		if (detectState)
+			fllc.processFrame(frame);
 		//cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
-		stepTimer = cv::getTickCount();
+		//stepTimer = cv::getTickCount();
 		vector<Rect> detectRects;
 		if (detectState)
 			detectState->detector()->Detect(frame, depth, detectRects);
-		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+		//cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -290,14 +299,17 @@ int main( int argc, const char** argv )
 		//adjust locations of objects based on fovis results
 		//utils::printIsometry(fvlc.transform_eigen());
 
-		cout << "Locations before adjustment: " << endl;
-		objectTrackingList.print();
+		if (detectState)
+		{
+			cout << "Locations before adjustment: " << endl;
+			objectTrackingList.print();
 
-		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
-		objectTrackingList.adjustLocation(fllc.transform_mat());
+			//objectTrackingList.adjustLocation(fvlc.transform_eigen());
+			objectTrackingList.adjustLocation(fllc.transform_mat());
 
-		cout << "Locations after adjustment: " << endl;
-		objectTrackingList.print();
+			cout << "Locations after adjustment: " << endl;
+			objectTrackingList.print();
+		}
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
@@ -329,7 +341,7 @@ int main( int argc, const char** argv )
 		vector<ObjectType> fakeTypes;
 
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
-		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+		//cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
@@ -338,7 +350,7 @@ int main( int argc, const char** argv )
 		//Creates immutable strings for 0MQ Output
 		stringstream gString;
 		gString << "G ";
-		gString << fixed << setprecision(2) << gDistance << " ";
+		gString << fixed << setprecision(4) << gDistance << " ";
 		gString << fixed << setprecision(2) << gAngle;
 
 		// Draw tracking info on display if
@@ -350,8 +362,7 @@ int main( int argc, const char** argv )
 			((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
 		    drawTrackingInfo(frame, displayList);
-
-			drawTrackingTopDown(top_frame, displayList);
+			drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
 			imshow("Top view", top_frame);
 		}
 
@@ -376,7 +387,7 @@ int main( int argc, const char** argv )
 		zmq::message_t grequest(gString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
 		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
-		publisher.send(request);
+		//publisher.send(request);
 		publisher.send(grequest);
 
 		// For interactive mode, update the FPS as soon as we have
@@ -385,7 +396,7 @@ int main( int argc, const char** argv )
 		// avoid printing too much stuff
 	    if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 50) == 0))))
+			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
 	    {
 			stringstream ss;
 			// If in args.batch mode and reading a video, display
@@ -527,7 +538,7 @@ int main( int argc, const char** argv )
 			}
 			else if (c == 'g') // toggle Goal Detect drawing
 			{
-				gd.draw(!gd.draw());
+				gdDraw = !gdDraw;
 			}
 			else if (c == 'G') // toggle CPU/GPU mode
 			{
