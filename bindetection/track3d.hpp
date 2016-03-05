@@ -5,6 +5,7 @@
 #include <string>
 #include <list>
 #include <Eigen/Geometry>
+#include <boost/circular_buffer.hpp>
 #include "kalman.hpp"
 
 const size_t TrackedObjectHistoryLength = 20;
@@ -88,9 +89,6 @@ class TrackedObject
 
 		bool tooManyMissedFrames(void) const;
 
-		// Increment to the next frame
-		void nextFrame(void);
-
 		//contour area is the area of the contour stored in ObjectType
 		//scaled into the bounding rect
 		//only different in cases where contour is not a rectangle
@@ -123,22 +121,20 @@ class TrackedObject
 		ObjectType _type;
 
 		cv::Point3f _position; // last position of tracked object
-		size_t   _historyIndex;   // current entry being modified in history arrays
+
 		// whether or not the object was seen in a given frame -
 		// used to flag entries in other history arrays as valid
 		// and to figure out which tracked objects are persistent
 		// enough to care about
-		std::vector<bool>        _detectHistory;
-		std::vector<cv::Point3f> _positionHistory;
+		boost::circular_buffer<bool> _detectHistory;
+		boost::circular_buffer<cv::Point3f> _positionHistory;
 
 		// Kalman filter for tracking and noise filtering
 		TKalmanFilter _KF;
 
 		std::string _id; //unique target ID - use a string rather than numbers so it isn't confused
 						 // with individual frame detect indexes
-						 //
 		int missedFrameCount_;
-		size_t positionHistoryMax_;
 
 		void addToPositionHistory(const cv::Point3f &pt);
 };

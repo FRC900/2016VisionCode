@@ -11,7 +11,7 @@
 #include <math.h>
 #include <limits>
 
-const int missedFrameCountMax = 5;
+const int missedFrameCountMax = 10;
 
 ObjectType::ObjectType(int contour_type_id=1) {
 	switch(contour_type_id) {
@@ -174,13 +174,12 @@ TrackedObject::TrackedObject( int id,
 	float       dt,
 	float       accel_noise_mag,
     size_t historyLength) :
-	_type(type_in),
-	_historyIndex(0),
-	_detectHistory(std::vector<bool>(historyLength, false)),
-	_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size), 
-        dt, accel_noise_mag),
-	missedFrameCount_(0),
-	positionHistoryMax_(historyLength)
+		_type(type_in),
+		_detectHistory(historyLength),
+		_positionHistory(historyLength),
+		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size), 
+			dt, accel_noise_mag),
+		missedFrameCount_(0)
 {
 	setPosition(screen_position, avg_depth, fov_size, frame_size);
 	setDetected();
@@ -270,7 +269,7 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 // Mark the object as detected in this frame
 void TrackedObject::setDetected(void)
 {
-	_detectHistory[_historyIndex % _detectHistory.size()] = true;
+	_detectHistory.push_back(true);
 	missedFrameCount_ = 0;
 }
 
@@ -279,7 +278,7 @@ void TrackedObject::setDetected(void)
 // frame, but may be useful in other cases
 void TrackedObject::clearDetected(void)
 {
-	_detectHistory[_historyIndex % _detectHistory.size()] = false;
+	_detectHistory.push_back(false);
 	missedFrameCount_ += 1;
 }
 
@@ -288,13 +287,10 @@ bool TrackedObject::tooManyMissedFrames(void) const
 	return missedFrameCount_ > missedFrameCountMax;
 }
 
+// Keep a history of the most recent positions 
+// of the object in question
 void TrackedObject::addToPositionHistory(const cv::Point3f &pt)
 {
-	if (_positionHistory.size() > positionHistoryMax_)
-	{
-		_positionHistory.erase(_positionHistory.begin(),_positionHistory.end() - positionHistoryMax_);
-	}
-
 	_positionHistory.push_back(pt);
 }
 
@@ -303,31 +299,16 @@ void TrackedObject::addToPositionHistory(const cv::Point3f &pt)
 double TrackedObject::getDetectedRatio(void) const
 {
 	int detectedCount = 0;
-	int i;
-	bool recentHits = true;
 
-	// Don't display detected bins if they're not seen for at least 1 of 4 consecutive frames
-	if (_historyIndex > 4)
-	{
-		recentHits = false;
-		for (i = _historyIndex; (i >= 0) && (i >= (int)_historyIndex - 4) && !recentHits; i--)
-			if (_detectHistory[i % _detectHistory.size()])
-				recentHits = true;
-	}
-
-	for (size_t j = 0; j < _detectHistory.size(); j++)
-		if (_detectHistory[j])
+	// TODO : what to do for new detections?
+	for (auto it = _detectHistory.begin();  it != _detectHistory.end(); ++it)
+		if (*it)
 			detectedCount += 1;
-	double detectRatio = (double)detectedCount / _detectHistory.size();
-	if (!recentHits)
-		detectRatio = std::min(0.1, detectRatio);
+	double detectRatio = (double)detectedCount / _detectHistory.capacity();
+	// Don't display stuff which hasn't been detected recently.
+	if (missedFrameCount_ >= 4)
+		detectRatio = std::min(0.01, detectRatio);
 	return detectRatio;
-}
-
-// Increment to the next frame
-void TrackedObject::nextFrame(void)
-{
-	_historyIndex += 1;
 }
 
 
@@ -518,8 +499,6 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		std::cout << "Predict: " << std::endl;
 		cv::Point3f prediction = tr->predictKF();
 		std::cout << "prediction:" << prediction << std::endl;
-
-		tr->nextFrame();
 
 		if(*as != -1) // If we have assigned detect, then update using its coordinates
 		{
