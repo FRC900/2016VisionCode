@@ -15,7 +15,11 @@ use strict;
 # Date  : 03/12/2006
 # -bgcolor 0x96c997 -bgthresh 0x153768: purple screen values
 #########################################################################
-my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73EE64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 6.28 -maxidev 40 -w 64 -h 64 -hsv';
+#blue : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73EE64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 6.28 -maxidev 40 -w 96 -h 96 -hsv';
+#purple : 
+my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x143667 -maxxangle .2 -maxyangle .2 -maxzangle 6.28 -maxidev 40 -w 96 -h 96 -hsv';
+# white : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x511EFC -bgthresh 0x511E03 -maxxangle .2 -maxyangle .2 -maxzangle 6.28 -maxidev 40 -w 96 -h 96 -hsv';
+
 my $numframespervideo = 10;
 my $totalnum = 7000;
 my $stage1 = "false";

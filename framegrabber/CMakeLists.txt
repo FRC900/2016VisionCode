@@ -19,3 +19,7 @@ find_package( Boost 1.54 COMPONENTS filesystem system thread program_options REQ
 include_directories( ${Boost_INCLUDE_DIR} )
 add_executable( GenInitNegFromFile GenerateInitNegFromFile.cpp utilities_common.cpp)
 target_link_libraries( GenInitNegFromFile ${OpenCV_LIBS} ${Boost_LIBRARIES}) 
+
+include_directories ( ../imageclipper/src )
+add_executable( regrab regrab.cpp )
+target_link_libraries( regrab ${OpenCV_LIBS} )

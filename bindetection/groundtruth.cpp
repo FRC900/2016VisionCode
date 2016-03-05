@@ -48,11 +48,13 @@ GroundTruth::GroundTruth(const string &truthFile, const string &videoFile)
 
 
 // Grab the list of ground truths for a given frame
-std::vector<cv::Rect> GroundTruth::get(unsigned int frame) const
+vector<Rect> GroundTruth::get(unsigned int frame) const
 {
 	auto it = map_.find(frame);
 	if (it == map_.end())
+	{
 		return vector<Rect>();
+	}
 
 	return it->second;
 }
@@ -103,6 +105,8 @@ vector<Rect> GroundTruth::processFrame(int frameNum, const vector<Rect> &detectR
 	for(auto it = detectRectsUsed.cbegin(); it != detectRectsUsed.cend(); ++it)
 		if (!*it)
 			falsePositives_ += 1;
+
+	return retList;
 }
 
 // Print a summary of the results so far

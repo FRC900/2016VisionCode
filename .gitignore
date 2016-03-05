@@ -37,6 +37,7 @@ fovis_zed_test
 GenInitNegFromVideo
 GenInitNegFromFile
 *.stackdump
+goal_detect
 
 # Metadata
 *.aliases

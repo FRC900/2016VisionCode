@@ -5,9 +5,10 @@ my $cwd = abs_path(".");
 
 my $videodir = "/home/kjaget/ball_videos/test";
 my $basedir = "/home/kjaget/test";
+my $level = "d12";
 
 opendir(my $dh, $basedir) || die "Can not open $basedir : $!";
-my @model_dirs = grep { /_2fc2_/ && -d "$basedir/$_" } readdir($dh);
+my @model_dirs = grep { -d "$basedir/$_" } readdir($dh);
 closedir $dh;
 
 opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
@@ -36,7 +37,7 @@ for $dir (sort @model_dirs)
 		open (my $fh, "$fulldir/train_val.prototxt") || die "Could not open $fulldir/train_val.prototxt : $!";
 		while (my $line = <$fh>)
 		{
-			if ($line =~ /(\d{8}-\d{6}-[\da-f]{4})\/mean.binaryproto/)
+			if ($line =~ /mean_file: "(.+)\/mean.binaryproto/)
 			{
 				#print "Mean dir = $1\n";
 				$mean_dir = $1;
@@ -75,32 +76,34 @@ for $dir (sort @model_dirs)
 			}
 		}
 		close ($fh);
-		`rm d12/*`;
-		`cp $fulldir/* d12`;
-		`cp $basedir/$mean_dir/mean.binaryproto d12`;
-		`cp $basedir/$mean_dir/labels.txt d12`;
-		opendir(my $dh, "d12") || die "Can not open d12 : $!";
-		my @snapshots = grep { /^snapshot_iter_\d+.caffemodel/ && -f "d12/$_" } readdir($dh);
+		`rm $level/*`;
+		`cp $fulldir/* $level`;
+		`cp $mean_dir/mean.binaryproto $level`;
+		`cp $mean_dir/labels.txt $level`;
+		opendir(my $dh, "$level") || die "Can not open $level: $!";
+		my @snapshots = grep { /^snapshot_iter_\d+.caffemodel/ && -f "$level/$_" } readdir($dh);
 		closedir $dh;
 		for $snapshot (sort @snapshots)
 		{
-			`ln -sf $cwd/d12/$snapshot d12/network.caffemodel`;
-			print "$conv_out, $fc_out, $base_lr, $fulldir, $snapshot, ";
-			for $video (sort @videos)
+			if ($snapshot =~ /snapshot_iter_(\d+).caffemodel/)
 			{
-				open (my $pipeh, "./zv --batch --groundTruth $videodir/$video |");
-				while ($line = <$pipeh>)
+				print "$conv_out, $fc_out, $base_lr, $fulldir, $1, ";
+				for $video (sort @videos)
 				{
-					if ($line =~ /(\d+) of (\d+) ground truth objects/)
+					open (my $pipeh, "./zv --batch --groundTruth --".$level."Stage=$1 $videodir/$video |");
+					while ($line = <$pipeh>)
 					{
-						print "$1, $2, ";
+						if ($line =~ /(\d+) of (\d+) ground truth objects/)
+						{
+							print "$1, $2, ";
+						}
+						elsif ($line =~ /(\d+) false positives found in (\d+) frames/)
+						{
+							print "$1, $2, ";
+						}
 					}
-					elsif ($line =~ /(\d+) false positives found in (\d+) frames/)
-					{
-						print "$1, $2, ";
-					}
+					close $pipeh;
 				}
-				close $pipeh;
 			}
 			print "\n";
 		}

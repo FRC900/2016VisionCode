@@ -1,50 +1,49 @@
 //standard include
 #include <math.h>
+#include <iostream>
 
 //opencv include
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/core/core.hpp"
 
-class GoalDetector {
-public:
+#include "Utilities.hpp"
+#include "track3d.hpp"
 
-    GoalDetector();
+class GoalDetector 
+{
+	public:
 
-    float dist_to_goal() const { return _dist_to_goal; }   //floor distance to goal in m
-    float angle_to_goal() const { return _angle_to_goal; } //angle robot has to turn to face goal in degrees
+		GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui = false);
 
-    bool processFrame(cv::Mat& image, cv::Mat& depth); //this updates dist_to_goal and angle_to_goal
+		cv::Rect goal_rect(void) const;
+		float dist_to_goal(void) const;
+		float angle_to_goal(void) const;
 
-private:
+		// Get and set drawing flags
+		void draw(bool drawFlag);
+		bool draw(void) const;
 
-    std::vector<cv::Point2f> _goal_shape_contour; //hold the shape of the goal so we can easily get info from it
-    float _camera_hfov = 84.14 * (M_PI / 180.0);  //determined experimentally
-    float _camera_vfov = 53.836 * (M_PI / 180.0); //determined experimentally
-    float _goal_height = 2.159;                   //in m
+		void processFrame(cv::Mat& image, const cv::Mat& depth); //this updates dist_to_goal, angle_to_goal, and _goal_rect
 
-    int _hue_min = 60;                            //60-95 is a good range for bright green
-    int _hue_max = 95;
-    int _sat_min = 180;
-    int _sat_max = 255;
-    int _val_min = 67;
-    int _val_max = 255;
+	private:
+		void wrapConfidence(float &confidence);
+		ObjectType _goal_shape;
+		cv::Point2f _fov_size;
+		cv::Size _frame_size;
+		const float _goal_height = 2.159 - 1 - (17 * 2.54) / 100.;  // goal height minus camera mounting ht minus chopping off 17 inches.  TODO : remeasure me!
 
-    float _dist_to_goal;
-    float _angle_to_goal;
+		bool  _draw;
 
-    void generateThreshold(const cv::Mat& ImageIn, cv::Mat& ImageOut, int H_MIN, int H_MAX, int S_MIN, int S_MAX, int V_MIN, int V_MAX);
+		bool  _goal_found;
+		float _dist_to_goal;
+		float _angle_to_goal;
+		cv::Rect _goal_rect;
 
-    std::pair<float, float> minOfMat(cv::Mat& img, cv::Mat& mask, bool (*f)(float), cv::Rect bound_rect, int range=10);
+		float _min_valid_confidence;
 
-    static bool countPixel(float v)
-    {
-        if (isnan(v) || (v <= 0))
-        {
-            return false;
-        }
-        else
-        {
-            return true; 
-        }
-    }                                                                                               //small inline function to pass to minOfMat
+		int  _blue_scale;
+		int  _red_scale;
+
+		bool generateThreshold(const cv::Mat& imageIn, cv::Mat& imageOut);
+		bool generateThresholdAddSubtract(const cv::Mat& imageIn, cv::Mat& imageOut);
 };

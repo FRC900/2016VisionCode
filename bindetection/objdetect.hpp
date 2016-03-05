@@ -17,8 +17,10 @@ class ObjDetect
 		ObjDetect() : init_(false) {} //pass in value of false to cascadeLoadedGPU_CascadeDetect
 		virtual ~ObjDetect() {}       //empty destructor
 		// virtual void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects) = 0; //pure virtual function, must be defined by CPU and GPU detect
-		virtual void Detect(const cv::Mat &frameGPUInput, std::vector<cv::Rect> &imageRects)
+		virtual void Detect(const cv::Mat &frameGPUInput, const cv::Mat &depthIn, std::vector<cv::Rect> &imageRects)
 		{
+			(void)depthIn;
+			(void)frameGPUInput;
 			imageRects.clear();
 		}
 		bool initialized(void)
@@ -61,15 +63,11 @@ class ObjDetect
 class GPU_NNDetect : public ObjDetect
 {
 	public :
-		GPU_NNDetect(const std::string &model_file,
-					 const std::string &trained_file,
-					 const std::string &mean_file,
-					 const std::string &label_file):	
+		GPU_NNDetect(const std::vector<std::string> &d12Info,
+					 const std::vector<std::string> &d24Info,
+					 float hfov) :
 						ObjDetect(),
-						classifier_(model_file,
-							trained_file,
-							mean_file,
-							label_file)
+						classifier_(d12Info, d24Info, hfov)
 		{
 			/* struct stat statbuf;		
 			   if (stat(cascadeName, &statbuf) != 0)
@@ -89,7 +87,7 @@ class GPU_NNDetect : public ObjDetect
 		{
 			// classifier_.release();
 		}
-		void Detect (const cv::Mat          &frame,        std::vector<cv::Rect> &imageRects);
+		void Detect (const cv::Mat &frame, const cv::Mat &depthIn, std::vector<cv::Rect> &imageRects);
 		//void Detect (const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects);
 
 	private :
@@ -104,8 +102,11 @@ class GPU_NNDetect : public ObjDetect
 };
 
 extern int scale;
-extern int nmsThreshold;
+extern int d12NmsThreshold;
+extern int d24NmsThreshold;
 extern int minDetectSize;
 extern int maxDetectSize;
+extern int d12Threshold;
+extern int d24Threshold;
 
 #endif

@@ -8,15 +8,15 @@ using namespace std;
 
 class ClassifierIO
 {
-   public:
-		ClassifierIO(string baseDir, int dirNum, int stageNum);
+public:
+    ClassifierIO(string baseDir, int dirNum, int stageNum);
 		string getClassifierDir(void) const;
-		string getClassifierName(void) const;
 		bool findNextClassifierStage(bool increment);
 		bool findNextClassifierDir(bool increment);
-                vector<string> getClassifierFiles(void) const;
+		bool createFullPath(const std::string &fileName, std::string &output) const;
+		vector<string> getClassifierFiles(void) const;
 		string print(void) const;
-   private :
+private:
 		string baseDir_;
 		int dirNum_;
 		int stageNum_;

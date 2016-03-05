@@ -1,56 +1,50 @@
 layer {
-  name: "data_d24"
+  name: "data"
   type: "Data"
-  top: "data_d24"
-  top: "label_d24"
+  top: "data"
+  top: "label"
   include {
     phase: TRAIN
   }
   transform_param {
-    mirror: true
-    crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160201-194145-fb09/mean.binaryproto"
+    mean_file: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160201-194145-fb09/train_db"
-    batch_size: 16
-    backend: LMDB
-  }
-  image_data_param {
+    source: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/train_db"
     batch_size: 256
-    shuffle: true
-    new_height: 24
-    new_width: 24
+    backend: LMDB
   }
 }
 layer {
-  name: "data_d24"
+  name: "data"
   type: "Data"
-  top: "data_d24"
-  top: "label_d24"
+  top: "data"
+  top: "label"
   include {
     phase: TEST
   }
   transform_param {
-    mirror: false
-    crop_size: 24
-    mean_file: "/usr/share/digits/digits/jobs/20160201-194145-fb09/mean.binaryproto"
+    mean_file: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/mean.binaryproto"
   }
   data_param {
-    source: "/usr/share/digits/digits/jobs/20160201-194145-fb09/val_db"
-    batch_size: 16
+    source: "/home/kjaget/DIGITS/digits/jobs/20160214-203210-29cb/val_db"
+    batch_size: 100
     backend: LMDB
   }
-  image_data_param {
-    batch_size: 50
-    new_height: 24
-    new_width: 24
+}
+layer {
+  name: "scale_d24"
+  type: "Power"
+  bottom: "data"
+  top: "scale_d24"
+  power_param {
+    scale: 0.00390625
   }
 }
 layer {
   name: "conv1_d24"
   type: "Convolution"
-  bottom: "data_d24"
+  bottom: "scale_d24"
   top: "conv1_d24"
   param {
     lr_mult: 1.0
@@ -61,7 +55,7 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 3
+    num_output: 6
     kernel_size: 3
     stride: 1
     weight_filler {
@@ -90,9 +84,51 @@ layer {
   top: "pool1_d24"
 }
 layer {
+  name: "conv1a_d24"
+  type: "Convolution"
+  bottom: "pool1_d24"
+  top: "conv1a_d24"
+  param {
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  convolution_param {
+    num_output: 6
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool1a_d24"
+  type: "Pooling"
+  bottom: "conv1a_d24"
+  top: "pool1a_d24"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "relu1a_d24"
+  type: "ReLU"
+  bottom: "pool1a_d24"
+  top: "pool1a_d24"
+}
+layer {
   name: "fc1_d24"
   type: "InnerProduct"
-  bottom: "pool1_d24"
+  bottom: "pool1a_d24"
   top: "fc1_d24"
   param {
     lr_mult: 1.0
@@ -103,7 +139,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 4
+    num_output: 20
     weight_filler {
       type: "xavier"
     }
@@ -117,6 +153,15 @@ layer {
   type: "ReLU"
   bottom: "fc1_d24"
   top: "fc1_d24"
+}
+layer {
+  name: "drop1_d24"
+  type: "Dropout"
+  bottom: "fc1_d24"
+  top: "fc1_d24"
+  dropout_param {
+    dropout_ratio: 0.5
+  }
 }
 layer {
   name: "fc2_d24"
@@ -142,18 +187,18 @@ layer {
   }
 }
 layer {
-  name: "loss_d24"
+  name: "loss"
   type: "SoftmaxWithLoss"
   bottom: "fc2_d24"
-  bottom: "label_d24"
-  top: "loss_d24"
+  bottom: "label"
+  top: "loss"
 }
 layer {
-  name: "accuracy_d24"
+  name: "accuracy"
   type: "Accuracy"
   bottom: "fc2_d24"
-  bottom: "label_d24"
-  top: "accuracy_d24"
+  bottom: "label"
+  top: "accuracy"
   include {
     phase: TEST
   }

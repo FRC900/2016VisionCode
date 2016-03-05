@@ -8,8 +8,7 @@
  */
 #ifndef C920CAMERA_H_
 #define C920CAMERA_H_
-#include <opencv2/highgui/highgui.hpp>
-#define CLEAR(x) memset (&(x), 0, sizeof (x))
+#include <opencv2/core/core.hpp>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -29,8 +28,6 @@
 #define MAX_V4L_BUFFERS 4
 #define DEFAULT_V4L_BUFFERS 4
 namespace v4l2 {
-   static int CAPTURE_SIZE_WIDTHS[] = { 160, 160, 176, 320, 320, 352, 432, 640, 640, 800, 800, 864, 960, 1024, 1280, 1600, 1920 };
-   static int CAPTURE_SIZE_HEIGHTS[] = { 90, 120, 144, 180, 240, 288, 240, 360, 480, 448, 600, 480, 720, 576, 720, 896, 1080 };
    enum CaptureSize {
       CAPTURE_SIZE_160x90 = 0, // Sizes
       CAPTURE_SIZE_160x120, // Normal
@@ -50,12 +47,8 @@ namespace v4l2 {
       CAPTURE_SIZE_1600x896,
       CAPTURE_SIZE_1920x1080, // Normal
    };
-   static void GetCaptureSize(enum CaptureSize size, unsigned int &width, unsigned int &height) {
-      width = CAPTURE_SIZE_WIDTHS[size];
-      height = CAPTURE_SIZE_HEIGHTS[size];
-   }
-   static int CAPTURE_FPS_NUMERATOR[] = { 1, 1, 1, 1, 1, 2, 1 };
-   static int CAPTURE_FPS_DENOMINATOR[] = { 30, 24, 20, 15, 10, 15, 5 };
+   void GetCaptureSize(enum CaptureSize size, unsigned int &width, unsigned int &height);
+
    enum CaptureFPS {
       CAPTURE_FPS_30 = 0, // FPS
       CAPTURE_FPS_24,
@@ -65,10 +58,8 @@ namespace v4l2 {
       CAPTURE_FPS_7_5,
       CAPTURE_FPS_5,
    };
-   static void GetCaptureFPS(enum CaptureFPS fps, unsigned int &numerator, unsigned int &denominator) {
-      numerator = CAPTURE_FPS_NUMERATOR[fps];
-      denominator = CAPTURE_FPS_DENOMINATOR[fps];
-   }
+   void GetCaptureFPS(enum CaptureFPS fps, unsigned int &numerator, unsigned int &denominator);
+
    struct V4L2Buffer {
       void * start;
       size_t length;

@@ -10,10 +10,11 @@ class ImageIn : public MediaIn
 {
    public:
       ImageIn(const char *path);
+	  ~ImageIn() {}
       bool getNextFrame(cv::Mat &frame, bool pause = false);
 
 	  int frameCount(void) const;
-	  int frameCounter(void) const;
+	  int frameNumber(void) const;
 
       int width() const;
       int height() const;

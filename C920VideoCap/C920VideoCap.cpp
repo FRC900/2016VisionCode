@@ -28,7 +28,7 @@ int Brightness = 128,
     Saturation = 128,
     Sharpness = 128,
     Gain = 20,
-    Focus = 20,
+    Focus = 1,
     BacklightCompensation = 20,
     WhiteBalanceTemperature = 20,
 	AutoExposure = 3;
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
 	++WhiteBalanceTemperature; // Off by 1 since -1 is auto
 
 	// Set auto-focus off on startup
-	focusCallback(20, NULL);
+	focusCallback(1, NULL);
 	autoExposureCallback(3, NULL);
 
 	cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
 		}
 		if (!batch)
 		{
-			int wait_key = cv::waitKey(5);
+			unsigned char wait_key = cv::waitKey(5);
 			if (wait_key == 27 || wait_key == 32)
 				break;
 		}

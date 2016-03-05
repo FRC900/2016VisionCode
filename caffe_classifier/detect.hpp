@@ -23,30 +23,32 @@
 //        See the top of the loop in runDetection for an example
 //
 
-
 template <class MatT>
 class NNDetect
 {
 	public:
-		NNDetect(const std::string &model_file,
-				const std::string &trained_file,
-				const std::string &mean_file,
-				const std::string &label_file):
-			d12_(CaffeClassifier<MatT>(model_file, trained_file, mean_file, label_file, 64 )),
-			d24_(CaffeClassifier<MatT>("d24/deploy.prototxt", "d24/network.caffemodel", "d24/mean.binaryproto", "d24/labels.txt", 64 ))
-	{
-	}
+		NNDetect(const std::vector<std::string> &d12Info,
+				 const std::vector<std::string> &d24Info, 
+				 float hfov)  :
+			d12_(CaffeClassifier<MatT>(d12Info[0], d12Info[1], d12Info[2], d12Info[3], 64)),
+			d24_(CaffeClassifier<MatT>(d24Info[0], d24Info[1], d24Info[2], d24Info[3], 64)),
+			hfov_(hfov)
+		{
+		}
 		void detectMultiscale(const cv::Mat &inputImg,
+				const cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				double scaleFactor,
-				double nmsThreshold,
+				const std::vector<double> &nmsThreshold,
+				const std::vector<double> &detectThreshold,
 				std::vector<cv::Rect> &rectsOut);
 
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
 		CaffeClassifier <MatT> d12_;
 		CaffeClassifier <MatT> d24_;
+		float hfov_;
 		void doBatchPrediction(CaffeClassifier<MatT> &classifier,
 				const std::vector<MatT> &imgs,
 				float threshold,
@@ -56,6 +58,7 @@ class NNDetect
 
 		void generateInitialWindows(
 				const MatT &input,
+				const cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				int wsize,
@@ -76,6 +79,8 @@ class NNDetect
 				const std::vector<std::pair<MatT, double> > &scaledImages,
 				double nmsThreshold,
 				std::vector<Window> &windowsOut);
+
+		bool depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck);
 };
 
 #endif

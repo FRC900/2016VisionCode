@@ -2,6 +2,7 @@
 #include "c920camerain.hpp"
 using namespace std;
 #ifdef __linux__
+#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 using namespace cv;
@@ -23,14 +24,14 @@ C920CameraIn::C920CameraIn(int _stream, bool gui) :
 {
 	if (!camera_.IsOpen())
 		cerr << "Could not open C920 camera" << endl;
-	else if (!initCamera(_stream, gui))
+	else if (!initCamera(gui))
 	{
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
 }
 
-bool C920CameraIn::initCamera(int _stream, bool gui)
+bool C920CameraIn::initCamera(bool gui)
 {
 	brightness_ = 128;
 	contrast_   = 128;
@@ -100,7 +101,7 @@ bool C920CameraIn::initCamera(int _stream, bool gui)
 		cv::createTrackbar("Focus", "Adjustments", &focus_, 256, focusCallback, this);
 	}
 
-	frameCounter_ = 0;
+	frameNumber_ = 0;
 	return true;
 }
 
@@ -115,9 +116,9 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 			camera_.RetrieveMat(frame_);
 		if( frame_.empty() )
 			return false;
-		if (frame_.rows > 800)
+		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
-		frameCounter_ += 1;
+		frameNumber_ += 1;
 	}
 
 	frame = frame_.clone();
@@ -126,13 +127,60 @@ bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 
 int C920CameraIn::width(void) const
 {
-	return v4l2::CAPTURE_SIZE_WIDTHS[captureSize_];
+	unsigned int width;
+	unsigned int height;
+
+	v4l2::GetCaptureSize(captureSize_, width, height);
+
+	// getNextFrame sizes down large images
+	// adjust width and height to match that
+	while (height > 800)
+	{
+		width /= 2;
+		height /= 2;
+	}
+
+	return width;
 }
 
 int C920CameraIn::height(void) const
 {
-	return v4l2::CAPTURE_SIZE_HEIGHTS[captureSize_];
+	unsigned int width;
+	unsigned int height;
+
+	v4l2::GetCaptureSize(captureSize_, width, height);
+
+	// getNextFrame sizes down large images
+	// adjust width and height to match that
+	while (height > 800)
+	{
+		width /= 2;
+		height /= 2;
+	}
+
+	return height;
 }
+
+int C920CameraIn::frameNumber(void) const
+{
+	return frameNumber_;
+}
+
+CameraParams C920CameraIn::getCameraParams(bool left) const
+{
+	(void)left;
+	unsigned int width;
+	unsigned int height;
+
+	v4l2::GetCaptureSize(captureSize_, width, height);
+	CameraParams cp;
+	if (width == 640)
+		cp.fov = Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.); // need VFOV, other resolutions
+	else
+		cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
+	return cp;
+}
+
 
 void brightnessCallback(int value, void *data)
 {
@@ -203,11 +251,15 @@ void focusCallback(int value, void *data)
 
 C920CameraIn::C920CameraIn(int _stream, bool gui)
 {
+	(void)_stream;
+	(void)gui;
 	std::cerr << "C920 support not enabled" << std::endl;
 }
 
 bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
 {
+	(void)frame;
+	(void)pause;
 	return false;
 }
 

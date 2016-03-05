@@ -6,19 +6,40 @@ MediaIn::MediaIn()
 
 int MediaIn::frameCount(void) const
 {
-   return -1;
+	return -1;
 }
 
-int MediaIn::frameCounter(void) const
+int MediaIn::frameNumber(void) const
 {
-   return -1;
+	return -1;
 }
 
-void MediaIn::frameCounter(int frameCount)
+void MediaIn::frameNumber(int frameNumber)
 {
+	(void)frameNumber;
 }
 
-double MediaIn::getDepth(int x, int y)
+bool MediaIn::getDepthMat(cv::Mat &depthMat) const
 {
-   return -1000.;
+	depthMat = Mat(); // return empty mat to indicate no depth info
+	return false;     // in addition to returning false
+}
+
+bool MediaIn::getNormDepthMat(cv::Mat &normDepthMat) const
+{
+	normDepthMat = Mat(); // return empty mat to indicate no depth info
+	return false;     // in addition to returning false
+}
+
+CameraParams MediaIn::getCameraParams(bool left) const
+{
+	(void)left;
+	return CameraParams();
+}
+
+float MediaIn::getDepth(int x, int y)
+{
+	(void)x;
+	(void)y;
+	return -1000.;
 }

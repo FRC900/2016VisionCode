@@ -7,16 +7,24 @@
 using namespace cv;
 
 CameraIn::CameraIn(int stream, bool gui) : 
-	cap_(stream),
+	frameNumber_(0),
 	width_(800),
     height_(600),
-	frameCounter_(0)
+	cap_(stream)
 {
+	(void)gui;
 	if (cap_.isOpened())
 	{
 		cap_.set(CV_CAP_PROP_FPS, 30.0);
 		cap_.set(CV_CAP_PROP_FRAME_WIDTH, width_);
 		cap_.set(CV_CAP_PROP_FRAME_HEIGHT, height_);
+		// getNextFrame resizes large inputs,
+		// make sure width and height match
+		while (height_ > 800)
+		{
+			width_ /= 2;
+			height_ /= 2;
+		}
 	}
 	else
 		std::cerr << "Could not open camera" << std::endl;
@@ -31,9 +39,9 @@ bool CameraIn::getNextFrame(Mat &frame, bool pause)
 		cap_ >> frame_;
 		if (frame_.empty())
 			return false;
-		if (frame_.rows > 800)
+		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
-		frameCounter_ += 1;
+		frameNumber_ += 1;
 	}
 	frame = frame_.clone();
 
@@ -50,7 +58,7 @@ int CameraIn::height(void) const
    return height_;
 }
 
-int CameraIn::frameCounter(void) const
+int CameraIn::frameNumber(void) const
 {
-   return frameCounter_;
+   return frameNumber_;
 }

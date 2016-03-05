@@ -15,14 +15,21 @@ class C920CameraIn : public MediaIn
 {
    public:
       C920CameraIn(int _stream = -1, bool gui = false);
+	  ~C920CameraIn() {}
       bool getNextFrame(cv::Mat &frame, bool pause = false);
 
       int width(void) const;
       int height(void) const;
 
+	  int frameNumber(void) const;
+
+#ifdef __linux__
+	  CameraParams getCameraParams(bool left) const;
+#endif
+
    private:
 #ifdef __linux__
-      bool initCamera(int _stream, bool gui);
+      bool initCamera(bool gui);
 
 	  // Mark these as friends so they can access private class data
 	  friend void brightnessCallback(int value, void *data);
@@ -46,7 +53,7 @@ class C920CameraIn : public MediaIn
       int               autoExposure_;
       int               backlightCompensation_;
       int               whiteBalanceTemperature_;
-	  int               frameCounter_;
+	  int               frameNumber_;
 	  v4l2::CaptureSize captureSize_;
 #endif
 };
