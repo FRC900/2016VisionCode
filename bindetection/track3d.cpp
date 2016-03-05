@@ -62,15 +62,16 @@ ObjectType::ObjectType(const std::vector< cv::Point2f > &contour_in) :
 	computeProperties();
 }
 
-ObjectType::ObjectType(const std::vector< cv::Point > &contour_in) {
-
-for(size_t i = 0; i < contour_in.size(); i++) {
-	cv::Point2f p;
-	p.x = (float)contour_in[i].x;
-	p.y = (float)contour_in[i].y;
-	_contour.push_back(p);
-}
-computeProperties();
+ObjectType::ObjectType(const std::vector< cv::Point > &contour_in) 
+{
+	for(size_t i = 0; i < contour_in.size(); i++) 
+	{
+		cv::Point2f p;
+		p.x = (float)contour_in[i].x;
+		p.y = (float)contour_in[i].y;
+		_contour.push_back(p);
+	}
+	computeProperties();
 
 }
 
