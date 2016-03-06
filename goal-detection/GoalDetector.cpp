@@ -96,7 +96,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			depth_z_min = depth_z_max = distanceUsingFOV(br);
 
 		//create a trackedobject to get x,y,z of the goal
-		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size);
+		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -20.5 * M_PI / 180.0);
 
 		//percentage of the object filled in
 		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();

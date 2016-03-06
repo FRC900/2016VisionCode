@@ -20,31 +20,31 @@ ObjectType::ObjectType(int contour_type_id=1) {
 		case 1: //a ball!
 			{
 				float ball_diameter = 0.2476; // meters
-				_contour.push_back(cv::Point2f(0,0));
-				_contour.push_back(cv::Point2f(0,ball_diameter));
-				_contour.push_back(cv::Point2f(ball_diameter,ball_diameter));
-				_contour.push_back(cv::Point2f(ball_diameter,0));
+				contour_.push_back(cv::Point2f(0,0));
+				contour_.push_back(cv::Point2f(0,ball_diameter));
+				contour_.push_back(cv::Point2f(ball_diameter,ball_diameter));
+				contour_.push_back(cv::Point2f(ball_diameter,0));
 			}
 			break;
 
 		case 2: //a bin (just because)
-			_contour.push_back(cv::Point2f(0,0));
-			_contour.push_back(cv::Point2f(0,0.5842));
-			_contour.push_back(cv::Point2f(0.5842,0.5842));
-			_contour.push_back(cv::Point2f(0.5842,0));
+			contour_.push_back(cv::Point2f(0,0));
+			contour_.push_back(cv::Point2f(0,0.5842));
+			contour_.push_back(cv::Point2f(0.5842,0.5842));
+			contour_.push_back(cv::Point2f(0.5842,0));
 			break;
 
 		case 3: //the vision goal
 			{
 				float max_y = .3048;
-				_contour.push_back(cv::Point2f(0, max_y - 0));
-				_contour.push_back(cv::Point2f(0, max_y - 0.3048));
-				_contour.push_back(cv::Point2f(0.0508, max_y - 0.3048));
-				_contour.push_back(cv::Point2f(0.0508, max_y - 0.0508));
-				_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.0508));
-				_contour.push_back(cv::Point2f(0.508-0.0508, max_y - 0.3048));
-				_contour.push_back(cv::Point2f(0.508, max_y - 0.3048));
-				_contour.push_back(cv::Point2f(0.508, max_y - 0));
+				contour_.push_back(cv::Point2f(0, max_y - 0));
+				contour_.push_back(cv::Point2f(0, max_y - 0.3048));
+				contour_.push_back(cv::Point2f(0.0508, max_y - 0.3048));
+				contour_.push_back(cv::Point2f(0.0508, max_y - 0.0508));
+				contour_.push_back(cv::Point2f(0.508-0.0508, max_y - 0.0508));
+				contour_.push_back(cv::Point2f(0.508-0.0508, max_y - 0.3048));
+				contour_.push_back(cv::Point2f(0.508, max_y - 0.3048));
+				contour_.push_back(cv::Point2f(0.508, max_y - 0));
 			}
 			break;
 
@@ -57,7 +57,7 @@ ObjectType::ObjectType(int contour_type_id=1) {
 }
 
 ObjectType::ObjectType(const std::vector< cv::Point2f > &contour_in) :
-	_contour(contour_in)
+	contour_(contour_in)
 {
 	computeProperties();
 }
@@ -69,35 +69,36 @@ ObjectType::ObjectType(const std::vector< cv::Point > &contour_in)
 		cv::Point2f p;
 		p.x = (float)contour_in[i].x;
 		p.y = (float)contour_in[i].y;
-		_contour.push_back(p);
+		contour_.push_back(p);
 	}
 	computeProperties();
 
 }
 
-void ObjectType::computeProperties() {
+void ObjectType::computeProperties() 
+{
 	float min_x = std::numeric_limits<float>::max();
 	float min_y = std::numeric_limits<float>::max();
 	float max_x = std::numeric_limits<float>::min();
 	float max_y = std::numeric_limits<float>::min();
-	for (auto it = _contour.cbegin(); it != _contour.cend(); ++it)
+	for (auto it = contour_.cbegin(); it != contour_.cend(); ++it)
 	{
 		min_x = std::min(min_x, it->x);
 		min_y = std::min(min_y, it->y);
 		max_x = std::max(max_x, it->x);
 		max_y = std::max(max_y, it->y);
 	}
-	_width = max_x - min_x;
-	_height = max_y - min_y;
-	_area = cv::contourArea(_contour);
+	width_ = max_x - min_x;
+	height_ = max_y - min_y;
+	area_ = cv::contourArea(contour_);
 
 	//compute moments and use them to find center of mass
-	cv::Moments mu = moments(_contour, false);
-	_com = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
+	cv::Moments mu = moments(contour_, false);
+	com_ = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
 
 
-static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size) 
+static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation) 
 {
 	/*
 	Method:
@@ -114,72 +115,75 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 		(0,0,0) = (r,0,0) = right in front of you
 	*/
 
-	cv::Point2f rect_center;
-	rect_center.x = screen_position.tl().x + (screen_position.width / 2.0);
-	rect_center.y = screen_position.tl().y + (screen_position.height / 2.0);
-	cv::Point2f dist_to_center;
-	dist_to_center.x = rect_center.x - (frame_size.width / 2.0);
-	dist_to_center.y = -rect_center.y + (frame_size.height / 2.0);
-	//std::cout << "Distance to center: " << dist_to_center << std::endl; 
-	
-	cv::Point2f percent_fov;
-	percent_fov.x = (float)dist_to_center.x / (float)frame_size.width;
-	percent_fov.y = (float)dist_to_center.y / (float)frame_size.height;
+	cv::Point2f rect_center(
+			screen_position.tl().x + (screen_position.width  / 2.0),
+			screen_position.tl().y + (screen_position.height / 2.0));
+	cv::Point2f dist_to_center(
+			rect_center.x - (frame_size.width / 2.0),
+			-rect_center.y + (frame_size.height / 2.0));
+	cv::Point2f percent_fov(
+			dist_to_center.x / frame_size.width,
+			dist_to_center.y / frame_size.height);
+
 	float azimuth = percent_fov.x * fov_size.x;
-	float inclination = percent_fov.y * fov_size.y;
+	float inclination = percent_fov.y * fov_size.y - cameraElevation;
 	
+	cv::Point3f retPt(
+			avg_depth * cos(inclination) * sin(azimuth),
+			avg_depth * cos(inclination) * cos(azimuth),
+			avg_depth * sin(inclination));
+
+	//std::cout << "Distance to center: " << dist_to_center << std::endl; 
 	//std::cout << "Actual Inclination: " << inclination << std::endl;
 	//std::cout << "Actual Azimuth: " << azimuth << std::endl;
-
-	cv::Point3f retPt;
-	retPt.x = avg_depth * cos(inclination) * sin(azimuth);
-	retPt.y = avg_depth * cos(inclination) * cos(azimuth);
-	retPt.z = avg_depth * sin(inclination);
 	//std::cout << "Actual location: " << retPt << std::endl;
+
 	return retPt;
 }
 
-static cv::Rect worldToScreenCoords(const cv::Point3f &_position, ObjectType _type, const cv::Point2f &fov_size, const cv::Size &frame_size)
+static cv::Rect worldToScreenCoords(const cv::Point3f &_position, ObjectType _type, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation)
 {
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
 	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
-	float inclination = asin( _position.z / r );
+	float inclination = asin( _position.z / r ) + cameraElevation;
 	
 	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
 	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
 			                   percent_fov.y * frame_size.height);
 
-	cv::Point2f rect_center;
-	rect_center.x = dist_to_center.x + (frame_size.width / 2.0);
-	rect_center.y = -dist_to_center.y + (frame_size.height / 2.0);
+	cv::Point2f rect_center(
+			dist_to_center.x + (frame_size.width / 2.0),
+			-dist_to_center.y + (frame_size.height / 2.0));
 
-	cv::Point2f angular_size = cv::Point2f( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
-	cv::Point2f screen_size;
-	screen_size.x = angular_size.x * (frame_size.width / fov_size.x);
-	screen_size.y = angular_size.y * (frame_size.height / fov_size.y);
+	cv::Point2f angular_size( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
+	cv::Point2f screen_size(
+			angular_size.x * (frame_size.width / fov_size.x),
+			angular_size.y * (frame_size.height / fov_size.y));
 
-	cv::Point topLeft;
-	topLeft.x = cvRound(rect_center.x - (screen_size.x / 2.0));
-	topLeft.y = cvRound(rect_center.y - (screen_size.y / 2.0));
+	cv::Point topLeft(
+			cvRound(rect_center.x - (screen_size.x / 2.0)),
+			cvRound(rect_center.y - (screen_size.y / 2.0)));
 
 	return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
-TrackedObject::TrackedObject( int id,
-    const ObjectType &type_in,
-	const cv::Rect &screen_position,
-	double avg_depth,
-    cv::Point2f fov_size,
-    cv::Size    frame_size,
-	float       dt,
-	float       accel_noise_mag,
-    size_t historyLength) :
+TrackedObject::TrackedObject(int               id,
+							 const ObjectType &type_in,
+							 const cv::Rect   &screen_position,
+							 double            avg_depth,
+							 cv::Point2f       fov_size,
+							 cv::Size          frame_size,
+							 float             camera_elevation,
+							 float             dt,
+							 float             accel_noise_mag,
+							 size_t            historyLength) :
 		_type(type_in),
 		_detectHistory(historyLength),
 		_positionHistory(historyLength),
-		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size), 
+		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation), 
 			dt, accel_noise_mag),
-		missedFrameCount_(0)
+		missedFrameCount_(0),
+		cameraElevation_(camera_elevation)
 {
 	setPosition(screen_position, avg_depth, fov_size, frame_size);
 	setDetected();
@@ -202,7 +206,7 @@ TrackedObject::~TrackedObject()
 // Set the position based on x,y,z coords
 void TrackedObject::setPosition(const cv::Point3f &new_position) 
 { 
-	_position = new_position; 
+	_position = new_position;
 	addToPositionHistory(_position);
 }
 
@@ -210,7 +214,7 @@ void TrackedObject::setPosition(const cv::Point3f &new_position)
 void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_depth, 
 		                        const cv::Point2f &fov_size, const cv::Size &frame_size)
 {
-	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size));
+	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, cameraElevation_));
 }
 
 void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
@@ -253,7 +257,7 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 	//update the history
 	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
 	{
-		screen_rect = worldToScreenCoords(*it,_type,fov_size,frame_size);
+		screen_rect = worldToScreenCoords(*it,_type,fov_size,frame_size, cameraElevation_);
 		screen_pos = cv::Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
 		pos_mat.at<double>(0,0) = screen_pos.x;
 		pos_mat.at<double>(0,1) = screen_pos.y;
@@ -261,7 +265,7 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 		cv::Mat new_screen_pos_mat = transform_mat * pos_mat;
 		cv::Point new_screen_pos = cv::Point(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
 		cv::Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
-		*it = screenToWorldCoords(new_screen_rect,depth,fov_size,frame_size);
+		*it = screenToWorldCoords(new_screen_rect, depth, fov_size, frame_size, cameraElevation_);
 	}
 	
 }
@@ -314,7 +318,7 @@ double TrackedObject::getDetectedRatio(void) const
 
 cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
 {
-	return worldToScreenCoords(_position, _type, fov_size, frame_size);
+	return worldToScreenCoords(_position, _type, fov_size, frame_size, cameraElevation_);
 }
 
 
@@ -361,10 +365,11 @@ void TrackedObject::adjustKF(cv::Point3f delta_pos)
 
 //Create a tracked object list
 // those stay constant for the entire length of the run
-TrackedObjectList::TrackedObjectList(const cv::Size &imageSize, const cv::Point2f &fovSize) :
+TrackedObjectList::TrackedObjectList(const cv::Size &imageSize, const cv::Point2f &fovSize, float cameraElevation) :
 	_detectCount(0),
 	_imageSize(imageSize),
-	_fovSize(fovSize)
+	_fovSize(fovSize),
+	_cameraElevation(cameraElevation)
 {
 }
 
@@ -436,7 +441,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
-				screenToWorldCoords(detectedRects[i], depths[i], _fovSize, _imageSize));
+				screenToWorldCoords(detectedRects[i], depths[i], _fovSize, _imageSize, _cameraElevation));
 		std::cout << "Detected rect [" << i << "] = " << detectedRects[i] << " positions[" << detectedPositions.size() - 1 << "]:" << detectedPositions[detectedPositions.size()-1] << std::endl;
 	}
 	// TODO :: Combine overlapping detections into one?
