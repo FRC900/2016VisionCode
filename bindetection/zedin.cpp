@@ -278,7 +278,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		// a previously-serialized ZMS file
 		if (zed_)
 		{
-			if (!zed_->grab(sl::zed::SENSING_MODE::RAW))
+			if (zed_->grab(sl::zed::SENSING_MODE::RAW))
 				return false;
 
 			slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
