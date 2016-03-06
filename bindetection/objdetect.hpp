@@ -64,9 +64,10 @@ class GPU_NNDetect : public ObjDetect
 {
 	public :
 		GPU_NNDetect(const std::vector<std::string> &d12Info,
-					 const std::vector<std::string> &d24Info) :
+					 const std::vector<std::string> &d24Info,
+					 float hfov) :
 						ObjDetect(),
-						classifier_(d12Info, d24Info)
+						classifier_(d12Info, d24Info, hfov)
 		{
 			/* struct stat statbuf;		
 			   if (stat(cascadeName, &statbuf) != 0)

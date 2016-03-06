@@ -1,5 +1,6 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <zmq.hpp>
 
 #include "zedin.hpp"
 #include "GoalDetector.hpp"
@@ -14,20 +15,15 @@ int main(int argc, char **argv)
 {
 	ZedIn cap(argc == 2 ? argv[1] : NULL, NULL, true);
 
-	const float HFOV =  51.3 * M_PI / 180.;
-	GoalDetector gd(Point2f(HFOV, HFOV * 480. / 640.), Size(cap.width(),cap.height()));
-	gd._draw = true;
+	GoalDetector gd(Point2f(cap.getCameraParams(left).fov.x, 
+				            cap.getCameraParams(left).fov.y), 
+			        Size(cap.width(),cap.height()), true);
 
-	namedWindow("RangeControl", WINDOW_AUTOSIZE);
+	zmq::context_t context(1);
+	zmq::socket_t publisher(context, ZMQ_PUB);
 
-	createTrackbar("HueMin","RangeControl", &gd._hue_min, 179);
-	createTrackbar("HueMax","RangeControl", &gd._hue_max, 179);
-
-	createTrackbar("SatMin","RangeControl", &gd._sat_min, 255);
-	createTrackbar("SatMax","RangeControl", &gd._sat_max, 255);
-
-	createTrackbar("ValMin","RangeControl", &gd._val_min, 255);
-	createTrackbar("ValMax","RangeControl", &gd._val_max, 255);
+	std::cout<< "Starting network publisher 5800" << std::endl;
+	publisher.bind("tcp://*:5800");
 
 	Mat image;
 	Mat depth;
@@ -36,22 +32,34 @@ int main(int argc, char **argv)
 	FrameTicker frameTicker;
 	while(cap.getNextFrame(image, false))
 	{
+		frameTicker.mark();
 		cap.getDepthMat(depth);
 		cap.getNormDepthMat(depthNorm);
-		frameTicker.mark();
 		imshow ("Normalized Depth", depthNorm);
 
-		gd.processFrame(image,depth,bound);
-		cout << "Distance to goal: " << gd.dist_to_goal() << endl;
-		cout << "Angle to goal: " << gd.angle_to_goal() << endl;
+		gd.processFrame(image, depth);
+		gd.drawOnFrame(image);
+
 		stringstream ss;
 		ss << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
 		putText(image, ss.str(), Point(image.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+		rectangle(image, gd.goal_rect(), Scalar(255,0,0), 2);
 		imshow ("Image", image);
+
+		stringstream gString;
+		gString << "G ";
+		gString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
+		gString << fixed << setprecision(2) << gd.angle_to_goal();
+
+		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+		zmq::message_t grequest(gString.str().length() - 1);
+		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
+		publisher.send(grequest);
 
 		if ((uchar)waitKey(5) == 27)
 		{
 			break;
 		}
 	}
+	return 0;
 }

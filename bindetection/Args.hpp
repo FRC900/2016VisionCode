@@ -16,6 +16,7 @@ class Args //class for processing arguments
 		bool saveVideo;        // write processed video to output
 		int  frameStart;       // frame number to start from
 		bool calibrate;        // crosshair to calibrate camera
+		bool detection;         // enable object detection?
 		std::string d12BaseDir; // base directory for d12 net info
 		int  d12DirNum;         // d12 directory and 
 		int  d12StageNum;       // stage to use

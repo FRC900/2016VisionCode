@@ -20,7 +20,8 @@ static void Usage(void)
    cout << "\t--capture            save camera video to output file" << endl;
    cout << "\t--save               write processed video to output file" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
-   cout << "\t--no-tracking        start with tracking rectangles disabled" << endl;
+   cout << "\t--no-tracking        start with tracking rectangles disabled" << endl; 
+   cout << "\t--no-detection       disable object detection" << endl;
    cout << "\t--d12Base=           base directory for d12 info" << endl;
    cout << "\t--d12Dir=            pick d12 dir and stage number" << endl;
    cout << "\t--d12Stage=          from command line" << endl;
@@ -45,6 +46,7 @@ Args::Args(void)
 	calibrate          = false;
 	writeVideo         = false;
 	saveVideo          = false;
+	detection          = true;
 	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";
 	d12DirNum          = -1;
 	d12StageNum        = 0;
@@ -66,6 +68,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string saveVideoOpt       = "--save";            // write processed video to output file
 	const string rectsOpt           = "--no-rects";        // start with detection rectangles disabled
 	const string trackingOpt        = "--no-tracking";     // start with tracking rectangles disabled
+	const string detectOpt          = "--no-detection";    // disable object detection
 	const string d12BaseOpt         = "--d12Base=";        // d12 base dir
 	const string d12DirOpt          = "--d12Dir=";         // pick d12 dir and stage number
 	const string d12StageOpt        = "--d12Stage=";       // from command line
@@ -93,6 +96,8 @@ bool Args::processArgs(int argc, const char **argv)
 			writeVideo = true;
 		else if (saveVideoOpt.compare(0, saveVideoOpt.length(), argv[fileArgc], saveVideoOpt.length()) == 0)
 			saveVideo = true;
+		else if (detectOpt.compare(0, detectOpt.length(), argv[fileArgc], detectOpt.length()) == 0)
+			detection = false;
 		else if (trackingOpt.compare(0, trackingOpt.length(), argv[fileArgc], trackingOpt.length()) == 0)
 			tracking = false;
 		else if (rectsOpt.compare(0, rectsOpt.length(), argv[fileArgc], rectsOpt.length()) == 0)

@@ -53,7 +53,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
 	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::VGA);
+		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
 
 	// Save the raw camera stream to disk.  This uses a home-brew
 	// method to serialize image and depth data to disk rather than
@@ -89,12 +89,12 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(3, this);
-			zedContrastCallback(5, this);
-			zedHueCallback(6, this);
-			zedSaturationCallback(3, this);
-			zedGainCallback(1, this);
-			zedWhiteBalanceCallback(3100, this);
+			zedBrightnessCallback(4, this);
+			zedContrastCallback(6, this);
+			zedHueCallback(7, this);
+			zedSaturationCallback(4, this);
+			zedGainCallback(2, this);
+			zedWhiteBalanceCallback(3101, this);
 
 			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
 			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
@@ -133,7 +133,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		width_  = frame_.cols;
 		height_ = frame_.rows;
 	}
-	while (height_ > 800)
+	while (height_ > 700)
 	{
 		width_  /= 2;
 		height_ /= 2;
@@ -278,7 +278,8 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		// a previously-serialized ZMS file
 		if (zed_)
 		{
-			zed_->grab(sl::zed::RAW);
+			if (zed_->grab(sl::zed::SENSING_MODE::RAW))
+				return false;
 
 			slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
 			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
@@ -304,7 +305,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 		if (archiveOut_)
 		{
 			*archiveOut_ << frame_ << depthMat_;
-			const int frameSplitCount = 10 ;
+			const int frameSplitCount = 300;
 			if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 			{
 				stringstream ofName;
@@ -315,7 +316,7 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 			}
 		}
 
-		while (frame_.rows > 800)
+		while (frame_.rows > 700)
 		{
 			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
@@ -408,44 +409,69 @@ int ZedIn::height(void) const
 }
 
 
-sl::zed::CamParameters ZedIn::getCameraParams(bool left) const
+CameraParams ZedIn::getCameraParams(bool left) const
 {
+	sl::zed::CamParameters zedp;
 	if (zed_)
 	{
 		if(left)
-			return (zed_->getParameters())->LeftCam;
-		return (zed_->getParameters())->RightCam;
+			zedp = zed_->getParameters()->LeftCam;
+		else
+			zedp = zed_->getParameters()->RightCam;
 	}
-	// Take a guess based on acutal values from one of our cameras
-	sl::zed::CamParameters params;
-	if (width_ == 640)
+	else
 	{
-		params.fx = 705.768;
-		params.fy = 705.768;
-		params.cx = 326.848;
-		params.cy = 240.039;
+		// Take a guess based on acutal values from one of our cameras
+		if (height_ == 480)
+		{
+			zedp.fx = 705.768;
+			zedp.fy = 705.768;
+			zedp.cx = 326.848;
+			zedp.cy = 240.039;
+		}
+		else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
+		{
+			zedp.fx = 686.07;
+			zedp.fy = 686.07;
+			zedp.cx = 662.955;
+			zedp.cy = 361.614;
+		}
+		else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
+		{
+			zedp.fx = 1401.88;
+			zedp.fy = 1401.88;
+			zedp.cx = 977.193 / (1920 / width_); // Is this correct - downsized
+			zedp.cy = 540.036 / (1920 / width_); // image needs downsized cx?
+		}
+		else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
+		{
+			zedp.fx = 1385.4;
+			zedp.fy = 1385.4;
+			zedp.cx = 1124.74 / (2208 / width_);
+			zedp.cy = 1124.74 / (2208 / width_);
+		}
+		else
+		{
+			// This should never happen
+			zedp.fx = 0;
+			zedp.fy = 0;
+			zedp.cx = 0;
+			zedp.cy = 0;
+		}
 	}
-	else if (width_ == 1280)
-	{
-		params.fx = 686.07;
-		params.fy = 686.07;
-		params.cx = 662.955;
-		params.cy = 361.614;
-	}
-	else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
-	{
-		params.fx = 1401.88;
-		params.fy = 1401.88;
-		params.cx = 977.193 / (1920 / width_); // Is this correct - downsized
-		params.cy = 540.036 / (1920 / width_); // image needs downsized cx?
-	}
-	else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
-	{
-		params.fx = 1385.4;
-		params.fy = 1385.4;
-		params.cx = 1124.74 / (2208 / width_);
-		params.cy = 1124.74 / (2208 / width_);
-	}
+	float hFovDegrees;
+	if (height_ == 480) // can't work based on width, since 1/2 of 720P is 640, as is 640x480
+		hFovDegrees = 51.3;
+	else
+		hFovDegrees = 105.; // hope all the HD & 2k res are the same
+	float hFovRadians = hFovDegrees * M_PI / 180.0;
+
+	CameraParams params;
+	params.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
+	params.fx = zedp.fx;
+	params.fy = zedp.fy;
+	params.cx = zedp.cx;
+	params.cy = zedp.cy;
 	return params;
 }
 
@@ -456,7 +482,7 @@ void zedBrightnessCallback(int value, void *data)
 	zedPtr->brightness_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value - 1, value == 0);
 	}
 }
 
@@ -467,7 +493,7 @@ void zedContrastCallback(int value, void *data)
 	zedPtr->contrast_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value - 1, value == 0);
 	}
 }
 
@@ -478,7 +504,7 @@ void zedHueCallback(int value, void *data)
 	zedPtr->hue_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value - 1, value == 0);
 	}
 }
 
@@ -489,7 +515,7 @@ void zedSaturationCallback(int value, void *data)
 	zedPtr->saturation_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value - 1, value == 0);
 	}
 }
 
@@ -500,7 +526,7 @@ void zedGainCallback(int value, void *data)
 	zedPtr->gain_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value - 1, value == 0);
 	}
 }
 
@@ -511,7 +537,7 @@ void zedWhiteBalanceCallback(int value, void *data)
 	zedPtr->whiteBalance_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value);
+		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value - 1, value == 0);
 	}
 }
 

@@ -31,10 +31,10 @@ bool MediaIn::getNormDepthMat(cv::Mat &normDepthMat) const
 	return false;     // in addition to returning false
 }
 
-sl::zed::CamParameters MediaIn::getCameraParams(bool left) const
+CameraParams MediaIn::getCameraParams(bool left) const
 {
 	(void)left;
-	return sl::zed::CamParameters();
+	return CameraParams();
 }
 
 float MediaIn::getDepth(int x, int y)
