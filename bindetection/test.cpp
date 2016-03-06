@@ -73,7 +73,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
-	  if (it->ratio >= 0.05)
+	  if (it->ratio >= 0.15)
 	  {
 		 const int roundPosTo = 2;
 		 // Color moves from red to green (via brown, yuck)
@@ -94,8 +94,8 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, const Point3f &goalPos)
 {
 	//create a top view image of the robot and all detected objects
-	Range xRange = Range(-2,6);
-	Range yRange = Range(-2,6);
+	Range xRange = Range(-1,9);
+	Range yRange = Range(-1,9);
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
@@ -113,6 +113,7 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 	}
 	if (goalPos != Point3f())
 	{
+		cout << "Goal Position=" << goalPos << endl;
 		Point2f realPos = Point2f(goalPos.x, goalPos.y);
 		Point2f imagePos;
 		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
@@ -335,10 +336,6 @@ int main( int argc, const char** argv )
 				objTypes.push_back(ObjectType(1));
 			}
 		} 
-
-		vector<Rect> fakeRects;
-		vector<float> fakeDepths;
-		vector<ObjectType> fakeTypes;
 
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
 		//cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
