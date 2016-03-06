@@ -113,6 +113,7 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 	}
 	if (goalPos != Point3f())
 	{
+		cout << "Goal Position=" << goalPos << endl;
 		Point2f realPos = Point2f(goalPos.x, goalPos.y);
 		Point2f imagePos;
 		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
