@@ -95,8 +95,11 @@ void ObjectType::computeProperties() {
 	_com = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
 
+bool ObjectType::operator== (const ObjectType &t1) const {
+	return _contour == t1.shape();
+}
 
-static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size) 
+static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size)
 {
 	/*
 	Method:
@@ -119,14 +122,14 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 	cv::Point2f dist_to_center;
 	dist_to_center.x = rect_center.x - (frame_size.width / 2.0);
 	dist_to_center.y = -rect_center.y + (frame_size.height / 2.0);
-	//std::cout << "Distance to center: " << dist_to_center << std::endl; 
-	
+	//std::cout << "Distance to center: " << dist_to_center << std::endl;
+
 	cv::Point2f percent_fov;
 	percent_fov.x = (float)dist_to_center.x / (float)frame_size.width;
 	percent_fov.y = (float)dist_to_center.y / (float)frame_size.height;
 	float azimuth = percent_fov.x * fov_size.x;
 	float inclination = percent_fov.y * fov_size.y;
-	
+
 	//std::cout << "Actual Inclination: " << inclination << std::endl;
 	//std::cout << "Actual Azimuth: " << azimuth << std::endl;
 
@@ -151,7 +154,7 @@ TrackedObject::TrackedObject( int id,
 	_type(type_in),
 	_historyIndex(0),
 	_detectHistory(std::vector<bool>(historyLength, false)),
-	_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size), 
+	_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size),
         dt, accel_noise_mag),
 	missedFrameCount_(0),
 	positionHistoryMax_(historyLength)
@@ -175,14 +178,14 @@ TrackedObject::~TrackedObject()
 }
 
 // Set the position based on x,y,z coords
-void TrackedObject::setPosition(const cv::Point3f &new_position) 
-{ 
-	_position = new_position; 
+void TrackedObject::setPosition(const cv::Point3f &new_position)
+{
+	_position = new_position;
 	addToPositionHistory(_position);
 }
 
 // Set the position based on a rect on the screen and depth info from the zed
-void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_depth, 
+void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_depth,
 		                        const cv::Point2f &fov_size, const cv::Size &frame_size)
 {
 	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size));
@@ -197,21 +200,21 @@ void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isom
 	std::cout << "Rotation: " << delta_robot.rotation().eulerAngles(0,1,2) << std::endl;
 	std::cout << "Old: " << old_pos_vec << std::endl;
 	std::cout << "New: " << new_pos_vec << std::endl;
-	
+
 	//float r_old = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
 	//float azimuth_old = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
 	//float inclination_old = asin( _position.z / r_old );
 
 	_position = cv::Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
 
-	//float r_new = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);	
+	//float r_new = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z);
 	//float azimuth_new = acos(_position.x / sqrtf(_position.x * _position.x + _position.y * _position.y));
 	//float inclination_new = asin( _position.z / r_new );
 
 	//std::cout << "Change in inclination: " << inclination_new - inclination_old << std::endl;
 	//std::cout << "Change in azimuth: " << azimuth_new - azimuth_old << std::endl;
 
-	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
+	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it)
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
 		Eigen::Vector3d new_pos_vector = delta_robot.inverse() * old_pos_vector;
@@ -283,7 +286,7 @@ void TrackedObject::nextFrame(void)
 }
 
 
-cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
+cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const
 {
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
 	//std::cout << "Position: " << _position << std::endl;
@@ -291,10 +294,10 @@ cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv:
 	float inclination = asin( _position.z / r );
 	//std::cout << "Computed Azimuth: " << azimuth << std::endl;
 	//std::cout << "Computed Inclination: " << inclination << std::endl;
-	
+
 	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
 	//std::cout << "Computed Percent fov: " << percent_fov << std::endl;
-	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
+	cv::Point2f dist_to_center(percent_fov.x * frame_size.width,
 			                   percent_fov.y * frame_size.height);
 
 	cv::Point2f rect_center;
@@ -338,7 +341,7 @@ cv::Point3f TrackedObject::predictKF(void)
 }
 
 cv::Point3f TrackedObject::updateKF(cv::Point3f pt)
-{	
+{
 	return _KF.Update(pt);
 }
 
@@ -394,8 +397,8 @@ const double dist_thresh_ = 1.0; // FIX ME!
 // Process a set of detected rectangles
 // Each will either match a previously detected object or
 // if not, be added as new object to the list
-void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects, 
-									  const std::vector<float> depths, 
+void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects,
+									  const std::vector<float> depths,
 									  const std::vector<ObjectType> &types,
 									  const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot
 )
@@ -424,19 +427,25 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 
 		// Calculate cost for each track->pair combo
 		// The cost here is just the distance between them
+		// Also check to see if the types are the same, if they are not then set the cost extremely high so that it's never matched
 		auto it = _list.cbegin();
 		for(size_t t = 0; t < tracks;  ++t, ++it)
-		{	
+		{
 			// Point3f prediction=tracks[t]->prediction;
 			// cout << prediction << endl;
 			for(size_t d = 0; d < detections; d++)
 			{
-				cv::Point3f diff = it->getPosition() - detectedPositions[d];
-				Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+				const ObjectType it_type = it->getType();
+				if(types[d] == it_type) {
+					cv::Point3f diff = it->getPosition() - detectedPositions[d];
+					Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+				} else {
+					Cost[t][d] = 100000;
+				}
 			}
 		}
 
-		// Solving assignment problem (find minimum-cost assignment 
+		// Solving assignment problem (find minimum-cost assignment
 		// between tracks and previously-predicted positions)
 		AssignmentProblemSolver APS;
 		APS.Solve(Cost, assignment, AssignmentProblemSolver::optimal);
