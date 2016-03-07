@@ -11,7 +11,7 @@ VideoIn::VideoIn(const char *path) :
 	if (cap_.isOpened())
 	{
 		width_  = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
-		height_ = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
+		height_ = cap_.get(CV_CAP_PROP_FRAME_HEIGHT);
 		// getNextFrame scales down large inputs
 		// make width and height match adjusted frame size
 		while (height_ > 800)
@@ -26,20 +26,27 @@ VideoIn::VideoIn(const char *path) :
 		std::cerr << "Could not open input video "<< path << std::endl;
 }
 
-bool VideoIn::getNextFrame(Mat &frame, bool pause)
-{
+bool VideoIn::update() {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!cap_.isOpened())
 		return false;
-	if (!pause)
-	{
-		cap_ >> frame_;
-		if (frame_.empty())
+		cap_ >> _frame;
+		if (_frame.empty())
 			return false;
-		while (frame_.rows > 800)
-			pyrDown(frame_, frame_);
+		while (_frame.rows > 800)
+			pyrDown(_frame, _frame);
 		frameNumber_ += 1;
-	}
-	frame = frame_.clone();
+			return true;
+}
+
+bool VideoIn::getFrame(Mat &frame)
+{
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if (!cap_.isOpened())
+		return false;
+		if (_frame.empty())
+			return false;
+	frame = _frame.clone();
 
 	return true;
 }

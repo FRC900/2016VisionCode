@@ -24,7 +24,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	width_(0),
 	height_(0),
 	frameNumber_(0),
-	serializeIn_(NULL), 
+	serializeIn_(NULL),
 	filtSBIn_(NULL),
 	archiveIn_(NULL),
 	serializeOut_(NULL),
@@ -42,7 +42,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		else if ((fnExt == ".zms") || (fnExt == ".ZMS"))
 		{
 			// ZMS file is home-brewed serialization format
-			// which just dumps raw a image and depth Mat data to a file.  
+			// which just dumps raw a image and depth Mat data to a file.
 			// Apply a light bit of compression because
 			// the files will get out of hand quickly otherwise
 			cerr << "Loading " << inFileName << " for reading" << endl;
@@ -70,7 +70,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		// init computation mode of the zed
 		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::QUALITY, -1, true);
 		// Quit if an error occurred
-		if (err != sl::zed::SUCCESS) 
+		if (err != sl::zed::SUCCESS)
 		{
 			cout << sl::zed::errcode2str(err) << endl;
 			delete zed_;
@@ -116,22 +116,22 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	}
 	else if (archiveIn_)
 	{
-		// Zed == NULL and serializeStream_ means reading from 
+		// Zed == NULL and serializeStream_ means reading from
 		// a serialized file. Grab height_ and width_
 #if 0
 		// Also figure out how big a frame is so we can
 		// use random access to get at any frame
 		serializeFrameStart_ = serializeIn_->tellg();
 #endif
-		*archiveIn_ >> frame_ >> depthMat_;
+		*archiveIn_ >> _frame >> depthMat_;
 		frameNumber_ += 1;
 #if 0
 		serializeFrameSize_ = serializeIn_->tellg() - serializeFrameStart_;
 		if (!openSerializeInput(inFileName))
 			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 #endif
-		width_  = frame_.cols;
-		height_ = frame_.rows;
+		width_  = _frame.cols;
+		height_ = _frame.rows;
 	}
 	while (height_ > 700)
 	{
@@ -266,15 +266,11 @@ ZedIn::~ZedIn()
 		delete zed_;
 }
 
-
-bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
-{
+bool ZedIn::update(bool left) {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	if ((zed_ == NULL) && (archiveIn_ == NULL))
 		return false;
-
-	if (pause == false)
-	{
-		// Read from either the zed camera or from 
+		// Read from either the zed camera or from
 		// a previously-serialized ZMS file
 		if (zed_)
 		{
@@ -285,26 +281,39 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
 			slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
 
-			cvtColor(frameRGBA_, frame_, CV_RGBA2RGB);
+			cvtColor(frameRGBA_, _frame, CV_RGBA2RGB);
 		}
 		else if (archiveIn_)
 		{
 			// Ugly try-catch to detect EOF
 			try
 			{
-				*archiveIn_ >> frame_ >> depthMat_;
+				*archiveIn_ >> _frame >> depthMat_;
 			}
-			catch (const boost::archive::archive_exception &e) 
+			catch (const boost::archive::archive_exception &e)
 			{
 				return false;
 			}
 			normalize(depthMat_, normDepthMat_, 0, 255, NORM_MINMAX, CV_8UC1);
 		}
 
+		while (_frame.rows > 700)
+		{
+			pyrDown(_frame, _frame);
+			pyrDown(depthMat_, depthMat_);
+			pyrDown(normDepthMat_, normDepthMat_);
+		}
+		frameNumber_ += 1;
+		return true;
+}
+
+bool ZedIn::getFrame(Mat &frame)
+{
+    boost::lock_guard<boost::mutex> guard(_mtx);
 		// Write output to serialized file if it is open
 		if (archiveOut_)
 		{
-			*archiveOut_ << frame_ << depthMat_;
+			*archiveOut_ << _frame << depthMat_;
 			const int frameSplitCount = 300;
 			if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 			{
@@ -315,23 +324,14 @@ bool ZedIn::getNextFrame(Mat &frame, bool left, bool pause)
 					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
 			}
 		}
-
-		while (frame_.rows > 700)
-		{
-			pyrDown(frame_, frame_);
-			pyrDown(depthMat_, depthMat_);
-			pyrDown(normDepthMat_, normDepthMat_);
-		}
-		frameNumber_ += 1;
-	}
-	frame = frame_.clone();
+	frame = _frame.clone();
 	return true;
 }
 
 
-bool ZedIn::getNextFrame(Mat &frame, bool pause) 
+bool ZedIn::update()
 {
-	return getNextFrame(frame, true, pause);
+	return update(true);
 }
 
 
@@ -346,7 +346,7 @@ int ZedIn::frameCount(void) const
 	// of our code expects in that case
 	if (zed_)
 		return zed_->getSVONumberOfFrames();
-		
+
 	// If using a video, there's no way to tell
 	return -1;
 }
@@ -368,7 +368,7 @@ void ZedIn::frameNumber(int frameNumber)
 		serializeIn_->seekg(serializeFrameStart_ + frameNumber_ * serializeFrameSize_);
 		frameNumber_ = frameNumber;
 	}
-	else if (zed_)  
+	else if (zed_)
 	{
 		if (zed_->setSVOPosition(frameNumber))
 			frameNumber_ = frameNumber;
@@ -376,7 +376,7 @@ void ZedIn::frameNumber(int frameNumber)
 }
 
 
-float ZedIn::getDepth(int x, int y) 
+float ZedIn::getDepth(int x, int y)
 {
 	const float* ptr_image_num = (const float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
 	return ptr_image_num[x];
@@ -392,7 +392,7 @@ bool ZedIn::getDepthMat(Mat &depthMat) const
 
 bool ZedIn::getNormDepthMat(Mat &normDepthMat) const
 {
-	normDepthMat_.copyTo(normDepthMat); 
+	normDepthMat_.copyTo(normDepthMat);
 	return true;
 }
 
@@ -568,10 +568,9 @@ ZedIn::ZedIn(const char *filename, const char *outputName)
 }
 
 
-bool ZedIn::getNextFrame(Mat &frame, bool pause) 
+bool ZedIn::getFrame(Mat &frame)
 {
 	(void)frame;
-	(void)pause;
 	return false;
 }
 

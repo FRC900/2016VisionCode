@@ -11,16 +11,13 @@ class ImageIn : public MediaIn
    public:
       ImageIn(const char *path);
 	  ~ImageIn() {}
-      bool getNextFrame(cv::Mat &frame, bool pause = false);
+      bool update();
+      bool getFrame(cv::Mat &frame);
 
 	  int frameCount(void) const;
 	  int frameNumber(void) const;
 
       int width() const;
       int height() const;
-
-   private:
-      cv::Mat frame_;
 };
 #endif
-

@@ -5,32 +5,39 @@
 
 using namespace cv;
 
-ImageIn::ImageIn(const char *path) :
-	frame_(imread(path))
+ImageIn::ImageIn(const char *path)
 {
-	if (frame_.empty())
+	imread(path).copyTo(_frame);
+	if (_frame.empty())
 		std::cerr << "Could not open image file " << path << std::endl;
-	while (frame_.rows > 800)
-		pyrDown(frame_, frame_);
+	while (_frame.rows > 800)
+		pyrDown(_frame, _frame);
 }
 
-bool ImageIn::getNextFrame(Mat &frame, bool pause)
-{
-	(void)pause;
-	if (frame_.empty())
+bool ImageIn::update() {
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if (_frame.empty())
 		return false;
-	frame = frame_.clone();
+	return true;
+}
+
+bool ImageIn::getFrame(Mat &frame)
+{
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if (_frame.empty())
+		return false;
+	frame = _frame.clone();
 	return true;
 }
 
 int ImageIn::width(void) const
 {
-	return frame_.cols;
+	return _frame.cols;
 }
 
 int ImageIn::height(void) const
 {
-	return frame_.rows;
+	return _frame.rows;
 }
 
 // Images have only 1 "frame"
@@ -43,4 +50,3 @@ int ImageIn::frameNumber(void) const
 {
 	return 1;
 }
-
