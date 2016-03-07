@@ -19,7 +19,7 @@ void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
 void zedWhiteBalanceCallback(int value, void *data);
 
-ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
+ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outFileFrameSkip) :
 	zed_(NULL),
 	width_(0),
 	height_(0),
@@ -30,6 +30,8 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	serializeOut_(NULL),
 	filtSBOut_(NULL),
 	archiveOut_(NULL) ,
+	outFileFrameSkip_(outFileFrameSkip),
+	outFileFrameCounter_(0),
 	serializeFrameStart_(0),
 	serializeFrameSize_(0)
 {
@@ -127,9 +129,9 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		frameNumber_ += 1;
 #if 0
 		serializeFrameSize_ = serializeIn_->tellg() - serializeFrameStart_;
+#endif
 		if (!openSerializeInput(inFileName))
 			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
-#endif
 		width_  = _frame.cols;
 		height_ = _frame.rows;
 	}
@@ -266,64 +268,70 @@ ZedIn::~ZedIn()
 		delete zed_;
 }
 
-bool ZedIn::update(bool left) {
+
+bool ZedIn::update(bool left) 
+{
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	if ((zed_ == NULL) && (archiveIn_ == NULL))
 		return false;
-		// Read from either the zed camera or from
-		// a previously-serialized ZMS file
-		if (zed_)
-		{
-			if (zed_->grab(sl::zed::SENSING_MODE::RAW))
-				return false;
 
-			slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
-			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
-			slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
+	// Read from either the zed camera or from
+	// a previously-serialized ZMS file
+	if (zed_)
+	{
+		if (zed_->grab(sl::zed::SENSING_MODE::RAW))
+			return false;
 
-			cvtColor(frameRGBA_, _frame, CV_RGBA2RGB);
-		}
-		else if (archiveIn_)
-		{
-			// Ugly try-catch to detect EOF
-			try
-			{
-				*archiveIn_ >> _frame >> depthMat_;
-			}
-			catch (const boost::archive::archive_exception &e)
-			{
-				return false;
-			}
-			normalize(depthMat_, normDepthMat_, 0, 255, NORM_MINMAX, CV_8UC1);
-		}
+		slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
+		slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
+		slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
 
-		while (_frame.rows > 700)
+		cvtColor(frameRGBA_, _frame, CV_RGBA2RGB);
+	}
+	else if (archiveIn_)
+	{
+		// Ugly try-catch to detect EOF
+		try
 		{
-			pyrDown(_frame, _frame);
-			pyrDown(depthMat_, depthMat_);
-			pyrDown(normDepthMat_, normDepthMat_);
+			*archiveIn_ >> _frame >> depthMat_;
 		}
-		frameNumber_ += 1;
-		return true;
+		catch (const boost::archive::archive_exception &e)
+		{
+			return false;
+		}
+		normalize(depthMat_, normDepthMat_, 0, 255, NORM_MINMAX, CV_8UC1);
+	}
+
+	while (_frame.rows > 700)
+	{
+		pyrDown(_frame, _frame);
+		pyrDown(depthMat_, depthMat_);
+		pyrDown(normDepthMat_, normDepthMat_);
+	}
+	frameNumber_ += 1;
+	return true;
 }
 
 bool ZedIn::getFrame(Mat &frame)
 {
-    boost::lock_guard<boost::mutex> guard(_mtx);
-		// Write output to serialized file if it is open
-		if (archiveOut_)
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	// Write output to serialized file if it is open and
+	// if we've skipped enough frames since the last write 
+	// (which could be every fame if outFileFrameSkip == 0 or 1
+	if (archiveOut_ && 
+	    (!outFileFrameSkip_ || ((outFileFrameCounter_++ % outFileFrameSkip_) == 0)))
+	{
+		*archiveOut_ << _frame << depthMat_;
+		const int frameSplitCount = 300;
+		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 		{
-			*archiveOut_ << _frame << depthMat_;
-			const int frameSplitCount = 300;
-			if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
-			{
-				stringstream ofName;
-				ofName << change_extension(outFileName_, "").string() << "_" ;
-				ofName << (frameNumber_ / frameSplitCount) << ".zms";
-				if (!openSerializeOutput(ofName.str().c_str()))
-					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
-			}
+			stringstream ofName;
+			ofName << change_extension(outFileName_, "").string() << "_" ;
+			ofName << (frameNumber_ / frameSplitCount) << ".zms";
+			if (!openSerializeOutput(ofName.str().c_str()))
+				cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
 		}
+	}
 	frame = _frame.clone();
 	return true;
 }

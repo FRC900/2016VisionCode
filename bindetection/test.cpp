@@ -39,7 +39,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo);
+void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo, int writeVideoSkip);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
@@ -144,7 +144,7 @@ int main( int argc, const char** argv )
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
 	openMedia(args.inputName, cap, capPath, windowName,
-			  !args.batchMode, args.writeVideo);
+			  !args.batchMode, args.writeVideo, args.writeVideoSkip);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
@@ -197,6 +197,7 @@ int main( int argc, const char** argv )
 	VideoWriter markedupVideo;
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
+	int writeFrameCounter = 0;
 
 	FrameTicker frameTicker;
 
@@ -230,6 +231,7 @@ int main( int argc, const char** argv )
 
 	int64 stepTimer;
 
+
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -237,11 +239,12 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(true)
 	{
-    if(!pause)
-      if(!cap->update())
-        break;
-    if(!cap->getFrame(frame))
-      break;
+		if(!pause)
+			if(!cap->update())
+				break;
+		if(!cap->getFrame(frame))
+			break;
+
 		//Getting depth matrix
 		cap->getDepthMat(depth);
 
@@ -253,7 +256,8 @@ int main( int argc, const char** argv )
 			videoWritePollCount = videoWritePollFrequency;
 		}
 
-		if (args.writeVideo)
+		if (args.writeVideo && 
+			(!args.writeVideoSkip || ((writeFrameCounter++ % args.writeVideoSkip) == 0)))
 		{
 		   writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
 		}
@@ -664,7 +668,7 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 }
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo)
+void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo, int writeVideoSkip)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (fileName.length() == 0 ||
@@ -673,7 +677,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui );
+		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui, writeVideoSkip);
 		Mat	mat;
 		if(!cap->update() || !cap->getFrame(mat))
 		{
@@ -707,7 +711,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		else if (hasSuffix(fileName, ".svo") || hasSuffix(fileName, ".SVO") ||
 		         hasSuffix(fileName, ".zms") || hasSuffix(fileName, ".ZMS"))
 		{
-			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui);
+			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui, writeVideoSkip);
 			writeVideo = false;
 		}
 		else
