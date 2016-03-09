@@ -52,6 +52,7 @@ bool CameraIn::getFrame(Mat &frame)
 			return false;
 	frame = _frame.clone();
 	return true;
+	lockedFrameNumber_ = frameNumber_;
 }
 
 int CameraIn::width(void) const
@@ -66,5 +67,5 @@ int CameraIn::height(void) const
 
 int CameraIn::frameNumber(void) const
 {
-   return frameNumber_;
+   return lockedFrameNumber_;
 }

@@ -29,6 +29,9 @@
 #include "Utilities.hpp"
 #include "FlowLocalizer.hpp"
 
+#include <boost/thread.hpp>
+#include <boost/interprocess/sync/named_semaphore.hpp>
+
 using namespace std;
 using namespace cv;
 using namespace utils;
@@ -122,8 +125,22 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 	}
 }
 
+void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) {
+  //this runs concurrently with the main while loop
+  while(1) {
+    if(!pause) {
+      sem->wait();
+      if(!cap->update()) {
+        cerr << "Failed to capture" << endl;
+      }
+      sem->post();
+    }
+  }
+}
+
 int main( int argc, const char** argv )
 {
+
 	// Flags for various UI features
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
@@ -148,6 +165,15 @@ int main( int argc, const char** argv )
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
+
+  //this is used to synchronize the main and grab loops
+  //when using a video
+  //initialize the semaphore to allow 1 loop to run at a time if isVideo and 2 loops if not
+  boost::interprocess::interprocess_semaphore *sem;
+  if(cap->isVideo)
+    sem = new boost::interprocess::interprocess_semaphore(1);
+  else
+    sem = new boost::interprocess::interprocess_semaphore(2);
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -230,6 +256,11 @@ int main( int argc, const char** argv )
 
 	int64 stepTimer;
 
+  //Start the grab loop:
+  // --update the current frame
+  //this loop runs asynchronously with the main loop if the input is a camera
+  boost::thread g_thread(grabThread, boost::ref(pause) , cap , sem);
+
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -237,6 +268,7 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(true)
 	{
+    sem->wait();
     if(!pause)
       if(!cap->update())
         break;
@@ -498,7 +530,6 @@ int main( int argc, const char** argv )
 					// Otherwise, if not paused, move to the next frame
 					cap->frameNumber(frame);
 				}
-        cap->update();
 				cap->getFrame(frame);
 			}
 			else if (c == 'A') // toggle capture-all
@@ -622,6 +653,7 @@ int main( int argc, const char** argv )
 		// process the image once rather than looping forever
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
+    sem->post();
 	}
 	groundTruth.print();
 

@@ -324,6 +324,7 @@ bool ZedIn::getFrame(Mat &frame)
 					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
 			}
 		}
+	lockedFrameNumber_ = frameNumber_;
 	frame = _frame.clone();
 	return true;
 }
@@ -354,7 +355,7 @@ int ZedIn::frameCount(void) const
 
 int ZedIn::frameNumber(void) const
 {
-	return frameNumber_;
+	return lockedFrameNumber_;
 }
 
 

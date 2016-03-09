@@ -16,9 +16,10 @@ class CameraIn : public MediaIn
       int frameNumber(void) const;
 
    private:
-      int              frameNumber_;
+    int              lockedFrameNumber_;
+    int              frameNumber_;
 	  int              width_;
 	  int              height_;
-      cv::VideoCapture cap_;
+    cv::VideoCapture cap_;
 };
 #endif

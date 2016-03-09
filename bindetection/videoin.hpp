@@ -18,7 +18,8 @@ class VideoIn : public MediaIn
       void frameNumber(int frameNumber);
 
    private:
-      cv::VideoCapture cap_;
+    bool increment;
+    cv::VideoCapture cap_;
 	  int              width_;
 	  int              height_;
 	  int              frames_;

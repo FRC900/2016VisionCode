@@ -49,6 +49,8 @@ class MediaIn
 	  virtual bool  getNormDepthMat(cv::Mat &normDepthMat) const;
     virtual float getDepth(int x, int y);
 
+		bool isVideo = false;
+
 	protected:
 			cv::Mat _frame;
 			boost::mutex _mtx;

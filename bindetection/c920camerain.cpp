@@ -114,6 +114,7 @@ bool C920CameraIn::update() {
 		camera_.RetrieveMat(_frame);
 	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
+	frameNumber_ += 1;
 	return true;
 }
 
@@ -124,9 +125,9 @@ bool C920CameraIn::getFrame(Mat &frame)
 		return false;
 		if( _frame.empty() )
 			return false;
-		frameNumber_ += 1;
 
 	frame = _frame.clone();
+	lockedFrameNumber_ = frameNumber_;
 	return true;
 }
 
@@ -168,7 +169,7 @@ int C920CameraIn::height(void) const
 
 int C920CameraIn::frameNumber(void) const
 {
-	return frameNumber_;
+	return lockedFrameNumber_;
 }
 
 CameraParams C920CameraIn::getCameraParams(bool left) const

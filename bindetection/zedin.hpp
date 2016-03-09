@@ -56,6 +56,7 @@ class ZedIn : public MediaIn
 		int width_;
 		int height_;
 		int frameNumber_;
+		int lockedFrameNumber_;
 
 		int brightness_;
 		int contrast_;

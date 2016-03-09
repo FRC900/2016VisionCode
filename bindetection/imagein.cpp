@@ -7,6 +7,8 @@ using namespace cv;
 
 ImageIn::ImageIn(const char *path)
 {
+	//set isvideo to true to make sure that the grab loop doesn't run obscenely fast
+	isVideo = true;
 	imread(path).copyTo(_frame);
 	if (_frame.empty())
 		std::cerr << "Could not open image file " << path << std::endl;

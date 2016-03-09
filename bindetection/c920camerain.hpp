@@ -54,6 +54,7 @@ class C920CameraIn : public MediaIn
       int               backlightCompensation_;
       int               whiteBalanceTemperature_;
 	  int               frameNumber_;
+    int               lockedFrameNumber_;
 	  v4l2::CaptureSize captureSize_;
 #endif
 };

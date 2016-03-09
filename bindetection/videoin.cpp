@@ -8,6 +8,7 @@ using namespace cv;
 VideoIn::VideoIn(const char *path) :
 	cap_(path)
 {
+	isVideo = true;
 	if (cap_.isOpened())
 	{
 		width_  = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
@@ -26,28 +27,27 @@ VideoIn::VideoIn(const char *path) :
 		std::cerr << "Could not open input video "<< path << std::endl;
 }
 
+//this increment variable basically locks the update code to the speed of the getFrame loop.
+//This is to make sure that we run detection on every frame of the video
 bool VideoIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if (!cap_.isOpened())
-		return false;
-		cap_ >> _frame;
-		if (_frame.empty())
-			return false;
-		while (_frame.rows > 800)
-			pyrDown(_frame, _frame);
-		frameNumber_ += 1;
-			return true;
+	increment = true;
 }
 
 bool VideoIn::getFrame(Mat &frame)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if (!cap_.isOpened())
-		return false;
-		if (_frame.empty())
+	if(increment) {
+		boost::lock_guard<boost::mutex> guard(_mtx);
+		if (!cap_.isOpened())
 			return false;
+			cap_ >> _frame;
+			if (_frame.empty())
+				return false;
+			while (_frame.rows > 800)
+				pyrDown(_frame, _frame);
+		frameNumber_ += 1;
+	}
+	increment = false;
 	frame = _frame.clone();
-
 	return true;
 }
 
