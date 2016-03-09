@@ -96,7 +96,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			depth_z_min = depth_z_max = distanceUsingFOV(br);
 
 		//create a trackedobject to get x,y,z of the goal
-		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -20.5 * M_PI / 180.0);
+		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16.0 * M_PI / 180.0);
 
 		//percentage of the object filled in
 		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
@@ -122,7 +122,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//confidence is near 0.5 when value is near the mean
 		//confidence is small or large when value is not near mean
-		float confidence_height     = utils::normalCFD(height_normal, goal_tracked_obj.getPosition().z);
+		float confidence_height     = utils::normalCFD(height_normal, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
 		float confidence_com_x      = utils::normalCFD(com_x_normal,  com_percent_actual.x);
 		float confidence_com_y      = utils::normalCFD(com_y_normal,  com_percent_actual.y);
 		float confidence_area       = utils::normalCFD(area_normal,   filledPercentageActual);
@@ -204,6 +204,9 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 				bluePlusRed);
 	subtract(splitImage[1], bluePlusRed, imageOut);
 
+	// TODO : look at modifying these - same shape and size
+	// for both, only 1 iteration of both, or maybe a loop
+	// of 2 erode/dilate pairs
     Mat erodeElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
     Mat dilateElement(getStructuringElement(MORPH_ELLIPSE, Size(2, 2)));
     erode(imageOut, imageOut, erodeElement, Point(-1, -1), 2);
