@@ -95,7 +95,7 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 {
 	//create a top view image of the robot and all detected objects
 	Range xRange = Range(-1,9);
-	Range yRange = Range(-1,9);
+	Range yRange = Range(-4,4);
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
