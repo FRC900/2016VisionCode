@@ -30,11 +30,12 @@ int main(int argc, char **argv)
 	Mat depthNorm;
 	Rect bound;
 	FrameTicker frameTicker;
-	while(cap.getNextFrame(image, false))
+	while  (cap.update() &&
+		    cap.getFrame(image) &&
+			cap.getDepthMat(depth) &&
+			cap.getNormDepthMat(depthNorm))
 	{
 		frameTicker.mark();
-		cap.getDepthMat(depth);
-		cap.getNormDepthMat(depthNorm);
 		imshow ("Normalized Depth", depthNorm);
 
 		gd.processFrame(image, depth);
