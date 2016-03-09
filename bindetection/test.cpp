@@ -441,11 +441,13 @@ int main( int argc, const char** argv )
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
 
 			// Print frame number of video if the option is enabled
-			int frames = cap->frameCount();
-			if (printFrames && (frames > 0))
+			if (printFrames)
 			{
 				stringstream ss;
-				ss << cap->frameNumber() << '/' << frames;
+				ss << cap->frameNumber();
+				int frames = cap->frameCount();
+				if (frames > 0)
+					ss << '/' << frames;
 				putText(frame, ss.str(),
 				        Point(frame.cols - 15 * ss.str().length(), 20),
 						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
