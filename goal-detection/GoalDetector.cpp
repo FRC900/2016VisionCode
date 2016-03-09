@@ -9,7 +9,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_fov_size(fov_size),
 	_frame_size(frame_size),
 	_goal_found(false),
-	_min_valid_confidence(0.3),
+	_min_valid_confidence(0.275),
 	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
 	_blue_scale(30),
 	_red_scale(100)
@@ -78,12 +78,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me
-		if (br.area() < 50.0)
-{
-cout << "Contour br too small " << endl;
-
+		cout << "Area = " << br.area() << endl;
+		if (br.area() < 200.0)
 			continue;
-}
 
 		contour_mask.setTo(Scalar(0));
 	
@@ -103,7 +100,7 @@ cout << "Contour br too small " << endl;
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
-		if ((depth_z_min < 1.5) || (depth_z_max > 9.))
+		if ((depth_z_min < 1.) || (depth_z_max > 12.))
 {
 cout << "Contour distance out of range" << endl;
 			continue;
