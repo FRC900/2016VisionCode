@@ -31,7 +31,6 @@ class GoalDetector
 
 		//const float _goal_height = .5f;
 
-		int   _otsu; // use Ostu thresholding or adaptiveThreshold?
 
 		// Save detection info 
 		bool  _goal_found;
@@ -47,10 +46,11 @@ class GoalDetector
 
 		float _min_valid_confidence;
 
+		int   _otsu; // use Ostu thresholding or adaptiveThreshold?
 		int  _blue_scale;
 		int  _red_scale;
 
-		void wrapConfidence(float &confidence);
+		float createConfidence(float expectedVal, float expectedStddev, float actualVal);
 		float distanceUsingFOV(const cv::Rect &rect) const;
 		bool generateThresholdAddSubtract(const cv::Mat& imageIn, cv::Mat& imageOut);
 };

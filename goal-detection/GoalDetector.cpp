@@ -5,17 +5,15 @@ using namespace std;
 using namespace cv;
 
 GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
-	_goal_shape(3)
+	_goal_shape(3),
+	_fov_size(fov_size),
+	_frame_size(frame_size),
+	_goal_found(false),
+	_min_valid_confidence(0.3),
+	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
+	_blue_scale(30),
+	_red_scale(100)
 {
-	_goal_found = false;
-	_fov_size = fov_size;
-	_frame_size = frame_size;
-	_min_valid_confidence = 0.2;
-
-    _otsu = 1;
-	_blue_scale = 30;
-	_red_scale  = 100;
-
 	if (gui)
 	{
 		cv::namedWindow("Goal Detect Adjustments", CV_WINDOW_NORMAL);
@@ -25,12 +23,16 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	}
 }
 
+// Compute a confidence score for an actual measurement given
+// the expected value and stddev of that measurement
 // Values around 0.5 are good. Values away from that are progressively
 // worse.  Wrap stuff above 0.5 around 0.5 so the range 
 // of values go from 0 (bad) to 0.5 (good).
-void GoalDetector::wrapConfidence(float &confidence)
+float GoalDetector::createConfidence(float expectedVal, float expectedStddev, float actualVal)
 {
-	confidence = confidence > 0.5 ? 1 - confidence : confidence;
+	pair<float,float> expectedNormal(expectedVal, expectedStddev);
+	float confidence = utils::normalCFD(expectedNormal, actualVal);
+	return confidence > 0.5 ? 1 - confidence : confidence;
 }
 
 void GoalDetector::processFrame(const Mat& image, const Mat& depth)
@@ -39,8 +41,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	// image - used when grabbing depth data for the contour
     Mat contour_mask(image.rows, image.cols, CV_8UC1, Scalar(0));
 
-	// Reset goal_found flag for each frame. Set it later if
-	// the goal is found
+	// Reset previous detection vars
 	_goal_found = false;
 	_dist_to_goal = -1.0;
 	_angle_to_goal = -1.0;
@@ -73,12 +74,13 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
     {
 		// ObjectType computes a ton of useful properties so create 
 		// one for what we're looking at
-		ObjectType goal_actual(_contours[i]);
+	    Rect br(boundingRect(_contours[i]));
 
-		if (goal_actual.area() < 100.0)
+		// Remove objects which are obviously too small
+		// TODO :: Tune me
+		if (br.area() < 100.0)
 			continue;
 
-	    Rect br(boundingRect(_contours[i]));
 		contour_mask.setTo(Scalar(0));
 	
 		//create a mask on the contour
@@ -95,6 +97,13 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		if ((depth_z_min < 1.) || (depth_z_max < 1.)) 
 			depth_z_min = depth_z_max = distanceUsingFOV(br);
 
+		// TODO : Figure out how well this works in practice
+		// Filter out goals which are too close or too far
+		if ((depth_z_min < 1.5) || (depth_z_max > 9.))
+			continue;
+
+		ObjectType goal_actual(_contours[i]);
+
 		//create a trackedobject to get x,y,z of the goal
 		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16.0 * M_PI / 180.0);
 
@@ -110,35 +119,26 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float actualRatio   = goal_actual.width() / goal_actual.height();
 		float expectedRatio = _goal_shape.width() / _goal_shape.height();
 
+		// Gets the bounding box area observed divided by the
+		// bounding box area calculated given goal size and distance
+		// For an object the size of a goal we'd expect this to be 
+		// close to 1.0 with some variance due to perspective
+		float actualScreenArea = (float)br.area() / goal_tracked_obj.getScreenPosition(_fov_size, _frame_size).area();
+
 		//parameters for the normal distributions
 		//values for standard deviation were determined by 
 		//taking the standard deviation of a bunch of values from the goal
-		pair<float,float> height_normal = make_pair(_goal_height, 0.259273877);
-		pair<float,float> com_x_normal  = make_pair(com_percent_expected.x, 0.075);
-		pair<float,float> com_y_normal  = make_pair(com_percent_expected.y, 0.1539207);
-		pair<float,float> area_normal   = make_pair(filledPercentageExpected, 0.33);
-		pair<float,float> ratio_normal  = make_pair(expectedRatio, 0.537392);
-		pair<float,float> ideal_area    = make_pair(1.0, 1.0/3.0);
-
 		//confidence is near 0.5 when value is near the mean
 		//confidence is small or large when value is not near mean
-		float confidence_height     = utils::normalCFD(height_normal, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
-		float confidence_com_x      = utils::normalCFD(com_x_normal,  com_percent_actual.x);
-		float confidence_com_y      = utils::normalCFD(com_y_normal,  com_percent_actual.y);
-		float confidence_area       = utils::normalCFD(area_normal,   filledPercentageActual);
-		float confidence_ratio      = utils::normalCFD(ratio_normal,  actualRatio);
-		float confidence_ideal_area = utils::normalCFD(ideal_area,  (float)br.area() / goal_tracked_obj.getScreenPosition(_fov_size, _frame_size).area());
-
-		// Normalize values between 0 and 0.5
-		wrapConfidence(confidence_height);
-		wrapConfidence(confidence_com_x);
-		wrapConfidence(confidence_com_y);
-		wrapConfidence(confidence_area);
-		wrapConfidence(confidence_ratio);
-		wrapConfidence(confidence_ideal_area);
+		float confidence_height      = createConfidence(_goal_height, 0.259273877, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
+		float confidence_com_x       = createConfidence(com_percent_expected.x, 0.075,  com_percent_actual.x);
+		float confidence_com_y       = createConfidence(com_percent_expected.y, 0.1539207,  com_percent_actual.y);
+		float confidence_filled_area = createConfidence(filledPercentageExpected, 0.33,   filledPercentageActual);
+		float confidence_ratio       = createConfidence(expectedRatio, 0.537392,  actualRatio);
+		float confidence_screen_area = createConfidence(1.0, 1.0/3.0,  actualScreenArea);
 		
 		// higher is better
-		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_area + confidence_ratio + confidence_ideal_area) / 6.0;
+		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio + confidence_screen_area) / 6.0;
 		_confidence.push_back(confidence);
 
 #if 1
@@ -147,9 +147,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_height: " << confidence_height << endl;
 		cout << "confidence_com_x: " << confidence_com_x << endl;
 		cout << "confidence_com_y: " << confidence_com_y << endl;
-		cout << "confidence_area: " << confidence_area << endl;
+		cout << "confidence_filled_area: " << confidence_filled_area << endl;
 		cout << "confidence_ratio: " << confidence_ratio << endl;
-		cout << "confidence_ideal_area: " << confidence_ideal_area << endl;
+		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;		
 		cout << "-------------------------------------------" << endl;
 #endif
@@ -171,7 +171,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		info.push_back(to_string(confidence_height));
 		info.push_back(to_string(confidence_com_x));
 		info.push_back(to_string(confidence_com_y));
-		info.push_back(to_string(confidence_area));
+		info.push_back(to_string(confidence_filled_area));
 		info.push_back(to_string(confidence_ratio));
 		info.push_back(to_string(confidence));
 		info.push_back(to_string(h_dist));
