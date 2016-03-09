@@ -35,10 +35,13 @@ class ObjectType {
 		float area (void) const { return area_; }
 		float boundingArea (void) const { return width_ * height_; }
 
+		//comparison operator overload just checks if the contours are equal
+		bool operator== (const ObjectType &t1) const;
+
 	private:
 		std::vector< cv::Point2f > contour_;
 
-		// properties are computed and stored internally so that they 
+		// properties are computed and stored internally so that they
 		// don't have to be recomputed every time the get functions are called
 		float width_;
 		float height_;
@@ -117,6 +120,7 @@ class TrackedObject
 		cv::Point3f updateKF(cv::Point3f pt);
 
 		std::string getId(void) const { return _id; }
+		ObjectType getType(void) const { return _type; }
 
 	private :
 		ObjectType _type;
@@ -188,8 +192,8 @@ class TrackedObjectList
 		// Process a set of detected rectangles
 		// Each will either match a previously detected object or
 		// if not, be added as new object to the list
-		void processDetect(const std::vector<cv::Rect> &detectedRects, 
-						   const std::vector<float> depths, 
+		void processDetect(const std::vector<cv::Rect> &detectedRects,
+						   const std::vector<float> depths,
 						   const std::vector<ObjectType> &types);
 
 	private :

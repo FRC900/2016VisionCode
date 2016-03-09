@@ -18,16 +18,17 @@
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false);
+		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false, int outFileFrameSkip = 0);
 		~ZedIn();
-		bool getNextFrame(cv::Mat &frame, bool pause = false);
+		bool update();
+		bool getFrame(cv::Mat &frame);
 
 		int    width(void) const;
 		int    height(void) const;
 
 #ifdef ZED_SUPPORT
 		// How many frames?
-		int    frameCount(void) const; 
+		int    frameCount(void) const;
 
 		// Get and set current frame number
 		int    frameNumber(void) const;
@@ -46,11 +47,10 @@ class ZedIn : public MediaIn
 		void deleteOutputPointers(void);
 		bool openSerializeInput(const char *filename);
 		bool openSerializeOutput(const char *filename);
-		bool getNextFrame(cv::Mat &frame, bool left, bool pause);
+		bool update(bool left);
 
 		sl::zed::Camera* zed_;
 		cv::Mat frameRGBA_;
-		cv::Mat frame_;
 		cv::Mat depthMat_;
 		cv::Mat normDepthMat_;
 		int width_;
@@ -66,7 +66,7 @@ class ZedIn : public MediaIn
 
 		std::string outFileName_;
 
-		// Hack up a way to save zed data - serialize both 
+		// Hack up a way to save zed data - serialize both
 		// BGR frame and depth frame
 		std::ifstream *serializeIn_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::input> *filtSBIn_;
@@ -74,6 +74,9 @@ class ZedIn : public MediaIn
 		std::ofstream *serializeOut_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::output> *filtSBOut_;
 		boost::archive::binary_oarchive *archiveOut_;
+
+		int outFileFrameSkip_;
+		int outFileFrameCounter_;
 
 		// Mark these as friends so they can access private class data
 		friend void zedBrightnessCallback(int value, void *data);
@@ -87,4 +90,3 @@ class ZedIn : public MediaIn
 #endif
 };
 #endif
-

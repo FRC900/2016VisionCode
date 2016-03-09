@@ -27,11 +27,10 @@ class GoalDetector
 		ObjectType _goal_shape;
 		cv::Point2f _fov_size;
 		cv::Size _frame_size;
-		//const float _goal_height = 2.159 - 1 - (17 * 2.54) / 100.;  // goal height minus camera mounting ht minus chopping off 17 inches.  TODO : remeasure me!
+		const float _goal_height = 1.524;  // goal height minus camera mounting ht minus chopping off 17 inches.  TODO : remeasure me!
 
-		const float _goal_height = .5f;
+		//const float _goal_height = .5f;
 
-		int   _otsu; // use Ostu thresholding or adaptiveThreshold?
 
 		// Save detection info 
 		bool  _goal_found;
@@ -47,10 +46,11 @@ class GoalDetector
 
 		float _min_valid_confidence;
 
+		int   _otsu; // use Ostu thresholding or adaptiveThreshold?
 		int  _blue_scale;
 		int  _red_scale;
 
-		void wrapConfidence(float &confidence);
+		float createConfidence(float expectedVal, float expectedStddev, float actualVal);
 		float distanceUsingFOV(const cv::Rect &rect) const;
 		bool generateThresholdAddSubtract(const cv::Mat& imageIn, cv::Mat& imageOut);
 };

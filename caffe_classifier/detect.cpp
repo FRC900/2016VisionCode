@@ -96,11 +96,9 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
     {
         double   scale = scaledImages24[it->second].second;
-        std::cout << "Mid Depth at Scale: " << 192.9* pow(((float)wsize*(float)wsize*4)/((float)inputImg.rows*(float)inputImg.cols/(scale*scale)), -.534) << std::endl;
         cv::Rect rect(it->first);
         cv::Rect scaledRect(cv::Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         rectsOut.push_back(scaledRect);
-
     }
 }
 

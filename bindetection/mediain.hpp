@@ -2,7 +2,7 @@
 #define MEDIAIN_HPP__
 
 #include <opencv2/core/core.hpp>
-
+#include <boost/thread.hpp>
 using namespace cv;
 
 class CameraParams
@@ -29,14 +29,15 @@ class MediaIn
    public:
       MediaIn();
 	  virtual ~MediaIn() {}
-      virtual bool   getNextFrame(cv::Mat &frame, bool pause = false) = 0;
+      virtual bool getFrame(cv::Mat &frame) = 0;
+		  virtual bool update() = 0;
 
 	  // Image size
       virtual int    width() const = 0;
       virtual int    height() const = 0;
 
 	  // How many frames?
-      virtual int    frameCount(void) const; 
+      virtual int    frameCount(void) const;
 
 	  // Get and set current frame number
       virtual int    frameNumber(void) const;
@@ -46,7 +47,10 @@ class MediaIn
 	  virtual CameraParams getCameraParams(bool left) const;
 	  virtual bool  getDepthMat(cv::Mat &depthMat) const;
 	  virtual bool  getNormDepthMat(cv::Mat &normDepthMat) const;
-      virtual float getDepth(int x, int y);
+    virtual float getDepth(int x, int y);
+
+	protected:
+			cv::Mat _frame;
+			boost::mutex _mtx;
 };
 #endif
-

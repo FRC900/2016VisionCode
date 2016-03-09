@@ -62,9 +62,9 @@ ObjectType::ObjectType(const std::vector< cv::Point2f > &contour_in) :
 	computeProperties();
 }
 
-ObjectType::ObjectType(const std::vector< cv::Point > &contour_in) 
+ObjectType::ObjectType(const std::vector< cv::Point > &contour_in)
 {
-	for(size_t i = 0; i < contour_in.size(); i++) 
+	for(size_t i = 0; i < contour_in.size(); i++)
 	{
 		cv::Point2f p;
 		p.x = (float)contour_in[i].x;
@@ -75,7 +75,7 @@ ObjectType::ObjectType(const std::vector< cv::Point > &contour_in)
 
 }
 
-void ObjectType::computeProperties() 
+void ObjectType::computeProperties()
 {
 	float min_x = std::numeric_limits<float>::max();
 	float min_y = std::numeric_limits<float>::max();
@@ -97,8 +97,12 @@ void ObjectType::computeProperties()
 	com_ = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
 
+bool ObjectType::operator== (const ObjectType &t1) const {
+	return this->shape() == t1.shape();
+}
 
-static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation) 
+
+static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation)
 {
 	/*
 	Method:
@@ -127,13 +131,13 @@ static cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double a
 
 	float azimuth = percent_fov.x * fov_size.x;
 	float inclination = percent_fov.y * fov_size.y - cameraElevation;
-	
+
 	cv::Point3f retPt(
 			avg_depth * cos(inclination) * sin(azimuth),
 			avg_depth * cos(inclination) * cos(azimuth),
 			avg_depth * sin(inclination));
 
-	//std::cout << "Distance to center: " << dist_to_center << std::endl; 
+	//std::cout << "Distance to center: " << dist_to_center << std::endl;
 	//std::cout << "Actual Inclination: " << inclination << std::endl;
 	//std::cout << "Actual Azimuth: " << azimuth << std::endl;
 	//std::cout << "Actual location: " << retPt << std::endl;
@@ -146,9 +150,9 @@ static cv::Rect worldToScreenCoords(const cv::Point3f &_position, ObjectType _ty
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
 	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asin( _position.z / r ) + cameraElevation;
-	
+
 	cv::Point2f percent_fov = cv::Point2f(azimuth / fov_size.x, inclination / fov_size.y);
-	cv::Point2f dist_to_center(percent_fov.x * frame_size.width, 
+	cv::Point2f dist_to_center(percent_fov.x * frame_size.width,
 			                   percent_fov.y * frame_size.height);
 
 	cv::Point2f rect_center(
@@ -163,11 +167,10 @@ static cv::Rect worldToScreenCoords(const cv::Point3f &_position, ObjectType _ty
 	cv::Point topLeft(
 			cvRound(rect_center.x - (screen_size.x / 2.0)),
 			cvRound(rect_center.y - (screen_size.y / 2.0)));
-
-	return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
+			return cv::Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
-TrackedObject::TrackedObject(int               id,
+TrackedObject::TrackedObject(int id,
 							 const ObjectType &type_in,
 							 const cv::Rect   &screen_position,
 							 double            avg_depth,
@@ -180,7 +183,7 @@ TrackedObject::TrackedObject(int               id,
 		_type(type_in),
 		_detectHistory(historyLength),
 		_positionHistory(historyLength),
-		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation), 
+		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation),
 			dt, accel_noise_mag),
 		missedFrameCount_(0),
 		cameraElevation_(camera_elevation)
@@ -204,14 +207,15 @@ TrackedObject::~TrackedObject()
 }
 
 // Set the position based on x,y,z coords
-void TrackedObject::setPosition(const cv::Point3f &new_position) 
-{ 
+
+void TrackedObject::setPosition(const cv::Point3f &new_position)
+{
 	_position = new_position;
 	addToPositionHistory(_position);
 }
 
 // Set the position based on a rect on the screen and depth info from the zed
-void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_depth, 
+void TrackedObject::setPosition(const cv::Rect &screen_position, double avg_depth,
 		                        const cv::Point2f &fov_size, const cv::Size &frame_size)
 {
 	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, cameraElevation_));
@@ -226,7 +230,7 @@ void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isom
 
 	_position = cv::Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
 
-	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
+	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it)
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
 		Eigen::Vector3d new_pos_vector = delta_robot * old_pos_vector;
@@ -245,7 +249,7 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 	pos_mat.at<double>(0,0) = screen_pos.x;
 	pos_mat.at<double>(0,1) = screen_pos.y;
 	pos_mat.at<double>(0,2) = 1.0;
-	
+
 	//correct the position
 	cv::Mat new_screen_pos_mat(3,1,CV_64FC1);
 	new_screen_pos_mat = transform_mat * pos_mat;
@@ -255,7 +259,7 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 	cv::Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
 	setPosition(new_screen_rect,depth,fov_size,frame_size);
 	//update the history
-	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it) 
+	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it)
 	{
 		screen_rect = worldToScreenCoords(*it,_type,fov_size,frame_size, cameraElevation_);
 		screen_pos = cv::Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
@@ -267,7 +271,7 @@ void TrackedObject::adjustPosition(const cv::Mat &transform_mat, float depth, co
 		cv::Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
 		*it = screenToWorldCoords(new_screen_rect, depth, fov_size, frame_size, cameraElevation_);
 	}
-	
+
 }
 
 // Mark the object as detected in this frame
@@ -291,7 +295,7 @@ bool TrackedObject::tooManyMissedFrames(void) const
 	return missedFrameCount_ > missedFrameCountMax;
 }
 
-// Keep a history of the most recent positions 
+// Keep a history of the most recent positions
 // of the object in question
 void TrackedObject::addToPositionHistory(const cv::Point3f &pt)
 {
@@ -316,7 +320,7 @@ double TrackedObject::getDetectedRatio(void) const
 }
 
 
-cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const 
+cv::Rect TrackedObject::getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const
 {
 	return worldToScreenCoords(_position, _type, fov_size, frame_size, cameraElevation_);
 }
@@ -347,7 +351,7 @@ cv::Point3f TrackedObject::predictKF(void)
 
 
 cv::Point3f TrackedObject::updateKF(cv::Point3f pt)
-{	
+{
 	return _KF.Update(pt);
 }
 
@@ -430,8 +434,8 @@ const double dist_thresh_ = 1.0; // FIX ME!
 // Process a set of detected rectangles
 // Each will either match a previously detected object or
 // if not, be added as new object to the list
-void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects, 
-									  const std::vector<float> depths, 
+void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects,
+									  const std::vector<float> depths,
 									  const std::vector<ObjectType> &types)
 {
 	std::cout << "---------- Start of process detect --------------" << std::endl;
@@ -458,19 +462,25 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 
 		// Calculate cost for each track->pair combo
 		// The cost here is just the distance between them
+		// Also check to see if the types are the same, if they are not then set the cost extremely high so that it's never matched
 		auto it = _list.cbegin();
 		for(size_t t = 0; t < tracks;  ++t, ++it)
-		{	
+		{
 			// Point3f prediction=tracks[t]->prediction;
 			// cout << prediction << endl;
 			for(size_t d = 0; d < detections; d++)
 			{
-				cv::Point3f diff = it->getPosition() - detectedPositions[d];
-				Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+				const ObjectType it_type = it->getType();
+				if(types[d] == it_type) {
+					cv::Point3f diff = it->getPosition() - detectedPositions[d];
+					Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
+				} else {
+					Cost[t][d] = 100000;
+				}
 			}
 		}
 
-		// Solving assignment problem (find minimum-cost assignment 
+		// Solving assignment problem (find minimum-cost assignment
 		// between tracks and previously-predicted positions)
 		AssignmentProblemSolver APS;
 		APS.Solve(Cost, assignment, AssignmentProblemSolver::optimal);
