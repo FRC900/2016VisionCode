@@ -46,7 +46,7 @@ Args::Args(void)
 	skip               = 0;
 	calibrate          = false;
 	writeVideo         = false;
-	writeVideoSkip     = 0;
+	writeVideoSkip     = 1;
 	saveVideo          = false;
 	detection          = true;
 	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";

@@ -35,6 +35,9 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	serializeFrameStart_(0),
 	serializeFrameSize_(0)
 {
+	if (outFileFrameSkip_ <= 0)
+		outFileFrameSkip_ = 1;
+
 	if (inFileName)
 	{
 		// Might be svo, might be zms
@@ -317,12 +320,11 @@ bool ZedIn::getFrame(Mat &frame)
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	// Write output to serialized file if it is open and
 	// if we've skipped enough frames since the last write 
-	// (which could be every fame if outFileFrameSkip == 0 or 1
-	if (archiveOut_ && 
-	    (!outFileFrameSkip_ || ((outFileFrameCounter_++ % outFileFrameSkip_) == 0)))
+	// (which could be every frame if outFileFrameSkip == 0 or 1
+	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
 	{
 		*archiveOut_ << _frame << depthMat_;
-		const int frameSplitCount = 300;
+		const int frameSplitCount = 30;
 		if ((frameNumber_ > 0) && (((frameNumber_ / outFileFrameSkip_) % frameSplitCount) == 0))
 		{
 			stringstream ofName;
