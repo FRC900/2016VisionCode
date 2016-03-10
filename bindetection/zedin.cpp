@@ -324,7 +324,7 @@ bool ZedIn::getFrame(Mat &frame)
 	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
 	{
 		*archiveOut_ << _frame << depthMat_;
-		const int frameSplitCount = 30;
+		const int frameSplitCount = 300;
 		if ((frameNumber_ > 0) && (((frameNumber_ / outFileFrameSkip_) % frameSplitCount) == 0))
 		{
 			stringstream ofName;
