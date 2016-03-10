@@ -475,7 +475,7 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 					cv::Point3f diff = it->getPosition() - detectedPositions[d];
 					Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
 				} else {
-					Cost[t][d] = 100000;
+					Cost[t][d] = std::numeric_limits<float>::max();
 				}
 			}
 		}
