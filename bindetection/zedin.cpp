@@ -60,16 +60,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	else // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
 
-	// Save the raw camera stream to disk.  This uses a home-brew
-	// method to serialize image and depth data to disk rather than
-	// relying on Stereolab's SVO format.
-	if (outFileName)
-	{
-		outFileName_ = outFileName;
-		if (!openSerializeOutput(outFileName_.c_str()))
-			cerr << "Zed init : could not open output file " << outFileName << endl;
-	}
-
 	if (zed_)
 	{
 		// init computation mode of the zed
@@ -138,11 +128,23 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 		width_  = _frame.cols;
 		height_ = _frame.rows;
 	}
+
 	while (height_ > 700)
 	{
 		width_  /= 2;
 		height_ /= 2;
 	}
+
+	// Save the raw camera stream to disk.  This uses a home-brew
+	// method to serialize image and depth data to disk rather than
+	// relying on Stereolab's SVO format.
+	if ((zed_ || archiveIn_) && outFileName)
+	{
+		outFileName_ = outFileName;
+		if (!openSerializeOutput(outFileName_.c_str()))
+			cerr << "Zed init : could not open output file " << outFileName << endl;
+	}
+
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -325,7 +327,7 @@ bool ZedIn::getFrame(Mat &frame)
 	{
 		*archiveOut_ << _frame << depthMat_;
 		const int frameSplitCount = 300;
-		if ((frameNumber_ > 0) && (((frameNumber_ / outFileFrameSkip_) % frameSplitCount) == 0))
+		if ((frameNumber_ > outFileFrameSkip_) && (((frameNumber_ / outFileFrameSkip_) % frameSplitCount) == 0))
 		{
 			stringstream ofName;
 			ofName << change_extension(outFileName_, "").string() << "_" ;
