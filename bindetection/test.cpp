@@ -39,7 +39,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo);
+void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo, int writeVideoSkip);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
@@ -73,7 +73,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 {
    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
    {
-	  if (it->ratio >= 0.05)
+	  if (it->ratio >= 0.15)
 	  {
 		 const int roundPosTo = 2;
 		 // Color moves from red to green (via brown, yuck)
@@ -91,11 +91,12 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
    }
 }
 
-void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
+void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, const Point3f &goalPos)
 {
 	//create a top view image of the robot and all detected objects
 	Range xRange = Range(-4,4);
-	Range yRange = Range(-4,4);
+	Range yRange = Range(-9,9);
+
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
@@ -107,10 +108,17 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 	{
 		Point2f realPos = Point2f(it->position.x, it->position.y);
 		Point2f imagePos;
-		imagePos.x = realPos.x * (imageSize.x / xRange.size()) + (imageSize.x / 2.0);
-		imagePos.y = -(realPos.y * (imageSize.y / yRange.size())) + (imageSize.y / 2.0);
+		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
+		imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
 		circle(frame, imagePos, rectSize, Scalar(255,0,0), 5);
-
+	}
+	if (goalPos != Point3f())
+	{
+		Point2f realPos = Point2f(goalPos.x, goalPos.y);
+		Point2f imagePos;
+		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
+		imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
+		circle(frame, imagePos, rectSize, Scalar(255,255,0), 5);
 	}
 }
 
@@ -119,6 +127,7 @@ int main( int argc, const char** argv )
 	// Flags for various UI features
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
+	bool gdDraw = false;      // draw goal detect details
 	int frameDisplayFrequency = 1;
 
 	// Hopefully this turns off any logging
@@ -134,8 +143,8 @@ int main( int argc, const char** argv )
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
-	openMedia(args.inputName, cap, capPath, windowName, 
-			  !args.batchMode, args.writeVideo);
+	openMedia(args.inputName, cap, capPath, windowName,
+			  !args.batchMode, args.writeVideo, args.writeVideoSkip);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
@@ -152,12 +161,12 @@ int main( int argc, const char** argv )
   	Mat depth;
 	Mat top_frame; // top-down view of tracked objects
 
-	// TODO : Figure this out 
+	// TODO : Figure this out
 	//minDetectSize = cap->width() * 0.05;
 	minDetectSize = 40;
 
 	// If UI is up, pop up the parameters window
-	if (!args.batchMode)
+	if (!args.batchMode && args.detection)
 	{
 		string detectWindowName = "Detection Parameters";
 		namedWindow(detectWindowName);
@@ -174,7 +183,7 @@ int main( int argc, const char** argv )
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
 	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
-	
+
 	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
 
@@ -188,6 +197,7 @@ int main( int argc, const char** argv )
 	VideoWriter markedupVideo;
 	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
 	int videoWritePollCount = videoWritePollFrequency;
+	int writeFrameCounter = 0;
 
 	FrameTicker frameTicker;
 
@@ -207,28 +217,34 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
-	if (cap->getNextFrame(frame, pause) == false)
+	if (!cap->update() || !cap->getFrame(frame))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
 
-	cap->getNextFrame(frame, pause);
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 	FlowLocalizer fllc(frame);
 
 	//Creating Goaldetection object
 	GoalDetector gd(camParams.fov, Size(cap->width(),cap->height()), !args.batchMode);
-	
-	int64 stepTimer;	
-	
+
+	int64 stepTimer;
+
+
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
 	//  -- do a cascade detect on the current frame
 	//  -- add those newly detected objects to the list of tracked objects
-	while(cap->getNextFrame(frame, pause))
+	while(true)
 	{
+		if(!pause)
+			if(!cap->update())
+				break;
+		if(!cap->getFrame(frame))
+			break;
+
 		//Getting depth matrix
 		cap->getDepthMat(depth);
 
@@ -239,8 +255,9 @@ int main( int argc, const char** argv )
 			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
 		}
-		
-		if (args.writeVideo)
+
+		if (args.writeVideo && 
+			(!args.writeVideoSkip || ((writeFrameCounter++ % args.writeVideoSkip) == 0)))
 		{
 		   writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
 		}
@@ -255,25 +272,27 @@ int main( int argc, const char** argv )
 
 		//run Goaldetector and FovisLocator code
 		gd.processFrame(frame, depth);
+		if (gdDraw)
+			gd.drawOnFrame(frame);
 
 		float gDistance = gd.dist_to_goal();
-		cout << "distance to goal: " << gDistance;
 		float gAngle = gd.angle_to_goal();
-		cout << " angle to goal: " << gAngle << endl;
 		Rect goalBoundRect = gd.goal_rect();
 
+		cout << "Goal Position=" << gd.goal_pos() << endl;
 		//stepTimer = cv::getTickCount();
 		//fvlc.processFrame(frame,depth);
-		fllc.processFrame(frame);
+		if (detectState)
+			fllc.processFrame(frame);
 		//cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
-		stepTimer = cv::getTickCount();
+		//stepTimer = cv::getTickCount();
 		vector<Rect> detectRects;
 		if (detectState)
 			detectState->detector()->Detect(frame, depth, detectRects);
-		cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+		//cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -290,14 +309,17 @@ int main( int argc, const char** argv )
 		//adjust locations of objects based on fovis results
 		//utils::printIsometry(fvlc.transform_eigen());
 
-		cout << "Locations before adjustment: " << endl;
-		objectTrackingList.print();
+		if (detectState)
+		{
+			cout << "Locations before adjustment: " << endl;
+			objectTrackingList.print();
 
-		//objectTrackingList.adjustLocation(fvlc.transform_eigen());
-		objectTrackingList.adjustLocation(fllc.transform_mat());
+			//objectTrackingList.adjustLocation(fvlc.transform_eigen());
+			objectTrackingList.adjustLocation(fllc.transform_mat());
 
-		cout << "Locations after adjustment: " << endl;
-		objectTrackingList.print();
+			cout << "Locations after adjustment: " << endl;
+			objectTrackingList.print();
+		}
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
@@ -307,11 +329,11 @@ int main( int argc, const char** argv )
 		vector<float> depths;
 		vector<ObjectType> objTypes;
 		const float depthRectScale = 0.2;
-		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it) 
+		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 		{
 			cout << "Detected object at: " << *it;
 			Rect depthRect = *it;
-			
+
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
 			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
@@ -322,14 +344,10 @@ int main( int argc, const char** argv )
 				depths.push_back(objectDepth);
 				objTypes.push_back(ObjectType(1));
 			}
-		} 
-
-		vector<Rect> fakeRects;
-		vector<float> fakeDepths;
-		vector<ObjectType> fakeTypes;
+		}
 
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
-		cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+		//cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
@@ -338,20 +356,19 @@ int main( int argc, const char** argv )
 		//Creates immutable strings for 0MQ Output
 		stringstream gString;
 		gString << "G ";
-		gString << fixed << setprecision(2) << gDistance << " ";
+		gString << fixed << setprecision(4) << gDistance << " ";
 		gString << fixed << setprecision(2) << gAngle;
 
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
 		//   b. batch (non-GUI) mode isn't active
 		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking && 
-			!args.batchMode && 
+		if (args.tracking &&
+			!args.batchMode &&
 			((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
 		    drawTrackingInfo(frame, displayList);
-
-			drawTrackingTopDown(top_frame, displayList);
+			drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
 			imshow("Top view", top_frame);
 		}
 
@@ -376,7 +393,7 @@ int main( int argc, const char** argv )
 		zmq::message_t grequest(gString.str().length() - 1);
 		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
 		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
-		publisher.send(request);
+		//publisher.send(request);
 		publisher.send(grequest);
 
 		// For interactive mode, update the FPS as soon as we have
@@ -385,7 +402,7 @@ int main( int argc, const char** argv )
 		// avoid printing too much stuff
 	    if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 50) == 0))))
+			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
 	    {
 			stringstream ss;
 			// If in args.batch mode and reading a video, display
@@ -425,11 +442,13 @@ int main( int argc, const char** argv )
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
 
 			// Print frame number of video if the option is enabled
-			int frames = cap->frameCount();
-			if (printFrames && (frames > 0))
+			if (printFrames)
 			{
 				stringstream ss;
-				ss << cap->frameNumber() << '/' << frames;
+				ss << cap->frameNumber();
+				int frames = cap->frameCount();
+				if (frames > 0)
+					ss << '/' << frames;
 				putText(frame, ss.str(),
 				        Point(frame.cols - 15 * ss.str().length(), 20),
 						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
@@ -470,8 +489,8 @@ int main( int argc, const char** argv )
 				break;
 			}
 			else if( c == ' ')  // Toggle pause
-			{ 
-				pause = !pause; 
+			{
+				pause = !pause;
 			}
 			else if( c == 'f')  // advance to next frame
 			{
@@ -486,7 +505,8 @@ int main( int argc, const char** argv )
 					// Otherwise, if not paused, move to the next frame
 					cap->frameNumber(frame);
 				}
-				cap->getNextFrame(frame, false);
+				if (!cap->update() || !cap->getFrame(frame))
+					break;
 			}
 			else if (c == 'A') // toggle capture-all
 			{
@@ -505,7 +525,7 @@ int main( int argc, const char** argv )
 				// Save from a copy rather than the original
 				// so all the markup isn't saved, only the raw image
 				Mat frameCopy;
-				cap->getNextFrame(frameCopy, true);
+				cap->getFrame(frameCopy);
 				for (size_t index = 0; index < detectRects.size(); index++)
 					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
 			}
@@ -527,7 +547,7 @@ int main( int argc, const char** argv )
 			}
 			else if (c == 'g') // toggle Goal Detect drawing
 			{
-				gd.draw(!gd.draw());
+				gdDraw = !gdDraw;
 			}
 			else if (c == 'G') // toggle CPU/GPU mode
 			{
@@ -577,7 +597,7 @@ int main( int argc, const char** argv )
 			else if (isdigit(c)) // save a single detected image
 			{
 				Mat frameCopy;
-				cap->getNextFrame(frameCopy, true);
+				cap->getFrame(frameCopy);
 				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
 			}
 		}
@@ -598,7 +618,7 @@ int main( int argc, const char** argv )
 		// so we don't get negatives from every frame. Sequential frames will be
 		// pretty similar so there will be lots of redundant images found
 		else if (!pause && (args.skip > 0))
-		{	
+		{
 			// Exit if the next skip puts the frame beyond the end of the video
 			if ((cap->frameNumber() + args.skip) >= cap->frameCount())
 				break;
@@ -651,7 +671,7 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 }
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo)
+void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo, int writeVideoSkip)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (fileName.length() == 0 ||
@@ -660,13 +680,13 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		stringstream ss;
 		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui );
+		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui, writeVideoSkip);
 		Mat	mat;
-		if(!cap->getNextFrame(mat))
+		if(!cap->update() || !cap->getFrame(mat))
 		{
 			delete cap;
 			cap = new C920CameraIn(camera, gui);
-			if (!cap->getNextFrame(mat))
+			if (!cap->update() || !cap->getFrame(mat))
 			{
 				delete cap;
 				cap = new CameraIn(camera, gui);
@@ -694,7 +714,7 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 		else if (hasSuffix(fileName, ".svo") || hasSuffix(fileName, ".SVO") ||
 		         hasSuffix(fileName, ".zms") || hasSuffix(fileName, ".ZMS"))
 		{
-			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui);
+			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui, writeVideoSkip);
 			writeVideo = false;
 		}
 		else

@@ -44,6 +44,7 @@ bool C920CameraIn::initCamera(bool gui)
 	// TODO - do we want to set these or go
 	// with the values set above?
 	captureSize_ = v4l2::CAPTURE_SIZE_640x480;
+//	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
 		return false;
@@ -83,8 +84,8 @@ bool C920CameraIn::initCamera(bool gui)
 	++whiteBalanceTemperature_;
 
 	// force focus to farthest distance, non-auto
-	focusCallback(1, this); 
-	autoExposureCallback(1, this);
+	focusCallback(1, this);
+	autoExposureCallback(3, this);
 
 	if (gui)
 	{
@@ -105,23 +106,27 @@ bool C920CameraIn::initCamera(bool gui)
 	return true;
 }
 
-bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
-{
+bool C920CameraIn::update() {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!camera_.IsOpen())
 		return false;
+	if (camera_.GrabFrame())
+		camera_.RetrieveMat(_frame);
+	while (_frame.rows > 800)
+		pyrDown(_frame, _frame);
+	return true;
+}
 
-	if (!pause)
-	{
-		if (camera_.GrabFrame())
-			camera_.RetrieveMat(frame_);
-		if( frame_.empty() )
+bool C920CameraIn::getFrame(Mat &frame)
+{
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if (!camera_.IsOpen())
+		return false;
+		if( _frame.empty() )
 			return false;
-		while (frame_.rows > 800)
-			pyrDown(frame_, frame_);
 		frameNumber_ += 1;
-	}
 
-	frame = frame_.clone();
+	frame = _frame.clone();
 	return true;
 }
 
@@ -256,10 +261,9 @@ C920CameraIn::C920CameraIn(int _stream, bool gui)
 	std::cerr << "C920 support not enabled" << std::endl;
 }
 
-bool C920CameraIn::getNextFrame(Mat &frame, bool pause)
+bool C920CameraIn::getNextFrame(Mat &frame)
 {
 	(void)frame;
-	(void)pause;
 	return false;
 }
 

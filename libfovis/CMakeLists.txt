@@ -14,7 +14,13 @@ endif()
 set(CMAKE_BUILD_TYPE Release)
 
 find_package(CUDA REQUIRED)
-link_directories(/usr/local/cuda/lib)
+
+#cuda binaries are in different locations for different architectures
+if(${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
+	link_directories(/usr/local/cuda/lib)
+else()
+	link_directories(/usr/local/cuda/lib64)
+endif()
 
 # Do we want to use SSE?
 option(USE_SSE "Enables SSE support" OFF)

@@ -5,6 +5,7 @@
 #include <string>
 #include <list>
 #include <Eigen/Geometry>
+#include <boost/circular_buffer.hpp>
 #include "kalman.hpp"
 
 const size_t TrackedObjectHistoryLength = 20;
@@ -25,24 +26,27 @@ class ObjectType {
 		ObjectType(const std::vector< cv::Point > &contour_in);
 
 		//get the contour associated with the object type. Useful for shape comparison
-		std::vector< cv::Point2f > shape (void) const { return _contour; }
+		std::vector< cv::Point2f > shape (void) const { return contour_; }
 
 		//get physical characteristics
-		cv::Point2f com (void) const { return _com; }
-		float width (void) const {return _width; }
-		float height (void) const {return _height; }
-		float area (void) const { return _area; }
-		float boundingArea (void) const { return _width * _height; }
+		cv::Point2f com (void) const { return com_; }
+		float width (void) const {return width_; }
+		float height (void) const {return height_; }
+		float area (void) const { return area_; }
+		float boundingArea (void) const { return width_ * height_; }
+
+		//comparison operator overload just checks if the contours are equal
+		bool operator== (const ObjectType &t1) const;
 
 	private:
-		std::vector< cv::Point2f > _contour;
+		std::vector< cv::Point2f > contour_;
 
-		// properties are computed and stored internally so that they 
+		// properties are computed and stored internally so that they
 		// don't have to be recomputed every time the get functions are called
-		float _width;
-		float _height;
-		float _area;
-		cv::Point2f _com; //center of mass
+		float width_;
+		float height_;
+		float area_;
+		cv::Point2f com_; //center of mass
 
 		//called by constructor to compute properties
 		void computeProperties(void);
@@ -68,6 +72,7 @@ class TrackedObject
 				double            avg_depth,
 				cv::Point2f       fov_size,
 				cv::Size          frame_size,
+				float             camera_elevation = 0.0,
 				float             dt = 0.5,
 				float             accel_noise_mag = 0.25,
 				size_t            historyLength = TrackedObjectHistoryLength);
@@ -87,9 +92,6 @@ class TrackedObject
 		double getDetectedRatio(void) const;
 
 		bool tooManyMissedFrames(void) const;
-
-		// Increment to the next frame
-		void nextFrame(void);
 
 		//contour area is the area of the contour stored in ObjectType
 		//scaled into the bounding rect
@@ -118,63 +120,64 @@ class TrackedObject
 		cv::Point3f updateKF(cv::Point3f pt);
 
 		std::string getId(void) const { return _id; }
+		ObjectType getType(void) const { return _type; }
 
 	private :
 		ObjectType _type;
 
 		cv::Point3f _position; // last position of tracked object
-		size_t   _historyIndex;   // current entry being modified in history arrays
+
 		// whether or not the object was seen in a given frame -
 		// used to flag entries in other history arrays as valid
 		// and to figure out which tracked objects are persistent
 		// enough to care about
-		std::vector<bool>        _detectHistory;
-		std::vector<cv::Point3f> _positionHistory;
+		boost::circular_buffer<bool> _detectHistory;
+		boost::circular_buffer<cv::Point3f> _positionHistory;
 
 		// Kalman filter for tracking and noise filtering
 		TKalmanFilter _KF;
 
 		std::string _id; //unique target ID - use a string rather than numbers so it isn't confused
 						 // with individual frame detect indexes
-						 //
 		int missedFrameCount_;
-		size_t positionHistoryMax_;
+
+		float cameraElevation_;
 
 		void addToPositionHistory(const cv::Point3f &pt);
 };
 
-  // Used to return info to display
-  struct TrackedObjectDisplay
-  {
-    std::string id;
-    cv::Rect rect;
-    double ratio;
-    cv::Point3f position;
-  };
+// Used to return info to display
+struct TrackedObjectDisplay
+{
+	std::string id;
+	cv::Rect rect;
+	double ratio;
+	cv::Point3f position;
+};
 
-  // Tracked object array -
-  //
-  // Need to create array of tracked objects.
-  // For each frame,
-  //   use fovis data to determine camera translation and rotation
-  //   update each object's position to "undo" that motion
-  //   for each detected rectangle
-  //      try to find a close match in the list of previously detected objects
-  //      if found
-  //         update that entry's distance and angle
-  //      else
-  //         add new entry
-  //   find a way to clear out images "lost" - look at history, how far
-  //   off the screen is has been rotated, etc.  Don't be too aggressive
-  //   since we could rotate back and "refind" an object which has disappeared
-  //
+// Tracked object array -
+//
+// Need to create array of tracked objects.
+// For each frame,
+//   use fovis data to determine camera translation and rotation
+//   update each object's position to "undo" that motion
+//   for each detected rectangle
+//      try to find a close match in the list of previously detected objects
+//      if found
+//         update that entry's distance and angle
+//      else
+//         add new entry
+//   find a way to clear out images "lost" - look at history, how far
+//   off the screen is has been rotated, etc.  Don't be too aggressive
+//   since we could rotate back and "refind" an object which has disappeared
+//
 class TrackedObjectList
 {
 	public :
 		// Create a tracked object list.  Set the object width in inches
 		// (feet, meters, parsecs, whatever) and imageWidth in pixels since
 		// those stay constant for the entire length of the run
-		TrackedObjectList(const cv::Size &imageSize, const cv::Point2f &fovSize);
+		TrackedObjectList(const cv::Size &imageSize, const cv::Point2f &fovSize, float cameraElevation = 0.0f);
 
 		// Adjust the angle of each tracked object based on
 		// the rotation of the robot straight from fovis
@@ -189,8 +192,8 @@ class TrackedObjectList
 		// Process a set of detected rectangles
 		// Each will either match a previously detected object or
 		// if not, be added as new object to the list
-		void processDetect(const std::vector<cv::Rect> &detectedRects, 
-						   const std::vector<float> depths, 
+		void processDetect(const std::vector<cv::Rect> &detectedRects,
+						   const std::vector<float> depths,
 						   const std::vector<ObjectType> &types);
 
 	private :
@@ -201,6 +204,7 @@ class TrackedObjectList
 		//values stay constant throughout the run but are needed for computing stuff
 		cv::Size    _imageSize;
 		cv::Point2f _fovSize;
+		float       _cameraElevation;
 };
 
 #endif

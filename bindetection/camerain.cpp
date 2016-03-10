@@ -6,7 +6,7 @@
 
 using namespace cv;
 
-CameraIn::CameraIn(int stream, bool gui) : 
+CameraIn::CameraIn(int stream, bool gui) :
 	frameNumber_(0),
 	width_(800),
     height_(600),
@@ -30,21 +30,27 @@ CameraIn::CameraIn(int stream, bool gui) :
 		std::cerr << "Could not open camera" << std::endl;
 }
 
-bool CameraIn::getNextFrame(Mat &frame, bool pause)
-{
+bool CameraIn::update() {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!cap_.isOpened())
 		return false;
-	if (!pause)
-	{
-		cap_ >> frame_;
-		if (frame_.empty())
+		cap_ >> _frame;
+		if (_frame.empty())
 			return false;
-		while (frame_.rows > 800)
-			pyrDown(frame_, frame_);
+		while (_frame.rows > 800)
+			pyrDown(_frame, _frame);
 		frameNumber_ += 1;
-	}
-	frame = frame_.clone();
+			return true;
+}
 
+bool CameraIn::getFrame(Mat &frame)
+{
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if (!cap_.isOpened())
+		return false;
+		if (_frame.empty())
+			return false;
+	frame = _frame.clone();
 	return true;
 }
 

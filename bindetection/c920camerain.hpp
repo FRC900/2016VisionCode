@@ -16,7 +16,8 @@ class C920CameraIn : public MediaIn
    public:
       C920CameraIn(int _stream = -1, bool gui = false);
 	  ~C920CameraIn() {}
-      bool getNextFrame(cv::Mat &frame, bool pause = false);
+      bool getFrame(cv::Mat &frame);
+      bool update();
 
       int width(void) const;
       int height(void) const;
@@ -43,7 +44,6 @@ class C920CameraIn : public MediaIn
 	  friend void focusCallback(int value, void *data);
 
       v4l2::C920Camera  camera_;
-	  cv::Mat           frame_;
       int               brightness_;
       int               contrast_;
       int               saturation_;
@@ -58,4 +58,3 @@ class C920CameraIn : public MediaIn
 #endif
 };
 #endif
-

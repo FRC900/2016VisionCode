@@ -96,11 +96,9 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
     {
         double   scale = scaledImages24[it->second].second;
-        std::cout << "Mid Depth at Scale: " << 192.9* pow(((float)wsize*(float)wsize*4)/((float)inputImg.rows*(float)inputImg.cols/(scale*scale)), -.534) << std::endl;
         cv::Rect rect(it->first);
         cv::Rect scaledRect(cv::Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         rectsOut.push_back(scaledRect);
-
     }
 }
 
@@ -181,10 +179,8 @@ void NNDetect<MatT>::generateInitialWindows(
     {
 		float depth_multiplier = 0.2;
 		float ball_real_size = 247.6; // ball is 9.75in diameter = 247.6 mm
-		float fov_size = hfov_ * (M_PI / 180.0); // empirically determined
-
         float percent_image = (float)wsize / scaledImages[scale].first.cols;
-		float size_fov = percent_image * fov_size; //TODO fov size
+		float size_fov = percent_image * hfov_; //TODO fov size
 		float depth_avg = (ball_real_size / (2.0 * tan(size_fov / 2.0))) - (4.572 * 25.4);
 		
         float depth_min = depth_avg - depth_avg * depth_multiplier;
