@@ -323,7 +323,7 @@ bool ZedIn::getFrame(Mat &frame)
 	{
 		*archiveOut_ << _frame << depthMat_;
 		const int frameSplitCount = 300;
-		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
+		if ((frameNumber_ > 0) && (((frameNumber_ / outFileFrameSkip_) % frameSplitCount) == 0))
 		{
 			stringstream ofName;
 			ofName << change_extension(outFileName_, "").string() << "_" ;

@@ -95,10 +95,10 @@ bool Args::processArgs(int argc, const char **argv)
 			skip = atoi(argv[fileArgc] + skipOpt.length());
 		else if (calibrateOpt.compare(0, calibrateOpt.length(), argv[fileArgc], calibrateOpt.length()) == 0)
 			calibrate = true;
-		else if (writeVideoOpt.compare(0, writeVideoOpt.length(), argv[fileArgc], writeVideoOpt.length()) == 0)
-			writeVideo = true;
 		else if (writeVideoSkipOpt.compare(0, writeVideoSkipOpt.length(), argv[fileArgc], writeVideoSkipOpt.length()) == 0)
 			writeVideoSkip = atoi(argv[fileArgc] + writeVideoSkipOpt.length());
+		else if (writeVideoOpt.compare(0, writeVideoOpt.length(), argv[fileArgc], writeVideoOpt.length()) == 0)
+			writeVideo = true;
 		else if (saveVideoOpt.compare(0, saveVideoOpt.length(), argv[fileArgc], saveVideoOpt.length()) == 0)
 			saveVideo = true;
 		else if (detectOpt.compare(0, detectOpt.length(), argv[fileArgc], detectOpt.length()) == 0)
