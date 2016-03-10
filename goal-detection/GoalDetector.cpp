@@ -9,7 +9,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_fov_size(fov_size),
 	_frame_size(frame_size),
 	_goal_found(false),
-	_min_valid_confidence(0.3),
+	_min_valid_confidence(0.275),
 	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
 	_blue_scale(30),
 	_red_scale(100)
@@ -78,7 +78,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me
-		if (br.area() < 100.0)
+		if (br.area() < 200.0)
 			continue;
 
 		contour_mask.setTo(Scalar(0));
@@ -99,7 +99,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
-		if ((depth_z_min < 1.5) || (depth_z_max > 9.))
+		if ((depth_z_min < 1.) || (depth_z_max > 12.))
 			continue;
 
 		ObjectType goal_actual(_contours[i]);
@@ -208,9 +208,12 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 	// for both, only 1 iteration of both, or maybe a loop
 	// of 2 erode/dilate pairs
     Mat erodeElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
-    Mat dilateElement(getStructuringElement(MORPH_ELLIPSE, Size(2, 2)));
-    erode(imageOut, imageOut, erodeElement, Point(-1, -1), 2);
-    dilate(imageOut, imageOut, dilateElement, Point(-1, -1), 2);
+    Mat dilateElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
+	for (int i = 0; i < 2; ++i)
+	{
+		erode(imageOut, imageOut, erodeElement, Point(-1, -1), 1);
+		dilate(imageOut, imageOut, dilateElement, Point(-1, -1), 1);
+	}
 
 	// Use one of two options for adaptive thresholding.  This will turn
 	// the gray scale image into a binary black and white one, with pixels

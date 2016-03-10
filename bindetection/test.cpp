@@ -94,8 +94,9 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, const Point3f &goalPos)
 {
 	//create a top view image of the robot and all detected objects
-	Range xRange = Range(-1,9);
-	Range yRange = Range(-4,4);
+	Range xRange = Range(-4,4);
+	Range yRange = Range(-9,9);
+
 	Point imageSize = Point(640,640);
 	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
 	int rectSize = 40;
@@ -113,7 +114,6 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 	}
 	if (goalPos != Point3f())
 	{
-		cout << "Goal Position=" << goalPos << endl;
 		Point2f realPos = Point2f(goalPos.x, goalPos.y);
 		Point2f imagePos;
 		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
@@ -279,6 +279,7 @@ int main( int argc, const char** argv )
 		float gAngle = gd.angle_to_goal();
 		Rect goalBoundRect = gd.goal_rect();
 
+		cout << "Goal Position=" << gd.goal_pos() << endl;
 		//stepTimer = cv::getTickCount();
 		//fvlc.processFrame(frame,depth);
 		if (detectState)
@@ -441,11 +442,13 @@ int main( int argc, const char** argv )
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
 
 			// Print frame number of video if the option is enabled
-			int frames = cap->frameCount();
-			if (printFrames && (frames > 0))
+			if (printFrames)
 			{
 				stringstream ss;
-				ss << cap->frameNumber() << '/' << frames;
+				ss << cap->frameNumber();
+				int frames = cap->frameCount();
+				if (frames > 0)
+					ss << '/' << frames;
 				putText(frame, ss.str(),
 				        Point(frame.cols - 15 * ss.str().length(), 20),
 						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
@@ -502,8 +505,8 @@ int main( int argc, const char** argv )
 					// Otherwise, if not paused, move to the next frame
 					cap->frameNumber(frame);
 				}
-        cap->update();
-				cap->getFrame(frame);
+				if (!cap->update() || !cap->getFrame(frame))
+					break;
 			}
 			else if (c == 'A') // toggle capture-all
 			{
