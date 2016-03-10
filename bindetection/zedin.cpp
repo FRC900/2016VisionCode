@@ -331,7 +331,7 @@ bool ZedIn::getFrame(Mat &frame)
 		{
 			stringstream ofName;
 			ofName << change_extension(outFileName_, "").string() << "_" ;
-			ofName << (frameNumber_ / frameSplitCount) << ".zms";
+			ofName << (frameNumber_ / (frameSplitCount * outFileFrameSkip_)) << ".zms";
 			if (!openSerializeOutput(ofName.str().c_str()))
 				cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
 		}
