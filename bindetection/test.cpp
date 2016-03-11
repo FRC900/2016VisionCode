@@ -30,7 +30,10 @@
 #include "FlowLocalizer.hpp"
 
 #include <boost/thread.hpp>
+#include <boost/interprocess/sync/interprocess_semaphore.hpp>
 #include <boost/interprocess/sync/named_semaphore.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
 
 using namespace std;
 using namespace cv;
@@ -127,13 +130,17 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 
 void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) {
   //this runs concurrently with the main while loop
+  FrameTicker frameTicker;
   while(1) {
     if(!pause) {
+      frameTicker.mark();
       sem->wait();
       if(!cap->update()) {
         cerr << "Failed to capture" << endl;
       }
       sem->post();
+      cout << setprecision(2) << frameTicker.getFPS() << "Grab FPS";
+      boost::this_thread::interruption_point();
     }
   }
 }
@@ -245,6 +252,10 @@ int main( int argc, const char** argv )
 	if (!cap->update() || !cap->getFrame(frame))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
+    if(!cap->update())
+      cerr << "Update failed" << endl;
+    else
+      cerr << "getFrame failed" << endl;
 		return 0;
 	}
 
@@ -259,7 +270,7 @@ int main( int argc, const char** argv )
   //Start the grab loop:
   // --update the current frame
   //this loop runs asynchronously with the main loop if the input is a camera
-  boost::thread g_thread(grabThread, boost::ref(pause) , cap , sem);
+  boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -444,6 +455,7 @@ int main( int argc, const char** argv )
 			}
 			// Print the FPS
 			ss << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
+      cout << ss.str() << endl;
 			if (!args.batchMode)
 				putText(frame, ss.str(), Point(frame.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			else
@@ -656,7 +668,7 @@ int main( int argc, const char** argv )
     sem->post();
 	}
 	groundTruth.print();
-
+  g_thread.interrupt();
 	if (detectState)
 		delete detectState;
 

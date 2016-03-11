@@ -31,6 +31,7 @@ VideoIn::VideoIn(const char *path) :
 //This is to make sure that we run detection on every frame of the video
 bool VideoIn::update() {
 	increment = true;
+	return true;
 }
 
 bool VideoIn::getFrame(Mat &frame)

@@ -55,16 +55,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	else // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
 
-	// Save the raw camera stream to disk.  This uses a home-brew
-	// method to serialize image and depth data to disk rather than
-	// relying on Stereolab's SVO format.
-	if (outFileName)
-	{
-		outFileName_ = outFileName;
-		if (!openSerializeOutput(outFileName_.c_str()))
-			cerr << "Zed init : could not open output file " << outFileName << endl;
-	}
-
 	if (zed_)
 	{
 		// init computation mode of the zed
@@ -80,6 +70,16 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		{
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
+
+			// Save the raw camera stream to disk.  This uses a home-brew
+			// method to serialize image and depth data to disk rather than
+			// relying on Stereolab's SVO format.
+			if (outFileName && (zed_ || archiveIn_))
+			{
+				outFileName_ = outFileName;
+				if (!openSerializeOutput(outFileName_.c_str()))
+					cerr << "Zed init : could not open output file " << outFileName << endl;
+			}
 
 #if 0
 			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
