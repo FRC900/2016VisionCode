@@ -12,7 +12,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_min_valid_confidence(0.275),
 	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
 	_blue_scale(30),
-	_red_scale(100)
+	_red_scale(60)
 {
 	if (gui)
 	{
@@ -105,7 +105,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		ObjectType goal_actual(_contours[i]);
 
 		//create a trackedobject to get x,y,z of the goal
-		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16.0 * M_PI / 180.0);
+		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -9.5 * M_PI / 180.0);
 
 		//percentage of the object filled in
 		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
@@ -135,7 +135,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float confidence_com_y       = createConfidence(com_percent_expected.y, 0.1539207,  com_percent_actual.y);
 		float confidence_filled_area = createConfidence(filledPercentageExpected, 0.33,   filledPercentageActual);
 		float confidence_ratio       = createConfidence(expectedRatio, 0.537392,  actualRatio);
-		float confidence_screen_area = createConfidence(1.0, 1.0/3.0,  actualScreenArea);
+		float confidence_screen_area = createConfidence(1.0, 0.5,  actualScreenArea);
 		
 		// higher is better
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio + confidence_screen_area) / 6.0;
@@ -218,10 +218,13 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 	// Use one of two options for adaptive thresholding.  This will turn
 	// the gray scale image into a binary black and white one, with pixels
 	// above some value being forced white and those below forced to black
+double t = 255;
 	if (_otsu)
-		threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+		t = threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 	else
 		adaptiveThreshold(imageOut, imageOut, 255.0, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 11, 2);
+	if (t < 20.)
+		return false;
     return (countNonZero(imageOut) != 0);
 }
 
