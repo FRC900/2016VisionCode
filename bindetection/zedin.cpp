@@ -379,6 +379,7 @@ void ZedIn::frameNumber(int frameNumber)
 
 float ZedIn::getDepth(int x, int y)
 {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	const float* ptr_image_num = (const float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
 	return ptr_image_num[x];
 }
@@ -386,6 +387,7 @@ float ZedIn::getDepth(int x, int y)
 
 bool ZedIn::getDepthMat(Mat &depthMat) const
 {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	depthMat_.copyTo(depthMat); //not normalized depth
 	return true;
 }
@@ -393,6 +395,7 @@ bool ZedIn::getDepthMat(Mat &depthMat) const
 
 bool ZedIn::getNormDepthMat(Mat &normDepthMat) const
 {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	normDepthMat_.copyTo(normDepthMat);
 	return true;
 }

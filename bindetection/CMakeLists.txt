@@ -5,6 +5,7 @@ set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
+set(CMAKE_MODULE_PATH "/usr/share/cmake-2.8/Modules/")
 if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=cortex-a15 -mfpu=neon-vfpv4")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -mcpu=cortex-a15 -mfpu=neon-vfpv4")
@@ -18,27 +19,27 @@ if (${ZED_FOUND})
 endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(CUDA REQUIRED)
-find_package(Boost COMPONENTS filesystem system serialization iostreams REQUIRED)
+find_package(Boost COMPONENTS filesystem system serialization iostreams thread REQUIRED)
 find_package(Threads)
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
+set (CAFFE_BASE_DIR "/home/ubuntu/libcaffe")
 
-include_directories(${OpenCV_INCLUDE_DIRS} 
-	../caffe_classifier ../C920VideoCap 
-	${ZED_INCLUDE_DIRS} 
-	${CUDA_INCLUDE_DIRS} 
-	${CAFFE_BASE_DIR}/build/install/include 
-	${CAFFE_BASE_DIR}/build/include 
-	${CAFFE_BASE_DIR}/include 
-	${Boost_INCLUDE_DIR} 
+include_directories(${OpenCV_INCLUDE_DIRS}
+	../caffe_classifier ../C920VideoCap
+	${ZED_INCLUDE_DIRS}
+	${CUDA_INCLUDE_DIRS}
+	${CAFFE_BASE_DIR}/build/install/include
+	${CAFFE_BASE_DIR}/build/include
+	${CAFFE_BASE_DIR}/include
+	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
-   	${EIGEN3_INCLUDE_DIR} 
+   	${EIGEN3_INCLUDE_DIR}
 	../bindetection
-	../goal-detection 
-	../fovis 
+	../goal-detection
+	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
 
 link_directories(${ZED_LIBRARY_DIR})
@@ -92,4 +93,3 @@ target_link_libraries( zv
 
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
-

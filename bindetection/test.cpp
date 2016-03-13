@@ -708,14 +708,14 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 }
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo)
+void openMedia(MediaIn *&cap, const string &readFileName, const string &writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
-	if (fileName.length() == 0 ||
-		((fileName.find('.') == string::npos) && isdigit(fileName[0])))
+	if (readFileName.length() == 0 ||
+		((readFileName.find('.') == string::npos) && isdigit(readFileName[0])))
 	{
 		stringstream ss;
-		int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
+		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
 		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui );
 		Mat	mat;
@@ -745,24 +745,24 @@ void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &w
 	}
 	else // has to be a file name, we hope
 	{
-		if (hasSuffix(fileName, ".png") || hasSuffix(fileName, ".jpg") ||
-		    hasSuffix(fileName, ".PNG") || hasSuffix(fileName, ".JPG"))
-			cap = new ImageIn(fileName.c_str());
-		else if (hasSuffix(fileName, ".svo") || hasSuffix(fileName, ".SVO") ||
-		         hasSuffix(fileName, ".zms") || hasSuffix(fileName, ".ZMS"))
+		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
+		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
+			cap = new ImageIn(readFileName.c_str());
+		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
+		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
 		{
-			cap = new ZedIn(fileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui);
+			cap = new ZedIn(readFileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui);
 			writeVideo = false;
 		}
 		else
-			cap = new VideoIn(fileName.c_str());
+			cap = new VideoIn(readFileName.c_str());
 
 		// Strip off directory for capture path
-		capPath = fileName;
+		capPath = readFileName;
 		const size_t last_slash_idx = capPath.find_last_of("\\/");
 		if (std::string::npos != last_slash_idx)
 			capPath.erase(0, last_slash_idx + 1);
-		windowName = fileName;
+		windowName = readFileName;
 	}
 }
 
