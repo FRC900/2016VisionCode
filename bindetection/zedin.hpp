@@ -22,6 +22,7 @@ class ZedIn : public MediaIn
 		~ZedIn();
 		bool update();
 		bool getFrame(cv::Mat &frame);
+		bool saveFrame(cv::Mat &frame);
 
 		int    width(void) const;
 		int    height(void) const;
@@ -35,9 +36,9 @@ class ZedIn : public MediaIn
 		void   frameNumber(int frameNumber);
 
 		CameraParams getCameraParams(bool left) const;
-		bool  getDepthMat(cv::Mat &depthMat) const;
+		bool  getDepthMat(cv::Mat &depthMat);
 		float getDepth(int x, int y);
-		bool  getNormDepthMat(cv::Mat &depthMat) const;
+		bool  getNormDepthMat(cv::Mat &depthMat);
 #endif
 
 	private:

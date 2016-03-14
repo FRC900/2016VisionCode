@@ -307,23 +307,30 @@ bool ZedIn::update(bool left) {
 		return true;
 }
 
-bool ZedIn::getFrame(Mat &frame)
-{
-    boost::lock_guard<boost::mutex> guard(_mtx);
-		// Write output to serialized file if it is open
-		if (archiveOut_)
+bool ZedIn::saveFrame(Mat &frame) {
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	// Write output to serialized file if it is open
+	if (archiveOut_)
+	{
+		*archiveOut_ << frame << depthMat_;
+		const int frameSplitCount = 300;
+		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 		{
-			*archiveOut_ << _frame << depthMat_;
-			const int frameSplitCount = 300;
-			if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
-			{
-				stringstream ofName;
-				ofName << change_extension(outFileName_, "").string() << "_" ;
-				ofName << (frameNumber_ / frameSplitCount) << ".zms";
-				if (!openSerializeOutput(ofName.str().c_str()))
-					cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
+			stringstream ofName;
+			ofName << change_extension(outFileName_, "").string() << "_" ;
+			ofName << (frameNumber_ / frameSplitCount) << ".zms";
+			if (!openSerializeOutput(ofName.str().c_str())) {
+				cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
+				return false;
 			}
 		}
+	}
+	return true;
+}
+
+bool ZedIn::getFrame(Mat &frame)
+{
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	lockedFrameNumber_ = frameNumber_;
 	frame = _frame.clone();
 	return true;
@@ -385,7 +392,7 @@ float ZedIn::getDepth(int x, int y)
 }
 
 
-bool ZedIn::getDepthMat(Mat &depthMat) const
+bool ZedIn::getDepthMat(Mat &depthMat)
 {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	depthMat_.copyTo(depthMat); //not normalized depth
@@ -393,7 +400,7 @@ bool ZedIn::getDepthMat(Mat &depthMat) const
 }
 
 
-bool ZedIn::getNormDepthMat(Mat &normDepthMat) const
+bool ZedIn::getNormDepthMat(Mat &normDepthMat)
 {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	normDepthMat_.copyTo(normDepthMat);

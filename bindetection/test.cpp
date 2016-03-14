@@ -45,7 +45,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(const string &fileName, MediaIn *&cap, string &capPath, string &windowName, bool gui, bool &writeVideo);
+void openMedia(MediaIn *&cap, const string readFileName, const string writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
@@ -167,7 +167,8 @@ int main( int argc, const char** argv )
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
-	openMedia(args.inputName, cap, capPath, windowName,
+  //void openMedia(MediaIn *&cap, const string &readFileName, const string &writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
+	openMedia(cap, args.inputName, getVideoOutName(true, true).c_str() ,capPath, windowName,
 			  !args.batchMode, args.writeVideo);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
@@ -294,11 +295,6 @@ int main( int argc, const char** argv )
 		{
 			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
-		}
-
-		if (args.writeVideo)
-		{
-		   writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
 		}
 
 		// This code will load a classifier if none is loaded - this handles
@@ -515,9 +511,30 @@ int main( int argc, const char** argv )
 			// info has been written on it.
 			imshow(windowName, frame);
 
-			// If saveVideo is set, write the marked-up frame to a vile
-			if (args.saveVideo)
-			   writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, NULL, false);
+      //we can't save both marked up video and raw video so we default
+      if(args.writeVideo && args.saveVideo) {
+        cout << "Defaulting to saving raw frame" << endl;
+        args.saveVideo = false;
+      }
+
+      if (args.writeVideo)
+      {
+        Mat tempFrame;
+        cap->getFrame(tempFrame);
+        cap->saveFrame(tempFrame);
+      }
+
+			// If saveVideo is set, write the marked-up frame to a file
+      if (args.saveVideo) {
+        bool dateAndTime = true;
+        WriteOnFrame textWriter;
+        if (dateAndTime)
+        {
+          textWriter.writeTime(frame);
+          textWriter.writeMatchNumTime(frame);
+        }
+        cap->saveFrame(frame);
+      }
 
 			// Process user input for this frame
 			char c = waitKey(5);
@@ -708,7 +725,7 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 }
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string &readFileName, const string &writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
+void openMedia(MediaIn *&cap, const string readFileName, const string writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -717,16 +734,16 @@ void openMedia(MediaIn *&cap, const string &readFileName, const string &writeFil
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui );
+		cap = new ZedIn(NULL, writeVideo ? (char*)writeFileName.c_str() : NULL, gui );
 		Mat	mat;
 		if(!cap->update() || !cap->getFrame(mat))
 		{
 			delete cap;
-			cap = new C920CameraIn(camera, gui);
+			cap = new C920CameraIn((char*)writeFileName.c_str(), -1, gui);
 			if (!cap->update() || !cap->getFrame(mat))
 			{
 				delete cap;
-				cap = new CameraIn(camera, gui);
+				cap = new CameraIn((char*)writeFileName.c_str(),camera, gui);
 				ss << "Default Camera ";
 			}
 			else
@@ -747,11 +764,11 @@ void openMedia(MediaIn *&cap, const string &readFileName, const string &writeFil
 	{
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
-			cap = new ImageIn(readFileName.c_str());
+			cap = new ImageIn((char*)readFileName.c_str(), (char*)writeFileName.c_str() );
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
 		{
-			cap = new ZedIn(readFileName.c_str(), writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui);
+			cap = new ZedIn(readFileName.c_str(), writeVideo ? writeFileName.c_str() : NULL, gui);
 			writeVideo = false;
 		}
 		else
@@ -796,9 +813,10 @@ string getVideoOutName(bool raw, bool zms)
 	return ss.str();
 }
 
+#if 0
 // Write a frame to an output video
 // optionally, if dateAndTime is set, stamp the date, time and match information to the frame before writing
-void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime)
+void writeVideoToFile(MediaIn *, const char *filename, const Mat &frame, void *netTable, bool dateAndTime)
 {
    if (!outputVideo.isOpened())
 	   outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
@@ -815,3 +833,4 @@ void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat 
    }
    textWriter.write(outputVideo);
 }
+#endif

@@ -1,10 +1,12 @@
 #include <iostream>
+#include <string>
 #include "c920camerain.hpp"
 using namespace std;
 #ifdef __linux__
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+using namespace std;
 using namespace cv;
 
 // Prototypes for various callbacks used by scrollbars
@@ -19,7 +21,7 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
+C920CameraIn::C920CameraIn(char *outfile, int _stream, bool gui) :
 	camera_(_stream >= 0 ? _stream : 0)
 {
 	if (!camera_.IsOpen())
@@ -29,6 +31,8 @@ C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
+	outfile_ = outfile;
+
 }
 
 bool C920CameraIn::initCamera(bool gui)
@@ -103,10 +107,10 @@ bool C920CameraIn::initCamera(bool gui)
 	}
 
 	// open the output video
-	if(outpath != NULL) {
-		writer_.open(*outpath, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
+	if(outfile_ != NULL) {
+		writer_.open(outfile_, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
 		if(!writer_.isOpened())
-			std::cerr << "Could not open output video " << outpath << std::endl;
+			std::cerr << "Could not open output video " << outfile_ << std::endl;
 	}
 
 	frameNumber_ = 0;
@@ -135,6 +139,12 @@ bool C920CameraIn::getFrame(Mat &frame)
 
 	frame = _frame.clone();
 	lockedFrameNumber_ = frameNumber_;
+	return true;
+}
+
+bool C920CameraIn::saveFrame(Mat &frame) {
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	writer_ << frame;
 	return true;
 }
 

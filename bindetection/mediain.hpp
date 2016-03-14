@@ -49,7 +49,7 @@ class MediaIn
 	  virtual bool  getNormDepthMat(cv::Mat &normDepthMat) const;
     virtual float getDepth(int x, int y);
 
-		virtual bool saveFrame(const cv::Mat &frame);
+		virtual bool saveFrame(const cv::Mat &frame) { return false; }
 
 		bool isVideo = false;
 

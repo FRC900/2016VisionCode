@@ -5,7 +5,7 @@
 
 using namespace cv;
 
-VideoIn(const char *inpath, const char *outpath) :
+VideoIn::VideoIn(const char *inpath, const char *outpath) :
 	cap_(inpath)
 {
 	isVideo = true;
@@ -25,7 +25,7 @@ VideoIn(const char *inpath, const char *outpath) :
 
 		// open the output video
 		if(outpath != NULL) {
-			writer_.open(*outpath, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
+			writer_.open(outpath, CV_FOURCC('M','J','P','G'), 15, Size(width_, height_), true);
 			if(!writer_.isOpened())
 				std::cerr << "Could not open output video" << outpath << std::endl;
 		}
@@ -61,8 +61,8 @@ bool VideoIn::getFrame(Mat &frame)
 	return true;
 }
 
-bool saveFrame(const cv::Mat &frame) {
-	if (outputVideo.isOpened()) {
+bool VideoIn::saveFrame(const cv::Mat &frame) {
+	if (writer_.isOpened()) {
 		writer_ << frame;
 		return true;
 	} else {

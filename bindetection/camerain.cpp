@@ -6,7 +6,7 @@
 
 using namespace cv;
 
-CameraIn::CameraIn(int stream, bool gui) :
+CameraIn::CameraIn(char *outfile, int stream, bool gui) :
 	frameNumber_(0),
 	width_(800),
     height_(600),
@@ -24,6 +24,13 @@ CameraIn::CameraIn(int stream, bool gui) :
 		{
 			width_ /= 2;
 			height_ /= 2;
+		}
+
+		// open the output video
+		if(outfile != NULL) {
+			writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
+			if(!writer_.isOpened())
+				std::cerr << "Could not open output video " << outfile << std::endl;
 		}
 	}
 	else
@@ -48,11 +55,17 @@ bool CameraIn::getFrame(Mat &frame)
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!cap_.isOpened())
 		return false;
-		if (_frame.empty())
-			return false;
+	if (_frame.empty())
+		return false;
 	frame = _frame.clone();
-	return true;
 	lockedFrameNumber_ = frameNumber_;
+	return true;
+}
+
+bool CameraIn::saveFrame(cv::Mat &frame) {
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	writer_ << frame;
+	return true;
 }
 
 int CameraIn::width(void) const

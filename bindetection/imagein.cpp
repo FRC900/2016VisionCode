@@ -5,15 +5,16 @@
 
 using namespace cv;
 
-ImageIn::ImageIn(const char *path)
+ImageIn::ImageIn(char *inpath, char *outpath)
 {
 	//set isvideo to true to make sure that the grab loop doesn't run obscenely fast
 	isVideo = true;
-	imread(path).copyTo(_frame);
+	imread(inpath).copyTo(_frame);
 	if (_frame.empty())
-		std::cerr << "Could not open image file " << path << std::endl;
+		std::cerr << "Could not open image file " << inpath << std::endl;
 	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
+	outpath_ = outpath;
 }
 
 bool ImageIn::update() {
@@ -29,6 +30,11 @@ bool ImageIn::getFrame(Mat &frame)
 	if (_frame.empty())
 		return false;
 	frame = _frame.clone();
+	return true;
+}
+
+bool ImageIn::saveFrame(Mat &frame) {
+	imwrite(outpath_, frame);
 	return true;
 }
 
