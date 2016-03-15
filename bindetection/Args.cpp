@@ -49,10 +49,10 @@ Args::Args(void)
 	writeVideoSkip     = 1;
 	saveVideo          = false;
 	detection          = true;
-	d12BaseDir         = "/home/eblau/2016VisionCode/bindetection/d12";
+	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";
 	d12DirNum          = -1;
 	d12StageNum        = 0;
-	d24BaseDir         = "/home/eblau/2016VisionCode/bindetection/d24";
+	d24BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d24";
 	d24DirNum          = -1;
 	d24StageNum        = 0;
 	frameStart         = 0.0;
