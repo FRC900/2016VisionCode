@@ -14,7 +14,7 @@
 /////////1/////////2/////////3/////////4/////////5/////////6/////////7/////////8
 // portable_binary_iarchive.hpp
 
-// (C) Copyright 2002-7 Robert Ramey - http://www.rrsd.com . 
+// (C) Copyright 2002-7 Robert Ramey - http://www.rrsd.com .
 // Use, modification and distribution is subject to the Boost Software
 // License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
@@ -35,12 +35,12 @@
 /////////1/////////2/////////3/////////4/////////5/////////6/////////7/////////8
 // exception to be thrown if integer read from archive doesn't fit
 // variable being loaded
-class portable_binary_iarchive_exception : 
+class portable_binary_iarchive_exception :
     public boost::archive::archive_exception
 {
 public:
     typedef enum {
-        incompatible_integer_size 
+        incompatible_integer_size
     } exception_code;
     portable_binary_iarchive_exception(exception_code c = incompatible_integer_size ) :
         boost::archive::archive_exception(boost::archive::archive_exception::other_exception)
@@ -62,13 +62,13 @@ public:
 };
 
 /////////1/////////2/////////3/////////4/////////5/////////6/////////7/////////8
-// "Portable" input binary archive.  It addresses integer size and endienness so 
+// "Portable" input binary archive.  It addresses integer size and endienness so
 // that binary archives can be passed across systems. Note:floating point types
 // not addressed here
 class portable_binary_iarchive :
     public boost::archive::basic_binary_iprimitive<
         portable_binary_iarchive,
-        std::istream::char_type, 
+        std::istream::char_type,
         std::istream::traits_type
     >,
     public boost::archive::detail::common_iarchive<
@@ -79,7 +79,7 @@ class portable_binary_iarchive :
     {
     typedef boost::archive::basic_binary_iprimitive<
         portable_binary_iarchive,
-        std::istream::char_type, 
+        std::istream::char_type,
         std::istream::traits_type
     > primitive_base_t;
     typedef boost::archive::detail::common_iarchive<
@@ -151,18 +151,18 @@ protected:
         this->primitive_base_t::load(t);
     }
     // intermediate level to support override of operators
-    // fot templates in the absence of partial function 
+    // fot templates in the absence of partial function
     // template ordering
-    typedef boost::archive::detail::common_iarchive<portable_binary_iarchive> 
+    typedef boost::archive::detail::common_iarchive<portable_binary_iarchive>
         detail_common_iarchive;
     template<class T>
     void load_override(T & t, BOOST_PFTO int){
         this->detail_common_iarchive::load_override(t, 0);
     }
     void load_override(boost::archive::class_name_type & t, int);
-    // binary files don't include the optional information 
+    // binary files don't include the optional information
     void load_override(
-        boost::archive::class_id_optional_type & /* t */, 
+        boost::archive::class_id_optional_type & /* t */,
         int
     ){}
 
@@ -170,7 +170,7 @@ protected:
 public:
     portable_binary_iarchive(std::istream & is, unsigned flags = 0) :
         primitive_base_t(
-            * is.rdbuf(), 
+            * is.rdbuf(),
             0 != (flags & boost::archive::no_codecvt)
         ),
         archive_base_t(flags),
@@ -181,13 +181,27 @@ public:
 
     portable_binary_iarchive(
         std::basic_streambuf<
-            std::istream::char_type, 
+            std::istream::char_type,
             std::istream::traits_type
-        > & bsb, 
+        > & bsb,
         unsigned int flags
     ) :
         primitive_base_t(
-            bsb, 
+            bsb,
+            0 != (flags & boost::archive::no_codecvt)
+        ),
+        archive_base_t(flags),
+        m_flags(0)
+    {
+        init(flags);
+    }
+
+    portable_binary_iarchive(
+        boost::iostreams::filtering_streambuf<boost::iostreams::input> &bsb,
+        unsigned int flags = 0
+    ) :
+        primitive_base_t(
+            bsb,
             0 != (flags & boost::archive::no_codecvt)
         ),
         archive_base_t(flags),

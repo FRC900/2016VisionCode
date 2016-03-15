@@ -15,6 +15,9 @@
 #include <zed/utils/GlobalDefine.hpp>
 #endif
 
+#include "portable_binary_iarchive.hpp"
+#include "portable_binary_oarchive.hpp"
+
 class ZedIn : public MediaIn
 {
 	public:
@@ -70,10 +73,10 @@ class ZedIn : public MediaIn
 		// BGR frame and depth frame
 		std::ifstream *serializeIn_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::input> *filtSBIn_;
-		boost::archive::binary_iarchive *archiveIn_;
+		portable_binary_iarchive *archiveIn_;
 		std::ofstream *serializeOut_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::output> *filtSBOut_;
-		boost::archive::binary_oarchive *archiveOut_;
+		portable_binary_oarchive *archiveOut_;
 
 		int outFileFrameSkip_;
 		int outFileFrameCounter_;

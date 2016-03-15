@@ -24,7 +24,7 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
+set (CAFFE_BASE_DIR "/home/eblau/bvlc-caffe/distribute")
 
 include_directories(${OpenCV_INCLUDE_DIRS} 
 	../caffe_classifier ../C920VideoCap 
@@ -39,11 +39,11 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 	../bindetection
 	../goal-detection 
 	../fovis 
-	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
+	/home/eblau/2016VisionCode/libfovis/build/include/fovis)
 
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
-link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
+link_directories(/home/eblau/2016VisionCode/libfovis/build/lib/)
 
 add_executable(zv
 	test.cpp

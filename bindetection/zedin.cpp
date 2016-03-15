@@ -173,10 +173,10 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	}
 	filtSBIn_->push(boost::iostreams::zlib_decompressor());
 	filtSBIn_->push(*serializeIn_);
-	archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
+	archiveIn_ = new portable_binary_iarchive(*filtSBIn_);
 	if (!archiveIn_)
 	{
-		cerr << "Could not create new binary_iarchive" << endl;
+		cerr << "Could not create new portable_binary_iarchive" << endl;
 		deleteInputPointers();
 		return false;
 	}
@@ -208,10 +208,10 @@ bool ZedIn::openSerializeOutput(const char *outFileName)
 	}
 	filtSBOut_->push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
 	filtSBOut_->push(*serializeOut_);
-	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
+	archiveOut_ = new portable_binary_oarchive(*filtSBOut_);
 	if (!archiveOut_)
 	{
-		cerr << "Could not create binary_oarchive in constructor" <<endl;
+		cerr << "Could not create portable_binary_oarchive in constructor" <<endl;
 		deleteOutputPointers();
 		return false;
 	}
@@ -274,7 +274,7 @@ ZedIn::~ZedIn()
 }
 
 
-bool ZedIn::update(bool left) 
+bool ZedIn::update(bool left)
 {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	if ((zed_ == NULL) && (archiveIn_ == NULL))
@@ -321,7 +321,7 @@ bool ZedIn::getFrame(Mat &frame)
 {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	// Write output to serialized file if it is open and
-	// if we've skipped enough frames since the last write 
+	// if we've skipped enough frames since the last write
 	// (which could be every frame if outFileFrameSkip == 0 or 1
 	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
 	{

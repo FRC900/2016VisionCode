@@ -1,7 +1,7 @@
 #ifndef PORTABLE_BINARY_ARCHIVE_HPP
 #define PORTABLE_BINARY_ARCHIVE_HPP
 
-// (C) Copyright 2002 Robert Ramey - http://www.rrsd.com . 
+// (C) Copyright 2002 Robert Ramey - http://www.rrsd.com .
 // Use, modification and distribution is subject to the Boost Software
 // License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
@@ -15,6 +15,10 @@
 #include <boost/cstdint.hpp>
 #include <boost/serialization/pfto.hpp>
 #include <boost/static_assert.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
 
 #include <climits>
 #if CHAR_BIT != 8
