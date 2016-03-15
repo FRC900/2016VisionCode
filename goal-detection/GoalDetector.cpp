@@ -9,10 +9,10 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_fov_size(fov_size),
 	_frame_size(frame_size),
 	_goal_found(false),
-	_min_valid_confidence(0.275),
+	_min_valid_confidence(0.25),
 	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
 	_blue_scale(30),
-	_red_scale(100)
+	_red_scale(60)
 {
 	if (gui)
 	{
@@ -78,8 +78,18 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me
-		if (br.area() < 200.0)
+		if ((br.area() < 450.0) || (br.area() > 8500))
+		{
+			cout << "Contour " << i << " area out of range " << br.area() << endl;
+			_confidence.push_back(0);
 			continue;
+		}
+		if (br.br().y > (image.rows * (2./3)))
+		{
+			cout << "Contour " << i << " br().y out of range "<< br.br().y << endl;
+			_confidence.push_back(0);
+			continue;
+		}
 
 		contour_mask.setTo(Scalar(0));
 	
@@ -94,18 +104,44 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// If no depth data, calculate it using FOV and height of
 		// the target. This isn't perfect but better than nothing
-		if ((depth_z_min < 1.) || (depth_z_max < 1.)) 
+		if ((depth_z_min <= 0.) || (depth_z_max <= 0.)) 
 			depth_z_min = depth_z_max = distanceUsingFOV(br);
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
 		if ((depth_z_min < 1.) || (depth_z_max > 12.))
+		{
+			_confidence.push_back(0);
+			cout << "Contour " << i << " depth out of range "<< depth_z_min << " / " << depth_z_max << endl;
 			continue;
+		}
+
+		Mat topMidCol(threshold_image(Rect(br.tl().x + br.width / 2, br.tl().y, 1, br.height / 2)));
+		Mat botMidCol(threshold_image(Rect(br.tl().x + br.width / 2, br.tl().y + 2./3*br.height, 1, br.height / 3)));
+		double topMinVal;
+		double topMaxVal;
+		minMaxLoc(topMidCol, &topMinVal, &topMaxVal);
+		double botMinVal;
+		double botMaxVal;
+		minMaxLoc(botMidCol, &botMinVal, &botMaxVal);
+		if (topMaxVal > (.5 * botMaxVal))
+		{
+			_confidence.push_back(0);
+			cout << "Contour " << i << " max top middle row too large "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
+			continue;
+		}
+
+		//
+		// go down (pos y) until outside the br, save max pixel value
+		// starting from center again, move up to top of br 
+		// if during that the pixel value is within a 
+		// certain percent of the max, bail.  This removes contours
+		// which aren't U-shaped
 
 		ObjectType goal_actual(_contours[i]);
 
 		//create a trackedobject to get x,y,z of the goal
-		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16.0 * M_PI / 180.0);
+		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -9.5 * M_PI / 180.0);
 
 		//percentage of the object filled in
 		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
@@ -135,7 +171,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float confidence_com_y       = createConfidence(com_percent_expected.y, 0.1539207,  com_percent_actual.y);
 		float confidence_filled_area = createConfidence(filledPercentageExpected, 0.33,   filledPercentageActual);
 		float confidence_ratio       = createConfidence(expectedRatio, 0.537392,  actualRatio);
-		float confidence_screen_area = createConfidence(1.0, 1.0/3.0,  actualScreenArea);
+		float confidence_screen_area = createConfidence(1.0, 0.5,  actualScreenArea);
 		
 		// higher is better
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio + confidence_screen_area) / 6.0;
@@ -151,6 +187,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_ratio: " << confidence_ratio << endl;
 		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;		
+		cout << "br.area() " << br.area() << endl;
+		cout << "br.br().y " << br.br().y << endl;
+		cout << "Max middle row "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
 		cout << "-------------------------------------------" << endl;
 #endif
 
@@ -218,10 +257,14 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 	// Use one of two options for adaptive thresholding.  This will turn
 	// the gray scale image into a binary black and white one, with pixels
 	// above some value being forced white and those below forced to black
+	double otsuThreshold = 255;
 	if (_otsu)
-		threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+		otsuThreshold = threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 	else
 		adaptiveThreshold(imageOut, imageOut, 255.0, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 11, 2);
+	cout << "OSTU THRESHOLD " << otsuThreshold << endl;
+	if (otsuThreshold < 12.)
+		return false;
     return (countNonZero(imageOut) != 0);
 }
 
