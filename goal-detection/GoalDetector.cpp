@@ -8,7 +8,8 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_goal_shape(3),
 	_fov_size(fov_size),
 	_frame_size(frame_size),
-	_goal_found(false),
+	_isValid(false),
+	_pastRects(2),
 	_min_valid_confidence(0.25),
 	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
 	_blue_scale(30),
@@ -42,7 +43,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
     Mat contour_mask(image.rows, image.cols, CV_8UC1, Scalar(0));
 
 	// Reset previous detection vars
-	_goal_found = false;
+	_isValid = false;
 	_dist_to_goal = -1.0;
 	_angle_to_goal = -1.0;
 	_goal_rect = Rect();
@@ -55,7 +56,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	// expected bright green color range
     Mat threshold_image;
 	if (!generateThresholdAddSubtract(image, threshold_image))
+	{
+		_pastRects.push_back(SmartRect(Rect()));
 		return;
+	}
 
 	// find contours in the thresholded image - these will be blobs
 	// of green to check later on to see how well they match the
@@ -78,7 +82,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me
-		if ((br.area() < 450.0) || (br.area() > 8500))
+		if ((br.area() < 450.0) || (br.area() > 850000))
 		{
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
 			_confidence.push_back(0);
@@ -174,7 +178,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float confidence_screen_area = createConfidence(1.0, 0.5,  actualScreenArea);
 		
 		// higher is better
-		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio + confidence_screen_area) / 6.0;
+		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio/2. + confidence_screen_area/2.) / 5.0;
 		_confidence.push_back(confidence);
 
 #if 1
@@ -198,7 +202,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			// This is the best goal found so far. Save a bunch of
 			// info about it.
 			maxConfidence = confidence; 
-			_goal_found    = true;
+			_isValid    = true;
 			_best_contour_index = i;
 			_goal_pos      = goal_tracked_obj.getPosition();
 			_dist_to_goal  = hypotf(_goal_pos.x, _goal_pos.y);
@@ -217,6 +221,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		info.push_back(to_string(goal_to_center_deg));
 		info_writer.log(info); */
 	}
+	_pastRects.push_back(SmartRect(_goal_rect));
+	isValid();
 }
 
 
@@ -280,24 +286,24 @@ float GoalDetector::distanceUsingFOV(const Rect &rect) const
 float GoalDetector::dist_to_goal(void) const 
 {
  	//floor distance to goal in m 
-	return _goal_found ? _dist_to_goal : -1.0; 
+	return _isValid ? _dist_to_goal : -1.0; 
 }
 float GoalDetector::angle_to_goal(void) const 
 { 
 	//angle robot has to turn to face goal in degrees
-	return _goal_found ? _angle_to_goal : -1.0; 
+	return _isValid ? _angle_to_goal : -1.0; 
 }  
 		
 // Screen rect bounding the goal
 Rect GoalDetector::goal_rect(void) const
 {
-	return _goal_found ? _goal_rect : Rect(); 
+	return _isValid ? _goal_rect : Rect(); 
 }
 
 // Goal x,y,z position relative to robot
 Point3f GoalDetector::goal_pos(void) const
 {
-	return _goal_found ? _goal_pos : Point3f(); 
+	return _isValid ? _goal_pos : Point3f(); 
 }
 void GoalDetector::drawOnFrame(Mat &image) const
 {
@@ -310,7 +316,34 @@ void GoalDetector::drawOnFrame(Mat &image) const
 		putText(image, to_string(i), br.br(), FONT_HERSHEY_PLAIN, 1, Scalar(0,255,0));
 	}
 
-	if(_goal_found)
-		rectangle(image, boundingRect(_contours[_best_contour_index]), Scalar(0,255,0), 2);
+	if(!(_pastRects[0] == SmartRect(Rect())))
+		rectangle(image, _pastRects[0].myRect, Scalar(0,255,0), 2);
 }
+void GoalDetector::isValid()
+{
+   SmartRect currentRect = _pastRects[0];
+   for(auto it = _pastRects.begin() + 1; it != _pastRects.end(); ++it)
+   {
+	if(!(*it == currentRect))
+        {
+	    _isValid = false;
+	    return;
+        }
+   }
+   _isValid = true;
+}
+SmartRect::SmartRect(const cv::Rect &rectangle):
+   myRect(rectangle)
+{
+}
+bool SmartRect::operator== (const SmartRect &thatRect)const
+{
+    if(myRect == Rect() || thatRect.myRect == Rect())
+    {
+	return false;
+    } 
+    double intersectArea = (myRect & thatRect.myRect).area();
+    double unionArea     = myRect.area() + thatRect.myRect.area() - intersectArea;
 
+    return ((intersectArea / unionArea) >= .8);
+}
