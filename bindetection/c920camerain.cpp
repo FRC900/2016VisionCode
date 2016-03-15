@@ -118,10 +118,11 @@ bool C920CameraIn::initCamera(bool gui)
 }
 
 bool C920CameraIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!camera_.IsOpen())
 		return false;
-	if (camera_.GrabFrame())
+	if (!camera_.GrabFrame())
+		return false;
+	boost::lock_guard<boost::mutex> guard(_mtx);
 		camera_.RetrieveMat(_frame);
 	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
@@ -129,7 +130,7 @@ bool C920CameraIn::update() {
 	return true;
 }
 
-bool C920CameraIn::getFrame(Mat &frame)
+bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!camera_.IsOpen())
@@ -138,12 +139,12 @@ bool C920CameraIn::getFrame(Mat &frame)
 			return false;
 
 	frame = _frame.clone();
+	depth = Mat();
 	lockedFrameNumber_ = frameNumber_;
 	return true;
 }
 
-bool C920CameraIn::saveFrame(Mat &frame) {
-	boost::lock_guard<boost::mutex> guard(_mtx);
+bool C920CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
 	writer_ << frame;
 	return true;
 }

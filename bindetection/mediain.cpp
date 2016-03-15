@@ -19,27 +19,12 @@ void MediaIn::frameNumber(int frameNumber)
 	(void)frameNumber;
 }
 
-bool MediaIn::getDepthMat(cv::Mat &depthMat) const
-{
-	depthMat = Mat(); // return empty mat to indicate no depth info
-	return false;     // in addition to returning false
-}
-
-bool MediaIn::getNormDepthMat(cv::Mat &normDepthMat) const
-{
-	normDepthMat = Mat(); // return empty mat to indicate no depth info
-	return false;     // in addition to returning false
+int MediaIn::semValue() {
+	return 2;
 }
 
 CameraParams MediaIn::getCameraParams(bool left) const
 {
 	(void)left;
 	return CameraParams();
-}
-
-float MediaIn::getDepth(int x, int y)
-{
-	(void)x;
-	(void)y;
-	return -1000.;
 }

@@ -50,7 +50,7 @@ bool CameraIn::update() {
 			return true;
 }
 
-bool CameraIn::getFrame(Mat &frame)
+bool CameraIn::getFrame(Mat &frame, Mat &depth)
 {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!cap_.isOpened())
@@ -58,11 +58,12 @@ bool CameraIn::getFrame(Mat &frame)
 	if (_frame.empty())
 		return false;
 	frame = _frame.clone();
+	depth = Mat();
 	lockedFrameNumber_ = frameNumber_;
 	return true;
 }
 
-bool CameraIn::saveFrame(cv::Mat &frame) {
+bool CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	writer_ << frame;
 	return true;

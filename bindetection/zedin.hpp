@@ -21,8 +21,9 @@ class ZedIn : public MediaIn
 		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false);
 		~ZedIn();
 		bool update();
-		bool getFrame(cv::Mat &frame);
-		bool saveFrame(cv::Mat &frame);
+		bool getFrame(cv::Mat &frame, cv::Mat &depth);
+		bool saveFrame(cv::Mat &frame, cv::Mat &depth);
+		int semValue() { return semValue_; }
 
 		int    width(void) const;
 		int    height(void) const;
@@ -36,9 +37,6 @@ class ZedIn : public MediaIn
 		void   frameNumber(int frameNumber);
 
 		CameraParams getCameraParams(bool left) const;
-		bool  getDepthMat(cv::Mat &depthMat);
-		float getDepth(int x, int y);
-		bool  getNormDepthMat(cv::Mat &depthMat);
 #endif
 
 	private:
@@ -58,6 +56,7 @@ class ZedIn : public MediaIn
 		int height_;
 		int frameNumber_;
 		int lockedFrameNumber_;
+		int semValue_;
 
 		int brightness_;
 		int contrast_;

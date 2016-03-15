@@ -10,11 +10,12 @@ class VideoIn : public MediaIn
       VideoIn(const char *inpath, const char *outpath = NULL);
 	  ~VideoIn() {}
       bool update();
-      bool getFrame(cv::Mat &frame);
-      bool saveFrame(const cv::Mat &frame);
+      bool getFrame(cv::Mat &frame, cv::Mat &depth);
+      bool saveFrame(cv::Mat &frame, cv::Mat &depth);
       int width() const;
       int height() const;
       int frameCount(void) const;
+      int semValue(void) { return 1; }
       int frameNumber(void) const;
       void frameNumber(int frameNumber);
 

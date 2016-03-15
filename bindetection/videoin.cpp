@@ -8,7 +8,6 @@ using namespace cv;
 VideoIn::VideoIn(const char *inpath, const char *outpath) :
 	cap_(inpath)
 {
-	isVideo = true;
 	if (cap_.isOpened())
 	{
 		width_  = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
@@ -39,14 +38,15 @@ VideoIn::VideoIn(const char *inpath, const char *outpath) :
 //this increment variable basically locks the update code to the speed of the getFrame loop.
 //This is to make sure that we run detection on every frame of the video
 bool VideoIn::update() {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	increment = true;
 	return true;
 }
 
-bool VideoIn::getFrame(Mat &frame)
+bool VideoIn::getFrame(Mat &frame, Mat &depth)
 {
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	if(increment) {
-		boost::lock_guard<boost::mutex> guard(_mtx);
 		if (!cap_.isOpened())
 			return false;
 			cap_ >> _frame;
@@ -58,10 +58,11 @@ bool VideoIn::getFrame(Mat &frame)
 	}
 	increment = false;
 	frame = _frame.clone();
+	depth = Mat();
 	return true;
 }
 
-bool VideoIn::saveFrame(const cv::Mat &frame) {
+bool VideoIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
 	if (writer_.isOpened()) {
 		writer_ << frame;
 		return true;

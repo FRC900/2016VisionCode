@@ -178,10 +178,7 @@ int main( int argc, const char** argv )
   //when using a video
   //initialize the semaphore to allow 1 loop to run at a time if isVideo and 2 loops if not
   boost::interprocess::interprocess_semaphore *sem;
-  if(cap->isVideo)
-    sem = new boost::interprocess::interprocess_semaphore(1);
-  else
-    sem = new boost::interprocess::interprocess_semaphore(2);
+    sem = new boost::interprocess::interprocess_semaphore(cap->semValue());
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -250,7 +247,7 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
-	if (!cap->update() || !cap->getFrame(frame))
+	if (!cap->update() || !cap->getFrame(frame, depth))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
     if(!cap->update())
@@ -284,10 +281,8 @@ int main( int argc, const char** argv )
     if(!pause)
       if(!cap->update())
         break;
-    if(!cap->getFrame(frame))
+    if(!cap->getFrame(frame, depth))
       break;
-		//Getting depth matrix
-		cap->getDepthMat(depth);
 
 		frameTicker.mark(); // mark start of new frame
 
@@ -513,15 +508,15 @@ int main( int argc, const char** argv )
 
       //we can't save both marked up video and raw video so we default
       if(args.writeVideo && args.saveVideo) {
-        cout << "Defaulting to saving raw frame" << endl;
+        cerr << "Defaulting to saving raw frame" << endl;
         args.saveVideo = false;
       }
 
       if (args.writeVideo)
       {
-        Mat tempFrame;
-        cap->getFrame(tempFrame);
-        cap->saveFrame(tempFrame);
+        Mat tempFrame, tempDepth;
+        cap->getFrame(tempFrame,tempDepth);
+        cap->saveFrame(tempFrame, tempDepth);
       }
 
 			// If saveVideo is set, write the marked-up frame to a file
@@ -533,7 +528,7 @@ int main( int argc, const char** argv )
           textWriter.writeTime(frame);
           textWriter.writeMatchNumTime(frame);
         }
-        cap->saveFrame(frame);
+        cap->saveFrame(frame, depth);
       }
 
 			// Process user input for this frame
@@ -557,9 +552,10 @@ int main( int argc, const char** argv )
 					if (frame == -1)
 						break;
 					// Otherwise, if not paused, move to the next frame
-					cap->frameNumber(frame);
+          //TODO I don't think this will work as intended. Check it.
+					cap->update();
 				}
-				cap->getFrame(frame);
+				cap->getFrame(frame, depth);
 			}
 			else if (c == 'A') // toggle capture-all
 			{
@@ -577,8 +573,8 @@ int main( int argc, const char** argv )
 			{
 				// Save from a copy rather than the original
 				// so all the markup isn't saved, only the raw image
-				Mat frameCopy;
-				cap->getFrame(frameCopy);
+				Mat frameCopy, depthCopy;
+				cap->getFrame(frameCopy, depthCopy);
 				for (size_t index = 0; index < detectRects.size(); index++)
 					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
 			}
@@ -649,8 +645,8 @@ int main( int argc, const char** argv )
 			}
 			else if (isdigit(c)) // save a single detected image
 			{
-				Mat frameCopy;
-				cap->getFrame(frameCopy);
+				Mat frameCopy, depthCopy;
+				cap->getFrame(frameCopy, depthCopy);
 				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
 			}
 		}
@@ -688,6 +684,8 @@ int main( int argc, const char** argv )
   g_thread.interrupt();
 	if (detectState)
 		delete detectState;
+  if(cap)
+    delete cap;
 
 	return 0;
 }
@@ -735,12 +733,12 @@ void openMedia(MediaIn *&cap, const string readFileName, const string writeFileN
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
 		cap = new ZedIn(NULL, writeVideo ? (char*)writeFileName.c_str() : NULL, gui );
-		Mat	mat;
-		if(!cap->update() || !cap->getFrame(mat))
+		Mat	mat, depth;
+		if(!cap->update() || !cap->getFrame(mat, depth))
 		{
 			delete cap;
 			cap = new C920CameraIn((char*)writeFileName.c_str(), -1, gui);
-			if (!cap->update() || !cap->getFrame(mat))
+			if (!cap->update() || !cap->getFrame(mat, depth))
 			{
 				delete cap;
 				cap = new CameraIn((char*)writeFileName.c_str(),camera, gui);

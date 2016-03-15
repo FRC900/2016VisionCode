@@ -7,8 +7,6 @@ using namespace cv;
 
 ImageIn::ImageIn(char *inpath, char *outpath)
 {
-	//set isvideo to true to make sure that the grab loop doesn't run obscenely fast
-	isVideo = true;
 	imread(inpath).copyTo(_frame);
 	if (_frame.empty())
 		std::cerr << "Could not open image file " << inpath << std::endl;
@@ -18,23 +16,26 @@ ImageIn::ImageIn(char *inpath, char *outpath)
 }
 
 bool ImageIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if (_frame.empty())
-		return false;
+	usleep(500000);
 	return true;
 }
 
-bool ImageIn::getFrame(Mat &frame)
+bool ImageIn::getFrame(Mat &frame, Mat &depth)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (_frame.empty())
 		return false;
 	frame = _frame.clone();
+	depth = Mat();
 	return true;
 }
 
-bool ImageIn::saveFrame(Mat &frame) {
-	imwrite(outpath_, frame);
+bool ImageIn::saveFrame(Mat &frame, Mat &depth) {
+	//strip the file extension and replace it with png because we're saving an image
+	std::stringstream ss;
+	size_t lastindex = outpath_.find_last_of(".");
+	ss << outpath_.substr(0,lastindex);
+	ss << ".png";
+	imwrite(ss.str(), frame);
 	return true;
 }
 

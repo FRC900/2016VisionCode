@@ -12,8 +12,9 @@ class ImageIn : public MediaIn
       ImageIn(char *inpath, char *outpath);
 	  ~ImageIn() {}
       bool update();
-      bool getFrame(cv::Mat &frame);
-      bool saveFrame(cv::Mat &frame);
+      bool getFrame(cv::Mat &frame, cv::Mat &depth);
+      bool saveFrame(cv::Mat &frame, cv::Mat &depth);
+    int semValue(void) { return 1; }
 
 	  int frameCount(void) const;
 	  int frameNumber(void) const;
@@ -21,6 +22,6 @@ class ImageIn : public MediaIn
       int width() const;
       int height() const;
   private:
-    char* outpath_;
+    string outpath_;
 };
 #endif
