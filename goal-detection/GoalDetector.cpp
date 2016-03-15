@@ -4,6 +4,8 @@
 using namespace std;
 using namespace cv;
 
+#define VERBOSE
+
 GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
 	_goal_shape(3),
 	_fov_size(fov_size),
@@ -11,14 +13,14 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_isValid(false),
 	_pastRects(2),
 	_min_valid_confidence(0.25),
-	_otsu(1), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
+	_otsu_threshold(12.), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
 	_blue_scale(30),
 	_red_scale(60)
 {
 	if (gui)
 	{
 		cv::namedWindow("Goal Detect Adjustments", CV_WINDOW_NORMAL);
-		createTrackbar("Otsu","Goal Detect Adjustments", &_otsu, 1);
+		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 12);
 		createTrackbar("Blue Scale","Goal Detect Adjustments", &_blue_scale, 100);
 		createTrackbar("Red Scale","Goal Detect Adjustments", &_red_scale, 100);
 	}
@@ -84,13 +86,17 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// TODO :: Tune me
 		if ((br.area() < 450.0) || (br.area() > 850000))
 		{
+#ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
 		if (br.br().y > (image.rows * (2./3)))
 		{
+#ifdef VERBOSE
 			cout << "Contour " << i << " br().y out of range "<< br.br().y << endl;
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -115,8 +121,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Filter out goals which are too close or too far
 		if ((depth_z_min < 1.) || (depth_z_max > 12.))
 		{
-			_confidence.push_back(0);
+#ifdef VERBOSE
 			cout << "Contour " << i << " depth out of range "<< depth_z_min << " / " << depth_z_max << endl;
+#endif
+			_confidence.push_back(0);
 			continue;
 		}
 
@@ -130,8 +138,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		minMaxLoc(botMidCol, &botMinVal, &botMaxVal);
 		if (topMaxVal > (.5 * botMaxVal))
 		{
-			_confidence.push_back(0);
+#ifdef VERBOSE
 			cout << "Contour " << i << " max top middle row too large "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
+#endif
+			_confidence.push_back(0);
 			continue;
 		}
 
@@ -181,7 +191,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio/2. + confidence_screen_area/2.) / 5.0;
 		_confidence.push_back(confidence);
 
-#if 1
+#ifdef VERBOSE
 		cout << "-------------------------------------------" << endl;
 		cout << "Contour " << i << endl;
 		cout << "confidence_height: " << confidence_height << endl;
@@ -263,13 +273,11 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 	// Use one of two options for adaptive thresholding.  This will turn
 	// the gray scale image into a binary black and white one, with pixels
 	// above some value being forced white and those below forced to black
-	double otsuThreshold = 255;
-	if (_otsu)
-		otsuThreshold = threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-	else
-		adaptiveThreshold(imageOut, imageOut, 255.0, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 11, 2);
+	double otsuThreshold = threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+#ifdef VERBOSE
 	cout << "OSTU THRESHOLD " << otsuThreshold << endl;
-	if (otsuThreshold < 12.)
+#endif
+	if (otsuThreshold < _otsu_threshold)
 		return false;
     return (countNonZero(imageOut) != 0);
 }
@@ -305,6 +313,7 @@ Point3f GoalDetector::goal_pos(void) const
 {
 	return _isValid ? _goal_pos : Point3f(); 
 }
+
 void GoalDetector::drawOnFrame(Mat &image) const
 {
 	for (size_t i = 0; i < _contours.size(); i++)
