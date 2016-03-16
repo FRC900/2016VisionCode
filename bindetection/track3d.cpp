@@ -438,10 +438,12 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 									  const std::vector<float> depths,
 									  const std::vector<ObjectType> &types)
 {
-	std::cout << "---------- Start of process detect --------------" << std::endl;
+	if (detectedRects.size() || _list.size())
+		std::cout << "---------- Start of process detect --------------" << std::endl;
 	print();
 	std::vector<cv::Point3f> detectedPositions;
-	std::cout << detectedRects.size() << " objects" << std::endl;
+	if (detectedRects.size() > 0)
+		std::cout << detectedRects.size() << " objects" << std::endl;
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
@@ -548,5 +550,6 @@ void TrackedObjectList::processDetect(const std::vector<cv::Rect> &detectedRects
 		}
 	}
 	print();
-	std::cout << "---------- End of process detect --------------" << std::endl;
+	if (detectedRects.size() || _list.size())
+		std::cout << "---------- End of process detect --------------" << std::endl;
 }
