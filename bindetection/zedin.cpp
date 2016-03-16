@@ -53,7 +53,8 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		else
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
-	else {  // Open an actual camera for input
+	else 
+	{  // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
 		semValue_ = 2;
 	}
@@ -280,8 +281,18 @@ bool ZedIn::update(bool left)
 		if (zed_->grab(sl::zed::SENSING_MODE::RAW)) 
 			return false;
 
-		slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(localFrame_);
-		slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(localDepth_); //not normalized depth
+		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
+		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
+		boost::lock_guard<boost::mutex> guard(_mtx);
+		cvtColor(slMat2cvMat(slFrame_), _frame, CV_RGBA2RGB);
+		slMat2cvMat(_slDepth).copyTo(depthMat_);
+
+		while (_frame.rows > 700)
+		{
+			pyrDown(_frame, _frame);
+			pyrDown(depthMat_, depthMat_);
+		}
+		frameNumber_ += 1;
 	}
 	else if (archiveIn_)
 	{
@@ -294,28 +305,20 @@ bool ZedIn::update(bool left)
 		{
 			return false;
 		}
+		boost::lock_guard<boost::mutex> guard(_mtx);
+		localFrame_.copyTo(_frame);
+		localDepth_.copyTo(depthMat_);
+
+		while (_frame.rows > 700)
+		{
+			pyrDown(_frame, _frame);
+			pyrDown(depthMat_, depthMat_);
+		}
+		frameNumber_ += 1;
 	}
 	else
 		return false;
 
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if(zed_) 
-	{
-		cvtColor(localFrame_, _frame, CV_RGBA2RGB);
-	} 
-	else if (archiveIn_) 
-	{
-		localFrame_.copyTo(_frame);
-	}
-
-	localDepth_.copyTo(depthMat_);
-
-	while (_frame.rows > 700)
-	{
-		pyrDown(_frame, _frame);
-		pyrDown(depthMat_, depthMat_);
-	}
-	frameNumber_ += 1;
 	return true;
 }
 
