@@ -171,17 +171,16 @@ int main( int argc, const char** argv )
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
-  //void openMedia(MediaIn *&cap, const string &readFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
 	openMedia(cap, args.inputName ,capPath, windowName,
 			  !args.batchMode, args.writeVideo);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
 
-  //this is used to synchronize the main and grab loops
-  //when using a video
-  //initialize the semaphore to allow 1 loop to run at a time if isVideo and 2 loops if not
-  boost::interprocess::interprocess_semaphore *sem;
+	//this is used to synchronize the main and grab loops
+	//when using a video
+	//initialize the semaphore to allow 1 loop to run at a time if isVideo and 2 loops if not
+	boost::interprocess::interprocess_semaphore *sem;
     sem = new boost::interprocess::interprocess_semaphore(cap->semValue());
 
 	// Seek to start frame if necessary
@@ -230,8 +229,13 @@ int main( int argc, const char** argv )
 	// Code to write video frames to avi file on disk
 	VideoWriter rawVideo;
 	VideoWriter markedupVideo;
-	const int videoWritePollFrequency = 30; // check for network table entry every this many frames (~5 seconds or so)
-	int videoWritePollCount = videoWritePollFrequency;
+
+	//we can't save both marked up video and raw video so we default
+	if(args.writeVideo && args.saveVideo) 
+	{
+		cerr << "Defaulting to saving raw frame" << endl;
+		args.saveVideo = false;
+	}
 
 	FrameTicker frameTicker;
 
@@ -254,10 +258,6 @@ int main( int argc, const char** argv )
 	if (!cap->update() || !cap->getFrame(frame, depth))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
-		if(!cap->update())
-			cerr << "Update failed" << endl;
-		else
-			cerr << "getFrame failed" << endl;
 		return 0;
 	}
 
@@ -286,11 +286,11 @@ int main( int argc, const char** argv )
 			break;
 
 		frameTicker.mark(); // mark start of new frame
-		if (--videoWritePollCount == 0)
-		{
-			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
-			videoWritePollCount = videoWritePollFrequency;
-		}
+
+		// Write raw video before anything gets drawn
+		// on it
+		if (args.writeVideo)
+			cap->saveFrame(frame, depth);
 
 		// This code will load a classifier if none is loaded - this handles
 		// initializing the classifier the first time through the loop.
@@ -459,7 +459,6 @@ int main( int argc, const char** argv )
 		if (cap->frameCount() >= 0)
 			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
 
-
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
@@ -506,30 +505,18 @@ int main( int argc, const char** argv )
 			// info has been written on it.
 			imshow(windowName, frame);
 
-      //we can't save both marked up video and raw video so we default
-      if(args.writeVideo && args.saveVideo) {
-        cerr << "Defaulting to saving raw frame" << endl;
-        args.saveVideo = false;
-      }
-
-      if (args.writeVideo)
-      {
-        Mat tempFrame, tempDepth;
-        cap->getFrame(tempFrame,tempDepth);
-        cap->saveFrame(tempFrame, tempDepth);
-      }
-
 			// If saveVideo is set, write the marked-up frame to a file
-      if (args.saveVideo) {
-        bool dateAndTime = true;
-        WriteOnFrame textWriter;
-        if (dateAndTime)
-        {
-          textWriter.writeTime(frame);
-          textWriter.writeMatchNumTime(frame);
-        }
-        cap->saveFrame(frame, depth);
-      }
+			if (args.saveVideo) 
+			{
+				bool dateAndTime = true;
+				WriteOnFrame textWriter;
+				if (dateAndTime)
+				{
+					textWriter.writeTime(frame);
+					textWriter.writeMatchNumTime(frame);
+				}
+				cap->saveFrame(frame, depth);
+			}
 
 			// Process user input for this frame
 			char c = waitKey(5);
@@ -543,8 +530,7 @@ int main( int argc, const char** argv )
 			}
 			else if( c == 'f')  // advance to next frame
 			{
-				if (!pause)
-					pause = true;
+				pause = true;
 				if (args.groundTruth)
 				{
 					int frame = groundTruth.nextFrameNumber();
@@ -552,7 +538,7 @@ int main( int argc, const char** argv )
 					if (frame == -1)
 						break;
 					// Otherwise, if not paused, move to the next frame
-          //TODO I don't think this will work as intended. Check it.
+					//TODO I don't think this will work as intended. Check it.
 					cap->update();
 				}
 				cap->getFrame(frame, depth);
