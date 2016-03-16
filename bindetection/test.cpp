@@ -269,10 +269,10 @@ int main( int argc, const char** argv )
 
 	int64 stepTimer;
 
-  //Start the grab loop:
-  // --update the current frame
-  //this loop runs asynchronously with the main loop if the input is a camera
-  boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
+	//Start the grab loop:
+	// --update the current frame
+	//this loop runs asynchronously with the main loop if the input is a camera
+	boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
 
 	// Start of the main loop
 	//  -- grab a frame
