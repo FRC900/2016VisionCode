@@ -24,13 +24,13 @@ void MediaIn::frameNumber(int frameNumber)
 bool MediaIn::getDepthMat(Mat &depthMat) const
 {
 	depthMat = Mat(); // return empty mat to indicate no depth info
-	return false;     // in addition to returning false
+	return true;     // in addition to returning false
 }
 
 bool MediaIn::getNormDepthMat(Mat &normDepthMat) const
 {
 	normDepthMat = Mat(); // return empty mat to indicate no depth info
-	return false;     // in addition to returning false
+	return true;     // in addition to returning false
 }
 
 CameraParams MediaIn::getCameraParams(bool left) const
