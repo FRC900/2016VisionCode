@@ -13,14 +13,14 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_isValid(false),
 	_pastRects(2),
 	_min_valid_confidence(0.25),
-	_otsu_threshold(12.), // use OTSU (if = 1) or adaptiveThreshold (if = 0)
+	_otsu_threshold(12.),
 	_blue_scale(30),
 	_red_scale(60)
 {
 	if (gui)
 	{
 		cv::namedWindow("Goal Detect Adjustments", CV_WINDOW_NORMAL);
-		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 12);
+		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 255);
 		createTrackbar("Blue Scale","Goal Detect Adjustments", &_blue_scale, 100);
 		createTrackbar("Red Scale","Goal Detect Adjustments", &_red_scale, 100);
 	}
@@ -50,7 +50,6 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	_angle_to_goal = -1.0;
 	_goal_rect = Rect();
 	_goal_pos  = Point3f();
-	_best_contour_index = -1;
 	_confidence.clear();
 	_contours.clear();
 
@@ -213,7 +212,6 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			// info about it.
 			maxConfidence = confidence; 
 			_isValid    = true;
-			_best_contour_index = i;
 			_goal_pos      = goal_tracked_obj.getPosition();
 			_dist_to_goal  = hypotf(_goal_pos.x, _goal_pos.y);
 			_angle_to_goal = atan2f(_goal_pos.x, _goal_pos.y) * 180. / M_PI;
@@ -296,6 +294,7 @@ float GoalDetector::dist_to_goal(void) const
  	//floor distance to goal in m 
 	return _isValid ? _dist_to_goal : -1.0; 
 }
+
 float GoalDetector::angle_to_goal(void) const 
 { 
 	//angle robot has to turn to face goal in degrees
@@ -314,6 +313,9 @@ Point3f GoalDetector::goal_pos(void) const
 	return _isValid ? _goal_pos : Point3f(); 
 }
 
+// Draw debugging info on frame - all non-filtered contours
+// plus their confidence. Highlight the best bounding rect in
+// a different color
 void GoalDetector::drawOnFrame(Mat &image) const
 {
 	for (size_t i = 0; i < _contours.size(); i++)
@@ -321,38 +323,43 @@ void GoalDetector::drawOnFrame(Mat &image) const
 		drawContours(image, _contours, i, Scalar(0,0,255), 3);
 		Rect br(boundingRect(_contours[i]));
 		rectangle(image, br, Scalar(255,0,0), 2);
-		putText(image, to_string(_confidence[i]), br.tl(), FONT_HERSHEY_PLAIN, 1, Scalar(255,0,0));
+		stringstream confStr;
+		confStr << fixed << setprecision(2) << _confidence[i];
+		putText(image, confStr.str(), br.tl(), FONT_HERSHEY_PLAIN, 1, Scalar(255,0,0));
 		putText(image, to_string(i), br.br(), FONT_HERSHEY_PLAIN, 1, Scalar(0,255,0));
 	}
 
-	if(!(_pastRects[0] == SmartRect(Rect())))
-		rectangle(image, _pastRects[0].myRect, Scalar(0,255,0), 2);
+	if(!(_pastRects[_pastRects.size() - 1] == SmartRect(Rect())))
+		rectangle(image, _pastRects[_pastRects.size() - 1].myRect, Scalar(0,255,0), 2);
 }
+
 void GoalDetector::isValid()
 {
-   SmartRect currentRect = _pastRects[0];
-   for(auto it = _pastRects.begin() + 1; it != _pastRects.end(); ++it)
-   {
-	if(!(*it == currentRect))
-        {
-	    _isValid = false;
-	    return;
-        }
-   }
-   _isValid = true;
+	SmartRect currentRect = _pastRects[0];
+	for(auto it = _pastRects.begin() + 1; it != _pastRects.end(); ++it)
+	{
+		if(!(*it == currentRect))
+		{
+			_isValid = false;
+			return;
+		}
+	}
+	_isValid = true;
 }
+
 SmartRect::SmartRect(const cv::Rect &rectangle):
    myRect(rectangle)
 {
 }
+
 bool SmartRect::operator== (const SmartRect &thatRect)const
 {
-    if(myRect == Rect() || thatRect.myRect == Rect())
-    {
-	return false;
-    } 
-    double intersectArea = (myRect & thatRect.myRect).area();
-    double unionArea     = myRect.area() + thatRect.myRect.area() - intersectArea;
+	if(myRect == Rect() || thatRect.myRect == Rect())
+	{
+		return false;
+	} 
+	double intersectArea = (myRect & thatRect.myRect).area();
+	double unionArea     = myRect.area() + thatRect.myRect.area() - intersectArea;
 
-    return ((intersectArea / unionArea) >= .8);
+	return ((intersectArea / unionArea) >= .8);
 }

@@ -47,7 +47,6 @@ class GoalDetector
 		cv::Point3f _goal_pos;
 
 		// Save all contours found in case we want to display
-		int _best_contour_index;
 		std::vector<std::vector<cv::Point> > _contours;
 		std::vector<float> _confidence;
 
