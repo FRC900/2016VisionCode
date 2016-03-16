@@ -20,9 +20,9 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	if (gui)
 	{
 		cv::namedWindow("Goal Detect Adjustments", CV_WINDOW_NORMAL);
-		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 255);
 		createTrackbar("Blue Scale","Goal Detect Adjustments", &_blue_scale, 100);
 		createTrackbar("Red Scale","Goal Detect Adjustments", &_red_scale, 100);
+		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 255);
 	}
 }
 
@@ -68,12 +68,21 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
     vector<Vec4i>          hierarchy;
     findContours(threshold_image, _contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
+	// Initialize maxConfidence to the min confidence we need
+	// to think it is a goal. This way we'll only use the goal
+	// with the highest confidence if its confidence score is
+	// above the minimum
     float maxConfidence = _min_valid_confidence;
 
-
+	// Create some target stats based on our idealized goal model
 	//center of mass as a percentage of the object size from top left
-	Point2f com_percent_expected(_goal_shape.com().x / _goal_shape.width(),
-				     _goal_shape.com().y / _goal_shape.height());
+	const Point2f com_percent_expected(_goal_shape.com().x / _goal_shape.width(),
+									   _goal_shape.com().y / _goal_shape.height());
+	// Ratio of contour area to bounding box area
+	const float filledPercentageExpected = _goal_shape.area() / _goal_shape.boundingArea();
+
+	// Aspect ratio of the goal
+	const float expectedRatio = _goal_shape.width() / _goal_shape.height();
 
     for (size_t i = 0; i < _contours.size(); i++)
     {
@@ -82,8 +91,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	    Rect br(boundingRect(_contours[i]));
 
 		// Remove objects which are obviously too small
-		// TODO :: Tune me
-		if ((br.area() < 450.0) || (br.area() > 850000))
+		// TODO :: Tune me, make me a percentage of screen area?
+		if ((br.area() < 450.0) || (br.area() > 8500))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
@@ -91,8 +100,12 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			_confidence.push_back(0);
 			continue;
 		}
+
+		// Remove objects too low on the screen - these can't
+		// be goals. Should stop the robot from admiring its
+		// reflection in the diamond-plate at the end of the field
 		if (br.br().y > (image.rows * (2./3)))
-		{
+		{ 
 #ifdef VERBOSE
 			cout << "Contour " << i << " br().y out of range "<< br.br().y << endl;
 #endif
@@ -100,9 +113,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			continue;
 		}
 
-		contour_mask.setTo(Scalar(0));
 	
-		//create a mask on the contour
+		//create a mask which is the same shape as the contour
+		contour_mask.setTo(Scalar(0));
 		drawContours(contour_mask, _contours, i, Scalar(255), CV_FILLED); 
 
 		// get the minimum and maximum depth values in the contour,
@@ -127,46 +140,44 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			continue;
 		}
 
-		Mat topMidCol(threshold_image(Rect(br.tl().x + br.width / 2, br.tl().y, 1, br.height / 2)));
-		Mat botMidCol(threshold_image(Rect(br.tl().x + br.width / 2, br.tl().y + 2./3*br.height, 1, br.height / 3)));
+		// Since the goal is a U shape, there should be bright pixels
+		// at the bottom center of the contour and dimmer ones in the 
+		// middle going towards the top. Check for that here
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 
+						                   1, cvRound(br.height / 2.))));
+		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + 2./3*br.height), 1, cvRound(br.height / 3.))));
 		double topMinVal;
 		double topMaxVal;
 		minMaxLoc(topMidCol, &topMinVal, &topMaxVal);
 		double botMinVal;
 		double botMaxVal;
 		minMaxLoc(botMidCol, &botMinVal, &botMaxVal);
+		// The max pixel value in the bottom rows of the
+		// middle column should be significantly higher than the
+		// max pixel value in the top rows of the middle column
 		if (topMaxVal > (.5 * botMaxVal))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " max top middle row too large "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
+			cout << "Contour " << i << " max top middle column val too large "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
 		}
 
-		//
-		// go down (pos y) until outside the br, save max pixel value
-		// starting from center again, move up to top of br 
-		// if during that the pixel value is within a 
-		// certain percent of the max, bail.  This removes contours
-		// which aren't U-shaped
-
+		//create a trackedobject to get various statistics
+		//including area and x,y,z position of the goal
 		ObjectType goal_actual(_contours[i]);
-
-		//create a trackedobject to get x,y,z of the goal
 		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -9.5 * M_PI / 180.0);
 
 		//percentage of the object filled in
 		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
-		float filledPercentageExpected = _goal_shape.area() / _goal_shape.boundingArea();
 
 		//center of mass as a percentage of the object size from top left
 		Point2f com_percent_actual((goal_actual.com().x - br.tl().x) / goal_actual.width(),
 				                   (goal_actual.com().y - br.tl().y) / goal_actual.height());
 
 		//width to height ratio
-		float actualRatio   = goal_actual.width() / goal_actual.height();
-		float expectedRatio = _goal_shape.width() / _goal_shape.height();
+		float actualRatio = goal_actual.width() / goal_actual.height();
 
 		// Gets the bounding box area observed divided by the
 		// bounding box area calculated given goal size and distance
@@ -210,8 +221,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		{
 			// This is the best goal found so far. Save a bunch of
 			// info about it.
-			maxConfidence = confidence; 
-			_isValid    = true;
+			maxConfidence  = confidence;
+			_isValid       = true;
 			_goal_pos      = goal_tracked_obj.getPosition();
 			_dist_to_goal  = hypotf(_goal_pos.x, _goal_pos.y);
 			_angle_to_goal = atan2f(_goal_pos.x, _goal_pos.y) * 180. / M_PI;
@@ -257,9 +268,6 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 				bluePlusRed);
 	subtract(splitImage[1], bluePlusRed, imageOut);
 
-	// TODO : look at modifying these - same shape and size
-	// for both, only 1 iteration of both, or maybe a loop
-	// of 2 erode/dilate pairs
     Mat erodeElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
     Mat dilateElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
 	for (int i = 0; i < 2; ++i)
@@ -268,9 +276,13 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 		dilate(imageOut, imageOut, dilateElement, Point(-1, -1), 1);
 	}
 
-	// Use one of two options for adaptive thresholding.  This will turn
+	// Use Ostu adaptive thresholding.  This will turn
 	// the gray scale image into a binary black and white one, with pixels
 	// above some value being forced white and those below forced to black
+	// The value to used as the split between black and white is returned
+	// from the function.  If this value is too low, it means the image is
+	// really dark and the returned threshold image will be mostly noise.
+	// In that case, skip processing it entirely.
 	double otsuThreshold = threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
 #ifdef VERBOSE
 	cout << "OSTU THRESHOLD " << otsuThreshold << endl;
@@ -333,6 +345,13 @@ void GoalDetector::drawOnFrame(Mat &image) const
 		rectangle(image, _pastRects[_pastRects.size() - 1].myRect, Scalar(0,255,0), 2);
 }
 
+// Look for the N most recent detected rectangles to be
+// the same before returning them as valid. This makes sure
+// the camera has stopped moving and has settled
+// TODO : See if we want to return different values for
+// several frames which have detected goals but at different
+// locations vs. several frames which have no detection at all
+// in them?
 void GoalDetector::isValid()
 {
 	SmartRect currentRect = _pastRects[0];
@@ -347,11 +366,17 @@ void GoalDetector::isValid()
 	_isValid = true;
 }
 
+// Simple class to encapsulate a rect plus a slightly
+// more complex than normal comparison function
 SmartRect::SmartRect(const cv::Rect &rectangle):
    myRect(rectangle)
 {
 }
 
+// Overload equals. Make it so that empty rects never
+// compare true, even to each other. 
+// Also, allow some minor differences in rectangle positions
+// to still count as equivalent.
 bool SmartRect::operator== (const SmartRect &thatRect)const
 {
 	if(myRect == Rect() || thatRect.myRect == Rect())
