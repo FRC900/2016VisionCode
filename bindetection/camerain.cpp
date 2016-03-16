@@ -28,7 +28,7 @@ CameraIn::CameraIn(const char *outfile, int stream, bool gui) :
 
 		// open the output video
 		if(outfile != NULL) {
-			writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
+			writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width_, height_), true);
 			if(!writer_.isOpened())
 				std::cerr << "Could not open output video " << outfile << std::endl;
 		}
