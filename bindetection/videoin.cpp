@@ -35,40 +35,43 @@ VideoIn::VideoIn(const char *inpath, const char *outpath) :
 
 }
 
-//this increment variable basically locks the update code to the speed of the getFrame loop.
+//this increment_ variable basically locks the update code to the speed of the getFrame loop.
 //This is to make sure that we run detection on every frame of the video
-bool VideoIn::update() {
+bool VideoIn::update() 
+{
 	boost::lock_guard<boost::mutex> guard(_mtx);
-	increment = true;
+	increment_ = true;
 	return true;
 }
 
 bool VideoIn::getFrame(Mat &frame, Mat &depth)
 {
+	if (!cap_.isOpened())
+		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
-	if(increment) {
-		if (!cap_.isOpened())
+	if(increment_) 
+	{
+		cap_ >> _frame;
+		if (_frame.empty())
 			return false;
-			cap_ >> _frame;
-			if (_frame.empty())
-				return false;
-			while (_frame.rows > 800)
-				pyrDown(_frame, _frame);
+		while (_frame.rows > 800)
+			pyrDown(_frame, _frame);
 		frameNumber_ += 1;
 	}
-	increment = false;
-	frame = _frame.clone();
+	increment_ = false;
 	depth = Mat();
+	_frame.copyTo(frame);
 	return true;
 }
 
-bool VideoIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
-	if (writer_.isOpened()) {
+bool VideoIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
+{
+	if (writer_.isOpened()) 
+	{
 		writer_ << frame;
 		return true;
-	} else {
-		return false;
 	}
+	return false;
 }
 
 int VideoIn::width() const
