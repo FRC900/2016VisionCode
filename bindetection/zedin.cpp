@@ -285,7 +285,7 @@ bool ZedIn::update(bool left)
 		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
 		boost::lock_guard<boost::mutex> guard(_mtx);
 		cvtColor(slMat2cvMat(slFrame_), _frame, CV_RGBA2RGB);
-		slMat2cvMat(_slDepth).copyTo(depthMat_);
+		slMat2cvMat(slDepth_).copyTo(depthMat_);
 
 		while (_frame.rows > 700)
 		{
