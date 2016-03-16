@@ -128,26 +128,30 @@ void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, 
 	}
 }
 
-void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) {
-  //this runs concurrently with the main while loop
-  FrameTicker frameTicker;
-  while(1) {
-    if(!pause) {
-      frameTicker.mark();
-      sem->wait();
-      if(!cap->update()) {
-        cerr << "Failed to capture" << endl;
-      }
-      sem->post();
-      cout << setprecision(2) << frameTicker.getFPS() << "Grab FPS" << endl;
-      boost::this_thread::interruption_point();
-    }
-  }
+void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) 
+{
+	//this runs concurrently with the main while loop
+	FrameTicker frameTicker;
+	while(1) 
+	{
+		if(!pause) 
+		{
+			frameTicker.mark();
+			sem->wait();
+			if(!cap->update()) 
+			{
+				cerr << "Failed to capture" << endl;
+				usleep(100000);
+			}
+			sem->post();
+			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
+			boost::this_thread::interruption_point();
+		}
+	}
 }
 
 int main( int argc, const char** argv )
 {
-
 	// Flags for various UI features
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
@@ -277,16 +281,13 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(true)
 	{
-    sem->wait();
-    if(!pause)
-      if(!cap->update())
-        break;
-    if(!cap->getFrame(frame, depth))
-      break;
+		sem->wait();
+		if((!pause && !cap->update()) ||
+		   !cap->getFrame(frame, depth))
+			break;
 
 		frameTicker.mark(); // mark start of new frame
-
-		if (--videoWritePollCount == 0)
+if (--videoWritePollCount == 0)
 		{
 			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
@@ -678,10 +679,11 @@ int main( int argc, const char** argv )
 		// process the image once rather than looping forever
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
-    sem->post();
+		sem->post();
 	}
 	groundTruth.print();
   g_thread.interrupt();
+  g_thread.join();
 	if (detectState)
 		delete detectState;
   if(cap)

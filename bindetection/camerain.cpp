@@ -37,34 +37,37 @@ CameraIn::CameraIn(const char *outfile, int stream, bool gui) :
 		std::cerr << "Could not open camera" << std::endl;
 }
 
-bool CameraIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
+bool CameraIn::update() 
+{
 	if (!cap_.isOpened())
 		return false;
-		cap_ >> _frame;
-		if (_frame.empty())
-			return false;
-		while (_frame.rows > 800)
-			pyrDown(_frame, _frame);
-		frameNumber_ += 1;
-			return true;
+	if (!cap_.grab())
+		return false;
+	if (!cap_.retrieve(localFrame_))
+		return false;
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	localFrame_.copyTo(_frame);
+	while (_frame.rows > 800)
+		pyrDown(_frame, _frame);
+	frameNumber_ += 1;
+	return true;
 }
 
 bool CameraIn::getFrame(Mat &frame, Mat &depth)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!cap_.isOpened())
 		return false;
+	depth = Mat();
+	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (_frame.empty())
 		return false;
-	frame = _frame.clone();
-	depth = Mat();
+	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
 	return true;
 }
 
 bool CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
-	boost::lock_guard<boost::mutex> guard(_mtx);
+	(void)depth;
 	writer_ << frame;
 	return true;
 }
