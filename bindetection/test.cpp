@@ -45,7 +45,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, const string writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo);
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool &writeVideo);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
 void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
@@ -139,7 +139,7 @@ void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_sem
         cerr << "Failed to capture" << endl;
       }
       sem->post();
-      cout << setprecision(2) << frameTicker.getFPS() << "Grab FPS";
+      cout << setprecision(2) << frameTicker.getFPS() << "Grab FPS" << endl;
       boost::this_thread::interruption_point();
     }
   }
@@ -167,8 +167,8 @@ int main( int argc, const char** argv )
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
-  //void openMedia(MediaIn *&cap, const string &readFileName, const string &writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
-	openMedia(cap, args.inputName, getVideoOutName(true, true).c_str() ,capPath, windowName,
+  //void openMedia(MediaIn *&cap, const string &readFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
+	openMedia(cap, args.inputName ,capPath, windowName,
 			  !args.batchMode, args.writeVideo);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
@@ -723,7 +723,7 @@ bool hasSuffix(const std::string &str, const std::string &suffix)
 }
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, const string writeFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -732,16 +732,16 @@ void openMedia(MediaIn *&cap, const string readFileName, const string writeFileN
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? (char*)writeFileName.c_str() : NULL, gui );
+		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true,true).c_str() : NULL, gui );
 		Mat	mat, depth;
 		if(!cap->update() || !cap->getFrame(mat, depth))
 		{
 			delete cap;
-			cap = new C920CameraIn((char*)writeFileName.c_str(), -1, gui);
+			cap = new C920CameraIn(writeVideo ? getVideoOutName(true,false).c_str() : NULL, camera, gui);
 			if (!cap->update() || !cap->getFrame(mat, depth))
 			{
 				delete cap;
-				cap = new CameraIn((char*)writeFileName.c_str(),camera, gui);
+				cap = new CameraIn(writeVideo ? getVideoOutName(true,false).c_str() : NULL,camera, gui);
 				ss << "Default Camera ";
 			}
 			else
@@ -762,11 +762,11 @@ void openMedia(MediaIn *&cap, const string readFileName, const string writeFileN
 	{
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
-			cap = new ImageIn((char*)readFileName.c_str(), (char*)writeFileName.c_str() );
+			cap = new ImageIn((char*)readFileName.c_str(), writeVideo ? getVideoOutName(true,false).c_str() : NULL);
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
 		{
-			cap = new ZedIn(readFileName.c_str(), writeVideo ? writeFileName.c_str() : NULL, gui);
+			cap = new ZedIn(readFileName.c_str(), writeVideo ? getVideoOutName(true,false).c_str() : NULL, gui);
 			writeVideo = false;
 		}
 		else

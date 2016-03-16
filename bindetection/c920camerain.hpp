@@ -17,7 +17,7 @@
 class C920CameraIn : public MediaIn
 {
    public:
-      C920CameraIn(char *outfile = NULL, int _stream = -1, bool gui = false);
+      C920CameraIn(const char *outfile = NULL, int _stream = -1, bool gui = false);
 	  ~C920CameraIn() {}
       bool getFrame(cv::Mat &frame, cv::Mat &depth);
       bool saveFrame(cv::Mat &frame, cv::Mat &depth);
@@ -61,8 +61,6 @@ class C920CameraIn : public MediaIn
 	  int               frameNumber_;
     int               lockedFrameNumber_;
 	  v4l2::CaptureSize captureSize_;
-
-    char* outfile_;
 #endif
 };
 #endif

@@ -6,7 +6,7 @@
 
 using namespace cv;
 
-CameraIn::CameraIn(char *outfile, int stream, bool gui) :
+CameraIn::CameraIn(const char *outfile, int stream, bool gui) :
 	frameNumber_(0),
 	width_(800),
     height_(600),

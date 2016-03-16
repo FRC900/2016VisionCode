@@ -3,7 +3,6 @@
 
 #include <opencv2/core/core.hpp>
 #include <boost/thread.hpp>
-using namespace cv;
 
 class CameraParams
 {

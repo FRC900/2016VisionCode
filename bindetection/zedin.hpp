@@ -49,9 +49,7 @@ class ZedIn : public MediaIn
 		bool update(bool left);
 
 		sl::zed::Camera* zed_;
-		cv::Mat frameRGBA_;
 		cv::Mat depthMat_;
-		cv::Mat normDepthMat_;
 		int width_;
 		int height_;
 		int frameNumber_;

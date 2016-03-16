@@ -107,16 +107,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
 				cv::createTrackbar("White Balance", "Adjustments", &whiteBalance_, 6501, zedWhiteBalanceCallback, this);
 			}
-
-			// Save the raw camera stream to disk.  This uses a home-brew
-			// method to serialize image and depth data to disk rather than
-			// relying on Stereolab's SVO format.
-			if (outFileName && (zed_ || archiveIn_))
-			{
-				outFileName_ = outFileName;
-				if (!openSerializeOutput(outFileName_.c_str()))
-					cerr << "Zed init : could not open output file " << outFileName << endl;
-			}
 		}
 	}
 	else if (archiveIn_)
@@ -142,6 +132,16 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	{
 		width_  /= 2;
 		height_ /= 2;
+	}
+
+	// Save the raw camera stream to disk.  This uses a home-brew
+	// method to serialize image and depth data to disk rather than
+	// relying on Stereolab's SVO format.
+	if (outFileName && (zed_ || archiveIn_))
+	{
+		outFileName_ = outFileName;
+		if (!openSerializeOutput(outFileName_.c_str()))
+			cerr << "Zed init : could not open output file " << outFileName << endl;
 	}
 }
 
@@ -272,56 +272,60 @@ ZedIn::~ZedIn()
 }
 
 bool ZedIn::update(bool left) {
-	if ((zed_ == NULL) && (archiveIn_ == NULL))
+	if ((zed_ == NULL) && (archiveIn_ == NULL)) {
+		cout << "No input device initialized " << endl;
 		return false;
+	}
+
 	Mat tempFrame, tempDepth;
 		// Read from either the zed camera or from
 		// a previously-serialized ZMS file
 		if (zed_)
 		{
-			if (zed_->grab(sl::zed::SENSING_MODE::RAW))
+			if (zed_->grab(sl::zed::SENSING_MODE::RAW)) {
+				cout << "Grab failed " << endl;
 				return false;
+				}
 
-			slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(tempFrame);
-			slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(tempDepth); //not normalized depth
-			//slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
+			tempFrame = slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).clone();
+			tempDepth = slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).clone(); //not normalized depth
 		}
 		else if (archiveIn_)
 		{
 			// Ugly try-catch to detect EOF
 			try
 			{
-				*archiveIn_ >> _frame >> depthMat_;
+				*archiveIn_ >> tempFrame >> tempDepth;
 			}
 			catch (const boost::archive::archive_exception &e)
 			{
 				return false;
 			}
-			//normalize(depthMat_, normDepthMat_, 0, 255, NORM_MINMAX, CV_8UC1);
 		}
 
 		boost::lock_guard<boost::mutex> guard(_mtx);
 		if(zed_) {
 			cvtColor(tempFrame, _frame, CV_RGBA2RGB);
-			tempDepth.copyTo(depthMat_);
+		} else if (archiveIn_) {
+			tempFrame.copyTo(_frame);
 		}
+
+		tempDepth.copyTo(depthMat_);
 
 		while (_frame.rows > 700)
 		{
 			pyrDown(_frame, _frame);
 			pyrDown(depthMat_, depthMat_);
-			pyrDown(normDepthMat_, normDepthMat_);
 		}
 		frameNumber_ += 1;
 		return true;
 }
 
 bool ZedIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	// Write output to serialized file if it is open
 	if (archiveOut_)
 	{
-		*archiveOut_ << frame << depthMat_;
+		*archiveOut_ << frame << depth;
 		const int frameSplitCount = 300;
 		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 		{

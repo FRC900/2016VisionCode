@@ -9,7 +9,7 @@
 class ImageIn : public MediaIn
 {
    public:
-      ImageIn(char *inpath, char *outpath);
+      ImageIn(const char *inpath, const char *outpath);
 	  ~ImageIn() {}
       bool update();
       bool getFrame(cv::Mat &frame, cv::Mat &depth);
@@ -22,6 +22,6 @@ class ImageIn : public MediaIn
       int width() const;
       int height() const;
   private:
-    string outpath_;
+    std::string outpath_;
 };
 #endif

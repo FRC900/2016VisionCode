@@ -21,7 +21,7 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(char *outfile, int _stream, bool gui) :
+C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 	camera_(_stream >= 0 ? _stream : 0)
 {
 	if (!camera_.IsOpen())
@@ -31,7 +31,12 @@ C920CameraIn::C920CameraIn(char *outfile, int _stream, bool gui) :
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
-	outfile_ = outfile;
+
+	if(outfile != NULL && camera_.IsOpen()) {
+		writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
+		if(!writer_.isOpened())
+			std::cerr << "Could not open output video " << outfile << std::endl;
+	}
 
 }
 
@@ -104,13 +109,6 @@ bool C920CameraIn::initCamera(bool gui)
 		// Off by one to account for -1 being auto.
 		cv::createTrackbar("White Balance Temperature", "Adjustments", &whiteBalanceTemperature_, 6501, whiteBalanceTemperatureCallback, this);
 		cv::createTrackbar("Focus", "Adjustments", &focus_, 256, focusCallback, this);
-	}
-
-	// open the output video
-	if(outfile_ != NULL) {
-		writer_.open(outfile_, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
-		if(!writer_.isOpened())
-			std::cerr << "Could not open output video " << outfile_ << std::endl;
 	}
 
 	frameNumber_ = 0;

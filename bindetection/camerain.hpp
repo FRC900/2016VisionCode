@@ -7,7 +7,7 @@
 class CameraIn : public MediaIn
 {
    public:
-      CameraIn(char* outfile,int stream = -1, bool gui = false);
+      CameraIn(const char* outfile,int stream = -1, bool gui = false);
 	    ~CameraIn() {}
       bool getFrame(cv::Mat &frame, cv::Mat &depth);
       bool saveFrame(cv::Mat &frame, cv::Mat &depth);

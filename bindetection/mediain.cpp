@@ -2,6 +2,7 @@
 
 MediaIn::MediaIn()
 {
+	std::cout << "MediaIn Constructor called" << std::endl;
 }
 
 int MediaIn::frameCount(void) const

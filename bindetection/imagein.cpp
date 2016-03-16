@@ -5,7 +5,7 @@
 
 using namespace cv;
 
-ImageIn::ImageIn(char *inpath, char *outpath)
+ImageIn::ImageIn(const char *inpath, const char *outpath)
 {
 	imread(inpath).copyTo(_frame);
 	if (_frame.empty())

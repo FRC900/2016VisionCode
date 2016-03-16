@@ -25,7 +25,7 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
-set (CAFFE_BASE_DIR "/home/ubuntu/libcaffe")
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 include_directories(${OpenCV_INCLUDE_DIRS}
 	../caffe_classifier ../C920VideoCap
