@@ -147,6 +147,7 @@ int main( int argc, const char** argv )
 			  !args.batchMode, args.writeVideo, args.writeVideoSkip);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
+	GroundTruth goalTruth("goal_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
 
 	// Seek to start frame if necessary
@@ -180,9 +181,7 @@ int main( int argc, const char** argv )
 	}
 
 	CameraParams camParams = cap->getCameraParams(true);
-	// Create list of tracked objects
-	// balls / boulders are 8" wide?
-	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
+	TrackedObjectList objectTrackingList(Size(cap->width(), cap->height()), camParams.fov);
 
 	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
@@ -231,7 +230,6 @@ int main( int argc, const char** argv )
 
 	int64 stepTimer;
 
-
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
@@ -278,8 +276,16 @@ int main( int argc, const char** argv )
 		float gDistance = gd.dist_to_goal();
 		float gAngle = gd.angle_to_goal();
 		Rect goalBoundRect = gd.goal_rect();
-
 		cout << "Goal Position=" << gd.goal_pos() << endl;
+
+		vector<Rect> goalTruthHitList;
+		if (cap->frameCount() >= 0)
+		{
+			vector<Rect> goalDetects;
+			goalDetects.push_back(goalBoundRect);
+			goalTruthHitList = goalTruth.processFrame(cap->frameNumber() - 1, goalDetects);
+		}
+
 		//stepTimer = cv::getTickCount();
 		//fvlc.processFrame(frame,depth);
 		if (detectState)
@@ -429,7 +435,6 @@ int main( int argc, const char** argv )
 		if (cap->frameCount() >= 0)
 			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
 
-
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
@@ -471,6 +476,8 @@ int main( int argc, const char** argv )
 			// if none is available for this particular video frame
 			drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(255,0,0), false);
 			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+			drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0,0,128), false);
+			drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
 
 			rectangle(frame, goalBoundRect, Scalar(255,0,0));
 
@@ -519,6 +526,17 @@ int main( int argc, const char** argv )
 			else if (c == 'r') // toggle args.rects info display
 			{
 				args.rects = !args.rects;
+			}
+			else if (c == 'T')
+			{
+				stringstream output_line;
+				output_line <<  args.inputName << " " << cap->frameNumber() - 1 << " " ;
+				Rect r = gd.goal_rect();
+				output_line << r.x << " " << r.y << " " << r.width << " " << r.height;
+				ofstream tag_file("goal_truth.txt", std::ios_base::app | std::ios_base::out);
+				tag_file << output_line.str() << endl;
+
+				cout << "Tagged ground truth " << output_line.str() << endl;
 			}
 			else if (c == 'a') // save all detected images
 			{
@@ -630,7 +648,10 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 	}
+	cout << "Ball detect ground truth : " << endl;
 	groundTruth.print();
+	cout << endl << "Goal detect ground truth : " << endl;
+	goalTruth.print();
 
 	if (detectState)
 		delete detectState;
