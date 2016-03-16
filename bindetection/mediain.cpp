@@ -1,5 +1,7 @@
 #include "mediain.hpp"
 
+using namespace cv;
+
 MediaIn::MediaIn()
 {
 }
@@ -19,13 +21,13 @@ void MediaIn::frameNumber(int frameNumber)
 	(void)frameNumber;
 }
 
-bool MediaIn::getDepthMat(cv::Mat &depthMat) const
+bool MediaIn::getDepthMat(Mat &depthMat) const
 {
 	depthMat = Mat(); // return empty mat to indicate no depth info
 	return false;     // in addition to returning false
 }
 
-bool MediaIn::getNormDepthMat(cv::Mat &normDepthMat) const
+bool MediaIn::getNormDepthMat(Mat &normDepthMat) const
 {
 	normDepthMat = Mat(); // return empty mat to indicate no depth info
 	return false;     // in addition to returning false

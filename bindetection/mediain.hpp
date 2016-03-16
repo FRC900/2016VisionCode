@@ -3,7 +3,6 @@
 
 #include <opencv2/core/core.hpp>
 #include <boost/thread.hpp>
-using namespace cv;
 
 class CameraParams
 {
@@ -26,31 +25,31 @@ class CameraParams
 // Base class for input.  Derived classes are cameras, videos, etc
 class MediaIn
 {
-   public:
-      MediaIn();
-	  virtual ~MediaIn() {}
-      virtual bool getFrame(cv::Mat &frame) = 0;
-		  virtual bool update() = 0;
+	public:
+		MediaIn();
+		virtual ~MediaIn() {}
+		virtual bool getFrame(cv::Mat &frame) = 0;
+		virtual bool update() = 0;
 
-	  // Image size
-      virtual int    width() const = 0;
-      virtual int    height() const = 0;
+		// Image size
+		virtual int    width() const = 0;
+		virtual int    height() const = 0;
 
-	  // How many frames?
-      virtual int    frameCount(void) const;
+		// How many frames?
+		virtual int    frameCount(void) const;
 
-	  // Get and set current frame number
-      virtual int    frameNumber(void) const;
-      virtual void   frameNumber(int frameNumber);
+		// Get and set current frame number
+		virtual int    frameNumber(void) const;
+		virtual void   frameNumber(int frameNumber);
 
-	  // Get depth info for current frame
-	  virtual CameraParams getCameraParams(bool left) const;
-	  virtual bool  getDepthMat(cv::Mat &depthMat) const;
-	  virtual bool  getNormDepthMat(cv::Mat &normDepthMat) const;
-    virtual float getDepth(int x, int y);
+		// Get depth info for current frame
+		virtual CameraParams getCameraParams(bool left) const;
+		virtual bool  getDepthMat(cv::Mat &depthMat) const;
+		virtual bool  getNormDepthMat(cv::Mat &normDepthMat) const;
+		virtual float getDepth(int x, int y);
 
 	protected:
-			cv::Mat _frame;
-			boost::mutex _mtx;
+		cv::Mat _frame;
+		boost::mutex _mtx;
 };
 #endif
