@@ -32,8 +32,12 @@ C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 		cerr << "Camera is not a C920" << endl;
 	}
 
-	if(outfile != NULL && camera_.IsOpen()) {
-		writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(640, 480), true);
+	if(outfile != NULL && camera_.IsOpen()) 
+	{
+		unsigned int width;
+		unsigned int height;
+		v4l2::GetCaptureSize(captureSize_, width, height);
+		writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width, height), true);
 		if(!writer_.isOpened())
 			std::cerr << "Could not open output video " << outfile << std::endl;
 	}
@@ -115,13 +119,14 @@ bool C920CameraIn::initCamera(bool gui)
 	return true;
 }
 
-bool C920CameraIn::update() {
-	if (!camera_.IsOpen())
-		return false;
-	if (!camera_.GrabFrame())
+bool C920CameraIn::update() 
+{
+	if (!camera_.IsOpen() ||
+	    !camera_.GrabFrame() ||
+	    !camera_.RetrieveMat(localFrame_))
 		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
-		camera_.RetrieveMat(_frame);
+	localFrame_.copyTo(_frame);
 	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
 	frameNumber_ += 1;
@@ -130,19 +135,20 @@ bool C920CameraIn::update() {
 
 bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!camera_.IsOpen())
 		return false;
-		if( _frame.empty() )
-			return false;
-
-	frame = _frame.clone();
 	depth = Mat();
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if( _frame.empty() )
+		return false;
+	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
 	return true;
 }
 
-bool C920CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
+bool C920CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
+{
+	(void) depth;
 	writer_ << frame;
 	return true;
 }

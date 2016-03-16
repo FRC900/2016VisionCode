@@ -48,7 +48,8 @@ class C920CameraIn : public MediaIn
 	  friend void focusCallback(int value, void *data);
 
       v4l2::C920Camera  camera_;
-      cv::VideoWriter writer_;
+      cv::VideoWriter   writer_;
+	  cv::Mat           localFrame_;
       int               brightness_;
       int               contrast_;
       int               saturation_;
@@ -59,7 +60,7 @@ class C920CameraIn : public MediaIn
       int               backlightCompensation_;
       int               whiteBalanceTemperature_;
 	  int               frameNumber_;
-    int               lockedFrameNumber_;
+	  int               lockedFrameNumber_;
 	  v4l2::CaptureSize captureSize_;
 #endif
 };
