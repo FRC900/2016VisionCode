@@ -287,445 +287,441 @@ int main(int argc, const char **argv)
     //  -- add those newly detected objects to the list of tracked objects
     while (true)
     {
-        if (!pause)
+        if ((!cap->update()) ||
+            !cap->getFrame(frame) ||
+            !cap->getDepthMat(depth))
         {
-            if ((!cap->update()) ||
-                !cap->getFrame(frame) ||
-                !cap->getDepthMat(depth))
+            break;
+        }
+
+        frameTicker.mark();         // mark start of new frame
+
+        if (args.writeVideo &&
+            (!args.writeVideoSkip || ((writeFrameCounter++ % args.writeVideoSkip) == 0)))
+        {
+            writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
+        }
+
+        // This code will load a classifier if none is loaded - this handles
+        // initializing the classifier the first time through the loop.
+        // It also handles cases where the user changes the classifer
+        // being used - this forces a reload
+        // Finally, it allows a switch between CPU and GPU on the fly
+        if (detectState && (detectState->update() == false))
+        {
+            break;
+        }
+
+        //run Goaldetector
+        gd.processFrame(frame, depth);
+
+        cout << "Goal Position=" << gd.goal_pos() << endl;
+
+        vector<Rect> goalTruthHitList;
+        if (cap->frameCount() >= 0)
+        {
+            vector<Rect> goalDetects;
+            goalDetects.push_back(gd.goal_rect());
+            goalTruthHitList = goalTruth.processFrame(cap->frameNumber() - 1, goalDetects);
+        }
+
+        //stepTimer = cv::getTickCount();
+        //fvlc.processFrame(frame,depth);
+        if (detectState)
+        {
+            fllc.processFrame(frame);
+        }
+        //cout << "Time to filc - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+
+        // Apply the classifier to the frame
+        // detectRects is a vector of rectangles, one for each detected object
+        //stepTimer = cv::getTickCount();
+        vector<Rect> detectRects;
+        if (detectState)
+        {
+            detectState->detector()->Detect(frame, depth, detectRects);
+        }
+        //cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+
+        // Check ground truth data on videos and images,
+        // but not on camera input
+        vector<Rect> groundTruthHitList;
+        if (cap->frameCount() >= 0)
+        {
+            groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
+        }
+
+        // If args.captureAll is enabled, write each detected rectangle
+        // to their own output image file. Do it before anything else
+        // so there's nothing else drawn to frame yet, just the raw
+        // input image
+        if (args.captureAll)
+        {
+            for (size_t index = 0; index < detectRects.size(); index++)
             {
-                break;
-            }
-
-            frameTicker.mark();     // mark start of new frame
-
-            if (args.writeVideo &&
-                (!args.writeVideoSkip || ((writeFrameCounter++ % args.writeVideoSkip) == 0)))
-            {
-                writeVideoToFile(rawVideo, getVideoOutName().c_str(), frame, NULL, true);
-            }
-
-            // This code will load a classifier if none is loaded - this handles
-            // initializing the classifier the first time through the loop.
-            // It also handles cases where the user changes the classifer
-            // being used - this forces a reload
-            // Finally, it allows a switch between CPU and GPU on the fly
-            if (detectState && (detectState->update() == false))
-            {
-                break;
-            }
-
-            //run Goaldetector
-            gd.processFrame(frame, depth);
-
-            cout << "Goal Position=" << gd.goal_pos() << endl;
-
-            vector<Rect> goalTruthHitList;
-            if (cap->frameCount() >= 0)
-            {
-                vector<Rect> goalDetects;
-                goalDetects.push_back(gd.goal_rect());
-                goalTruthHitList = goalTruth.processFrame(cap->frameNumber() - 1, goalDetects);
-            }
-
-            //stepTimer = cv::getTickCount();
-            //fvlc.processFrame(frame,depth);
-            if (detectState)
-            {
-                fllc.processFrame(frame);
-            }
-            //cout << "Time to filc - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
-
-            // Apply the classifier to the frame
-            // detectRects is a vector of rectangles, one for each detected object
-            //stepTimer = cv::getTickCount();
-            vector<Rect> detectRects;
-            if (detectState)
-            {
-                detectState->detector()->Detect(frame, depth, detectRects);
-            }
-            //cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
-
-            // Check ground truth data on videos and images,
-            // but not on camera input
-            vector<Rect> groundTruthHitList;
-            if (cap->frameCount() >= 0)
-            {
-                groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
-            }
-
-            // If args.captureAll is enabled, write each detected rectangle
-            // to their own output image file. Do it before anything else
-            // so there's nothing else drawn to frame yet, just the raw
-            // input image
-            if (args.captureAll)
-            {
-                for (size_t index = 0; index < detectRects.size(); index++)
-                {
-                    writeImage(frame, detectRects, index, capPath.c_str(), cap->frameNumber());
-                }
-            }
-
-            if (detectState)
-            {
-                //adjust locations of objects based on estimated camera motion
-                //utils::printIsometry(fvlc.transform_eigen());
-
-                cout << "Locations before adjustment: " << endl;
-                objectTrackingList.print();
-
-                //objectTrackingList.adjustLocation(fvlc.transform_eigen());
-                objectTrackingList.adjustLocation(fllc.transform_mat());
-
-                cout << "Locations after adjustment: " << endl;
-                objectTrackingList.print();
-            }
-
-            // Process detected rectangles - either match up with the nearest object
-            // or add them as a new ones
-            //stepTimer = cv::getTickCount();
-            vector<Rect>       depthFilteredDetectRects;
-            vector<float>      depths;
-            vector<ObjectType> objTypes;
-            const float        depthRectScale = 0.2;
-            for (auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
-            {
-                cout << "Detected object at: " << *it;
-                Rect depthRect = *it;
-
-                shrinkRect(depthRect, depthRectScale);
-                Mat   emptyMask(depth.rows, depth.cols, CV_8UC1, Scalar(255));
-                float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
-                cout << " Depth: " << objectDepth << endl;
-                if (objectDepth > 0)
-                {
-                    depthFilteredDetectRects.push_back(*it);
-                    depths.push_back(objectDepth);
-                    objTypes.push_back(ObjectType(1));
-                }
-            }
-
-            objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
-            //cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
-
-            // Grab info from trackedobjects. Display it and update zmq subscribers
-            vector<TrackedObjectDisplay> displayList;
-            objectTrackingList.getDisplay(displayList);
-
-            sendZMQData(netTableArraySize, publisher, displayList, gd);
-
-            // For interactive mode, update the FPS as soon as we have
-            // a complete array of frame time entries
-            // For args.batch mode, only update every frameTicksLength frames to
-            // avoid printing too much stuff
-            if (frameTicker.valid() &&
-                ((!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-                 (args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
-            {
-                int          frames = cap->frameCount();
-                stringstream frameStr;
-                frameStr << cap->frameNumber();
-                if (frames > 0)
-                {
-                    frameStr << '/' << frames;
-                }
-
-                stringstream fpsStr;
-                fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
-                if (!args.batchMode)
-                {
-                    if (printFrames)
-                    {
-                        putText(frame, frameStr.str(),
-                                Point(frame.cols - 15 * frameStr.str().length(), 20),
-                                FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
-                    }
-                    putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
-                }
-                else
-                {
-                    cerr << frameStr.str() << " : " << fpsStr.str() << endl;
-                }
-            }
-
-            // Various random display updates. Only do them every frameDisplayFrequency
-            // frames. Normally this value is 1 so we display every frame. When exporting
-            // X over a network, though, we can speed up processing by only displaying every
-            // 3, 5 or whatever frames instead.
-            // Also need to do them if we're saving marked-up video since this is the
-            // code which actually writes the annotations to each frame
-            if (args.saveVideo || (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)))
-            {
-                // Draw detected rectangles on frame
-                drawRects(frame, detectRects);
-
-                // Draw tracking info on display if that option is enabled
-                if (args.tracking)
-                {
-                    drawTrackingInfo(frame, displayList);
-                    if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
-                    {
-                        drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
-                        imshow("Top view", top_frame);
-                    }
-                }
-
-                // Put an A on the screen if capture-all is enabled so
-                // users can keep track of that toggle's mode
-                if (args.captureAll)
-                {
-                    putText(frame, "A", Point(25, 25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
-                }
-
-                // Display current classifier under test
-                if (detectState)
-                {
-                    putText(frame, detectState->print(),
-                            Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
-                            1.5, Scalar(0, 0, 255));
-                }
-
-                // Display crosshairs so we can line up the camera
-                if (args.calibrate)
-                {
-                    line(frame, Point(frame.cols / 2, 0), Point(frame.cols / 2, frame.rows), Scalar(255, 255, 0));
-                    line(frame, Point(0, frame.rows / 2), Point(frame.cols, frame.rows / 2), Scalar(255, 255, 0));
-                }
-
-                // Draw ground truth info for this frame. Will be a no-op
-                // if none is available for this particular video frame
-                drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(128, 0, 0), false);
-                drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
-                drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
-                drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
-
-                rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
-                // Draw goal debugging info if enabled
-                if (gdDraw)
-                {
-                    gd.drawOnFrame(frame);
-                }
-
-                // If saveVideo is set, write the marked-up frame to a file
-                if (args.saveVideo)
-                {
-                    writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, NULL, false);
-                }
-
-                // Main call to display output for this frame after all
-                // info has been written on it.
+                writeImage(frame, detectRects, index, capPath.c_str(), cap->frameNumber());
             }
         }
-        if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
-        {
-            imshow(windowName, frame);
 
-            // Process user input for this frame
-            char c = waitKey(5);
-            if ((c == 'c') || (c == 'q') || (c == 27))
-            {                     // exit
-                break;
-            }
-            else if (c == ' ')                      // Toggle pause
+        if (detectState)
+        {
+            //adjust locations of objects based on estimated camera motion
+            //utils::printIsometry(fvlc.transform_eigen());
+
+            cout << "Locations before adjustment: " << endl;
+            objectTrackingList.print();
+
+            //objectTrackingList.adjustLocation(fvlc.transform_eigen());
+            objectTrackingList.adjustLocation(fllc.transform_mat());
+
+            cout << "Locations after adjustment: " << endl;
+            objectTrackingList.print();
+        }
+
+        // Process detected rectangles - either match up with the nearest object
+        // or add them as a new ones
+        //stepTimer = cv::getTickCount();
+        vector<Rect>       depthFilteredDetectRects;
+        vector<float>      depths;
+        vector<ObjectType> objTypes;
+        const float        depthRectScale = 0.2;
+        for (auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
+        {
+            cout << "Detected object at: " << *it;
+            Rect depthRect = *it;
+
+            shrinkRect(depthRect, depthRectScale);
+            Mat   emptyMask(depth.rows, depth.cols, CV_8UC1, Scalar(255));
+            float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+            cout << " Depth: " << objectDepth << endl;
+            if (objectDepth > 0)
             {
-                pause = !pause;
+                depthFilteredDetectRects.push_back(*it);
+                depths.push_back(objectDepth);
+                objTypes.push_back(ObjectType(1));
             }
-            else if (c == 'f')                      // advance to next frame
+        }
+
+        objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
+        //cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
+
+        // Grab info from trackedobjects. Display it and update zmq subscribers
+        vector<TrackedObjectDisplay> displayList;
+        objectTrackingList.getDisplay(displayList);
+
+        sendZMQData(netTableArraySize, publisher, displayList, gd);
+
+        // For interactive mode, update the FPS as soon as we have
+        // a complete array of frame time entries
+        // For args.batch mode, only update every frameTicksLength frames to
+        // avoid printing too much stuff
+        if (frameTicker.valid() &&
+            ((!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
+             (args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
+        {
+            int          frames = cap->frameCount();
+            stringstream frameStr;
+            frameStr << cap->frameNumber();
+            if (frames > 0)
             {
-                if (!pause)
+                frameStr << '/' << frames;
+            }
+
+            stringstream fpsStr;
+            fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
+            if (!args.batchMode)
+            {
+                if (printFrames)
                 {
-                    pause = true;
+                    putText(frame, frameStr.str(),
+                            Point(frame.cols - 15 * frameStr.str().length(), 20),
+                            FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
                 }
-                if (args.groundTruth)
+                putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0, 0, 255));
+            }
+            else
+            {
+                cerr << frameStr.str() << " : " << fpsStr.str() << endl;
+            }
+        }
+
+        // Various random display updates. Only do them every frameDisplayFrequency
+        // frames. Normally this value is 1 so we display every frame. When exporting
+        // X over a network, though, we can speed up processing by only displaying every
+        // 3, 5 or whatever frames instead.
+        // Also need to do them if we're saving marked-up video since this is the
+        // code which actually writes the annotations to each frame
+        if (args.saveVideo || (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)))
+        {
+            // Draw detected rectangles on frame
+            drawRects(frame, detectRects);
+
+            // Draw tracking info on display if that option is enabled
+            if (args.tracking)
+            {
+                drawTrackingInfo(frame, displayList);
+                if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
                 {
-                    int frame = groundTruth.nextFrameNumber();
-                    // Exit if no more frames left to test
-                    if (frame == -1)
+                    drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
+                    imshow("Top view", top_frame);
+                }
+            }
+
+            // Put an A on the screen if capture-all is enabled so
+            // users can keep track of that toggle's mode
+            if (args.captureAll)
+            {
+                putText(frame, "A", Point(25, 25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
+            }
+
+            // Display current classifier under test
+            if (detectState)
+            {
+                putText(frame, detectState->print(),
+                        Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
+                        1.5, Scalar(0, 0, 255));
+            }
+
+            // Display crosshairs so we can line up the camera
+            if (args.calibrate)
+            {
+                line(frame, Point(frame.cols / 2, 0), Point(frame.cols / 2, frame.rows), Scalar(255, 255, 0));
+                line(frame, Point(0, frame.rows / 2), Point(frame.cols, frame.rows / 2), Scalar(255, 255, 0));
+            }
+
+            // Draw ground truth info for this frame. Will be a no-op
+            // if none is available for this particular video frame
+            drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(128, 0, 0), false);
+            drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+            drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
+            drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
+
+            rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
+            // Draw goal debugging info if enabled
+            if (gdDraw)
+            {
+                gd.drawOnFrame(frame);
+            }
+
+            // If saveVideo is set, write the marked-up frame to a file
+            if (args.saveVideo)
+            {
+                writeVideoToFile(markedupVideo, getVideoOutName(false).c_str(), frame, NULL, false);
+            }
+
+            // Main call to display output for this frame after all
+            // info has been written on it.
+            if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
+            {
+                imshow(windowName, frame);
+
+                // Process user input for this frame
+                char c = waitKey(5);
+                if ((c == 'c') || (c == 'q') || (c == 27))
+                {                 // exit
+                    break;
+                }
+                else if (c == ' ')                  // Toggle pause
+                {
+                    pause = !pause;
+                }
+                else if (c == 'f')                  // advance to next frame
+                {
+                    if (!pause)
+                    {
+                        pause = true;
+                    }
+                    if (args.groundTruth)
+                    {
+                        int frame = groundTruth.nextFrameNumber();
+                        // Exit if no more frames left to test
+                        if (frame == -1)
+                        {
+                            break;
+                        }
+                        // Otherwise, if not paused, move to the next frame
+                        cap->frameNumber(frame);
+                    }
+                    if (!cap->update() || !cap->getFrame(frame))
                     {
                         break;
                     }
-                    // Otherwise, if not paused, move to the next frame
-                    cap->frameNumber(frame);
                 }
-                if (!cap->update() || !cap->getFrame(frame))
+                else if (c == 'A')                 // toggle capture-all
                 {
-                    break;
+                    args.captureAll = !args.captureAll;
                 }
-            }
-            else if (c == 'A')                     // toggle capture-all
-            {
-                args.captureAll = !args.captureAll;
-            }
-            else if (c == 't')                     // toggle args.tracking info display
-            {
-                args.tracking = !args.tracking;
-            }
-            else if (c == 'r')                     // toggle args.rects info display
-            {
-                args.rects = !args.rects;
-            }
-            else if (c == 'T')
-            {
-                stringstream output_line;
-                output_line << args.inputName << " " << cap->frameNumber() - 1 << " ";
-                Rect r = gd.goal_rect();
-                output_line << r.x << " " << r.y << " " << r.width << " " << r.height;
-                ofstream tag_file("goal_truth.txt", std::ios_base::app | std::ios_base::out);
-                tag_file << output_line.str() << endl;
+                else if (c == 't')                 // toggle args.tracking info display
+                {
+                    args.tracking = !args.tracking;
+                }
+                else if (c == 'r')                 // toggle args.rects info display
+                {
+                    args.rects = !args.rects;
+                }
+                else if (c == 'T')
+                {
+                    stringstream output_line;
+                    output_line << args.inputName << " " << cap->frameNumber() - 1 << " ";
+                    Rect r = gd.goal_rect();
+                    output_line << r.x << " " << r.y << " " << r.width << " " << r.height;
+                    ofstream tag_file("goal_truth.txt", std::ios_base::app | std::ios_base::out);
+                    tag_file << output_line.str() << endl;
 
-                cout << "Tagged ground truth " << output_line.str() << endl;
-            }
-            else if (c == 'a')                     // save all detected images
-            {
-                // Save from a copy rather than the original
-                // so all the markup isn't saved, only the raw image
-                Mat frameCopy;
-                cap->getFrame(frameCopy);
-                for (size_t index = 0; index < detectRects.size(); index++)
-                {
-                    writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
+                    cout << "Tagged ground truth " << output_line.str() << endl;
                 }
-            }
-            else if (c == 'p')                     // print frame number to console
-            {
-                cout << cap->frameNumber() << endl;
-            }
-            else if (c == 'P')                     // Toggle frame # printing to display
-            {
-                printFrames = !printFrames;
-            }
-            else if (c == 'S')
-            {
-                frameDisplayFrequency += 1;
-            }
-            else if (c == 's')
-            {
-                frameDisplayFrequency = max(1, frameDisplayFrequency - 1);
-            }
-            else if (c == 'g')                     // toggle Goal Detect drawing
-            {
-                gdDraw = !gdDraw;
-            }
-            else if (c == 'G')                     // toggle CPU/GPU mode
-            {
-                if (detectState)
+                else if (c == 'a')                 // save all detected images
                 {
-                    detectState->toggleGPU();
+                    // Save from a copy rather than the original
+                    // so all the markup isn't saved, only the raw image
+                    Mat frameCopy;
+                    cap->getFrame(frameCopy);
+                    for (size_t index = 0; index < detectRects.size(); index++)
+                    {
+                        writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
+                    }
                 }
-            }
-            else if (c == '.')                     // higher classifier stage
-            {
-                if (detectState)
+                else if (c == 'p')                 // print frame number to console
                 {
-                    detectState->changeD12SubModel(true);
+                    cout << cap->frameNumber() << endl;
                 }
-            }
-            else if (c == ',')                     // lower classifier stage
-            {
-                if (detectState)
+                else if (c == 'P')                 // Toggle frame # printing to display
                 {
-                    detectState->changeD12SubModel(false);
+                    printFrames = !printFrames;
                 }
-            }
-            else if (c == '>')                     // higher classifier dir num
-            {
-                if (detectState)
+                else if (c == 'S')
                 {
-                    detectState->changeD12Model(true);
+                    frameDisplayFrequency += 1;
                 }
-            }
-            else if (c == '<')                     // lower classifier dir num
-            {
-                if (detectState)
+                else if (c == 's')
                 {
-                    detectState->changeD12Model(false);
+                    frameDisplayFrequency = max(1, frameDisplayFrequency - 1);
                 }
-            }
-            else if (c == 'm')                     // higher classifier stage
-            {
-                if (detectState)
+                else if (c == 'g')                 // toggle Goal Detect drawing
                 {
-                    detectState->changeD24SubModel(true);
+                    gdDraw = !gdDraw;
                 }
-            }
-            else if (c == 'n')                     // lower classifier stage
-            {
-                if (detectState)
+                else if (c == 'G')                 // toggle CPU/GPU mode
                 {
-                    detectState->changeD24SubModel(false);
+                    if (detectState)
+                    {
+                        detectState->toggleGPU();
+                    }
                 }
-            }
-            else if (c == 'M')                     // higher classifier dir num
-            {
-                if (detectState)
+                else if (c == '.')                 // higher classifier stage
                 {
-                    detectState->changeD24Model(true);
+                    if (detectState)
+                    {
+                        detectState->changeD12SubModel(true);
+                    }
                 }
-            }
-            else if (c == 'N')                     // lower classifier dir num
-            {
-                if (detectState)
+                else if (c == ',')                 // lower classifier stage
                 {
-                    detectState->changeD24Model(false);
+                    if (detectState)
+                    {
+                        detectState->changeD12SubModel(false);
+                    }
                 }
-            }
-            else if (isdigit(c))                     // save a single detected image
-            {
-                Mat frameCopy;
-                cap->getFrame(frameCopy);
-                writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
+                else if (c == '>')                 // higher classifier dir num
+                {
+                    if (detectState)
+                    {
+                        detectState->changeD12Model(true);
+                    }
+                }
+                else if (c == '<')                 // lower classifier dir num
+                {
+                    if (detectState)
+                    {
+                        detectState->changeD12Model(false);
+                    }
+                }
+                else if (c == 'm')                 // higher classifier stage
+                {
+                    if (detectState)
+                    {
+                        detectState->changeD24SubModel(true);
+                    }
+                }
+                else if (c == 'n')                 // lower classifier stage
+                {
+                    if (detectState)
+                    {
+                        detectState->changeD24SubModel(false);
+                    }
+                }
+                else if (c == 'M')                 // higher classifier dir num
+                {
+                    if (detectState)
+                    {
+                        detectState->changeD24Model(true);
+                    }
+                }
+                else if (c == 'N')                 // lower classifier dir num
+                {
+                    if (detectState)
+                    {
+                        detectState->changeD24Model(false);
+                    }
+                }
+                else if (isdigit(c))                 // save a single detected image
+                {
+                    Mat frameCopy;
+                    cap->getFrame(frameCopy);
+                    writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
+                }
             }
         }
-    }
 
-    // If testing only ground truth frames, move to the
-    // next one in the list
-    if (args.groundTruth)
-    {
-        int frame = groundTruth.nextFrameNumber();
-        // Exit if no more frames left to test
-        if (frame == -1)
+        // If testing only ground truth frames, move to the
+        // next one in the list
+        if (args.groundTruth)
+        {
+            int frame = groundTruth.nextFrameNumber();
+            // Exit if no more frames left to test
+            if (frame == -1)
+            {
+                break;
+            }
+            // Otherwise, if not paused, move to the next frame
+            if (!pause)
+            {
+                cap->frameNumber(frame);
+            }
+        }
+        // Skip over frames if needed - useful for batch extracting hard negatives
+        // so we don't get negatives from every frame. Sequential frames will be
+        // pretty similar so there will be lots of redundant images found
+        else if (!pause && (args.skip > 0))
+        {
+            // Exit if the next skip puts the frame beyond the end of the video
+            if ((cap->frameNumber() + args.skip) >= cap->frameCount())
+            {
+                break;
+            }
+            cap->frameNumber(cap->frameNumber() + args.skip - 1);
+        }
+
+        // Check for running still images in batch mode - only
+        // process the image once rather than looping forever
+        if (args.batchMode && (cap->frameCount() == 1))
         {
             break;
         }
-        // Otherwise, if not paused, move to the next frame
-        if (!pause)
-        {
-            cap->frameNumber(frame);
-        }
     }
-    // Skip over frames if needed - useful for batch extracting hard negatives
-    // so we don't get negatives from every frame. Sequential frames will be
-    // pretty similar so there will be lots of redundant images found
-    else if (!pause && (args.skip > 0))
+
+
+    cout << "Ball detect ground truth : " << endl;
+    groundTruth.print();
+    cout << endl << "Goal detect ground truth : " << endl;
+    goalTruth.print();
+
+    if (detectState)
     {
-        // Exit if the next skip puts the frame beyond the end of the video
-        if ((cap->frameNumber() + args.skip) >= cap->frameCount())
-        {
-            break;
-        }
-        cap->frameNumber(cap->frameNumber() + args.skip - 1);
+        delete detectState;
     }
 
-    // Check for running still images in batch mode - only
-    // process the image once rather than looping forever
-    if (args.batchMode && (cap->frameCount() == 1))
-    {
-        break;
-    }
-}
-
-
-cout << "Ball detect ground truth : " << endl;
-groundTruth.print();
-cout << endl << "Goal detect ground truth : " << endl;
-goalTruth.print();
-
-if (detectState)
-{
-    delete detectState;
-}
-
-return 0;
+    return 0;
 }
 
 
@@ -745,7 +741,7 @@ void writeImage(const Mat& frame, const vector<Rect>& rects, size_t index, const
 
 string getDateTimeString(void)
 {
-    time_t rawtime;
+    time_t    rawtime;
     struct tm *timeinfo;
 
     time(&rawtime);
@@ -772,7 +768,7 @@ void openMedia(const string& fileName, MediaIn *& cap, string& capPath, string& 
         ((fileName.find('.') == string::npos) && isdigit(fileName[0])))
     {
         stringstream ss;
-        int camera = fileName.length() ? atoi(fileName.c_str()) : 0;
+        int          camera = fileName.length() ? atoi(fileName.c_str()) : 0;
 
         cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true, true).c_str() : NULL, gui, writeVideoSkip);
         Mat mat;
@@ -833,12 +829,12 @@ void openMedia(const string& fileName, MediaIn *& cap, string& capPath, string& 
 // Video-MM-DD-YY_hr-min-sec-##.avi
 string getVideoOutName(bool raw, bool zms)
 {
-    int index = 0;
-    int rc;
-    struct stat statbuf;
+    int          index = 0;
+    int          rc;
+    struct stat  statbuf;
     stringstream ss;
-    time_t rawtime;
-    struct tm *timeinfo;
+    time_t       rawtime;
+    struct tm    *timeinfo;
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
