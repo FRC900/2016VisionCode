@@ -254,10 +254,10 @@ int main( int argc, const char** argv )
 	if (!cap->update() || !cap->getFrame(frame, depth))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
-    if(!cap->update())
-      cerr << "Update failed" << endl;
-    else
-      cerr << "getFrame failed" << endl;
+		if(!cap->update())
+			cerr << "Update failed" << endl;
+		else
+			cerr << "getFrame failed" << endl;
 		return 0;
 	}
 
@@ -282,12 +282,11 @@ int main( int argc, const char** argv )
 	while(true)
 	{
 		sem->wait();
-		if((!pause && !cap->update()) ||
-		   !cap->getFrame(frame, depth))
+		if(!cap->getFrame(frame, depth))
 			break;
 
 		frameTicker.mark(); // mark start of new frame
-if (--videoWritePollCount == 0)
+		if (--videoWritePollCount == 0)
 		{
 			//args.writeVideo = netTable->GetBoolean("WriteVideo", args.writeVideo);
 			videoWritePollCount = videoWritePollFrequency;
