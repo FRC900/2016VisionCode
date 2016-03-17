@@ -46,12 +46,16 @@ void openVideoCap(const string& fileName, VideoIn *& cap, string& capPath, strin
 string getVideoOutName(bool raw = true, bool zms = false);
 void writeVideoToFile(VideoWriter& outputVideo, const char *filename, const Mat& frame, void *netTable, bool dateAndTime);
 
-void my_handler(int s){
-    if(s == SIGINT)
+static bool isRunning = true;
+
+void my_handler(int s)
+{
+    if (s == SIGINT)
     {
         isRunning = false;
     }
 }
+
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 {
     for (auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
@@ -177,7 +181,6 @@ int main(int argc, const char **argv)
     bool pause                 = false; // pause playback?
     bool printFrames           = false; // print frame number?
     bool gdDraw                = false; // draw goal detect details
-    bool isRunning             = false;
     int  frameDisplayFrequency = 1;
 
     // Hopefully this turns off any logging
