@@ -19,7 +19,7 @@ void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
 void zedWhiteBalanceCallback(int value, void *data);
 
-ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
+ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outFileFrameSkip) :
 	zed_(NULL),
 	width_(0),
 	height_(0),
@@ -30,9 +30,14 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 	serializeOut_(NULL),
 	filtSBOut_(NULL),
 	archiveOut_(NULL) ,
+	outFileFrameSkip_(outFileFrameSkip),
+	outFileFrameCounter_(0),
 	serializeFrameStart_(0),
 	serializeFrameSize_(0)
 {
+	if (outFileFrameSkip_ <= 0)
+		outFileFrameSkip_ = 1;
+
 	if (inFileName)
 	{
 		// Might be svo, might be zms
@@ -85,11 +90,11 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(4, this);
+			zedBrightnessCallback(3, this);
 			zedContrastCallback(6, this);
 			zedHueCallback(7, this);
 			zedSaturationCallback(4, this);
-			zedGainCallback(2, this);
+			zedGainCallback(1, this);
 			zedWhiteBalanceCallback(3101, this);
 
 			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
@@ -123,12 +128,13 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui) :
 		frameNumber_ += 1;
 #if 0
 		serializeFrameSize_ = serializeIn_->tellg() - serializeFrameStart_;
+#endif
 		if (!openSerializeInput(inFileName))
 			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
-#endif
 		width_  = _frame.cols;
 		height_ = _frame.rows;
 	}
+
 	while (height_ > 700)
 	{
 		width_  /= 2;
@@ -318,16 +324,21 @@ bool ZedIn::update(bool left)
 	}
 	else
 		return false;
-
 	return true;
 }
 
 bool ZedIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
 {
 	// Write output to serialized file if it is open
-	if (archiveOut_)
+	// if we've skipped enough frames since the last write 
+	// (which could be every frame if outFileFrameSkip == 0 or 1
+	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
 	{
+		//lock the mutex because each << operator is a seperate operation and having two
+		//chained could possibly lead to a different depth and frame
+		_mtx.lock();
 		*archiveOut_ << frame << depth;
+		_mtx.unlock();
 		const int frameSplitCount = 300;
 		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 		{
@@ -568,13 +579,6 @@ ZedIn::ZedIn(const char *filename, const char *outputName)
 {
 	(void)filename;
 	cerr << "Zed support not compiled in" << endl;
-}
-
-
-bool ZedIn::getFrame(Mat &frame)
-{
-	(void)frame;
-	return false;
 }
 
 

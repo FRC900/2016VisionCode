@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -40,92 +41,104 @@ using namespace cv;
 using namespace utils;
 
 //function prototypes
-void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber);
+void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd);
+void writeImage(const Mat& frame, const vector<Rect>& rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool &writeVideo);
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool writeVideo);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
-void writeVideoToFile(VideoWriter &outputVideo, const char *filename, const Mat &frame, void *netTable, bool dateAndTime);
+
+static bool isRunning = true;
+
+void my_handler(int s)
+{
+    if (s == SIGINT || s == SIGTERM)
+    {
+        isRunning = false;
+    }
+}
 
 void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 {
-    for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
-	{
-		// Mark detected rectangle on image
-		// Change color based on direction we think the bin is pointing
-	    rectangle(image, *it, rectColor, 3);
-		// Label each outlined image with a digit.  Top-level code allows
-		// users to save these small images by hitting the key they're labeled with
-		// This should be a quick way to grab lots of falsly detected images
-		// which need to be added to the negative list for the next
-		// pass of classifier training.
-		if (text)
-		{
-			size_t i = it - detectRects.begin();
-			if (i < 10)
-			{
-				stringstream label;
-				label << i;
-				putText(image, label.str(), Point(it->x+10, it->y+30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
-			}
-		}
-	}
+    for (auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
+    {
+        // Mark detected rectangle on image
+        // Change color based on direction we think the bin is pointing
+        rectangle(image, *it, rectColor, 3);
+        // Label each outlined image with a digit.  Top-level code allows
+        // users to save these small images by hitting the key they're labeled with
+        // This should be a quick way to grab lots of falsly detected images
+        // which need to be added to the negative list for the next
+        // pass of classifier training.
+        if (text)
+        {
+            size_t i = it - detectRects.begin();
+            if (i < 10)
+            {
+                stringstream label;
+                label << i;
+                putText(image, label.str(), Point(it->x + 10, it->y + 30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
+            }
+        }
+    }
 }
 
-void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList)
+
+void drawTrackingInfo(Mat& frame, vector<TrackedObjectDisplay>& displayList)
 {
-   for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
-   {
-	  if (it->ratio >= 0.15)
-	  {
-		 const int roundPosTo = 2;
-		 // Color moves from red to green (via brown, yuck)
-		 // as the detected ratio goes up
-		 Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
-		 // Highlight detected target
-		 rectangle(frame, it->rect, rectColor, 3);
-		 // Write detect ID, distance and angle data
-		 putText(frame, it->id, Point(it->rect.x+25, it->rect.y+30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
-		 stringstream label;
-		 label << fixed << setprecision(roundPosTo);
-		 label << "(" << it->position.x << "," << it->position.y << "," << it->position.z << ")";
-		 putText(frame, label.str(), Point(it->rect.x+10, it->rect.y-10), FONT_HERSHEY_PLAIN, 1.2, rectColor);
-	  }
-   }
+    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
+    {
+        if (it->ratio >= 0.15)
+        {
+            const int roundPosTo = 2;
+            // Color moves from red to green (via brown, yuck)
+            // as the detected ratio goes up
+            Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
+            // Highlight detected target
+            rectangle(frame, it->rect, rectColor, 3);
+            // Write detect ID, distance and angle data
+            putText(frame, it->id, Point(it->rect.x + 25, it->rect.y + 30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
+            stringstream label;
+            label << fixed << setprecision(roundPosTo);
+            label << "(" << it->position.x << "," << it->position.y << "," << it->position.z << ")";
+            putText(frame, label.str(), Point(it->rect.x + 10, it->rect.y - 10), FONT_HERSHEY_PLAIN, 1.2, rectColor);
+        }
+    }
 }
 
-void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList, const Point3f &goalPos)
-{
-	//create a top view image of the robot and all detected objects
-	Range xRange = Range(-1,9);
-	Range yRange = Range(-1,9);
-	Point imageSize = Point(640,640);
-	Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
-	int rectSize = 40;
 
-	frame = Mat(imageSize.y,imageSize.x,CV_8UC3, Scalar(0,0,0) );
-	circle(frame,imageCenter, 10, Scalar(0,0,255));
-	line(frame, imageCenter, imageCenter - Point(0,imageSize.x / 2), Scalar(0,0,255), 3);
-	for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
-	{
-		Point2f realPos = Point2f(it->position.x, it->position.y);
-		Point2f imagePos;
-		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
-		imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
-		circle(frame, imagePos, rectSize, Scalar(255,0,0), 5);
-	}
-	if (goalPos != Point3f())
-	{
-		cout << "Goal Position=" << goalPos << endl;
-		Point2f realPos = Point2f(goalPos.x, goalPos.y);
-		Point2f imagePos;
-		imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
-		imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
-		circle(frame, imagePos, rectSize, Scalar(255,255,0), 5);
-	}
+void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, const Point3f& goalPos)
+{
+    //create a top view image of the robot and all detected objects
+    Range xRange = Range(-4, 4);
+    Range yRange = Range(-9, 9);
+
+    Point imageSize   = Point(640, 640);
+    Point imageCenter = Point(imageSize.x / 2, imageSize.y / 2);
+    int   rectSize    = 40;
+
+    frame = Mat(imageSize.y, imageSize.x, CV_8UC3, Scalar(0, 0, 0));
+    circle(frame, imageCenter, 10, Scalar(0, 0, 255));
+    line(frame, imageCenter, imageCenter - Point(0, imageSize.x / 2), Scalar(0, 0, 255), 3);
+    for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
+    {
+        Point2f realPos = Point2f(it->position.x, it->position.y);
+        Point2f imagePos;
+        imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
+        imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
+        circle(frame, imagePos, rectSize, Scalar(255, 0, 0), 5);
+    }
+    if (goalPos != Point3f())
+    {
+        Point2f realPos = Point2f(goalPos.x, goalPos.y);
+        Point2f imagePos;
+        imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
+        imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
+        circle(frame, imagePos, rectSize, Scalar(255, 255, 0), 5);
+    }
 }
 
 void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) 
@@ -166,16 +179,26 @@ int main( int argc, const char** argv )
 	// cmd line parameters and input filename
 	Args args;
 
+	int64 stepTimer;
+
 	if (!args.processArgs(argc, argv))
 		return -2;
+
+	struct sigaction sigIntHandler;
+
+    sigIntHandler.sa_handler = my_handler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = SA_SIGINFO;
+    sigaction(SIGINT, &sigIntHandler, NULL);
 
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap;
 	openMedia(cap, args.inputName ,capPath, windowName,
-			  !args.batchMode, args.writeVideo);
+			  !args.batchMode, args.writeVideo || args.saveVideo);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
+	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
 
 	//this is used to synchronize the main and grab loops
@@ -225,11 +248,7 @@ int main( int argc, const char** argv )
 	std::cout<< "Starting network publisher 5800" << std::endl;
 	publisher.bind("tcp://*:5800");
 
-	const size_t netTableArraySize = 7; // 7 bins?
-
-	// Code to write video frames to avi file on disk
-	VideoWriter rawVideo;
-	VideoWriter markedupVideo;
+	const size_t netTableArraySize = 7; // 7 objects
 
 	//we can't save both marked up video and raw video so we default
 	if(args.writeVideo && args.saveVideo) 
@@ -268,8 +287,6 @@ int main( int argc, const char** argv )
 	//Creating Goaldetection object
 	GoalDetector gd(camParams.fov, Size(cap->width(),cap->height()), !args.batchMode);
 
-	int64 stepTimer;
-
 	//Start the grab loop:
 	// --update the current frame
 	//this loop runs asynchronously with the main loop if the input is a camera
@@ -301,14 +318,20 @@ int main( int argc, const char** argv )
 		if (detectState && (detectState->update() == false))
 			break;
 
-		//run Goaldetector and FovisLocator code
+		//run Goaldetector and draw the result
 		gd.processFrame(frame, depth);
 		if (gdDraw)
 			gd.drawOnFrame(frame);
 
-		float gDistance = gd.dist_to_goal();
-		float gAngle = gd.angle_to_goal();
-		Rect goalBoundRect = gd.goal_rect();
+		cout << "Goal Position=" << gd.goal_pos() << endl;
+
+        vector<Rect> goalTruthHitList;
+        if (cap->frameCount() >= 0)
+        {
+            vector<Rect> goalDetects;
+            goalDetects.push_back(gd.goal_rect());
+            goalTruthHitList = goalTruth.processFrame(cap->frameNumber() - 1, goalDetects);
+        }
 
 		//stepTimer = cv::getTickCount();
 		//fvlc.processFrame(frame,depth);
@@ -381,13 +404,9 @@ int main( int argc, const char** argv )
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
-		objectTrackingList.getDisplay(displayList);
+        objectTrackingList.getDisplay(displayList);
 
-		//Creates immutable strings for 0MQ Output
-		stringstream gString;
-		gString << "G ";
-		gString << fixed << setprecision(4) << gDistance << " ";
-		gString << fixed << setprecision(2) << gAngle;
+        sendZMQData(netTableArraySize, publisher, displayList, gd);
 
 		// Draw tracking info on display if
 		//   a. tracking is toggled on
@@ -401,30 +420,6 @@ int main( int argc, const char** argv )
 			drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
 			imshow("Top view", top_frame);
 		}
-
-		stringstream zmqString;
-		zmqString << "B ";
-		for (size_t i = 0; i < netTableArraySize; i++)
-		{
-			if (i < displayList.size())
-			{
-				zmqString << fixed << setprecision(2) << displayList[i].ratio << " " ;
-				zmqString << fixed << setprecision(2) << displayList[i].position.x << " " ;
-				zmqString << fixed << setprecision(2) << displayList[i].position.y << " " ;
-				zmqString << fixed << setprecision(2) << displayList[i].position.z << " " ;
-			}
-			else
-				zmqString << "0.00 0.00 0.00 0.00 ";
-		}
-
-		cout << "B : " << zmqString.str().length() <<  " : " << zmqString.str() << endl;
-		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
-		zmq::message_t request(zmqString.str().length() - 1);
-		zmq::message_t grequest(gString.str().length() - 1);
-		memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
-		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
-		//publisher.send(request);
-		publisher.send(grequest);
 
 		// For interactive mode, update the FPS as soon as we have
 		// a complete array of frame time entries
@@ -496,11 +491,13 @@ int main( int argc, const char** argv )
 			}
 
 			// Draw ground truth info for this frame. Will be a no-op
-			// if none is available for this particular video frame
-			drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(255,0,0), false);
-			drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+            // if none is available for this particular video frame
+            drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(128, 0, 0), false);
+            drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+            drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
+            drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
 
-			rectangle(frame, goalBoundRect, Scalar(255,0,0));
+            rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
@@ -556,6 +553,17 @@ int main( int argc, const char** argv )
 			{
 				args.rects = !args.rects;
 			}
+			else if (c == 'T')
+            {
+                stringstream output_line;
+                output_line << args.inputName << " " << cap->frameNumber() - 1 << " ";
+                Rect r = gd.goal_rect();
+                output_line << r.x << " " << r.y << " " << r.width << " " << r.height;
+                ofstream tag_file("goal_truth.txt", std::ios_base::app | std::ios_base::out);
+                tag_file << output_line.str() << endl;
+
+                cout << "Tagged ground truth " << output_line.str() << endl;
+            }
 			else if (c == 'a') // save all detected images
 			{
 				// Save from a copy rather than the original
@@ -665,53 +673,99 @@ int main( int argc, const char** argv )
 		// process the image once rather than looping forever
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
+
+		cout << "Ball detect ground truth : " << endl;
+		groundTruth.print();
+		cout << endl << "Goal detect ground truth : " << endl;
+		goalTruth.print();
+
 		sem->post();
 	}
+
 	groundTruth.print();
-  g_thread.interrupt();
-  g_thread.join();
+  	g_thread.interrupt();
+  	g_thread.join();
 	if (detectState)
 		delete detectState;
-  if(cap)
-    delete cap;
-
+  	if(cap)
+    	delete cap;
 	return 0;
 }
+void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd)
+{
+    stringstream zmqString;
+
+    zmqString << "B ";
+    for (size_t i = 0; i < objectCount; i++)
+    {
+        if (i < displayList.size())
+        {
+            zmqString << fixed << setprecision(2) << displayList[i].ratio << " ";
+            zmqString << fixed << setprecision(2) << displayList[i].position.x << " ";
+            zmqString << fixed << setprecision(2) << displayList[i].position.y << " ";
+            zmqString << fixed << setprecision(2) << displayList[i].position.z << " ";
+        }
+        else
+        {
+            zmqString << "0.00 0.00 0.00 0.00 ";
+        }
+    }
+
+    cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
+
+    //Creates immutable strings for 0MQ Output
+    stringstream gString;
+    gString << "G ";
+    gString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
+    gString << fixed << setprecision(2) << gd.angle_to_goal();
+
+    cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+    zmq::message_t request(zmqString.str().length() - 1);
+    zmq::message_t grequest(gString.str().length() - 1);
+    memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
+    memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
+    //publisher.send(request);
+    publisher.send(grequest);
+}
+
 
 // Write out the selected rectangle from the input frame
-void writeImage(const Mat &frame, const vector<Rect> &rects, size_t index, const char *path, int frameNumber)
+void writeImage(const Mat& frame, const vector<Rect>& rects, size_t index, const char *path, int frameNumber)
 {
-   mkdir("negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-   if (index < rects.size())
-   {
-      // Create filename, save image
-      stringstream fn;
-      fn << "negative/" << path << "_" << frameNumber << "_" << index;
-      imwrite(fn.str() + ".png", frame(rects[index]));
-   }
+    mkdir("negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if (index < rects.size())
+    {
+        // Create filename, save image
+        stringstream fn;
+        fn << "negative/" << path << "_" << frameNumber << "_" << index;
+        imwrite(fn.str() + ".png", frame(rects[index]));
+    }
 }
+
 
 string getDateTimeString(void)
 {
-   time_t rawtime;
-   struct tm * timeinfo;
+    time_t    rawtime;
+    struct tm *timeinfo;
 
-   time (&rawtime);
-   timeinfo = localtime (&rawtime);
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
 
-   stringstream ss;
-   ss << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "_" << timeinfo->tm_hour << "_" << timeinfo->tm_min;
-   return ss.str();
+    stringstream ss;
+    ss << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "_" << timeinfo->tm_hour << "_" << timeinfo->tm_min;
+    return ss.str();
 }
 
-bool hasSuffix(const std::string &str, const std::string &suffix)
+
+bool hasSuffix(const std::string& str, const std::string& suffix)
 {
     return str.size() >= suffix.size() &&
-        str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
+
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool &writeVideo)
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool writeVideo)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -740,7 +794,6 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		else
 		{
 			ss << "Zed Camera ";
-			writeVideo = false;
 		}
 		ss << camera;
 		windowName = ss.str();
@@ -769,54 +822,39 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 	}
 }
 
+
 // Video-MM-DD-YY_hr-min-sec-##.avi
 string getVideoOutName(bool raw, bool zms)
 {
-	int index = 0;
-	int rc;
-	struct stat statbuf;
-	stringstream ss;
-	time_t rawtime;
-	struct tm * timeinfo;
-	time (&rawtime);
-	timeinfo = localtime (&rawtime);
-	do
-	{
-		ss.str(string(""));
-		ss.clear();
-		ss << "Video-" << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << timeinfo->tm_year+1900 << "_";
-		ss << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
-		ss << index++;
-		if (raw == false)
-		   ss << "_processed";
-		if (zms == false)
-			ss << ".avi";
-		else
-			ss << ".zms";
-		rc = stat(ss.str().c_str(), &statbuf);
-	}
-	while (rc == 0);
-	return ss.str();
-}
+    int          index = 0;
+    int          rc;
+    struct stat  statbuf;
+    stringstream ss;
+    time_t       rawtime;
+    struct tm    *timeinfo;
 
-#if 0
-// Write a frame to an output video
-// optionally, if dateAndTime is set, stamp the date, time and match information to the frame before writing
-void writeVideoToFile(MediaIn *, const char *filename, const Mat &frame, void *netTable, bool dateAndTime)
-{
-   if (!outputVideo.isOpened())
-	   outputVideo.open(filename, CV_FOURCC('M','J','P','G'), 15, Size(frame.cols, frame.rows), true);
-   WriteOnFrame textWriter(frame);
-   if (dateAndTime)
-   {
-	   (void)netTable;
-	   //string matchNum  = netTable->GetString("Match Number", "No Match Number");
-	   //double matchTime = netTable->GetNumber("Match Time",-1);
-	   string matchNum = "No Match Number";
-	   double matchTime = -1;
-	   textWriter.writeMatchNumTime(matchNum,matchTime);
-	   textWriter.writeTime();
-   }
-   textWriter.write(outputVideo);
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    do
+    {
+        ss.str(string(""));
+        ss.clear();
+        ss << "Video-" << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << timeinfo->tm_year + 1900 << "_";
+        ss << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
+        ss << index++;
+        if (raw == false)
+        {
+            ss << "_processed";
+        }
+        if (zms == false)
+        {
+            ss << ".avi";
+        }
+        else
+        {
+            ss << ".zms";
+        }
+        rc = stat(ss.str().c_str(), &statbuf);
+    } while (rc == 0);
+    return ss.str();
 }
-#endif

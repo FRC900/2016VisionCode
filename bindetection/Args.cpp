@@ -17,7 +17,8 @@ static void Usage(void)
    cout << "\t--batch              run without GUI" << endl;
    cout << "\t--skip=<x>           skip frames, only processing every <x> - file input only." << endl;
    cout << "\t--calibrate          bring up crosshair to calibrate camera position" << endl;
-   cout << "\t--capture            save camera video to output file" << endl;
+   cout << "\t--capture            save raw camera video to output file" << endl;
+   cout << "\t--captureSkip=       only save one of every N frames" << endl;
    cout << "\t--save               write processed video to output file" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
    cout << "\t--no-tracking        start with tracking rectangles disabled" << endl; 
@@ -45,6 +46,7 @@ Args::Args(void)
 	skip               = 0;
 	calibrate          = false;
 	writeVideo         = false;
+	writeVideoSkip     = 1;
 	saveVideo          = false;
 	detection          = true;
 	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";
@@ -65,6 +67,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string skipOpt            = "--skip=";           // skip frames in input video file
 	const string calibrateOpt       = "--calibrate";       // bring up crosshair to calibrate camera position
 	const string writeVideoOpt      = "--capture";         // save camera video to output file
+	const string writeVideoSkipOpt  = "--captureSkip=";    // skip frames in output video file
 	const string saveVideoOpt       = "--save";            // write processed video to output file
 	const string rectsOpt           = "--no-rects";        // start with detection rectangles disabled
 	const string trackingOpt        = "--no-tracking";     // start with tracking rectangles disabled
@@ -92,6 +95,8 @@ bool Args::processArgs(int argc, const char **argv)
 			skip = atoi(argv[fileArgc] + skipOpt.length());
 		else if (calibrateOpt.compare(0, calibrateOpt.length(), argv[fileArgc], calibrateOpt.length()) == 0)
 			calibrate = true;
+		else if (writeVideoSkipOpt.compare(0, writeVideoSkipOpt.length(), argv[fileArgc], writeVideoSkipOpt.length()) == 0)
+			writeVideoSkip = atoi(argv[fileArgc] + writeVideoSkipOpt.length());
 		else if (writeVideoOpt.compare(0, writeVideoOpt.length(), argv[fileArgc], writeVideoOpt.length()) == 0)
 			writeVideo = true;
 		else if (saveVideoOpt.compare(0, saveVideoOpt.length(), argv[fileArgc], saveVideoOpt.length()) == 0)

@@ -1,5 +1,7 @@
 #include "mediain.hpp"
 
+using namespace cv;
+
 MediaIn::MediaIn()
 {
 	std::cout << "MediaIn Constructor called" << std::endl;

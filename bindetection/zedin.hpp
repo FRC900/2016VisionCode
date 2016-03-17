@@ -18,7 +18,7 @@
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false);
+		ZedIn(const char *inFileName = NULL, const char *outFileName = NULL, bool gui = false, int outFileFrameSkip = 0);
 		~ZedIn();
 		bool update();
 		bool getFrame(cv::Mat &frame, cv::Mat &depth);
@@ -77,6 +77,9 @@ class ZedIn : public MediaIn
 		std::ofstream *serializeOut_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::output> *filtSBOut_;
 		boost::archive::binary_oarchive *archiveOut_;
+
+		int outFileFrameSkip_;
+		int outFileFrameCounter_;
 
 		// Mark these as friends so they can access private class data
 		friend void zedBrightnessCallback(int value, void *data);
