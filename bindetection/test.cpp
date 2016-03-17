@@ -145,8 +145,9 @@ void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_sem
 			}
 			sem->post();
 			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
-			boost::this_thread::interruption_point();
 		}
+
+		boost::this_thread::interruption_point();
 	}
 }
 
@@ -539,9 +540,9 @@ int main( int argc, const char** argv )
 						break;
 					// Otherwise, if not paused, move to the next frame
 					//TODO I don't think this will work as intended. Check it.
-					cap->update();
 				}
-				cap->getFrame(frame, depth);
+
+				cap->update();
 			}
 			else if (c == 'A') // toggle capture-all
 			{
