@@ -304,7 +304,7 @@ int main(int argc, const char **argv)
     //  -- add those newly detected objects to the list of tracked objects
     while (isRunning)
     {
-        if ((!cap->update()) ||
+        if ((!pause && !cap->update()) ||
             !cap->getFrame(frame) ||
             !cap->getDepthMat(depth))
         {
