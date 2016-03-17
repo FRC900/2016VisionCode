@@ -43,8 +43,8 @@ bool C920CameraIn::initCamera(bool gui)
 
 	// TODO - do we want to set these or go
 	// with the values set above?
-	captureSize_ = v4l2::CAPTURE_SIZE_640x480;
-//	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
+//captureSize_ = v4l2::CAPTURE_SIZE_640x480;
+  	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
 		return false;
@@ -112,7 +112,7 @@ bool C920CameraIn::update() {
 		return false;
 	if (camera_.GrabFrame())
 		camera_.RetrieveMat(_frame);
-	while (_frame.rows > 800)
+	while (_frame.rows > 700)
 		pyrDown(_frame, _frame);
 	return true;
 }
@@ -139,7 +139,7 @@ int C920CameraIn::width(void) const
 
 	// getNextFrame sizes down large images
 	// adjust width and height to match that
-	while (height > 800)
+	while (height > 700)
 	{
 		width /= 2;
 		height /= 2;
@@ -157,7 +157,7 @@ int C920CameraIn::height(void) const
 
 	// getNextFrame sizes down large images
 	// adjust width and height to match that
-	while (height > 800)
+	while (height > 700)
 	{
 		width /= 2;
 		height /= 2;
@@ -179,10 +179,11 @@ CameraParams C920CameraIn::getCameraParams(bool left) const
 
 	v4l2::GetCaptureSize(captureSize_, width, height);
 	CameraParams cp;
-	if (width == 640)
+	if (height == 480)
 		cp.fov = Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.); // need VFOV, other resolutions
 	else
-		cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
+		//cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
+		cp.fov = Point2f(70.42 * M_PI / 180., 43.3 * M_PI / 180.);
 	return cp;
 }
 
