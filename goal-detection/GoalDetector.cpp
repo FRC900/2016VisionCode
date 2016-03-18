@@ -65,8 +65,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	// find contours in the thresholded image - these will be blobs
 	// of green to check later on to see how well they match the
 	// expected shape of the goal
-    vector<Vec4i>          hierarchy;
-    findContours(threshold_image, _contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    vector<Vec4i> hierarchy;
+    findContours(threshold_image, _contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
 	// Initialize maxConfidence to the min confidence we need
 	// to think it is a goal. This way we'll only use the goal
@@ -172,8 +172,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		minMaxLoc(centerMidRow, NULL, &centerMaxVal);
 		if ((abs(rightMaxVal / leftMaxVal - 1) > .3) || (min(rightMaxVal, leftMaxVal) < 2 * centerMaxVal))
 		{
+#ifdef VERBOSE
 			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
-			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl;
+			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl << "\tCenter: " << centerMidRow << endl;
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
