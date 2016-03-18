@@ -143,7 +143,7 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
 
 void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) 
 {
-	//this runs concurrently with the main while loop
+	//this runs concurrently with the main while loop if using a camera
 	FrameTicker frameTicker;
 	while(1) 
 	{
@@ -184,8 +184,8 @@ int main( int argc, const char** argv )
 	if (!args.processArgs(argc, argv))
 		return -2;
 
+	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
-
     sigIntHandler.sa_handler = my_handler;
     sigemptyset(&sigIntHandler.sa_mask);
     sigIntHandler.sa_flags = SA_SIGINFO;
@@ -193,7 +193,8 @@ int main( int argc, const char** argv )
 
 	string windowName = "Ball Detection"; // GUI window name
 	string capPath; // Output directory for captured images
-	MediaIn* cap;
+	MediaIn* cap; //input object
+
 	openMedia(cap, args.inputName ,capPath, windowName,
 			  !args.batchMode, args.writeVideo || args.saveVideo);
 
@@ -211,6 +212,7 @@ int main( int argc, const char** argv )
 	if (args.frameStart > 0)
 		cap->frameNumber(args.frameStart);
 
+	//only start up the window if batch mode is disabled
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
 
@@ -219,9 +221,15 @@ int main( int argc, const char** argv )
   	Mat depth;
 	Mat top_frame; // top-down view of tracked objects
 
-	// TODO : Figure this out
-	//minDetectSize = cap->width() * 0.05;
-	minDetectSize = 40;
+	CameraParams camParams = cap->getCameraParams(true);
+
+	//we need to detect from a maximum of 25 feet
+	//use trigonometry to predict how big in pixels the object will be and set minDetectSize to that
+	float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
+	float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
+	minDetectSize = angular_size * (cap->width() / camParams.fov.x);
+	cout << "Min Detect Size: " << minDetectSize << endl;
+
 
 	// If UI is up, pop up the parameters window
 	if (!args.batchMode && args.detection)
@@ -237,7 +245,6 @@ int main( int argc, const char** argv )
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
 	}
 
-	CameraParams camParams = cap->getCameraParams(true);
 	// Create list of tracked objects
 	// balls / boulders are 8" wide?
 	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
@@ -250,7 +257,8 @@ int main( int argc, const char** argv )
 
 	const size_t netTableArraySize = 7; // 7 objects
 
-	//we can't save both marked up video and raw video so we default
+	//we can't save both marked up video and raw video so we default to saving raw video because
+	//if we need to we can write over it later
 	if(args.writeVideo && args.saveVideo) 
 	{
 		cerr << "Defaulting to saving raw frame" << endl;
@@ -259,6 +267,9 @@ int main( int argc, const char** argv )
 
 	FrameTicker frameTicker;
 
+	//load up the neural networks.
+	//Loads the lowest epoch and lowest network by default
+	//TODO is that actually true? ^
 	DetectState *detectState = NULL;
 	if (args.detection)
 		detectState = new DetectState(
@@ -275,6 +286,8 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
+	//load an initial frame for stuff like optical flow which requires an initial frame to compute difference against
+	//also checks to make sure that the cap object works
 	if (!cap->update() || !cap->getFrame(frame, depth))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
@@ -282,6 +295,8 @@ int main( int argc, const char** argv )
 	}
 
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
+
+	//Creating optical flow computation object
 	FlowLocalizer fllc(frame);
 
 	//Creating Goaldetection object
@@ -290,6 +305,8 @@ int main( int argc, const char** argv )
 	//Start the grab loop:
 	// --update the current frame
 	//this loop runs asynchronously with the main loop if the input is a camera
+	//and synchronously if the input is a video (i.e. one grab per process)
+	//the semaphore input controls the synchronicity of the frame
 	boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
 
 	// Start of the main loop
@@ -299,6 +316,8 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(true)
 	{
+		//sem->wait() stops the loop only if the input is a video and the grab loop is in the middle of running
+		//if the loop is stopped it will be restarted at the end of the grab loop
 		sem->wait();
 		if(!cap->getFrame(frame, depth))
 			break;
@@ -325,6 +344,7 @@ int main( int argc, const char** argv )
 
 		cout << "Goal Position=" << gd.goal_pos() << endl;
 
+		//if we are using a goal_truth.txt file that has the actual locations of the goal mark that we detected correctly
         vector<Rect> goalTruthHitList;
         if (cap->frameCount() >= 0)
         {
@@ -333,19 +353,15 @@ int main( int argc, const char** argv )
             goalTruthHitList = goalTruth.processFrame(cap->frameNumber() - 1, goalDetects);
         }
 
-		//stepTimer = cv::getTickCount();
-		//fvlc.processFrame(frame,depth);
+		//compute optical flow
 		if (detectState)
 			fllc.processFrame(frame);
-		//cout << "Time to fovis - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
-		//stepTimer = cv::getTickCount();
 		vector<Rect> detectRects;
 		if (detectState)
 			detectState->detector()->Detect(frame, depth, detectRects);
-		//cout << "Time to detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -355,13 +371,15 @@ int main( int argc, const char** argv )
 			for (size_t index = 0; index < detectRects.size(); index++)
 				writeImage(frame, detectRects, index, capPath.c_str(), cap->frameNumber());
 
-		// Draw detected rectangles on frame
+		// Draw detected rectangles on frame if
+		// a. batch mode is disabled
+		// b. draw rects is enabled
+		// c. the frameDisplayFrequency system tells us to draw on the current frame
+
 		if (!args.batchMode && args.rects && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 			drawRects(frame,detectRects);
 
-		//adjust locations of objects based on fovis results
-		//utils::printIsometry(fvlc.transform_eigen());
-
+		//adjust object locations based on optical flow information
 		if (detectState)
 		{
 			cout << "Locations before adjustment: " << endl;
@@ -376,7 +394,6 @@ int main( int argc, const char** argv )
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
-		// also compute the average depth of the region since that is necessary for the processing
 		stepTimer = cv::getTickCount();
 		vector<Rect>depthFilteredDetectRects;
 		vector<float> depths;
@@ -386,7 +403,9 @@ int main( int argc, const char** argv )
 		{
 			cout << "Detected object at: " << *it;
 			Rect depthRect = *it;
-
+			
+			//when we use optical flow to adjust we need to recompute the depth based on the new locations.
+			//to do this shrink the bounding rectangle and take the minimum rect of the inside
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
 			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
@@ -400,7 +419,6 @@ int main( int argc, const char** argv )
 		}
 
 		objectTrackingList.processDetect(depthFilteredDetectRects, depths, objTypes);
-		//cout << "Time to process detect - " << ((double)cv::getTickCount() - stepTimer) / getTickFrequency() << endl;
 
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
@@ -449,6 +467,7 @@ int main( int argc, const char** argv )
 				cerr << ss.str() << endl;
 	    }
 
+		// Ground truth is a way of storing known locations of objects in a file.
 		// Check ground truth data on videos and images,
 		// but not on camera input
 		vector<Rect> groundTruthHitList;
@@ -497,6 +516,7 @@ int main( int argc, const char** argv )
             drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
             drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
 
+			//draw the goal
             rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
 
 			// Main call to display output for this frame after all
@@ -553,7 +573,7 @@ int main( int argc, const char** argv )
 			{
 				args.rects = !args.rects;
 			}
-			else if (c == 'T')
+			else if (c == 'T') //toggle tagging of ground truth matching data
             {
                 stringstream output_line;
                 output_line << args.inputName << " " << cap->frameNumber() - 1 << " ";
