@@ -296,7 +296,7 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 // estimate distance to a target
 float GoalDetector::distanceUsingFOV(const Rect &rect) const
 {
-	float percent_image = (float)rect.height/ _frame_size.height;
+	float percent_image = (float)rect.height / _frame_size.height;
 	float size_fov = percent_image * _fov_size.y; //TODO fov size
 	return _goal_shape.height() / (2.0 * tan(size_fov / 2.0));
 }
