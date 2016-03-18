@@ -122,13 +122,13 @@ namespace utils {
 				if(_data_file.is_open()) {
 					if(data.size() != _num_columns)
 						cerr << "Bad info log!" << endl;
-					for(int i = 0; i < data.size(); i++)
+					for(size_t i = 0; i < data.size(); i++)
 						_data_file << data[i] << ",";
 					_data_file << "\n";
 				}
 			}
 		private:
-			int _num_columns;
+			size_t _num_columns;
 			ofstream _data_file;
 	};
 
