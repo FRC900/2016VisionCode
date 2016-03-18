@@ -6,7 +6,7 @@
 
 using namespace cv;
 
-CameraIn::CameraIn(int stream, bool gui) :
+CameraIn::CameraIn(const char *outfile, int stream, bool gui) :
 	frameNumber_(0),
 	width_(800),
     height_(600),
@@ -25,32 +25,50 @@ CameraIn::CameraIn(int stream, bool gui) :
 			width_ /= 2;
 			height_ /= 2;
 		}
+
+		// open the output video
+		if(outfile != NULL) {
+			writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width_, height_), true);
+			if(!writer_.isOpened())
+				std::cerr << "Could not open output video " << outfile << std::endl;
+		}
 	}
 	else
 		std::cerr << "Could not open camera" << std::endl;
 }
 
-bool CameraIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
+bool CameraIn::update() 
+{
 	if (!cap_.isOpened())
 		return false;
-		cap_ >> _frame;
-		if (_frame.empty())
-			return false;
-		while (_frame.rows > 800)
-			pyrDown(_frame, _frame);
-		frameNumber_ += 1;
-			return true;
+	if (!cap_.grab())
+		return false;
+	if (!cap_.retrieve(localFrame_))
+		return false;
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	localFrame_.copyTo(_frame);
+	while (_frame.rows > 800)
+		pyrDown(_frame, _frame);
+	frameNumber_ += 1;
+	return true;
 }
 
-bool CameraIn::getFrame(Mat &frame)
+bool CameraIn::getFrame(Mat &frame, Mat &depth)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!cap_.isOpened())
 		return false;
-		if (_frame.empty())
-			return false;
-	frame = _frame.clone();
+	depth = Mat();
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if (_frame.empty())
+		return false;
+	_frame.copyTo(frame);
+	lockedFrameNumber_ = frameNumber_;
+	return true;
+}
+
+bool CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
+	(void)depth;
+	writer_ << frame;
 	return true;
 }
 
@@ -66,5 +84,5 @@ int CameraIn::height(void) const
 
 int CameraIn::frameNumber(void) const
 {
-   return frameNumber_;
+   return lockedFrameNumber_;
 }

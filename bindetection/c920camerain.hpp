@@ -2,6 +2,9 @@
 #define C920CAMERAIN_HPP__
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 #include "mediain.hpp"
 
 #ifdef __linux__
@@ -14,9 +17,10 @@
 class C920CameraIn : public MediaIn
 {
    public:
-      C920CameraIn(int _stream = -1, bool gui = false);
+      C920CameraIn(const char *outfile = NULL, int _stream = -1, bool gui = false);
 	  ~C920CameraIn() {}
-      bool getFrame(cv::Mat &frame);
+      bool getFrame(cv::Mat &frame, cv::Mat &depth);
+      bool saveFrame(cv::Mat &frame, cv::Mat &depth);
       bool update();
 
       int width(void) const;
@@ -44,6 +48,8 @@ class C920CameraIn : public MediaIn
 	  friend void focusCallback(int value, void *data);
 
       v4l2::C920Camera  camera_;
+      cv::VideoWriter   writer_;
+	  cv::Mat           localFrame_;
       int               brightness_;
       int               contrast_;
       int               saturation_;
@@ -54,6 +60,7 @@ class C920CameraIn : public MediaIn
       int               backlightCompensation_;
       int               whiteBalanceTemperature_;
 	  int               frameNumber_;
+	  int               lockedFrameNumber_;
 	  v4l2::CaptureSize captureSize_;
 #endif
 };

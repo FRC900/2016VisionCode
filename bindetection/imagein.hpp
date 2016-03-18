@@ -9,15 +9,19 @@
 class ImageIn : public MediaIn
 {
    public:
-      ImageIn(const char *path);
+      ImageIn(const char *inpath, const char *outpath);
 	  ~ImageIn() {}
       bool update();
-      bool getFrame(cv::Mat &frame);
+      bool getFrame(cv::Mat &frame, cv::Mat &depth);
+      bool saveFrame(cv::Mat &frame, cv::Mat &depth);
+    int semValue(void) { return 1; }
 
 	  int frameCount(void) const;
 	  int frameNumber(void) const;
 
       int width() const;
       int height() const;
+  private:
+    std::string outpath_;
 };
 #endif

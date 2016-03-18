@@ -42,6 +42,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	{
 		// Might be svo, might be zms
 		string fnExt = path(inFileName).extension().string();
+		semValue_ = 1;
 		if ((fnExt == ".svo") || (fnExt == ".SVO"))
 			zed_ = new sl::zed::Camera(inFileName);
 		else if ((fnExt == ".zms") || (fnExt == ".ZMS"))
@@ -57,8 +58,11 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 		else
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
-	else // Open an actual camera for input
+	else 
+	{  // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
+		semValue_ = 2;
+	}
 
 	if (zed_)
 	{
@@ -75,6 +79,8 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 		{
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
+
+
 
 #if 0
 			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
@@ -138,13 +144,12 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	// Save the raw camera stream to disk.  This uses a home-brew
 	// method to serialize image and depth data to disk rather than
 	// relying on Stereolab's SVO format.
-	if ((zed_ || archiveIn_) && outFileName)
+	if (outFileName && (zed_ || archiveIn_))
 	{
 		outFileName_ = outFileName;
 		if (!openSerializeOutput(outFileName_.c_str()))
 			cerr << "Zed init : could not open output file " << outFileName << endl;
 	}
-
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -273,75 +278,93 @@ ZedIn::~ZedIn()
 		delete zed_;
 }
 
-
 bool ZedIn::update(bool left) 
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if ((zed_ == NULL) && (archiveIn_ == NULL))
-		return false;
-
 	// Read from either the zed camera or from
 	// a previously-serialized ZMS file
 	if (zed_)
 	{
-		if (zed_->grab(sl::zed::SENSING_MODE::RAW))
+		if (zed_->grab(sl::zed::SENSING_MODE::RAW)) 
 			return false;
 
-		slMat2cvMat(zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT)).copyTo(frameRGBA_);
-		slMat2cvMat(zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH)).copyTo(depthMat_); //not normalized depth
-		slMat2cvMat(zed_->normalizeMeasure(sl::zed::MEASURE::DEPTH)).copyTo(normDepthMat_);
+		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
+		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
+		boost::lock_guard<boost::mutex> guard(_mtx);
+		cvtColor(slMat2cvMat(slFrame_), _frame, CV_RGBA2RGB);
+		slMat2cvMat(slDepth_).copyTo(depthMat_);
 
-		cvtColor(frameRGBA_, _frame, CV_RGBA2RGB);
+		while (_frame.rows > 700)
+		{
+			pyrDown(_frame, _frame);
+			pyrDown(depthMat_, depthMat_);
+		}
+		frameNumber_ += 1;
 	}
 	else if (archiveIn_)
 	{
 		// Ugly try-catch to detect EOF
 		try
 		{
-			*archiveIn_ >> _frame >> depthMat_;
+			*archiveIn_ >> localFrame_ >> localDepth_;
 		}
 		catch (const boost::archive::archive_exception &e)
 		{
 			return false;
 		}
-		normalize(depthMat_, normDepthMat_, 0, 255, NORM_MINMAX, CV_8UC1);
-	}
+		boost::lock_guard<boost::mutex> guard(_mtx);
+		localFrame_.copyTo(_frame);
+		localDepth_.copyTo(depthMat_);
 
-	while (_frame.rows > 700)
-	{
-		pyrDown(_frame, _frame);
-		pyrDown(depthMat_, depthMat_);
-		pyrDown(normDepthMat_, normDepthMat_);
+		while (_frame.rows > 700)
+		{
+			pyrDown(_frame, _frame);
+			pyrDown(depthMat_, depthMat_);
+		}
+		frameNumber_ += 1;
 	}
-	frameNumber_ += 1;
+	else
+		return false;
 	return true;
 }
 
-bool ZedIn::getFrame(Mat &frame)
+bool ZedIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	// Write output to serialized file if it is open and
+	// Write output to serialized file if it is open
 	// if we've skipped enough frames since the last write 
 	// (which could be every frame if outFileFrameSkip == 0 or 1
 	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
 	{
-		*archiveOut_ << _frame << depthMat_;
+		//lock the mutex because each << operator is a seperate operation and having two
+		//chained could possibly lead to a different depth and frame
+		_mtx.lock();
+		*archiveOut_ << frame << depth;
+		_mtx.unlock();
 		const int frameSplitCount = 300;
-		if ((frameNumber_ > outFileFrameSkip_) && (((frameNumber_ / outFileFrameSkip_) % frameSplitCount) == 0))
+		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
 		{
 			stringstream ofName;
 			ofName << change_extension(outFileName_, "").string() << "_" ;
-			ofName << (frameNumber_ / (frameSplitCount * outFileFrameSkip_)) << ".zms";
-			if (!openSerializeOutput(ofName.str().c_str()))
-				cerr << "Could not open " << ofName.str() << " for serialized output" << endl;
+			ofName << (frameNumber_ / frameSplitCount) << ".zms";
+			if (!openSerializeOutput(ofName.str().c_str())) {
+				cerr << "Could not (re)open " << ofName.str() << " for serialized output" << endl;
+				return false;
+			}
 		}
 	}
-	frame = _frame.clone();
+	return true;
+}
+
+bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth)
+{
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	lockedFrameNumber_ = frameNumber_;
+	_frame.copyTo(frame);
+	depthMat_.copyTo(depth);
 	return true;
 }
 
 
-bool ZedIn::update()
+bool ZedIn::update(void)
 {
 	return update(true);
 }
@@ -366,7 +389,7 @@ int ZedIn::frameCount(void) const
 
 int ZedIn::frameNumber(void) const
 {
-	return frameNumber_;
+	return lockedFrameNumber_;
 }
 
 
@@ -385,27 +408,6 @@ void ZedIn::frameNumber(int frameNumber)
 		if (zed_->setSVOPosition(frameNumber))
 			frameNumber_ = frameNumber;
 	}
-}
-
-
-float ZedIn::getDepth(int x, int y)
-{
-	const float* ptr_image_num = (const float*) ((int8_t*)depthMat_.data + y * depthMat_.step);
-	return ptr_image_num[x];
-}
-
-
-bool ZedIn::getDepthMat(Mat &depthMat) const
-{
-	depthMat_.copyTo(depthMat); //not normalized depth
-	return true;
-}
-
-
-bool ZedIn::getNormDepthMat(Mat &normDepthMat) const
-{
-	normDepthMat_.copyTo(normDepthMat);
-	return true;
 }
 
 
@@ -577,13 +579,6 @@ ZedIn::ZedIn(const char *filename, const char *outputName)
 {
 	(void)filename;
 	cerr << "Zed support not compiled in" << endl;
-}
-
-
-bool ZedIn::getFrame(Mat &frame)
-{
-	(void)frame;
-	return false;
 }
 
 

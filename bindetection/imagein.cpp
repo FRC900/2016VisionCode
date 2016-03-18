@@ -5,28 +5,37 @@
 
 using namespace cv;
 
-ImageIn::ImageIn(const char *path)
+ImageIn::ImageIn(const char *inpath, const char *outpath)
 {
-	imread(path).copyTo(_frame);
+	imread(inpath).copyTo(_frame);
 	if (_frame.empty())
-		std::cerr << "Could not open image file " << path << std::endl;
+		std::cerr << "Could not open image file " << inpath << std::endl;
 	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
+	outpath_ = outpath;
 }
 
 bool ImageIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if (_frame.empty())
-		return false;
+	usleep(500000);
 	return true;
 }
 
-bool ImageIn::getFrame(Mat &frame)
+bool ImageIn::getFrame(Mat &frame, Mat &depth)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (_frame.empty())
 		return false;
 	frame = _frame.clone();
+	depth = Mat();
+	return true;
+}
+
+bool ImageIn::saveFrame(Mat &frame, Mat &depth) {
+	//strip the file extension and replace it with png because we're saving an image
+	std::stringstream ss;
+	size_t lastindex = outpath_.find_last_of(".");
+	ss << outpath_.substr(0,lastindex);
+	ss << ".png";
+	imwrite(ss.str(), frame);
 	return true;
 }
 

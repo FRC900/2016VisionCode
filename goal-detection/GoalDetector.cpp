@@ -146,12 +146,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 
 						                   1, cvRound(br.height / 2.))));
 		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + 2./3*br.height), 1, cvRound(br.height / 3.))));
-		double topMinVal;
 		double topMaxVal;
-		minMaxLoc(topMidCol, &topMinVal, &topMaxVal);
-		double botMinVal;
+		minMaxLoc(topMidCol, NULL, &topMaxVal);
 		double botMaxVal;
-		minMaxLoc(botMidCol, &botMinVal, &botMaxVal);
+		minMaxLoc(botMidCol, NULL, &botMaxVal);
 		// The max pixel value in the bottom rows of the
 		// middle column should be significantly higher than the
 		// max pixel value in the top rows of the middle column
@@ -163,7 +161,22 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			_confidence.push_back(0);
 			continue;
 		}
-
+		Mat leftMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 3.), 1)));
+		Mat rightMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 3.), 1))); 
+		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3./ 8.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 4.), 1)));
+		double rightMaxVal;
+		minMaxLoc(rightMidRow, NULL, &rightMaxVal);
+		double leftMaxVal;
+		minMaxLoc(leftMidRow, NULL, &leftMaxVal);
+		double centerMaxVal;
+		minMaxLoc(centerMidRow, NULL, &centerMaxVal);
+		if ((abs(rightMaxVal / leftMaxVal - 1) > .3) || (min(rightMaxVal, leftMaxVal) < 2 * centerMaxVal))
+		{
+			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
+			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl;
+			_confidence.push_back(0);
+			continue;
+		}
 		//create a trackedobject to get various statistics
 		//including area and x,y,z position of the goal
 		ObjectType goal_actual(_contours[i]);

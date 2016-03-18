@@ -1,10 +1,12 @@
 #include <iostream>
+#include <string>
 #include "c920camerain.hpp"
 using namespace std;
 #ifdef __linux__
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+using namespace std;
 using namespace cv;
 
 // Prototypes for various callbacks used by scrollbars
@@ -19,7 +21,7 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(int _stream, bool gui) :
+C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 	camera_(_stream >= 0 ? _stream : 0)
 {
 	if (!camera_.IsOpen())
@@ -29,6 +31,17 @@ C920CameraIn::C920CameraIn(int _stream, bool gui) :
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
+
+	if(outfile != NULL && camera_.IsOpen()) 
+	{
+		unsigned int width;
+		unsigned int height;
+		v4l2::GetCaptureSize(captureSize_, width, height);
+		writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width, height), true);
+		if(!writer_.isOpened())
+			std::cerr << "Could not open output video " << outfile << std::endl;
+	}
+
 }
 
 bool C920CameraIn::initCamera(bool gui)
@@ -106,27 +119,37 @@ bool C920CameraIn::initCamera(bool gui)
 	return true;
 }
 
-bool C920CameraIn::update() {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if (!camera_.IsOpen())
+bool C920CameraIn::update() 
+{
+	if (!camera_.IsOpen() ||
+	    !camera_.GrabFrame() ||
+	    !camera_.RetrieveMat(localFrame_))
 		return false;
-	if (camera_.GrabFrame())
-		camera_.RetrieveMat(_frame);
-	while (_frame.rows > 700)
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	localFrame_.copyTo(_frame);
+	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
+	frameNumber_ += 1;
 	return true;
 }
 
-bool C920CameraIn::getFrame(Mat &frame)
+bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
 	if (!camera_.IsOpen())
 		return false;
-		if( _frame.empty() )
-			return false;
-		frameNumber_ += 1;
+	depth = Mat();
+	boost::lock_guard<boost::mutex> guard(_mtx);
+	if( _frame.empty() )
+		return false;
+	_frame.copyTo(frame);
+	lockedFrameNumber_ = frameNumber_;
+	return true;
+}
 
-	frame = _frame.clone();
+bool C920CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
+{
+	(void) depth;
+	writer_ << frame;
 	return true;
 }
 
@@ -168,7 +191,7 @@ int C920CameraIn::height(void) const
 
 int C920CameraIn::frameNumber(void) const
 {
-	return frameNumber_;
+	return lockedFrameNumber_;
 }
 
 CameraParams C920CameraIn::getCameraParams(bool left) const
@@ -262,10 +285,8 @@ C920CameraIn::C920CameraIn(int _stream, bool gui)
 	std::cerr << "C920 support not enabled" << std::endl;
 }
 
-bool C920CameraIn::getNextFrame(Mat &frame)
-{
-	(void)frame;
-	return false;
+bool C920CameraIn::saveFrame(const cv::Mat &frame) {
+	writer_ << frame;
 }
 
 #endif
