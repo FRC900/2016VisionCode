@@ -334,13 +334,9 @@ bool ZedIn::saveFrame(cv::Mat &frame, cv::Mat &depth)
 	// (which could be every frame if outFileFrameSkip == 0 or 1
 	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
 	{
-		//lock the mutex because each << operator is a seperate operation and having two
-		//chained could possibly lead to a different depth and frame
-		_mtx.lock();
 		*archiveOut_ << frame << depth;
-		_mtx.unlock();
 		const int frameSplitCount = 300;
-		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
+		if ((outFileFrameCounter_ > 1) && (((outFileFrameCounter_ - 1) % frameSplitCount) == 0))
 		{
 			stringstream ofName;
 			ofName << change_extension(outFileName_, "").string() << "_" ;

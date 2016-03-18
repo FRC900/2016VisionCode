@@ -324,8 +324,7 @@ int main( int argc, const char** argv )
 
 		frameTicker.mark(); // mark start of new frame
 
-		// Write raw video before anything gets drawn
-		// on it
+		// Write raw video before anything gets drawn on it
 		if (args.writeVideo)
 			cap->saveFrame(frame, depth);
 
@@ -337,10 +336,8 @@ int main( int argc, const char** argv )
 		if (detectState && (detectState->update() == false))
 			break;
 
-		//run Goaldetector and draw the result
+		// run Goaldetector
 		gd.processFrame(frame, depth);
-		if (gdDraw)
-			gd.drawOnFrame(frame);
 
 		cout << "Goal Position=" << gd.goal_pos() << endl;
 
@@ -370,14 +367,6 @@ int main( int argc, const char** argv )
 		if (args.captureAll)
 			for (size_t index = 0; index < detectRects.size(); index++)
 				writeImage(frame, detectRects, index, capPath.c_str(), cap->frameNumber());
-
-		// Draw detected rectangles on frame if
-		// a. batch mode is disabled
-		// b. draw rects is enabled
-		// c. the frameDisplayFrequency system tells us to draw on the current frame
-
-		if (!args.batchMode && args.rects && ((cap->frameNumber() % frameDisplayFrequency) == 0))
-			drawRects(frame,detectRects);
 
 		//adjust object locations based on optical flow information
 		if (detectState)
@@ -426,47 +415,6 @@ int main( int argc, const char** argv )
 
         sendZMQData(netTableArraySize, publisher, displayList, gd);
 
-		// Draw tracking info on display if
-		//   a. tracking is toggled on
-		//   b. batch (non-GUI) mode isn't active
-		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking &&
-			!args.batchMode &&
-			((cap->frameNumber() % frameDisplayFrequency) == 0))
-		{
-		    drawTrackingInfo(frame, displayList);
-			drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
-			imshow("Top view", top_frame);
-		}
-
-		// For interactive mode, update the FPS as soon as we have
-		// a complete array of frame time entries
-		// For args.batch mode, only update every frameTicksLength frames to
-		// avoid printing too much stuff
-	    if (frameTicker.valid() &&
-			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
-	    {
-			stringstream ss;
-			// If in args.batch mode and reading a video, display
-			// the frame count
-			int frames = cap->frameCount();
-			if (args.batchMode)
-			{
-				ss << cap->frameNumber();
-				if (frames > 0)
-				   ss << '/' << frames;
-				ss << " : ";
-			}
-			// Print the FPS
-			ss << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
-      cout << ss.str() << endl;
-			if (!args.batchMode)
-				putText(frame, ss.str(), Point(frame.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-			else
-				cerr << ss.str() << endl;
-	    }
-
 		// Ground truth is a way of storing known locations of objects in a file.
 		// Check ground truth data on videos and images,
 		// but not on camera input
@@ -474,29 +422,55 @@ int main( int argc, const char** argv )
 		if (cap->frameCount() >= 0)
 			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
 
+		// For interactive mode, update the FPS as soon as we have
+		// a complete array of frame time entries
+		// For args.batch mode, only update every frameTicksLength frames to
+		// avoid printing too much stuff
+		if (frameTicker.valid() &&
+			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
+			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
+		{
+			int frames = cap->frameCount();
+			stringstream frameStr;
+			frameStr << cap->frameNumber();
+			if (frames > 0)
+				frameStr << '/' << frames;
+
+			stringstream fpsStr;
+			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
+			if (!args.batchMode)
+			{
+				if (printFrames)
+					putText(frame, frameStr.str(),
+							Point(frame.cols - 15 * frameStr.str().length(), 20),
+							FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+			}
+			else
+				cerr << frameStr.str() << " : " << fpsStr.str() << endl;
+		}
+
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
 		// 3, 5 or whatever frames instead.
 		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
+			drawRects(frame,detectRects);
+
+			// Draw tracking info if it is enabled
+			if (args.tracking)
+				drawTrackingInfo(frame, displayList);
+			vector<TrackedObjectDisplay> emptyDisplayList;
+			drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
+			imshow("Top view", top_frame);
+
 			// Put an A on the screen if capture-all is enabled so
 			// users can keep track of that toggle's mode
 			if (args.captureAll)
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
 
-			// Print frame number of video if the option is enabled
-			int frames = cap->frameCount();
-			if (printFrames && (frames > 0))
-			{
-				stringstream ss;
-				ss << cap->frameNumber() << '/' << frames;
-				putText(frame, ss.str(),
-				        Point(frame.cols - 15 * ss.str().length(), 20),
-						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-			}
-
-			// Display current classifier under test
+			// Display current classifier infomation
 			if (detectState)
 				putText(frame, detectState->print(),
 						Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
@@ -516,7 +490,9 @@ int main( int argc, const char** argv )
             drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
             drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
 
-			//draw the goal
+			//draw the goal along with debugging info if that's enabled
+			if (gdDraw)
+				gd.drawOnFrame(frame);
             rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
 
 			// Main call to display output for this frame after all
@@ -694,17 +670,16 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
-		cout << "Ball detect ground truth : " << endl;
-		groundTruth.print();
-		cout << endl << "Goal detect ground truth : " << endl;
-		goalTruth.print();
-
 		sem->post();
 	}
-
-	groundTruth.print();
   	g_thread.interrupt();
   	g_thread.join();
+
+	cout << "Ball detect ground truth : " << endl;
+	groundTruth.print();
+	cout << endl << "Goal detect ground truth : " << endl;
+	goalTruth.print();
+
 	if (detectState)
 		delete detectState;
   	if(cap)

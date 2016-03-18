@@ -29,7 +29,9 @@ bool ImageIn::getFrame(Mat &frame, Mat &depth)
 	return true;
 }
 
-bool ImageIn::saveFrame(Mat &frame, Mat &depth) {
+bool ImageIn::saveFrame(Mat &frame, Mat &depth) 
+{
+	(void)depth;
 	//strip the file extension and replace it with png because we're saving an image
 	std::stringstream ss;
 	size_t lastindex = outpath_.find_last_of(".");

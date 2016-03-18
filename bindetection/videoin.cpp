@@ -66,6 +66,7 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth)
 
 bool VideoIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
 {
+	(void)depth;
 	if (writer_.isOpened()) 
 	{
 		writer_ << frame;
