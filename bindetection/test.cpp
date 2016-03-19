@@ -481,6 +481,14 @@ int main( int argc, const char** argv )
 			{
 			   line (frame, Point(frame.cols/2, 0) , Point(frame.cols/2, frame.rows), Scalar(255,255,0));
 			   line (frame, Point(0, frame.rows/2) , Point(frame.cols, frame.rows/2), Scalar(255,255,0));
+			   Rect gr = gd.goal_rect();
+			   if (gr != Rect())
+			   {
+
+				   // Draw the ball to scale to our detected goal
+				   int ballSize = cvRound(gr.width * 9.75 / 40.);
+				   circle(frame, Point(frame.cols/2., gr.br().y - ballSize*2.), ballSize, Scalar(0,0,255), 3);
+			   }
 			}
 
 			// Draw ground truth info for this frame. Will be a no-op
@@ -493,7 +501,7 @@ int main( int argc, const char** argv )
 			//draw the goal along with debugging info if that's enabled
 			if (gdDraw)
 				gd.drawOnFrame(frame);
-            rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
+            rectangle(frame, gd.goal_rect(), Scalar(0, 255, 0));
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
