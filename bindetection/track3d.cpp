@@ -129,9 +129,9 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 	float inclination = percent_fov.y * fov_size.y - cameraElevation;
 
 	Point3f retPt(
-			avg_depth * cos(inclination) * sin(azimuth),
-			avg_depth * cos(inclination) * cos(azimuth),
-			avg_depth * sin(inclination));
+			avg_depth * cosf(inclination) * sinf(azimuth),
+			avg_depth * cosf(inclination) * cosf(azimuth),
+			avg_depth * sinf(inclination));
 
 	//cout << "Distance to center: " << dist_to_center << endl;
 	//cout << "Actual Inclination: " << inclination << endl;
@@ -144,8 +144,8 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
 {
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
-	float azimuth = asin(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
-	float inclination = asin( _position.z / r ) + cameraElevation;
+	float azimuth = asinf(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
+	float inclination = asinf( _position.z / r ) + cameraElevation;
 
 	Point2f percent_fov = Point2f(azimuth / fov_size.x, inclination / fov_size.y);
 	Point2f dist_to_center(percent_fov.x * frame_size.width,
@@ -155,7 +155,7 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
 
-	Point2f angular_size( 2.0 * atan2(_type.width(), (2.0*r)), 2.0 * atan2(_type.height(), (2.0*r)));
+	Point2f angular_size( 2.0 * atan2f(_type.width(), (2.0*r)), 2.0 * atan2f(_type.height(), (2.0*r)));
 	Point2f screen_size(
 			angular_size.x * (frame_size.width / fov_size.x),
 			angular_size.y * (frame_size.height / fov_size.y));
