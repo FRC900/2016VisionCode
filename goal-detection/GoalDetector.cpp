@@ -172,8 +172,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		minMaxLoc(centerMidRow, NULL, &centerMaxVal);
 		if ((abs(rightMaxVal / leftMaxVal - 1) > .3) || (min(rightMaxVal, leftMaxVal) < 2 * centerMaxVal))
 		{
+#ifdef VERBOSE
 			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
 			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl;
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -323,7 +325,23 @@ float GoalDetector::dist_to_goal(void) const
 float GoalDetector::angle_to_goal(void) const 
 { 
 	//angle robot has to turn to face goal in degrees
-	return _isValid ? _angle_to_goal : -1.0; 
+	if (!_isValid)
+		return -1;
+
+	float mag = fabsf(_angle_to_goal);
+	float delta = 0;
+	if (mag >= 40)
+		delta = 2.0;
+	else if (mag >= 35)
+		delta = 1.5;
+	else if (mag >= 30)
+		delta = 1.0;
+	else if (mag >= 25)
+		delta = 0.5;
+
+//	cout << "angle " << _angle_to_goal << "Mag " << mag << " delta " << delta << " foo " << ((_angle_to_goal < 0) ? delta : -delta) << endl;
+
+	return _angle_to_goal + ((_angle_to_goal < 0) ? delta : -delta);
 }  
 		
 // Screen rect bounding the goal
