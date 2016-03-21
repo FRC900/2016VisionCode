@@ -31,12 +31,10 @@ int main(int argc, char **argv)
 	Rect bound;
 	FrameTicker frameTicker;
 	while  (cap.update() &&
-		    cap.getFrame(image) &&
-			cap.getDepthMat(depth) &&
-			cap.getNormDepthMat(depthNorm))
+		    cap.getFrame(image, depth) )
 	{
 		frameTicker.mark();
-		imshow ("Normalized Depth", depthNorm);
+		//imshow ("Normalized Depth", depthNorm);
 
 		gd.processFrame(image, depth);
 		gd.drawOnFrame(image);

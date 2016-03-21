@@ -11,20 +11,23 @@
 
 #include "fast_nms.hpp"
 
+using namespace std;
+using namespace cv;
+
 class DetectedPlusIndex
 {
 	public :
-		DetectedPlusIndex(const cv::Rect &rect, double score, size_t index) :
+		DetectedPlusIndex(const Rect &rect, double score, size_t index) :
 			rect_(rect),
 			score_(score),
 			index_(index),
 			valid_(true)
 	{}
 
-		cv::Rect rect_;
-		float    score_;
-		size_t   index_;
-		bool     valid_;
+		Rect   rect_;
+		float  score_;
+		size_t index_;
+		bool   valid_;
 
 		bool operator> (const DetectedPlusIndex &other) const
 		{
@@ -32,10 +35,10 @@ class DetectedPlusIndex
 		}
 };
 
-void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vector<size_t> &filteredList) 
+void fastNMS(const vector<Detected> &detected, double overlap_th, vector<size_t> &filteredList) 
 {
 	filteredList.clear(); // Clear out return array
-	std::vector <DetectedPlusIndex> dpi;
+	vector <DetectedPlusIndex> dpi;
 
 	// Create a list that includes the detected input plus the
 	// index into the list as it was passed in.  Keep the index
@@ -46,7 +49,7 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 
 	// Sort input rects by decreasing score - i.e. look at best
 	// values first
-	std::sort(dpi.begin(), dpi.end(), std::greater<DetectedPlusIndex>());
+	sort(dpi.begin(), dpi.end(), greater<DetectedPlusIndex>());
 
 	// Loop through the dpi array. Each time through, grab
 	// the highest scoring remaining rect. Invalidate rects
@@ -72,7 +75,7 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 
 			// Save this rect to compare against the
 			// remaining lower-scoring ones
-			cv::Rect topRect = it->rect_;
+			Rect topRect = it->rect_;
 
 			// Set up to continue processing next
 			// rectangle next time through
@@ -87,7 +90,7 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 				// been removed already
 				if (jt->valid_)
 				{
-					cv::Rect thisRect = jt->rect_;
+					Rect thisRect = jt->rect_;
 
 					// Look at the Intersection over Union ratio.
 					// The higher this is, the closer the two rects are
@@ -108,19 +111,19 @@ void fastNMS(const std::vector<Detected> &detected, double overlap_th, std::vect
 	static void 
 test_nn() 
 {
-	std::vector<Detected> rects;
-	std::vector<cv::Rect> keep;
+	vector<Detected> rects;
+	vector<Rect> keep;
 
-	rects.push_back(Detected(cv::Rect(cv::Point(0,  0),  cv::Point(10+1, 10+1)), 0.5f));
-	rects.push_back(Detected(cv::Rect(cv::Point(1,  1),  cv::Point(10+1, 10+1)), 0.4f));
-	rects.push_back(Detected(cv::Rect(cv::Point(20, 20), cv::Point(40+1, 40+1)), 0.3f));
-	rects.push_back(Detected(cv::Rect(cv::Point(20, 20), cv::Point(40+1, 30+1)), 0.4f));
-	rects.push_back(Detected(cv::Rect(cv::Point(15, 20), cv::Point(40+1, 40+1)), 0.1f));
+	rects.push_back(Detected(Rect(Point(0,  0),  Point(10+1, 10+1)), 0.5f));
+	rects.push_back(Detected(Rect(Point(1,  1),  Point(10+1, 10+1)), 0.4f));
+	rects.push_back(Detected(Rect(Point(20, 20), Point(40+1, 40+1)), 0.3f));
+	rects.push_back(Detected(Rect(Point(20, 20), Point(40+1, 30+1)), 0.4f));
+	rects.push_back(Detected(Rect(Point(15, 20), Point(40+1, 40+1)), 0.1f));
 
 	fastNMS(rects, 0.4f, keep);
 
 	for (size_t i = 0; i < keep.size(); i++)
-		std::cout << keep[i] << std::endl;
+		cout << keep[i] << endl;
 }
 
 	int 

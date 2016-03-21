@@ -6,6 +6,9 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/gpu/gpu.hpp>
 
+using namespace std;
+using namespace cv;
+
 static double gtod_wrapper(void)
 {
     struct timeval tv;
@@ -22,14 +25,14 @@ static double gtod_wrapper(void)
 // detected rectangles back to the correct location and size on the
 // original input images
 template<class MatT>
-void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
-                                      const cv::Mat&             depthMat,
-                                      const cv::Size&            minSize,
-                                      const cv::Size&            maxSize,
-                                      double                     scaleFactor,
-                                      const std::vector<double>& nmsThreshold,
-                                      const std::vector<double>& detectThreshold,
-                                      std::vector<cv::Rect>&     rectsOut)
+void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
+                                      const Mat&            depthMat,
+                                      const Size&           minSize,
+                                      const Size&           maxSize,
+                                      double                scaleFactor,
+                                      const vector<double>& nmsThreshold,
+                                      const vector<double>& detectThreshold,
+                                      vector<Rect>&         rectsOut)
 {
     // Size of the first level classifier. Others are an integer multiple
     // of this initial size (2x and maybe 4x if we need it)
@@ -37,18 +40,18 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
 
     // scaled images which allow us to find images between min and max
     // size for the given classifier input window
-    std::vector<std::pair<MatT, double> > scaledImages12;
-    std::vector<std::pair<MatT, double> > scaledImages24;
-    // Maybe later ? std::vector<std::pair<MatT, double> > scaledImages48;
+    vector<pair<MatT, double> > scaledImages12;
+    vector<pair<MatT, double> > scaledImages24;
+    // Maybe later ? vector<pair<MatT, double> > scaledImages48;
 
     // list of windows to work with.
     // A window is a rectangle from a given scaled image along
     // with the index of the scaled image it corresponds with.
-    std::vector<Window> windowsIn;
-    std::vector<Window> windowsOut;
+    vector<Window> windowsIn;
+    vector<Window> windowsOut;
 
     // Confidence scores (0.0 - 1.0) for each detected rectangle
-    std::vector<float> scores;
+    vector<float> scores;
 
     // Generate a list of initial windows to search. Each window will be 12x12 from a scaled image
     // These scaled images let us search for variable sized objects using a fixed-width detector
@@ -60,34 +63,34 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     // Generate scaled images for the larger detect sizes as well. Subsequent passes will use larger
     // input sizes. These images will let us grab higher res input as the detector size goes up (as
     // opposed to just scaling up the 12x12 images to a larger size).
-    scalefactor(f32Img, cv::Size(wsize * 2, wsize * 2), minSize, maxSize, scaleFactor, scaledImages24);
-    // not yet - scalefactor(f32Img, cv::Size(wsize*4,wsize*4), minSize, maxSize, scaleFactor, scaledImages48);
+    scalefactor(f32Img, Size(wsize * 2, wsize * 2), minSize, maxSize, scaleFactor, scaledImages24);
+    // not yet - scalefactor(f32Img, Size(wsize*4,wsize*4), minSize, maxSize, scaleFactor, scaledImages48);
 
     // Do 1st level of detection. This takes the initial list of windows
     // and returns the list which have a score for "ball" above the
     // threshold listed.
-    std::cout << "d12 windows in = " << windowsIn.size() << std::endl;
+    cout << "d12 windows in = " << windowsIn.size() << endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsOut, scores);
-    std::cout << "d12 windows out = " << windowsOut.size() << std::endl;
+    cout << "d12 windows out = " << windowsOut.size() << endl;
     runNMS(windowsOut, scores, scaledImages12, nmsThreshold[0], windowsIn);
-    std::cout << "d12 nms windows out = " << windowsIn.size() << std::endl;
+    cout << "d12 nms windows out = " << windowsIn.size() << endl;
 
     // Double the size of the rects to get from a 12x12 to 24x24
     // detection window.  Use scaledImages24 for the detection call
     // since that has the scales appropriate for the 24x24 detector
     for (auto it = windowsIn.begin(); it != windowsIn.end(); ++it)
     {
-        it->first = cv::Rect(it->first.x * 2, it->first.y * 2,
-                             it->first.width * 2, it->first.height * 2);
+        it->first = Rect(it->first.x * 2, it->first.y * 2,
+                         it->first.width * 2, it->first.height * 2);
     }
 
     if ((detectThreshold.size() > 1) && (detectThreshold[1] > 0.0))
     {
-        std::cout << "d24 windows in = " << windowsIn.size() << std::endl;
+        cout << "d24 windows in = " << windowsIn.size() << endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
-        std::cout << "d24 windows out = " << windowsOut.size() << std::endl;
+        cout << "d24 windows out = " << windowsOut.size() << endl;
         runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
-		std::cout << "d24 nms windows out = " << windowsIn.size() << std::endl;
+		cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
 
     // Final result - scale the output rectangles back to the
@@ -96,37 +99,37 @@ void NNDetect<MatT>::detectMultiscale(const cv::Mat&             inputImg,
     for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
     {
         double   scale = scaledImages24[it->second].second;
-        cv::Rect rect(it->first);
-        cv::Rect scaledRect(cv::Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
+        Rect rect(it->first);
+        Rect scaledRect(Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         rectsOut.push_back(scaledRect);
     }
 }
 
 
 template<class MatT>
-void NNDetect<MatT>::runNMS(const std::vector<Window>& windows,
-                            const std::vector<float>& scores,
-                            const std::vector<std::pair<MatT, double> >& scaledImages,
+void NNDetect<MatT>::runNMS(const vector<Window>& windows,
+                            const vector<float>& scores,
+                            const vector<pair<MatT, double> >& scaledImages,
                             double nmsThreshold,
-                            std::vector<Window>& windowsOut)
+                            vector<Window>& windowsOut)
 {
     if ((nmsThreshold > 0.0) && (nmsThreshold < 1.0))
     {
         // Detected is a rect, score pair.
-        std::vector<Detected> detected;
+        vector<Detected> detected;
 
         // Need to scale each rect to the correct mapping to the
         // original image, since rectangles from multiple different
         // scales might overlap
         for (size_t i = 0; i < windows.size(); i++)
         {
-            double   scale = scaledImages[windows[i].second].second;
-            cv::Rect rect(windows[i].first);
-            cv::Rect scaledRect(cv::Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
+            double scale = scaledImages[windows[i].second].second;
+            Rect   rect(windows[i].first);
+            Rect   scaledRect(Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
             detected.push_back(Detected(scaledRect, scores[i]));
         }
 
-        std::vector<size_t> nmsOut;
+        vector<size_t> nmsOut;
         fastNMS(detected, nmsThreshold, nmsOut);
         // Each entry of nmsOut is the index of a saved rect/scales
         // pair.  Save the entries from those indexes as the output
@@ -147,13 +150,13 @@ void NNDetect<MatT>::runNMS(const std::vector<Window>& windows,
 template<class MatT>
 void NNDetect<MatT>::generateInitialWindows(
     const MatT& input,
-    const cv::Mat& depthIn,
-    const cv::Size& minSize,
-    const cv::Size& maxSize,
+    const Mat&  depthIn,
+    const Size& minSize,
+    const Size& maxSize,
     int wsize,
     double scaleFactor,
-    std::vector<std::pair<MatT, double> >& scaledImages,
-    std::vector<Window>& windows)
+    vector<pair<MatT, double> >& scaledImages,
+    vector<Window>& windows)
 {
     windows.clear();
     size_t windowsChecked = 0;
@@ -166,26 +169,27 @@ void NNDetect<MatT>::generateInitialWindows(
     const int step = 4;
 
     // Create array of scaled images
-    std::vector<std::pair<MatT, double> > scaledDepth;
+    vector<pair<MatT, double> > scaledDepth;
     if (!depthIn.empty())
     {
         MatT depthGpu = MatT(depthIn);
-        scalefactor(depthGpu, cv::Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
+        scalefactor(depthGpu, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
     }
-    scalefactor(input, cv::Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
+    scalefactor(input, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
     // Main loop.  Look at each scaled image in turn
-	std::cout << "Scaled images size: " <<  scaledImages.size() << std::endl;
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
 		float depth_multiplier = 0.2;
 		float ball_real_size = 247.6; // ball is 9.75in diameter = 247.6 mm
         float percent_image = (float)wsize / scaledImages[scale].first.cols;
 		float size_fov = percent_image * hfov_; //TODO fov size
-		float depth_avg = (ball_real_size / (2.0 * tan(size_fov / 2.0))) - (4.572 * 25.4);
+		float depth_avg = (ball_real_size / (2.0 * tanf(size_fov / 2.0))) - (4.572 * 25.4);
 		
         float depth_min = depth_avg - depth_avg * depth_multiplier;
         float depth_max = depth_avg + depth_avg * depth_multiplier;
-        std::cout << "Target size:" << wsize / scaledImages[scale].second << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max << std::endl;
+        cout << fixed << "Target size:" << wsize / scaledImages[scale].second << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max;
+		size_t thisWindowsChecked = 0;
+		size_t thisWindowsPassed  = 0;
 
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image
@@ -193,41 +197,44 @@ void NNDetect<MatT>::generateInitialWindows(
         {
             for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
             {
-				windowsChecked += 1;
+				thisWindowsChecked += 1;
                 if (!depthIn.empty())
                 {
-                    cv::Mat detectCheck = cv::Mat(scaledDepth[scale].first(cv::Rect(c, r, wsize, wsize)));
+                    Mat detectCheck = Mat(scaledDepth[scale].first(Rect(c, r, wsize, wsize)));
                     if(!depthInRange(depth_min, depth_max, detectCheck))
                     {
                         continue;
                     }
                 }
-                windows.push_back(Window(cv::Rect(c, r, wsize, wsize), scale));
+                windows.push_back(Window(Rect(c, r, wsize, wsize), scale));
+				thisWindowsPassed += 1;
             }
         }
+		windowsChecked += thisWindowsChecked;
+		cout << " Windows Passed:"<< thisWindowsPassed << "/" << thisWindowsChecked << endl;
     }
-    std::cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << std::endl;
+    cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << endl;
 }
 
 
 template<class MatT>
 void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
-                                  const std::vector<std::pair<MatT, double> >& scaledImages,
-                                  const std::vector<Window>& windows,
+                                  const vector<pair<MatT, double> >& scaledImages,
+                                  const vector<Window>& windows,
                                   float threshold,
-                                  std::string label,
-                                  std::vector<Window>& windowsOut,
-                                  std::vector<float>& scores)
+                                  string label,
+                                  vector<Window>& windowsOut,
+                                  vector<float>& scores)
 {
     windowsOut.clear();
     scores.clear();
     // Accumulate a number of images to test and pass them in to
     // the NN prediction as a batch
-    std::vector<MatT> images;
+    vector<MatT> images;
 
     // Return value from detection. This is a list of indexes from
     // the input which have a high enough confidence score
-    std::vector<size_t> detected;
+    vector<size_t> detected;
 
     size_t batchSize = classifier.BatchSize();
     int    counter   = 0;
@@ -266,7 +273,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
         }
     }
     double end = gtod_wrapper();
-    std::cout << "runDetection time = " << (end - start) << std::endl;
+    cout << "runDetection time = " << (end - start) << endl;
 }
 
 
@@ -274,16 +281,16 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 // and adds the index of anything found to the detected list
 template<class MatT>
 void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
-                                       const std::vector<MatT>& imgs,
+                                       const vector<MatT>& imgs,
                                        float                    threshold,
-                                       const std::string&       label,
-                                       std::vector<size_t>&     detected,
-                                       std::vector<float>&      scores)
+                                       const string&       label,
+                                       vector<size_t>&     detected,
+                                       vector<float>&      scores)
 {
     detected.clear();
     // Grab the top 2 detected classes.  Since we're doing an object /
     // not object split, that will get everything
-    std::vector<std::vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
+    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
 
     // Each outer loop is the predictions for one input image
     for (size_t i = 0; i < imgs.size(); ++i)
@@ -292,7 +299,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         // for the given image, sorted by score.
         //
         // Look for object with label <label>, > threshold confidence
-        for (std::vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
+        for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
         {
             if (it->first == label)
             {
@@ -312,14 +319,14 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
 // say that it is in range if any of the depth values are negative (i.e. no
 // depth info for those pixels)
 template <class MatT>
-bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck)
+bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat &detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
         const float *p = detectCheck.ptr<float>(py);
         for (int px = 0; px < detectCheck.cols; px++)
         {
-            if ((p[px] < 0.0) ||((p[px] < depth_max) && (p[px] > depth_min)))
+            if ((p[px] <= 0.0) || ((p[px] < depth_max) && (p[px] > depth_min)))
             {
                 return true;
             }
@@ -329,5 +336,5 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const cv::Ma
 }
 
 // Explicitly instatiate classes used elsewhere
-template class NNDetect<cv::Mat>;
-template class NNDetect<cv::gpu::GpuMat>;
+template class NNDetect<Mat>;
+template class NNDetect<gpu::GpuMat>;

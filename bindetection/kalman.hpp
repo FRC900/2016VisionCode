@@ -1,6 +1,6 @@
 // From : https://raw.githubusercontent.com/Smorodov/Multitarget-tracker/master/KalmanFilter/Kalman.h
 #pragma once
-#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv/cv.h>
 #include <Eigen/Geometry>
 // http://www.morethantechnical.com/2011/06/17/simple-kalman-filter-for-tracking-using-opencv-2-2-w-code/

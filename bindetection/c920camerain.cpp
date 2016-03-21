@@ -41,7 +41,6 @@ C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 		if(!writer_.isOpened())
 			std::cerr << "Could not open output video " << outfile << std::endl;
 	}
-
 }
 
 bool C920CameraIn::initCamera(bool gui)
@@ -56,7 +55,7 @@ bool C920CameraIn::initCamera(bool gui)
 
 	// TODO - do we want to set these or go
 	// with the values set above?
-//captureSize_ = v4l2::CAPTURE_SIZE_640x480;
+	//captureSize_ = v4l2::CAPTURE_SIZE_640x480;
   	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
