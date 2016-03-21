@@ -14,7 +14,8 @@ endif()
 set(CMAKE_BUILD_TYPE Release)
 
 find_package(CUDA REQUIRED)
-
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR})
 #cuda binaries are in different locations for different architectures
 if(${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
 	link_directories(/usr/local/cuda/lib)
