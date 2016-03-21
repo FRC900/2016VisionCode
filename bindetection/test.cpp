@@ -314,7 +314,7 @@ int main( int argc, const char** argv )
 	//  -- update the angle of tracked objects
 	//  -- do a cascade detect on the current frame
 	//  -- add those newly detected objects to the list of tracked objects
-	while(true)
+	while(isRunning)
 	{
 		//sem->wait() stops the loop only if the input is a video and the grab loop is in the middle of running
 		//if the loop is stopped it will be restarted at the end of the grab loop
