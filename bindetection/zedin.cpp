@@ -31,9 +31,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	filtSBOut_(NULL),
 	archiveOut_(NULL) ,
 	outFileFrameSkip_(outFileFrameSkip),
-	outFileFrameCounter_(0),
-	serializeFrameStart_(0),
-	serializeFrameSize_(0)
+	outFileFrameCounter_(0)
 {
 	if (outFileFrameSkip_ <= 0)
 		outFileFrameSkip_ = 1;
@@ -80,8 +78,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
-
-
 #if 0
 			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
 			contrast_ = zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST);
@@ -119,16 +115,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	{
 		// Zed == NULL and serializeStream_ means reading from
 		// a serialized file. Grab height_ and width_
-#if 0
-		// Also figure out how big a frame is so we can
-		// use random access to get at any frame
-		serializeFrameStart_ = serializeIn_->tellg();
-#endif
 		*archiveIn_ >> _frame >> depthMat_;
-		frameNumber_ += 1;
-#if 0
-		serializeFrameSize_ = serializeIn_->tellg() - serializeFrameStart_;
-#endif
 		if (!openSerializeInput(inFileName))
 			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 		width_  = _frame.cols;
@@ -368,10 +355,6 @@ bool ZedIn::update(void)
 
 int ZedIn::frameCount(void) const
 {
-	// If we're using an input file we can calculate this.
-	if (archiveIn_ && serializeFrameSize_)
-		return (((int)serializeIn_->tellg() - serializeFrameStart_) / serializeFrameSize_);
-
 	// Luckily getSVONumberOfFrames() returns -1 if we're
 	// capturing from a camera, which is also what the rest
 	// of our code expects in that case
@@ -394,16 +377,8 @@ int ZedIn::frameNumber(void) const
 // fail, but nothing we can do about that so fail silently
 void ZedIn::frameNumber(int frameNumber)
 {
-	if (archiveIn_ && serializeFrameSize_)
-	{
-		serializeIn_->seekg(serializeFrameStart_ + frameNumber_ * serializeFrameSize_);
+	if (zed_ && zed_->setSVOPosition(frameNumber))
 		frameNumber_ = frameNumber;
-	}
-	else if (zed_)
-	{
-		if (zed_->setSVOPosition(frameNumber))
-			frameNumber_ = frameNumber;
-	}
 }
 
 
