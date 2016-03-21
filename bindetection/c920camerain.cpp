@@ -127,7 +127,7 @@ bool C920CameraIn::update()
 		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	localFrame_.copyTo(_frame);
-	while (_frame.rows > 800)
+	while (_frame.rows > 700)
 		pyrDown(_frame, _frame);
 	frameNumber_ += 1;
 	return true;
