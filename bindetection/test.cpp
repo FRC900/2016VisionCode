@@ -52,7 +52,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
-string getVideoOutName(bool raw, bool zms, bool png);
+string getVideoOutName(bool raw, const char *suffix);
 
 static bool isRunning = true;
 
@@ -297,9 +297,9 @@ int main( int argc, const char** argv )
 	if (args.writeVideo)
 	{
 		if (depth.empty())
-			rawOut = new AVIOut(getVideoOutName(true, false, false).c_str(), frame.size(), args.writeVideoSkip);
+			rawOut = new AVIOut(getVideoOutName(true, ".avi").c_str(), frame.size(), args.writeVideoSkip);
 		else
-			rawOut = new ZMSOut(getVideoOutName(true, true, false).c_str(), args.writeVideoSkip);
+			rawOut = new ZMSOut(getVideoOutName(true, ".zms").c_str(), args.writeVideoSkip);
 	}
 
 	// No point in saving ZMS files of processed output, since
@@ -311,9 +311,9 @@ int main( int argc, const char** argv )
 	if (args.saveVideo)
 	{
 		if (cap->frameCount() == 1)
-			processedOut = new PNGOut(getVideoOutName(false, false, true).c_str());
+			processedOut = new PNGOut(getVideoOutName(false, ".png").c_str());
 		else
-			processedOut = new AVIOut(getVideoOutName(false, false, false).c_str(), frame.size(), args.saveVideoSkip);
+			processedOut = new AVIOut(getVideoOutName(false, ".avi").c_str(), frame.size(), args.saveVideoSkip);
 	}
 
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
@@ -846,7 +846,7 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 }
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
-string getVideoOutName(bool raw, bool zms, bool png)
+string getVideoOutName(bool raw, const char *suffix)
 {
     int          index = 0;
     int          rc;
@@ -868,18 +868,10 @@ string getVideoOutName(bool raw, bool zms, bool png)
         {
             ss << "_processed";
         }
-        if (zms)
-        {
-            ss << ".zms";
-        }
-        else if (png)
+		if (suffix)
 		{
-			ss << ".png";
+			ss << suffix;
 		}
-		else
-        {
-            ss << ".avi";
-        }
         rc = stat(ss.str().c_str(), &statbuf);
     } while (rc == 0);
     return ss.str();
