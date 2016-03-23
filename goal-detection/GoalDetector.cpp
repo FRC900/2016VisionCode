@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-#define VERBOSE
+//#define VERBOSE
 
 GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
 	_goal_shape(3),
@@ -13,7 +13,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_isValid(false),
 	_pastRects(2),
 	_min_valid_confidence(0.25),
-	_otsu_threshold(12.),
+	_otsu_threshold(8.),
 	_blue_scale(30),
 	_red_scale(60)
 {
@@ -172,8 +172,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		minMaxLoc(centerMidRow, NULL, &centerMaxVal);
 		if ((abs(rightMaxVal / leftMaxVal - 1) > .3) || (min(rightMaxVal, leftMaxVal) < 2 * centerMaxVal))
 		{
+#ifdef VERBOSE
 			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
-			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl;
+			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << ", Center: " << centerMidRow << endl;
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -309,9 +311,9 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 // estimate distance to a target
 float GoalDetector::distanceUsingFOV(const Rect &rect) const
 {
-	float percent_image = (float)rect.height/ _frame_size.height;
+	float percent_image = (float)rect.height / _frame_size.height;
 	float size_fov = percent_image * _fov_size.y; //TODO fov size
-	return _goal_shape.height() / (2.0 * tan(size_fov / 2.0));
+	return _goal_shape.height() / (2.0 * tanf(size_fov / 2.0));
 }
 
 float GoalDetector::dist_to_goal(void) const 
@@ -323,7 +325,24 @@ float GoalDetector::dist_to_goal(void) const
 float GoalDetector::angle_to_goal(void) const 
 { 
 	//angle robot has to turn to face goal in degrees
-	return _isValid ? _angle_to_goal : -1.0; 
+	if (!_isValid)
+		return -1;
+
+	float mag = fabsf(_angle_to_goal);
+	float delta = 0;
+	if (mag >= 40)
+		delta = 2.0;
+	else if (mag >= 35)
+		delta = 1.5;
+	else if (mag >= 30)
+		delta = 1.0;
+	else if (mag >= 25)
+		delta = 0.5;
+
+	//cout << "angle " << _angle_to_goal << "Mag " << mag << " delta " << delta << " foo " << ((_angle_to_goal < 0) ? delta : -delta) << endl;
+	//return _isValid ? _angle_to_goal : -1.0; 
+
+	return _angle_to_goal + ((_angle_to_goal < 0) ? delta : -delta);
 }  
 		
 // Screen rect bounding the goal

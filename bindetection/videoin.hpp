@@ -7,11 +7,10 @@
 class VideoIn : public MediaIn
 {
 	public:
-		VideoIn(const char *inpath, const char *outpath = NULL);
+		VideoIn(const char *inpath);
 		~VideoIn() {}
 		bool update();
 		bool getFrame(cv::Mat &frame, cv::Mat &depth);
-		bool saveFrame(cv::Mat &frame, cv::Mat &depth);
 		int width() const;
 		int height() const;
 		int frameCount(void) const;
@@ -22,7 +21,6 @@ class VideoIn : public MediaIn
 	private:
 		bool             increment_;
 		cv::VideoCapture cap_;
-		cv::VideoWriter  writer_;
 		int              width_;
 		int              height_;
 		int              frames_;

@@ -19,25 +19,15 @@ void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
 void zedWhiteBalanceCallback(int value, void *data);
 
-ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outFileFrameSkip) :
+ZedIn::ZedIn(const char *inFileName, bool gui) :
 	zed_(NULL),
 	width_(0),
 	height_(0),
 	frameNumber_(0),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
-	archiveIn_(NULL),
-	serializeOut_(NULL),
-	filtSBOut_(NULL),
-	archiveOut_(NULL) ,
-	outFileFrameSkip_(outFileFrameSkip),
-	outFileFrameCounter_(0),
-	serializeFrameStart_(0),
-	serializeFrameSize_(0)
+	archiveIn_(NULL)
 {
-	if (outFileFrameSkip_ <= 0)
-		outFileFrameSkip_ = 1;
-
 	if (inFileName)
 	{
 		// Might be svo, might be zms
@@ -58,7 +48,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 		else
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
-	else 
+	else
 	{  // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
 		semValue_ = 2;
@@ -79,8 +69,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 		{
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
-
-
 
 #if 0
 			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
@@ -119,16 +107,7 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	{
 		// Zed == NULL and serializeStream_ means reading from
 		// a serialized file. Grab height_ and width_
-#if 0
-		// Also figure out how big a frame is so we can
-		// use random access to get at any frame
-		serializeFrameStart_ = serializeIn_->tellg();
-#endif
 		*archiveIn_ >> _frame >> depthMat_;
-		frameNumber_ += 1;
-#if 0
-		serializeFrameSize_ = serializeIn_->tellg() - serializeFrameStart_;
-#endif
 		if (!openSerializeInput(inFileName))
 			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 		width_  = _frame.cols;
@@ -139,16 +118,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 	{
 		width_  /= 2;
 		height_ /= 2;
-	}
-
-	// Save the raw camera stream to disk.  This uses a home-brew
-	// method to serialize image and depth data to disk rather than
-	// relying on Stereolab's SVO format.
-	if (outFileName && (zed_ || archiveIn_))
-	{
-		outFileName_ = outFileName;
-		if (!openSerializeOutput(outFileName_.c_str()))
-			cerr << "Zed init : could not open output file " << outFileName << endl;
 	}
 }
 
@@ -188,41 +157,6 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	return true;
 }
 
-// Output needs 3 things. First is a standard ofstream to write to
-// Next is an (optional) filtered stream buffer. This is used to
-// compress on the fly - uncompressed files take up way too
-// much space. Last item is the actual boost binary archive template
-// If all three are opened, return true. If not, delete and set to
-// NULL all pointers related to serialized Output
-bool ZedIn::openSerializeOutput(const char *outFileName)
-{
-	deleteOutputPointers();
-	serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
-	if (!serializeOut_ || !serializeOut_->is_open())
-	{
-		cerr << "Could not open ofstream(" << outFileName << ")" << endl;
-		deleteOutputPointers();
-		return false;
-	}
-	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
-	if (!filtSBOut_)
-	{
-		cerr << "Could not create filtering_streambuf<output> in constructor" <<endl;
-		deleteOutputPointers();
-		return false;
-	}
-	filtSBOut_->push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
-	filtSBOut_->push(*serializeOut_);
-	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
-	if (!archiveOut_)
-	{
-		cerr << "Could not create binary_oarchive in constructor" <<endl;
-		deleteOutputPointers();
-		return false;
-	}
-	return true;
-}
-
 // Helper to easily delete and NULL out input file pointers
 void ZedIn::deleteInputPointers(void)
 {
@@ -243,48 +177,22 @@ void ZedIn::deleteInputPointers(void)
 	}
 }
 
-// Helper to easily delete and NULL out output file pointers
-void ZedIn::deleteOutputPointers(void)
-{
-	if (archiveOut_)
-	{
-		delete archiveOut_;
-		archiveOut_ = NULL;
-	}
-	if (filtSBOut_)
-	{
-		delete filtSBOut_;
-		filtSBOut_ = NULL;
-	}
-	if (serializeOut_)
-	{
-		delete serializeOut_;
-		serializeOut_ = NULL;
-	}
-}
-
-
-void ZedIn::deletePointers(void)
-{
-	deleteInputPointers();
-	deleteOutputPointers();
-}
 
 
 ZedIn::~ZedIn()
 {
-	deletePointers();
+	deleteInputPointers();
 	if (zed_)
 		delete zed_;
 }
 
-bool ZedIn::update(bool left) 
+bool ZedIn::update(bool left)
 {
 	// Read from either the zed camera or from
 	// a previously-serialized ZMS file
 	if (zed_)
 	{
-		if (zed_->grab(sl::zed::SENSING_MODE::RAW)) 
+		if (zed_->grab(sl::zed::SENSING_MODE::RAW))
 			return false;
 
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
@@ -327,32 +235,6 @@ bool ZedIn::update(bool left)
 	return true;
 }
 
-bool ZedIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
-{
-	// Write output to serialized file if it is open
-	// if we've skipped enough frames since the last write 
-	// (which could be every frame if outFileFrameSkip == 0 or 1
-	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
-	{
-		//lock the mutex because each << operator is a seperate operation and having two
-		//chained could possibly lead to a different depth and frame
-		_mtx.lock();
-		*archiveOut_ << frame << depth;
-		_mtx.unlock();
-		const int frameSplitCount = 300;
-		if ((frameNumber_ > 0) && ((frameNumber_ % frameSplitCount) == 0))
-		{
-			stringstream ofName;
-			ofName << change_extension(outFileName_, "").string() << "_" ;
-			ofName << (frameNumber_ / frameSplitCount) << ".zms";
-			if (!openSerializeOutput(ofName.str().c_str())) {
-				cerr << "Could not (re)open " << ofName.str() << " for serialized output" << endl;
-				return false;
-			}
-		}
-	}
-	return true;
-}
 
 bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 {
@@ -372,10 +254,6 @@ bool ZedIn::update(void)
 
 int ZedIn::frameCount(void) const
 {
-	// If we're using an input file we can calculate this.
-	if (archiveIn_ && serializeFrameSize_)
-		return (((int)serializeIn_->tellg() - serializeFrameStart_) / serializeFrameSize_);
-
 	// Luckily getSVONumberOfFrames() returns -1 if we're
 	// capturing from a camera, which is also what the rest
 	// of our code expects in that case
@@ -398,16 +276,8 @@ int ZedIn::frameNumber(void) const
 // fail, but nothing we can do about that so fail silently
 void ZedIn::frameNumber(int frameNumber)
 {
-	if (archiveIn_ && serializeFrameSize_)
-	{
-		serializeIn_->seekg(serializeFrameStart_ + frameNumber_ * serializeFrameSize_);
+	if (zed_ && zed_->setSVOPosition(frameNumber))
 		frameNumber_ = frameNumber;
-	}
-	else if (zed_)
-	{
-		if (zed_->setSVOPosition(frameNumber))
-			frameNumber_ = frameNumber;
-	}
 }
 
 
@@ -425,67 +295,27 @@ int ZedIn::height(void) const
 
 CameraParams ZedIn::getCameraParams(bool left) const
 {
-	sl::zed::CamParameters zedp;
-	if (zed_)
-	{
-		if(left)
-			zedp = zed_->getParameters()->LeftCam;
-		else
-			zedp = zed_->getParameters()->RightCam;
-	}
+	stringstream camera_id;
+	camera_id << "ZED";
+	int actual_w = zed_ ? zed_->getImageSize().width : width_;
+	int actual_h = zed_ ? zed_->getImageSize().height : height_;
+	camera_id << actual_w << "x" << actual_h;
+
+	if(left)
+		camera_id << "left";
 	else
-	{
-		// Take a guess based on acutal values from one of our cameras
-		if (height_ == 480)
-		{
-			zedp.fx = 705.768;
-			zedp.fy = 705.768;
-			zedp.cx = 326.848;
-			zedp.cy = 240.039;
-		}
-		else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
-		{
-			zedp.fx = 686.07;
-			zedp.fy = 686.07;
-			zedp.cx = 662.955;
-			zedp.cy = 361.614;
-		}
-		else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
-		{
-			zedp.fx = 1401.88;
-			zedp.fy = 1401.88;
-			zedp.cx = 977.193 / (1920 / width_); // Is this correct - downsized
-			zedp.cy = 540.036 / (1920 / width_); // image needs downsized cx?
-		}
-		else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
-		{
-			zedp.fx = 1385.4;
-			zedp.fy = 1385.4;
-			zedp.cx = 1124.74 / (2208 / width_);
-			zedp.cy = 1124.74 / (2208 / width_);
-		}
-		else
-		{
-			// This should never happen
-			zedp.fx = 0;
-			zedp.fy = 0;
-			zedp.cx = 0;
-			zedp.cy = 0;
-		}
-	}
-	float hFovDegrees;
-	if (height_ == 480) // can't work based on width, since 1/2 of 720P is 640, as is 640x480
-		hFovDegrees = 51.3;
+		camera_id << "right";
+
+	if(zed_)
+		camera_id << zed_->getZEDSerial();
 	else
-		hFovDegrees = 105.; // hope all the HD & 2k res are the same
-	float hFovRadians = hFovDegrees * M_PI / 180.0;
+		camera_id << "2151"; //assume 2151 because currently we don't store which camera it was with the archive
 
 	CameraParams params;
-	params.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
-	params.fx = zedp.fx;
-	params.fy = zedp.fy;
-	params.cx = zedp.cx;
-	params.cy = zedp.cy;
+	cout << endl << "Reading parameter file params.xml: " << endl;
+	FileStorage fs;
+	fs.open("params.xml", FileStorage::READ);
+	fs[camera_id.str()] >> params;
 	return params;
 }
 

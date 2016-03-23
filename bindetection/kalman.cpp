@@ -3,8 +3,10 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include "kalman.hpp"
+
 using namespace std;
 using namespace cv;
+
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
@@ -132,5 +134,3 @@ void TKalmanFilter::adjustPrediction(cv::Point3f delta_pos)
 	kalman.statePre.at<float>(1) = kalman.statePre.at<float>(1) + delta_pos.y;
 	kalman.statePre.at<float>(2) = kalman.statePre.at<float>(2) + delta_pos.z;
 }
-
-

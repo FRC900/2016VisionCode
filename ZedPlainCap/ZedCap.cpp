@@ -34,11 +34,12 @@ int main(int argc, char *argv[])
 		} while (rc == 0);
 		outputVideo = VideoWriter(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(camera.width(), camera.height()), true);
 	}
-	Mat frame;
+	Mat frame, depth;
 
 	while (true)
 	{
-		camera.getNextFrame(frame, false);
+		camera.update();
+		camera.getFrame(frame, depth);
 		if (!frame.empty())
 		{
 			if (argc < 3)

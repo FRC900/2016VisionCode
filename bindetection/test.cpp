@@ -22,6 +22,8 @@
 #include "camerain.hpp"
 #include "c920camerain.hpp"
 #include "zedin.hpp"
+#include "aviout.hpp"
+#include "zmsout.hpp"
 #include "track3d.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
@@ -47,7 +49,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool writeVideo);
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
 
@@ -141,17 +143,17 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
     }
 }
 
-void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) 
+void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem)
 {
 	//this runs concurrently with the main while loop if using a camera
 	FrameTicker frameTicker;
-	while(1) 
+	while(1)
 	{
-		if(!pause) 
+		if(!pause)
 		{
 			frameTicker.mark();
 			sem->wait();
-			if(!cap->update()) 
+			if(!cap->update())
 			{
 				cerr << "Failed to capture" << endl;
 				usleep(100000);
@@ -166,6 +168,44 @@ void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_sem
 
 int main( int argc, const char** argv )
 {
+  CameraParams params;
+  FileStorage fs;
+  fs.open("params.xml", FileStorage::WRITE);
+
+  params.disto = Mat::ones(1,5,CV_32F);
+  params.fov = Point2f(51.3 * M_PI / 180., 51.3 * 480. / 640. * M_PI / 180.);
+
+  params.fx = 705.768;
+  params.fy = 705.768;
+  params.cx = 326.848;
+  params.cy = 240.039;
+  fs << "ZED640x480left2151" << params;
+
+  params.fx = 686.07;
+  params.fy = 686.07;
+  params.cx = 662.955;
+  params.cy = 361.614;
+  fs << "ZED1280x720left2151" << params;
+
+  params.fx = 1401.88;
+  params.fy = 1401.88;
+  params.cx = 977.193 / (1920 / 640); // Is this correct - downsized
+  params.cy = 540.036 / (1920 / 640); // image needs downsized cx?
+  fs << "ZED1920x1080left2151" << params;
+
+  params.fx = 1385.4;
+  params.fy = 1385.4;
+  params.cx = 1124.74 / (2208 / 640);
+  params.cy = 1124.74 / (2208 / 640);
+  fs << "ZED2208x1242left2151" << params;
+
+  params.fov = Point2f(Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.));
+  fs << "C920640x480" << params;
+
+  params.fov = Point2f(70.42 * M_PI / 180., 43.3 * M_PI / 180.);
+  fs << "C9201280x720" << params;
+
+
 	// Flags for various UI features
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
@@ -197,6 +237,7 @@ int main( int argc, const char** argv )
 
 	openMedia(cap, args.inputName ,capPath, windowName,
 			  !args.batchMode, args.writeVideo || args.saveVideo);
+
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
@@ -257,6 +298,7 @@ int main( int argc, const char** argv )
 
 	const size_t netTableArraySize = 7; // 7 objects
 
+<<<<<<< HEAD
 	//we can't save both marked up video and raw video so we default to saving raw video because
 	//if we need to we can write over it later
 	if(args.writeVideo && args.saveVideo) 
@@ -265,6 +307,8 @@ int main( int argc, const char** argv )
 		args.saveVideo = false;
 	}
 
+=======
+>>>>>>> master
 	FrameTicker frameTicker;
 
 	//load up the neural networks.
@@ -286,13 +330,41 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
+<<<<<<< HEAD
 	//load an initial frame for stuff like optical flow which requires an initial frame to compute difference against
+=======
+	//load an initial frame for stuff like optical flow which requires an initial
+	// frame to compute difference against
+>>>>>>> master
 	//also checks to make sure that the cap object works
 	if (!cap->update() || !cap->getFrame(frame, depth))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
+
+	// Open file to save raw video into. If depth data
+	// is available, use a ZMS file since that can save
+	// both RGB and depth info. If there's no depth
+	// data write to and AVI instead.
+	MediaOut *rawOut = NULL;
+	if (args.writeVideo)
+	{
+		if (depth.empty())
+			rawOut = new AVIOut(getVideoOutName(true,false).c_str(), frame.size(), args.writeVideoSkip);
+		else
+			rawOut = new ZMSOut(getVideoOutName(true,true).c_str(), args.writeVideoSkip);
+	}
+
+	// No point in saving ZMS files of processed output, since
+	// the marked up frames will prevent us from re-running
+	// the code through zv again.  This means we won't need
+	// the depth info which is the only reason to use ZMS
+	// files in the first place
+	// TODO : add a .PNG output option for images
+	MediaOut *processedOut = NULL;
+	if (args.saveVideo)
+		processedOut = new AVIOut(getVideoOutName(false,false).c_str(), frame.size(), args.saveVideoSkip);
 
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
@@ -307,14 +379,18 @@ int main( int argc, const char** argv )
 	//this loop runs asynchronously with the main loop if the input is a camera
 	//and synchronously if the input is a video (i.e. one grab per process)
 	//the semaphore input controls the synchronicity of the frame
+<<<<<<< HEAD
 	boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
+=======
+	boost::thread g_thread(grabThread, cap, boost::ref(pause), sem);
+>>>>>>> master
 
 	// Start of the main loop
 	//  -- grab a frame
 	//  -- update the angle of tracked objects
 	//  -- do a cascade detect on the current frame
 	//  -- add those newly detected objects to the list of tracked objects
-	while(true)
+	while(isRunning)
 	{
 		//sem->wait() stops the loop only if the input is a video and the grab loop is in the middle of running
 		//if the loop is stopped it will be restarted at the end of the grab loop
@@ -324,10 +400,9 @@ int main( int argc, const char** argv )
 
 		frameTicker.mark(); // mark start of new frame
 
-		// Write raw video before anything gets drawn
-		// on it
-		if (args.writeVideo)
-			cap->saveFrame(frame, depth);
+		// Write raw video before anything gets drawn on it
+		if (args.writeVideo && rawOut)
+			rawOut->saveFrame(frame, depth);
 
 		// This code will load a classifier if none is loaded - this handles
 		// initializing the classifier the first time through the loop.
@@ -337,10 +412,8 @@ int main( int argc, const char** argv )
 		if (detectState && (detectState->update() == false))
 			break;
 
-		//run Goaldetector and draw the result
+		// run Goaldetector
 		gd.processFrame(frame, depth);
-		if (gdDraw)
-			gd.drawOnFrame(frame);
 
 		cout << "Goal Position=" << gd.goal_pos() << endl;
 
@@ -371,6 +444,7 @@ int main( int argc, const char** argv )
 			for (size_t index = 0; index < detectRects.size(); index++)
 				writeImage(frame, detectRects, index, capPath.c_str(), cap->frameNumber());
 
+<<<<<<< HEAD
 		// Draw detected rectangles on frame if
 		// a. batch mode is disabled
 		// b. draw rects is enabled
@@ -379,6 +453,8 @@ int main( int argc, const char** argv )
 		if (!args.batchMode && args.rects && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 			drawRects(frame,detectRects);
 
+=======
+>>>>>>> master
 		//adjust object locations based on optical flow information
 		if (detectState)
 		{
@@ -403,7 +479,11 @@ int main( int argc, const char** argv )
 		{
 			cout << "Detected object at: " << *it;
 			Rect depthRect = *it;
+<<<<<<< HEAD
 			
+=======
+
+>>>>>>> master
 			//when we use optical flow to adjust we need to recompute the depth based on the new locations.
 			//to do this shrink the bounding rectangle and take the minimum rect of the inside
 			shrinkRect(depthRect,depthRectScale);
@@ -426,44 +506,39 @@ int main( int argc, const char** argv )
 
         sendZMQData(netTableArraySize, publisher, displayList, gd);
 
-		// Draw tracking info on display if
-		//   a. tracking is toggled on
-		//   b. batch (non-GUI) mode isn't active
-		//   c. we're on one of the frames to display (every frameDispFreq frames)
-		if (args.tracking &&
-			!args.batchMode &&
-			((cap->frameNumber() % frameDisplayFrequency) == 0))
-		{
-		    drawTrackingInfo(frame, displayList);
-			drawTrackingTopDown(top_frame, displayList, gd.goal_pos());
-			imshow("Top view", top_frame);
-		}
+		// Ground truth is a way of storing known locations of objects in a file.
+		// Check ground truth data on videos and images,
+		// but not on camera input
+		vector<Rect> groundTruthHitList;
+		if (cap->frameCount() >= 0)
+			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
 
 		// For interactive mode, update the FPS as soon as we have
 		// a complete array of frame time entries
 		// For args.batch mode, only update every frameTicksLength frames to
 		// avoid printing too much stuff
-	    if (frameTicker.valid() &&
+		if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
 			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
-	    {
-			stringstream ss;
-			// If in args.batch mode and reading a video, display
-			// the frame count
+		{
 			int frames = cap->frameCount();
-			if (args.batchMode)
-			{
-				ss << cap->frameNumber();
-				if (frames > 0)
-				   ss << '/' << frames;
-				ss << " : ";
-			}
-			// Print the FPS
-			ss << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
-      cout << ss.str() << endl;
+			stringstream frameStr;
+			frameStr << cap->frameNumber();
+			if (frames > 0)
+				frameStr << '/' << frames;
+
+			stringstream fpsStr;
+			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
 			if (!args.batchMode)
-				putText(frame, ss.str(), Point(frame.cols - 15 * ss.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+			{
+				if (printFrames)
+					putText(frame, frameStr.str(),
+							Point(frame.cols - 15 * frameStr.str().length(), 20),
+							FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+			}
 			else
+<<<<<<< HEAD
 				cerr << ss.str() << endl;
 	    }
 
@@ -473,6 +548,10 @@ int main( int argc, const char** argv )
 		vector<Rect> groundTruthHitList;
 		if (cap->frameCount() >= 0)
 			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
+=======
+				cerr << frameStr.str() << " : " << fpsStr.str() << endl;
+		}
+>>>>>>> master
 
 		// Various random display updates. Only do them every frameDisplayFrequency
 		// frames. Normally this value is 1 so we display every frame. When exporting
@@ -480,23 +559,21 @@ int main( int argc, const char** argv )
 		// 3, 5 or whatever frames instead.
 		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
+			drawRects(frame,detectRects);
+
+			// Draw tracking info if it is enabled
+			if (args.tracking)
+				drawTrackingInfo(frame, displayList);
+			vector<TrackedObjectDisplay> emptyDisplayList;
+			drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
+			imshow("Top view", top_frame);
+
 			// Put an A on the screen if capture-all is enabled so
 			// users can keep track of that toggle's mode
 			if (args.captureAll)
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
 
-			// Print frame number of video if the option is enabled
-			int frames = cap->frameCount();
-			if (printFrames && (frames > 0))
-			{
-				stringstream ss;
-				ss << cap->frameNumber() << '/' << frames;
-				putText(frame, ss.str(),
-				        Point(frame.cols - 15 * ss.str().length(), 20),
-						FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-			}
-
-			// Display current classifier under test
+			// Display current classifier infomation
 			if (detectState)
 				putText(frame, detectState->print(),
 						Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
@@ -507,6 +584,14 @@ int main( int argc, const char** argv )
 			{
 			   line (frame, Point(frame.cols/2, 0) , Point(frame.cols/2, frame.rows), Scalar(255,255,0));
 			   line (frame, Point(0, frame.rows/2) , Point(frame.cols, frame.rows/2), Scalar(255,255,0));
+			   Rect gr = gd.goal_rect();
+			   if (gr != Rect())
+			   {
+
+				   // Draw the ball to scale to our detected goal
+				   int ballSize = cvRound(gr.width * 9.75 / 40.);
+				   circle(frame, Point(frame.cols/2., gr.br().y - ballSize*2.), ballSize, Scalar(0,0,255), 3);
+			   }
 			}
 
 			// Draw ground truth info for this frame. Will be a no-op
@@ -516,15 +601,22 @@ int main( int argc, const char** argv )
             drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
             drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
 
+<<<<<<< HEAD
 			//draw the goal
             rectangle(frame, gd.goal_rect(), Scalar(255, 0, 0));
+=======
+			//draw the goal along with debugging info if that's enabled
+			if (gdDraw)
+				gd.drawOnFrame(frame);
+            rectangle(frame, gd.goal_rect(), Scalar(0, 255, 0));
+>>>>>>> master
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
 			imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a file
-			if (args.saveVideo) 
+			if (args.saveVideo && processedOut)
 			{
 				bool dateAndTime = true;
 				WriteOnFrame textWriter;
@@ -533,7 +625,7 @@ int main( int argc, const char** argv )
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
 				}
-				cap->saveFrame(frame, depth);
+				processedOut->saveFrame(frame, depth);
 			}
 
 			// Process user input for this frame
@@ -694,17 +786,16 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
-		cout << "Ball detect ground truth : " << endl;
-		groundTruth.print();
-		cout << endl << "Goal detect ground truth : " << endl;
-		goalTruth.print();
-
 		sem->post();
 	}
-
-	groundTruth.print();
   	g_thread.interrupt();
   	g_thread.join();
+
+	cout << "Ball detect ground truth : " << endl;
+	groundTruth.print();
+	cout << endl << "Goal detect ground truth : " << endl;
+	goalTruth.print();
+
 	if (detectState)
 		delete detectState;
   	if(cap)
@@ -785,7 +876,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool writeVideo)
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -794,16 +885,16 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true,true).c_str() : NULL, gui );
+		cap = new ZedIn(NULL, gui);
 		Mat	mat, depth;
 		if(!cap->update() || !cap->getFrame(mat, depth))
 		{
 			delete cap;
-			cap = new C920CameraIn(writeVideo ? getVideoOutName(true,false).c_str() : NULL, camera, gui);
+			cap = new C920CameraIn(camera, gui);
 			if (!cap->update() || !cap->getFrame(mat, depth))
 			{
 				delete cap;
-				cap = new CameraIn(writeVideo ? getVideoOutName(true,false).c_str() : NULL,camera, gui);
+				cap = new CameraIn(camera, gui);
 				ss << "Default Camera ";
 			}
 			else
@@ -823,13 +914,10 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 	{
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
-			cap = new ImageIn((char*)readFileName.c_str(), writeVideo ? getVideoOutName(true,false).c_str() : NULL);
+			cap = new ImageIn((char*)readFileName.c_str());
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
-		{
-			cap = new ZedIn(readFileName.c_str(), writeVideo ? getVideoOutName(true,false).c_str() : NULL, gui);
-			writeVideo = false;
-		}
+			cap = new ZedIn(readFileName.c_str(), gui);
 		else
 			cap = new VideoIn(readFileName.c_str());
 
@@ -841,7 +929,6 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		windowName = readFileName;
 	}
 }
-
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
 string getVideoOutName(bool raw, bool zms)

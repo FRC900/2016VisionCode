@@ -13,8 +13,9 @@ class Args //class for processing arguments
 						       // as quickly as possible. Combine with --all?
 		int  skip;             // skip over frames (video file input only)
 		bool writeVideo;       // write captured video to output
-		int  writeVideoSkip;   // only write every N frames
+		int  writeVideoSkip;   // only write 1 of every N frames
 		bool saveVideo;        // write processed video to output
+		bool saveVideoSkip;    // only write 1 of every N processed frames
 		int  frameStart;       // frame number to start from
 		bool calibrate;        // crosshair to calibrate camera
 		bool detection;         // enable object detection?

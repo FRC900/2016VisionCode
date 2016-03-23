@@ -6,10 +6,10 @@
 
 using namespace cv;
 
-CameraIn::CameraIn(const char *outfile, int stream, bool gui) :
+CameraIn::CameraIn(int stream, bool gui) :
 	frameNumber_(0),
-	width_(800),
-    height_(600),
+	width_(1280),
+    height_(720),
 	cap_(stream)
 {
 	(void)gui;
@@ -20,17 +20,10 @@ CameraIn::CameraIn(const char *outfile, int stream, bool gui) :
 		cap_.set(CV_CAP_PROP_FRAME_HEIGHT, height_);
 		// getNextFrame resizes large inputs,
 		// make sure width and height match
-		while (height_ > 800)
+		while (height_ > 700)
 		{
 			width_ /= 2;
 			height_ /= 2;
-		}
-
-		// open the output video
-		if(outfile != NULL) {
-			writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width_, height_), true);
-			if(!writer_.isOpened())
-				std::cerr << "Could not open output video " << outfile << std::endl;
 		}
 	}
 	else
@@ -47,7 +40,7 @@ bool CameraIn::update()
 		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	localFrame_.copyTo(_frame);
-	while (_frame.rows > 800)
+	while (_frame.rows > 700)
 		pyrDown(_frame, _frame);
 	frameNumber_ += 1;
 	return true;
@@ -63,12 +56,6 @@ bool CameraIn::getFrame(Mat &frame, Mat &depth)
 		return false;
 	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
-	return true;
-}
-
-bool CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) {
-	(void)depth;
-	writer_ << frame;
 	return true;
 }
 

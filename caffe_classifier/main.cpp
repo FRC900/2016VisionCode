@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
    nmsThresholds.push_back(0.5);
    nmsThresholds.push_back(0.75);
 
-   NNDetect<cv::Mat> detect(d12Info, d24Info);
+   NNDetect<cv::Mat> detect(d12Info, d24Info, 75 * M_PI / 180.);
    cv::Mat emptyMat;
    detect.detectMultiscale(inputImg, emptyMat, minSize, maxSize, 1.15, nmsThresholds, detectThresholds, rectsOut);
    namedWindow("Image", cv::WINDOW_AUTOSIZE);

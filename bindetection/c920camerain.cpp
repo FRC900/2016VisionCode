@@ -21,7 +21,7 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
+C920CameraIn::C920CameraIn(int _stream, bool gui) :
 	camera_(_stream >= 0 ? _stream : 0)
 {
 	if (!camera_.IsOpen())
@@ -31,17 +31,6 @@ C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
-
-	if(outfile != NULL && camera_.IsOpen()) 
-	{
-		unsigned int width;
-		unsigned int height;
-		v4l2::GetCaptureSize(captureSize_, width, height);
-		writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width, height), true);
-		if(!writer_.isOpened())
-			std::cerr << "Could not open output video " << outfile << std::endl;
-	}
-
 }
 
 bool C920CameraIn::initCamera(bool gui)
@@ -56,7 +45,7 @@ bool C920CameraIn::initCamera(bool gui)
 
 	// TODO - do we want to set these or go
 	// with the values set above?
-//captureSize_ = v4l2::CAPTURE_SIZE_640x480;
+	//captureSize_ = v4l2::CAPTURE_SIZE_640x480;
   	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
@@ -119,7 +108,7 @@ bool C920CameraIn::initCamera(bool gui)
 	return true;
 }
 
-bool C920CameraIn::update() 
+bool C920CameraIn::update()
 {
 	if (!camera_.IsOpen() ||
 	    !camera_.GrabFrame() ||
@@ -127,7 +116,7 @@ bool C920CameraIn::update()
 		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	localFrame_.copyTo(_frame);
-	while (_frame.rows > 800)
+	while (_frame.rows > 700)
 		pyrDown(_frame, _frame);
 	frameNumber_ += 1;
 	return true;
@@ -143,13 +132,6 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 		return false;
 	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
-	return true;
-}
-
-bool C920CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
-{
-	(void) depth;
-	writer_ << frame;
 	return true;
 }
 
@@ -201,13 +183,16 @@ CameraParams C920CameraIn::getCameraParams(bool left) const
 	unsigned int height;
 
 	v4l2::GetCaptureSize(captureSize_, width, height);
-	CameraParams cp;
-	if (height == 480)
-		cp.fov = Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.); // need VFOV, other resolutions
-	else
-		//cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
-		cp.fov = Point2f(70.42 * M_PI / 180., 43.3 * M_PI / 180.);
-	return cp;
+	CameraParams params;
+	stringstream camera_id;
+	camera_id << "C920";
+	camera_id << width << "x" << height;
+
+	cout << endl << "Reading parameter file params.xml: " << endl;
+	FileStorage fs;
+	fs.open("params.xml", FileStorage::READ);
+	fs[camera_id.str()] >> params;
+	return params;
 }
 
 
@@ -283,10 +268,6 @@ C920CameraIn::C920CameraIn(int _stream, bool gui)
 	(void)_stream;
 	(void)gui;
 	std::cerr << "C920 support not enabled" << std::endl;
-}
-
-bool C920CameraIn::saveFrame(const cv::Mat &frame) {
-	writer_ << frame;
 }
 
 #endif

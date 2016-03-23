@@ -33,6 +33,8 @@ class FrameTicker
 
 		double getFPS(void) const
 		{
+			if (!valid())
+				return -1;
 			double sum = 0.0;
 			for (auto it = frameTicks_.begin(); it != frameTicks_.end(); ++it)
 				sum += *it;
