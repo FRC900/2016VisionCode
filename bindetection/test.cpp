@@ -232,7 +232,6 @@ int main( int argc, const char** argv )
 	minDetectSize = angular_size * (cap->width() / camParams.fov.x);
 	cout << "Min Detect Size: " << minDetectSize << endl;
 
-
 	// If UI is up, pop up the parameters window
 	if (!args.batchMode && args.detection)
 	{
@@ -248,7 +247,6 @@ int main( int argc, const char** argv )
 	}
 
 	// Create list of tracked objects
-	// balls / boulders are 8" wide?
 	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
 
 	zmq::context_t context(1);
@@ -310,6 +308,8 @@ int main( int argc, const char** argv )
 	MediaOut *processedOut = NULL;
 	if (args.saveVideo)
 	{
+		// Inputs with 1 frame are still images - write their
+		// output as still images as well
 		if (cap->frameCount() == 1)
 			processedOut = new PNGOut(getVideoOutName(false, ".png").c_str());
 		else

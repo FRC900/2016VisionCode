@@ -108,10 +108,12 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 		// Zed == NULL and serializeStream_ means reading from
 		// a serialized file. Grab height_ and width_
 		*archiveIn_ >> _frame >> depthMat_;
-		if (!openSerializeInput(inFileName))
-			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 		width_  = _frame.cols;
 		height_ = _frame.rows;
+
+		// Reopen the file so callers can get the first frame
+		if (!openSerializeInput(inFileName))
+			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 	}
 
 	while (height_ > 700)
@@ -178,13 +180,13 @@ void ZedIn::deleteInputPointers(void)
 }
 
 
-
 ZedIn::~ZedIn()
 {
 	deleteInputPointers();
 	if (zed_)
 		delete zed_;
 }
+
 
 bool ZedIn::update(bool left) 
 {
@@ -232,6 +234,7 @@ bool ZedIn::update(bool left)
 	}
 	else
 		return false;
+
 	return true;
 }
 
@@ -260,7 +263,7 @@ int ZedIn::frameCount(void) const
 	if (zed_)
 		return zed_->getSVONumberOfFrames();
 
-	// If using a video, there's no way to tell
+	// If using zms or a live camera, there's no way to tell
 	return -1;
 }
 
