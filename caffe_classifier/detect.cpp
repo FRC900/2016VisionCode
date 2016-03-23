@@ -193,9 +193,9 @@ void NNDetect<MatT>::generateInitialWindows(
 
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image
-        for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
+        for (int r = 0; (r + wsize) <= scaledImages[scale].first.rows; r += step)
         {
-            for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
+            for (int c = 0; (c + wsize) <= scaledImages[scale].first.cols; c += step)
             {
 				thisWindowsChecked += 1;
                 if (!depthIn.empty())
