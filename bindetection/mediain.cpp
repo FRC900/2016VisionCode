@@ -21,7 +21,8 @@ void MediaIn::frameNumber(int frameNumber)
 	(void)frameNumber;
 }
 
-int MediaIn::semValue() {
+int MediaIn::semValue() 
+{
 	return 2;
 }
 

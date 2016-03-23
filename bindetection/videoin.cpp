@@ -5,7 +5,7 @@
 
 using namespace cv;
 
-VideoIn::VideoIn(const char *inpath, const char *outpath) :
+VideoIn::VideoIn(const char *inpath) :
 	cap_(inpath)
 {
 	if (cap_.isOpened())
@@ -21,18 +21,9 @@ VideoIn::VideoIn(const char *inpath, const char *outpath) :
 		}
 		frames_ = cap_.get(CV_CAP_PROP_FRAME_COUNT);
 		frameNumber_ = 0;
-
-		// open the output video
-		if(outpath != NULL) {
-			writer_.open(outpath, CV_FOURCC('M','J','P','G'), 15, Size(width_, height_), true);
-			if(!writer_.isOpened())
-				std::cerr << "Could not open output video" << outpath << std::endl;
-		}
 	}
 	else
 		std::cerr << "Could not open input video "<< inpath << std::endl;
-
-
 }
 
 //this increment_ variable basically locks the update code to the speed of the getFrame loop.
@@ -62,17 +53,6 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth)
 	depth = Mat();
 	_frame.copyTo(frame);
 	return true;
-}
-
-bool VideoIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
-{
-	(void)depth;
-	if (writer_.isOpened()) 
-	{
-		writer_ << frame;
-		return true;
-	}
-	return false;
 }
 
 int VideoIn::width() const

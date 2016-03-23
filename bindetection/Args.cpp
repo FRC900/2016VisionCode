@@ -20,6 +20,7 @@ static void Usage(void)
    cout << "\t--capture            save raw camera video to output file" << endl;
    cout << "\t--captureSkip=       only save one of every N frames" << endl;
    cout << "\t--save               write processed video to output file" << endl;
+   cout << "\t--saveSkip-          only save one of every N processed frames" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
    cout << "\t--no-tracking        start with tracking rectangles disabled" << endl; 
    cout << "\t--no-detection       disable object detection" << endl;
@@ -48,6 +49,7 @@ Args::Args(void)
 	writeVideo         = false;
 	writeVideoSkip     = 1;
 	saveVideo          = false;
+	saveVideoSkip      = 1;
 	detection          = true;
 	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";
 	d12DirNum          = -1;
@@ -69,6 +71,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string writeVideoOpt      = "--capture";         // save camera video to output file
 	const string writeVideoSkipOpt  = "--captureSkip=";    // skip frames in output video file
 	const string saveVideoOpt       = "--save";            // write processed video to output file
+	const string saveVideoSkipOpt   = "--saveSkip=";       // only write every N frames of processed video
 	const string rectsOpt           = "--no-rects";        // start with detection rectangles disabled
 	const string trackingOpt        = "--no-tracking";     // start with tracking rectangles disabled
 	const string detectOpt          = "--no-detection";    // disable object detection
@@ -99,6 +102,8 @@ bool Args::processArgs(int argc, const char **argv)
 			writeVideoSkip = atoi(argv[fileArgc] + writeVideoSkipOpt.length());
 		else if (writeVideoOpt.compare(0, writeVideoOpt.length(), argv[fileArgc], writeVideoOpt.length()) == 0)
 			writeVideo = true;
+		else if (saveVideoSkipOpt.compare(0, saveVideoSkipOpt.length(), argv[fileArgc], saveVideoSkipOpt.length()) == 0)
+			saveVideoSkip = atoi(argv[fileArgc] + saveVideoSkipOpt.length());
 		else if (saveVideoOpt.compare(0, saveVideoOpt.length(), argv[fileArgc], saveVideoOpt.length()) == 0)
 			saveVideo = true;
 		else if (detectOpt.compare(0, detectOpt.length(), argv[fileArgc], detectOpt.length()) == 0)

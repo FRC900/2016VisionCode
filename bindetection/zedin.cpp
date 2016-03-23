@@ -19,23 +19,15 @@ void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
 void zedWhiteBalanceCallback(int value, void *data);
 
-ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outFileFrameSkip) :
+ZedIn::ZedIn(const char *inFileName, bool gui) :
 	zed_(NULL),
 	width_(0),
 	height_(0),
 	frameNumber_(0),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
-	archiveIn_(NULL),
-	serializeOut_(NULL),
-	filtSBOut_(NULL),
-	archiveOut_(NULL) ,
-	outFileFrameSkip_(outFileFrameSkip),
-	outFileFrameCounter_(0)
+	archiveIn_(NULL)
 {
-	if (outFileFrameSkip_ <= 0)
-		outFileFrameSkip_ = 1;
-
 	if (inFileName)
 	{
 		// Might be svo, might be zms
@@ -127,16 +119,6 @@ ZedIn::ZedIn(const char *inFileName, const char *outFileName, bool gui, int outF
 		width_  /= 2;
 		height_ /= 2;
 	}
-
-	// Save the raw camera stream to disk.  This uses a home-brew
-	// method to serialize image and depth data to disk rather than
-	// relying on Stereolab's SVO format.
-	if (outFileName && (zed_ || archiveIn_))
-	{
-		outFileName_ = outFileName;
-		if (!openSerializeOutput(outFileName_.c_str()))
-			cerr << "Zed init : could not open output file " << outFileName << endl;
-	}
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -175,41 +157,6 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	return true;
 }
 
-// Output needs 3 things. First is a standard ofstream to write to
-// Next is an (optional) filtered stream buffer. This is used to
-// compress on the fly - uncompressed files take up way too
-// much space. Last item is the actual boost binary archive template
-// If all three are opened, return true. If not, delete and set to
-// NULL all pointers related to serialized Output
-bool ZedIn::openSerializeOutput(const char *outFileName)
-{
-	deleteOutputPointers();
-	serializeOut_ = new ofstream(outFileName, ios::out | ios::binary);
-	if (!serializeOut_ || !serializeOut_->is_open())
-	{
-		cerr << "Could not open ofstream(" << outFileName << ")" << endl;
-		deleteOutputPointers();
-		return false;
-	}
-	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
-	if (!filtSBOut_)
-	{
-		cerr << "Could not create filtering_streambuf<output> in constructor" <<endl;
-		deleteOutputPointers();
-		return false;
-	}
-	filtSBOut_->push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
-	filtSBOut_->push(*serializeOut_);
-	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
-	if (!archiveOut_)
-	{
-		cerr << "Could not create binary_oarchive in constructor" <<endl;
-		deleteOutputPointers();
-		return false;
-	}
-	return true;
-}
-
 // Helper to easily delete and NULL out input file pointers
 void ZedIn::deleteInputPointers(void)
 {
@@ -230,37 +177,11 @@ void ZedIn::deleteInputPointers(void)
 	}
 }
 
-// Helper to easily delete and NULL out output file pointers
-void ZedIn::deleteOutputPointers(void)
-{
-	if (archiveOut_)
-	{
-		delete archiveOut_;
-		archiveOut_ = NULL;
-	}
-	if (filtSBOut_)
-	{
-		delete filtSBOut_;
-		filtSBOut_ = NULL;
-	}
-	if (serializeOut_)
-	{
-		delete serializeOut_;
-		serializeOut_ = NULL;
-	}
-}
-
-
-void ZedIn::deletePointers(void)
-{
-	deleteInputPointers();
-	deleteOutputPointers();
-}
 
 
 ZedIn::~ZedIn()
 {
-	deletePointers();
+	deleteInputPointers();
 	if (zed_)
 		delete zed_;
 }
@@ -314,28 +235,6 @@ bool ZedIn::update(bool left)
 	return true;
 }
 
-bool ZedIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
-{
-	// Write output to serialized file if it is open
-	// if we've skipped enough frames since the last write 
-	// (which could be every frame if outFileFrameSkip == 0 or 1
-	if (archiveOut_ && ((outFileFrameCounter_++ % outFileFrameSkip_) == 0))
-	{
-		*archiveOut_ << frame << depth;
-		const int frameSplitCount = 300;
-		if ((outFileFrameCounter_ > 1) && (((outFileFrameCounter_ - 1) % frameSplitCount) == 0))
-		{
-			stringstream ofName;
-			ofName << change_extension(outFileName_, "").string() << "_" ;
-			ofName << (frameNumber_ / frameSplitCount) << ".zms";
-			if (!openSerializeOutput(ofName.str().c_str())) {
-				cerr << "Could not (re)open " << ofName.str() << " for serialized output" << endl;
-				return false;
-			}
-		}
-	}
-	return true;
-}
 
 bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 {

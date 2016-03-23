@@ -21,7 +21,7 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
+C920CameraIn::C920CameraIn(int _stream, bool gui) :
 	camera_(_stream >= 0 ? _stream : 0)
 {
 	if (!camera_.IsOpen())
@@ -30,16 +30,6 @@ C920CameraIn::C920CameraIn(const char *outfile, int _stream, bool gui) :
 	{
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
-	}
-
-	if(outfile != NULL && camera_.IsOpen()) 
-	{
-		unsigned int width;
-		unsigned int height;
-		v4l2::GetCaptureSize(captureSize_, width, height);
-		writer_.open(outfile, CV_FOURCC('M','J','P','G'), 15, Size(width, height), true);
-		if(!writer_.isOpened())
-			std::cerr << "Could not open output video " << outfile << std::endl;
 	}
 }
 
@@ -142,13 +132,6 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 		return false;
 	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
-	return true;
-}
-
-bool C920CameraIn::saveFrame(cv::Mat &frame, cv::Mat &depth) 
-{
-	(void) depth;
-	writer_ << frame;
 	return true;
 }
 
@@ -282,10 +265,6 @@ C920CameraIn::C920CameraIn(int _stream, bool gui)
 	(void)_stream;
 	(void)gui;
 	std::cerr << "C920 support not enabled" << std::endl;
-}
-
-bool C920CameraIn::saveFrame(const cv::Mat &frame) {
-	writer_ << frame;
 }
 
 #endif

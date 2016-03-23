@@ -22,6 +22,8 @@
 #include "camerain.hpp"
 #include "c920camerain.hpp"
 #include "zedin.hpp"
+#include "aviout.hpp"
+#include "zmsout.hpp"
 #include "track3d.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
@@ -47,7 +49,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool writeVideo);
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw = true, bool zms = false);
 
@@ -195,8 +197,7 @@ int main( int argc, const char** argv )
 	string capPath; // Output directory for captured images
 	MediaIn* cap; //input object
 
-	openMedia(cap, args.inputName ,capPath, windowName,
-			  !args.batchMode, args.writeVideo || args.saveVideo);
+	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode);
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
@@ -257,14 +258,6 @@ int main( int argc, const char** argv )
 
 	const size_t netTableArraySize = 7; // 7 objects
 
-	//we can't save both marked up video and raw video so we default to saving raw video because
-	//if we need to we can write over it later
-	if(args.writeVideo && args.saveVideo) 
-	{
-		cerr << "Defaulting to saving raw frame" << endl;
-		args.saveVideo = false;
-	}
-
 	FrameTicker frameTicker;
 
 	//load up the neural networks.
@@ -286,13 +279,37 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
-	//load an initial frame for stuff like optical flow which requires an initial frame to compute difference against
+	//load an initial frame for stuff like optical flow which requires an initial 
+	// frame to compute difference against
 	//also checks to make sure that the cap object works
 	if (!cap->update() || !cap->getFrame(frame, depth))
 	{
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
+
+	// Open file to save raw video into. If depth data
+	// is available, use a ZMS file since that can save
+	// both RGB and depth info. If there's no depth
+	// data write to and AVI instead.
+	MediaOut *rawOut = NULL;
+	if (args.writeVideo)
+	{
+		if (depth.empty())
+			rawOut = new AVIOut(getVideoOutName(true,false).c_str(), frame.size(), args.writeVideoSkip);
+		else
+			rawOut = new ZMSOut(getVideoOutName(true,true).c_str(), args.writeVideoSkip);
+	}
+
+	// No point in saving ZMS files of processed output, since
+	// the marked up frames will prevent us from re-running
+	// the code through zv again.  This means we won't need
+	// the depth info which is the only reason to use ZMS
+	// files in the first place
+	// TODO : add a .PNG output option for images
+	MediaOut *processedOut = NULL;
+	if (args.saveVideo)
+		processedOut = new AVIOut(getVideoOutName(false,false).c_str(), frame.size(), args.saveVideoSkip);
 
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
@@ -325,8 +342,8 @@ int main( int argc, const char** argv )
 		frameTicker.mark(); // mark start of new frame
 
 		// Write raw video before anything gets drawn on it
-		if (args.writeVideo)
-			cap->saveFrame(frame, depth);
+		if (args.writeVideo && rawOut)
+			rawOut->saveFrame(frame, depth);
 
 		// This code will load a classifier if none is loaded - this handles
 		// initializing the classifier the first time through the loop.
@@ -508,7 +525,7 @@ int main( int argc, const char** argv )
 			imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a file
-			if (args.saveVideo) 
+			if (args.saveVideo && processedOut) 
 			{
 				bool dateAndTime = true;
 				WriteOnFrame textWriter;
@@ -517,7 +534,7 @@ int main( int argc, const char** argv )
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
 				}
-				cap->saveFrame(frame, depth);
+				processedOut->saveFrame(frame, depth);
 			}
 
 			// Process user input for this frame
@@ -768,7 +785,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, bool writeVideo)
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -777,16 +794,16 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, writeVideo ? getVideoOutName(true,true).c_str() : NULL, gui );
+		cap = new ZedIn(NULL, gui);
 		Mat	mat, depth;
 		if(!cap->update() || !cap->getFrame(mat, depth))
 		{
 			delete cap;
-			cap = new C920CameraIn(writeVideo ? getVideoOutName(true,false).c_str() : NULL, camera, gui);
+			cap = new C920CameraIn(camera, gui);
 			if (!cap->update() || !cap->getFrame(mat, depth))
 			{
 				delete cap;
-				cap = new CameraIn(writeVideo ? getVideoOutName(true,false).c_str() : NULL,camera, gui);
+				cap = new CameraIn(camera, gui);
 				ss << "Default Camera ";
 			}
 			else
@@ -806,13 +823,10 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 	{
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
-			cap = new ImageIn((char*)readFileName.c_str(), writeVideo ? getVideoOutName(true,false).c_str() : NULL);
+			cap = new ImageIn((char*)readFileName.c_str());
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
-		{
-			cap = new ZedIn(readFileName.c_str(), writeVideo ? getVideoOutName(true,false).c_str() : NULL, gui);
-			writeVideo = false;
-		}
+			cap = new ZedIn(readFileName.c_str(), gui);
 		else
 			cap = new VideoIn(readFileName.c_str());
 
@@ -824,7 +838,6 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		windowName = readFileName;
 	}
 }
-
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
 string getVideoOutName(bool raw, bool zms)

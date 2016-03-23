@@ -60,6 +60,9 @@ add_executable(zv
 	../C920VideoCap/C920Camera.cpp
 	c920camerain.cpp
 	imagein.cpp
+	mediaout.cpp
+	aviout.cpp
+	zmsout.cpp
 	classifierio.cpp
 	Args.cpp
 	WriteOnFrame.cpp

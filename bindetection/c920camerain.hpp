@@ -17,10 +17,9 @@
 class C920CameraIn : public MediaIn
 {
    public:
-      C920CameraIn(const char *outfile = NULL, int _stream = -1, bool gui = false);
+      C920CameraIn(int _stream = -1, bool gui = false);
 	  ~C920CameraIn() {}
       bool getFrame(cv::Mat &frame, cv::Mat &depth);
-      bool saveFrame(cv::Mat &frame, cv::Mat &depth);
       bool update();
 
       int width(void) const;
@@ -48,7 +47,6 @@ class C920CameraIn : public MediaIn
 	  friend void focusCallback(int value, void *data);
 
       v4l2::C920Camera  camera_;
-      cv::VideoWriter   writer_;
 	  cv::Mat           localFrame_;
       int               brightness_;
       int               contrast_;

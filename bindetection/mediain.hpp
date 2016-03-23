@@ -26,10 +26,9 @@ class CameraParams
 class MediaIn
 {
    public:
-		MediaIn();
+		MediaIn(void);
 		virtual ~MediaIn() {}
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth) = 0;
-		virtual bool saveFrame(cv::Mat &frame, cv::Mat &depth) = 0;
 		virtual bool update() = 0;
 
 		// Image size
@@ -38,8 +37,9 @@ class MediaIn
 
 		// How many frames?
 		virtual int    frameCount(void) const;
+
 		//initial semaphore value
-			virtual int semValue();
+		virtual int semValue();
 
 		// Get and set current frame number
 		virtual int    frameNumber(void) const;
