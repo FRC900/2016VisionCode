@@ -48,7 +48,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 		else
 			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
-	else 
+	else
 	{  // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
 		semValue_ = 2;
@@ -186,13 +186,13 @@ ZedIn::~ZedIn()
 		delete zed_;
 }
 
-bool ZedIn::update(bool left) 
+bool ZedIn::update(bool left)
 {
 	// Read from either the zed camera or from
 	// a previously-serialized ZMS file
 	if (zed_)
 	{
-		if (zed_->grab(sl::zed::SENSING_MODE::RAW)) 
+		if (zed_->grab(sl::zed::SENSING_MODE::RAW))
 			return false;
 
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
@@ -295,67 +295,27 @@ int ZedIn::height(void) const
 
 CameraParams ZedIn::getCameraParams(bool left) const
 {
-	sl::zed::CamParameters zedp;
-	if (zed_)
-	{
-		if(left)
-			zedp = zed_->getParameters()->LeftCam;
-		else
-			zedp = zed_->getParameters()->RightCam;
-	}
+	stringstream camera_id;
+	camera_id << "ZED";
+	int actual_w = zed_ ? zed_->getImageSize().width : width_;
+	int actual_h = zed_ ? zed_->getImageSize().height : height_;
+	camera_id << actual_w << "x" << actual_h;
+
+	if(left)
+		camera_id << "left";
 	else
-	{
-		// Take a guess based on acutal values from one of our cameras
-		if (height_ == 480)
-		{
-			zedp.fx = 705.768;
-			zedp.fy = 705.768;
-			zedp.cx = 326.848;
-			zedp.cy = 240.039;
-		}
-		else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
-		{
-			zedp.fx = 686.07;
-			zedp.fy = 686.07;
-			zedp.cx = 662.955;
-			zedp.cy = 361.614;
-		}
-		else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
-		{
-			zedp.fx = 1401.88;
-			zedp.fy = 1401.88;
-			zedp.cx = 977.193 / (1920 / width_); // Is this correct - downsized
-			zedp.cy = 540.036 / (1920 / width_); // image needs downsized cx?
-		}
-		else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
-		{
-			zedp.fx = 1385.4;
-			zedp.fy = 1385.4;
-			zedp.cx = 1124.74 / (2208 / width_);
-			zedp.cy = 1124.74 / (2208 / width_);
-		}
-		else
-		{
-			// This should never happen
-			zedp.fx = 0;
-			zedp.fy = 0;
-			zedp.cx = 0;
-			zedp.cy = 0;
-		}
-	}
-	float hFovDegrees;
-	if (height_ == 480) // can't work based on width, since 1/2 of 720P is 640, as is 640x480
-		hFovDegrees = 51.3;
+		camera_id << "right";
+
+	if(zed_)
+		camera_id << zed_->getZEDSerial();
 	else
-		hFovDegrees = 105.; // hope all the HD & 2k res are the same
-	float hFovRadians = hFovDegrees * M_PI / 180.0;
+		camera_id << "2151"; //assume 2151 because currently we don't store which camera it was with the archive
 
 	CameraParams params;
-	params.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
-	params.fx = zedp.fx;
-	params.fy = zedp.fy;
-	params.cx = zedp.cx;
-	params.cy = zedp.cy;
+	cout << endl << "Reading parameter file params.xml: " << endl;
+	FileStorage fs;
+	fs.open("params.xml", FileStorage::READ);
+	fs[camera_id.str()] >> params;
 	return params;
 }
 

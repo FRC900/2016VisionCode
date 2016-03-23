@@ -108,7 +108,7 @@ bool C920CameraIn::initCamera(bool gui)
 	return true;
 }
 
-bool C920CameraIn::update() 
+bool C920CameraIn::update()
 {
 	if (!camera_.IsOpen() ||
 	    !camera_.GrabFrame() ||
@@ -183,13 +183,16 @@ CameraParams C920CameraIn::getCameraParams(bool left) const
 	unsigned int height;
 
 	v4l2::GetCaptureSize(captureSize_, width, height);
-	CameraParams cp;
-	if (height == 480)
-		cp.fov = Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.); // need VFOV, other resolutions
-	else
-		//cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
-		cp.fov = Point2f(70.42 * M_PI / 180., 43.3 * M_PI / 180.);
-	return cp;
+	CameraParams params;
+	stringstream camera_id;
+	camera_id << "C920";
+	camera_id << width << "x" << height;
+
+	cout << endl << "Reading parameter file params.xml: " << endl;
+	FileStorage fs;
+	fs.open("params.xml", FileStorage::READ);
+	fs[camera_id.str()] >> params;
+	return params;
 }
 
 

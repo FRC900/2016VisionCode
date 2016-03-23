@@ -143,17 +143,17 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
     }
 }
 
-void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) 
+void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem)
 {
 	//this runs concurrently with the main while loop if using a camera
 	FrameTicker frameTicker;
-	while(1) 
+	while(1)
 	{
-		if(!pause) 
+		if(!pause)
 		{
 			frameTicker.mark();
 			sem->wait();
-			if(!cap->update()) 
+			if(!cap->update())
 			{
 				cerr << "Failed to capture" << endl;
 				usleep(100000);
@@ -168,6 +168,44 @@ void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_sem
 
 int main( int argc, const char** argv )
 {
+  CameraParams params;
+  FileStorage fs;
+  fs.open("params.xml", FileStorage::WRITE);
+
+  params.disto = Mat::ones(1,5,CV_32F);
+  params.fov = Point2f(51.3 * M_PI / 180., 51.3 * 480. / 640. * M_PI / 180.);
+
+  params.fx = 705.768;
+  params.fy = 705.768;
+  params.cx = 326.848;
+  params.cy = 240.039;
+  fs << "ZED640x480left2151" << params;
+
+  params.fx = 686.07;
+  params.fy = 686.07;
+  params.cx = 662.955;
+  params.cy = 361.614;
+  fs << "ZED1280x720left2151" << params;
+
+  params.fx = 1401.88;
+  params.fy = 1401.88;
+  params.cx = 977.193 / (1920 / 640); // Is this correct - downsized
+  params.cy = 540.036 / (1920 / 640); // image needs downsized cx?
+  fs << "ZED1920x1080left2151" << params;
+
+  params.fx = 1385.4;
+  params.fy = 1385.4;
+  params.cx = 1124.74 / (2208 / 640);
+  params.cy = 1124.74 / (2208 / 640);
+  fs << "ZED2208x1242left2151" << params;
+
+  params.fov = Point2f(Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.));
+  fs << "C920640x480" << params;
+
+  params.fov = Point2f(70.42 * M_PI / 180., 43.3 * M_PI / 180.);
+  fs << "C9201280x720" << params;
+
+
 	// Flags for various UI features
 	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
@@ -279,7 +317,7 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
-	//load an initial frame for stuff like optical flow which requires an initial 
+	//load an initial frame for stuff like optical flow which requires an initial
 	// frame to compute difference against
 	//also checks to make sure that the cap object works
 	if (!cap->update() || !cap->getFrame(frame, depth))
@@ -409,7 +447,7 @@ int main( int argc, const char** argv )
 		{
 			cout << "Detected object at: " << *it;
 			Rect depthRect = *it;
-			
+
 			//when we use optical flow to adjust we need to recompute the depth based on the new locations.
 			//to do this shrink the bounding rectangle and take the minimum rect of the inside
 			shrinkRect(depthRect,depthRectScale);
@@ -525,7 +563,7 @@ int main( int argc, const char** argv )
 			imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a file
-			if (args.saveVideo && processedOut) 
+			if (args.saveVideo && processedOut)
 			{
 				bool dateAndTime = true;
 				WriteOnFrame textWriter;

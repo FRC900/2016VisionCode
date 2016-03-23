@@ -8,7 +8,7 @@ class CameraParams
 {
 	public:
 		CameraParams() :
-			fov(51.3 * M_PI / 180., 51.3 * 480. / 640. * M_PI / 180.), // Default to zed params?
+			fov(0,0),
 			fx(0),
 			fy(0),
 			cx(0),
@@ -19,8 +19,35 @@ class CameraParams
 		float       fy;
 		float       cx;
 		float       cy;
-		double      disto[5];
+		cv::Mat     disto;
+
+	void write(cv::FileStorage &fs) const {
+		fs << "fx" << fx << "fy" << fy << "cx" << cx << "cy" << cy;
+		fs << disto;
+		}
+
+	void read(const cv::FileNode &node) {
+		fx = node["fx"];
+		fy = node["fy"];
+		cx = node["cx"];
+		cy = node["cy"];
+		}
 };
+
+//These write and read functions must be defined for the serialization in FileStorage to work
+static void write(cv::FileStorage& fs, const std::string&, const CameraParams& x)
+{
+    x.write(fs);
+}
+
+
+static void read(const cv::FileNode& node, CameraParams& x, const CameraParams& default_value = CameraParams()){
+    if(node.empty())
+        x = default_value;
+    else
+        x.read(node);
+}
+
 
 // Base class for input.  Derived classes are cameras, videos, etc
 class MediaIn
