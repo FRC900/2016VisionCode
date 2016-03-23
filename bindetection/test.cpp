@@ -23,6 +23,7 @@
 #include "c920camerain.hpp"
 #include "zedin.hpp"
 #include "aviout.hpp"
+#include "pngout.hpp"
 #include "zmsout.hpp"
 #include "track3d.hpp"
 #include "Args.hpp"
@@ -51,7 +52,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
-string getVideoOutName(bool raw = true, bool zms = false);
+string getVideoOutName(bool raw, bool zms, bool png);
 
 static bool isRunning = true;
 
@@ -296,9 +297,9 @@ int main( int argc, const char** argv )
 	if (args.writeVideo)
 	{
 		if (depth.empty())
-			rawOut = new AVIOut(getVideoOutName(true,false).c_str(), frame.size(), args.writeVideoSkip);
+			rawOut = new AVIOut(getVideoOutName(true, false, false).c_str(), frame.size(), args.writeVideoSkip);
 		else
-			rawOut = new ZMSOut(getVideoOutName(true,true).c_str(), args.writeVideoSkip);
+			rawOut = new ZMSOut(getVideoOutName(true, true, false).c_str(), args.writeVideoSkip);
 	}
 
 	// No point in saving ZMS files of processed output, since
@@ -306,10 +307,14 @@ int main( int argc, const char** argv )
 	// the code through zv again.  This means we won't need
 	// the depth info which is the only reason to use ZMS
 	// files in the first place
-	// TODO : add a .PNG output option for images
 	MediaOut *processedOut = NULL;
 	if (args.saveVideo)
-		processedOut = new AVIOut(getVideoOutName(false,false).c_str(), frame.size(), args.saveVideoSkip);
+	{
+		if (cap->frameCount() == 1)
+			processedOut = new PNGOut(getVideoOutName(false, false, true).c_str());
+		else
+			processedOut = new AVIOut(getVideoOutName(false, false, false).c_str(), frame.size(), args.saveVideoSkip);
+	}
 
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
@@ -711,6 +716,7 @@ int main( int argc, const char** argv )
     	delete cap;
 	return 0;
 }
+
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd)
 {
     stringstream zmqString;
@@ -840,7 +846,7 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 }
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
-string getVideoOutName(bool raw, bool zms)
+string getVideoOutName(bool raw, bool zms, bool png)
 {
     int          index = 0;
     int          rc;
@@ -862,13 +868,17 @@ string getVideoOutName(bool raw, bool zms)
         {
             ss << "_processed";
         }
-        if (zms == false)
-        {
-            ss << ".avi";
-        }
-        else
+        if (zms)
         {
             ss << ".zms";
+        }
+        else if (png)
+		{
+			ss << ".png";
+		}
+		else
+        {
+            ss << ".avi";
         }
         rc = stat(ss.str().c_str(), &statbuf);
     } while (rc == 0);
