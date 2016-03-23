@@ -17,37 +17,31 @@ using namespace boost::filesystem;
 // method to serialize image and depth data to disk rather than
 // relying on Stereolab's SVO format.
 ZMSOut::ZMSOut(const char *outFile, int frameSkip) :
+	MediaOut(frameSkip, 300),
 	fileName_(outFile),
 	serializeOut_(NULL),
 	filtSBOut_(NULL),
-	archiveOut_(NULL) ,
-	frameSkip_(max(frameSkip,1)),
-	frameCounter_(0),
-	fileCounter_(0)
+	archiveOut_(NULL)
 {
-	if (outFile)
-		openNext();
 }
 
+// Clean up pointers, which will also 
+// close the files they point to
 ZMSOut::~ZMSOut()
 {
 	deleteOutputPointers();
 }
 
-bool ZMSOut::saveFrame(const Mat &frame, const Mat &depth)
+// Serialize the frame plus depth info
+bool ZMSOut::write(const Mat &frame, const Mat &depth)
 {
-	// Write output to serialized file if it is open
-	// if we've skipped enough frames since the last write 
-	// (which could be every frame if frameSkip == 0 or 1
-	if (archiveOut_ && ((frameCounter_++ % frameSkip_) == 0))
-	{
-		*archiveOut_ << frame << depth;
-		const int frameSplitCount = 300;
-		if ((frameCounter_ > 1) && (((frameCounter_ - 1) % frameSplitCount) == 0))
-			return openNext();
-	}
+	if (!archiveOut_)
+		return false;
+
+	*archiveOut_ << frame << depth;
 	return true;
 }
+
 
 // Output needs 3 things. First is a standard ofstream to write to
 // Next is an (optional) filtered stream buffer. This is used to
@@ -58,6 +52,7 @@ bool ZMSOut::saveFrame(const Mat &frame, const Mat &depth)
 bool ZMSOut::openSerializeOutput(const char *fileName)
 {
 	deleteOutputPointers();
+	// First create an ofstream to write to
 	serializeOut_ = new ofstream(fileName, ios::out | ios::binary);
 	if (!serializeOut_ || !serializeOut_->is_open())
 	{
@@ -65,6 +60,9 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 		deleteOutputPointers();
 		return false;
 	}
+	// Create a filtering streambuf.  Push zlib and then
+	// the ofstream created above so output is automatically
+	// compressed before writing to disk
 	filtSBOut_= new boost::iostreams::filtering_streambuf<boost::iostreams::output>;
 	if (!filtSBOut_)
 	{
@@ -74,6 +72,9 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 	}
 	filtSBOut_->push(boost::iostreams::zlib_compressor(boost::iostreams::zlib::best_speed));
 	filtSBOut_->push(*serializeOut_);
+
+	// Create an output archive which writes to the previously
+	// created output chain (zlib->output file path)
 	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
 	if (!archiveOut_)
 	{
@@ -84,8 +85,12 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 	return true;
 }
 
+// Create a filename by appening a fileCounter to
+// the end of the filename
 bool ZMSOut::openNext(void)
 {
+	if (fileName_.length() == 0)
+		return false;
 	stringstream ofName;
 	ofName << change_extension(fileName_, "").string() << "_" ;
 	ofName << fileCounter_++ << ".zms";
@@ -98,7 +103,7 @@ bool ZMSOut::openNext(void)
 }
 
 
-// Helper to easily delete and NULL out output file pointers
+// Helper to easily delete and NULLize output file pointers
 void ZMSOut::deleteOutputPointers(void)
 {
 	if (archiveOut_)

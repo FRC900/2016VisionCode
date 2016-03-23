@@ -8,9 +8,26 @@
 class MediaOut
 {
    public:
-		MediaOut();
+		MediaOut(int frameSkip, int framesPerFile);
 		virtual ~MediaOut();
-		virtual bool saveFrame(const cv::Mat &frame, const cv::Mat &depth) = 0;
+		bool saveFrame(const cv::Mat &frame, const cv::Mat &depth);
 
-   private:
+   protected:
+		// The base class calls these dervied classes to do the 
+		// heavy lifting.  They have to be implemented in the 
+		// base class as well, but hopefully those are never
+		// called 
+		virtual bool openNext(void);
+		virtual bool write(const cv::Mat &frame, const cv::Mat &depth);
+
+		// Skip output frames if requested.  Skip is how many to 
+		// skip before writing next output frame, FrameCounter is how
+		// many total frames seen.
+		// Counter is used to split the output into multiple shorter
+		// outputs
+		int frameSkip_;
+		int frameCounter_;
+		int fileCounter_;
+		int framesPerFile_;
+
 };

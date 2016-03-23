@@ -10,40 +10,45 @@ using namespace std;
 using namespace cv;
 using namespace boost::filesystem;
 
+// Call the base class constructor plus init some 
+// local class members
 AVIOut::AVIOut(const char *outFile, const Size &size, int frameSkip):
+	MediaOut(frameSkip, 900),
 	size_(size),
 	writer_(NULL),
-	fileName_(outFile),
-	frameSkip_(max(frameSkip,1)),
-	frameCounter_(0),
-	fileCounter_(0)
+	fileName_(outFile)
 {
-	// open the output video
-	if(outFile != NULL) 
-		openNext();
 }
 
+// Delete the writer_ object to close that
+// output file
 AVIOut::~AVIOut()
 {
 	if (writer_)
 		delete writer_;
 }
 
-bool AVIOut::saveFrame(const Mat &frame, const Mat &depth)
+// Make sure the writer is initialized. If so,
+// write the next frame to it.
+bool AVIOut::write(const Mat &frame, const Mat &depth)
 {
 	(void)depth;
-	if (writer_ && writer_->isOpened() && ((frameCounter_++ % frameSkip_) == 0))
-	{
-		*writer_ << frame;
-		const int frameSplitCount = 300;
-		if ((frameCounter_ > 1) && (((frameCounter_ - 1) % frameSplitCount) == 0))
-			return openNext();
-	}
+	if (!writer_ || !writer_->isOpened())
+		return false;
+
+	*writer_ << frame;
 	return true;
 }
 
+// Open the next file in the sequence.  The code is
+// set by default to split outputs into multiple 
+// files. This way if we have corruption on one 
+// because we powered off we don't lose all of them.
 bool AVIOut::openNext(void)
 {
+	if (fileName_.length() == 0)
+		return false;
+
 	if (writer_)
 	{
 		delete writer_;
