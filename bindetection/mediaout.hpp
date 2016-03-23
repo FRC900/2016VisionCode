@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/thread.hpp>
 #include <opencv2/core/core.hpp>
 
 // Base class for output.  Derived classes are for writing 
@@ -30,4 +31,13 @@ class MediaOut
 		int fileCounter_;
 		int framesPerFile_;
 
+   private: 
+		void writeThread(void);
+		cv::Mat frame_;
+		cv::Mat depth_;
+		boost::mutex matLock_;
+		boost::mutex fileLock_;
+		boost::condition_variable frameCond;
+		bool frameReady_;
+		boost::thread thread_;
 };

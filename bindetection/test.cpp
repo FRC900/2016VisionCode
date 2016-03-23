@@ -324,7 +324,7 @@ int main( int argc, const char** argv )
 	//this loop runs asynchronously with the main loop if the input is a camera
 	//and synchronously if the input is a video (i.e. one grab per process)
 	//the semaphore input controls the synchronicity of the frame
-	boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
+	boost::thread g_thread(grabThread, cap, boost::ref(pause), sem);
 
 	// Start of the main loop
 	//  -- grab a frame
