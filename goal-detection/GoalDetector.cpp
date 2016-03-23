@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-#define VERBOSE
+//#define VERBOSE
 
 GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
 	_goal_shape(3),
@@ -65,8 +65,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	// find contours in the thresholded image - these will be blobs
 	// of green to check later on to see how well they match the
 	// expected shape of the goal
-    vector<Vec4i> hierarchy;
-    findContours(threshold_image, _contours, hierarchy, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    vector<Vec4i>          hierarchy;
+    findContours(threshold_image, _contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
 	// Initialize maxConfidence to the min confidence we need
 	// to think it is a goal. This way we'll only use the goal
@@ -174,7 +174,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
-			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl << "\tCenter: " << centerMidRow << endl;
+			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
@@ -334,12 +334,13 @@ float GoalDetector::angle_to_goal(void) const
 		delta = 2.0;
 	else if (mag >= 35)
 		delta = 1.5;
-	else if (mag >= 30)
+	else if (mag >= 30) 
 		delta = 1.0;
-	else if (mag >= 25)
+	else if (mag >= 25) 
 		delta = 0.5;
 
-//	cout << "angle " << _angle_to_goal << "Mag " << mag << " delta " << delta << " foo " << ((_angle_to_goal < 0) ? delta : -delta) << endl;
+	//cout << "angle " << _angle_to_goal << "Mag " << mag << " delta " << delta << " foo " << ((_angle_to_goal < 0) ? delta : -delta) << endl;
+	//return _isValid ? _angle_to_goal : -1.0; 
 
 	return _angle_to_goal + ((_angle_to_goal < 0) ? delta : -delta);
 }  

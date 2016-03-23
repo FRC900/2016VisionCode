@@ -681,7 +681,6 @@ int main( int argc, const char** argv )
 		sem->post();
 	}
   	g_thread.interrupt();
-  	g_thread.join();
 
 	cout << "Ball detect ground truth : " << endl;
 	groundTruth.print();
