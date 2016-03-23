@@ -174,7 +174,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
-			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << endl;
+			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << ", Center: " << centerMidRow << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
@@ -334,9 +334,9 @@ float GoalDetector::angle_to_goal(void) const
 		delta = 2.0;
 	else if (mag >= 35)
 		delta = 1.5;
-	else if (mag >= 30) 
+	else if (mag >= 30)
 		delta = 1.0;
-	else if (mag >= 25) 
+	else if (mag >= 25)
 		delta = 0.5;
 
 	//cout << "angle " << _angle_to_goal << "Mag " << mag << " delta " << delta << " foo " << ((_angle_to_goal < 0) ? delta : -delta) << endl;
