@@ -203,6 +203,19 @@ int main( int argc, const char** argv )
 
 	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode);
 
+	// Current frame data - BGR image and depth data (if available)
+	Mat frame;
+  	Mat depth;
+	//load an initial frame for stuff like optical flow which requires an initial 
+	// frame to compute difference against
+	//also checks to make sure that the cap object works
+	if (!cap->update() || !cap->getFrame(frame, depth))
+	{
+		cerr << "Could not open input file " << args.inputName << endl;
+		return 0;
+	}
+
+
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
@@ -215,9 +228,6 @@ int main( int argc, const char** argv )
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
 
-	// Current frame data - BGR image and depth data (if available)
-	Mat frame;
-  	Mat depth;
 	Mat top_frame; // top-down view of tracked objects
 
 	CameraParams camParams = cap->getCameraParams(true);
@@ -273,15 +283,6 @@ int main( int argc, const char** argv )
 		if (frameNum == -1)
 			return 0;
 		cap->frameNumber(frameNum);
-	}
-
-	//load an initial frame for stuff like optical flow which requires an initial 
-	// frame to compute difference against
-	//also checks to make sure that the cap object works
-	if (!cap->update() || !cap->getFrame(frame, depth))
-	{
-		cerr << "Could not open input file " << args.inputName << endl;
-		return 0;
 	}
 
 	// Open file to save raw video into. If depth data

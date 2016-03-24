@@ -41,12 +41,36 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			// which just dumps raw a image and depth Mat data to a file.
 			// Apply a light bit of compression because
 			// the files will get out of hand quickly otherwise
+			// Initial versions of these files were non-portable
+			// but later versions were changed to be useable
+			// on both ARM and x86.  Handle loading both types,
+			// at least for the time being
 			cerr << "Loading " << inFileName << " for reading" << endl;
-			if (!openSerializeInput(inFileName))
+			bool notLoaded = false;
+			if (openSerializeInput(inFileName, true))
+			{
+				*portableArchiveIn_ >> _frame >> depthMat_;
+			}
+			else if (openSerializeInput(inFileName, false))
+			{
+				*archiveIn_ >> _frame >> depthMat_;
+				notLoaded = true;
+			}
+			else
+			{
+				notLoaded = true;
 				cerr << "Zed init : Could not open " << inFileName << " for reading" << endl;
+			}
+			if (!notLoaded)
+			{
+				width_  = _frame.cols;
+				height_ = _frame.rows;
+
+				// Reopen the file so callers can get the first frame
+				if (!openSerializeInput(inFileName, archiveIn_ == NULL))
+					cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
+			}
 		}
-		else
-			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
 	else // Open an actual camera for input
 		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
@@ -100,37 +124,12 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			}
 		}
 	}
-	else if (archiveIn_ || portableArchiveIn_)
-	{
-		// Zed == NULL and serializeStream_ means reading from
-		// a serialized file. Grab height_ and width_
-		if (archiveIn_)
-			*archiveIn_ >> _frame >> depthMat_;
-		else
-			*portableArchiveIn_ >> _frame >> depthMat_;
-		width_  = _frame.cols;
-		height_ = _frame.rows;
-
-		// Reopen the file so callers can get the first frame
-		if (!openSerializeInput(inFileName))
-			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
-	}
 
 	while (height_ > 700)
 	{
 		width_  /= 2;
 		height_ /= 2;
 	}
-}
-
-// We actually have two different types of archives
-// Try to open the new portable type first. If that fails,
-// try to open the older non-portable one.  If either
-// one works, return true.  If both  fail, return false
-bool ZedIn::openSerializeInput(const char *inFileName)
-{
-	return openSerializeInput(inFileName, true) || 
-	       openSerializeInput(inFileName, false);
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -161,7 +160,14 @@ bool ZedIn::openSerializeInput(const char *inFileName, bool portable)
 	filtSBIn_->push(*serializeIn_);
 	if (portable)
 	{
-		portableArchiveIn_ = new portable_binary_iarchive(*filtSBIn_);
+		try 
+		{
+			portableArchiveIn_ = new portable_binary_iarchive(*filtSBIn_);
+		}
+		catch (std::exception &e)
+		{
+			portableArchiveIn_ = NULL;
+		}
 		if (!portableArchiveIn_)
 		{
 			cerr << "Could not create new portable_binary_iarchive" << endl;
@@ -171,7 +177,14 @@ bool ZedIn::openSerializeInput(const char *inFileName, bool portable)
 	}
 	else
 	{
-		archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
+		try 
+		{
+			archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
+		}
+		catch (std::exception &e)
+		{
+			portableArchiveIn_ = NULL;
+		}
 		if (!archiveIn_)
 		{
 			cerr << "Could not create new binary_iarchive" << endl;
@@ -249,6 +262,9 @@ bool ZedIn::update(bool left)
 
 bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 {
+	if (!zed_ && !archiveIn_ && !portableArchiveIn_)
+		return false;
+
 	// If reading from a file and not paused, grab
 	// the next frame.
 	if (!pause && (archiveIn_ || portableArchiveIn_))

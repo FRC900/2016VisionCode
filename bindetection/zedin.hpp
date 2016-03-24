@@ -40,7 +40,6 @@ class ZedIn : public MediaIn
 	private:
 #ifdef ZED_SUPPORT
 		void deleteInputPointers(void);
-		bool openSerializeInput(const char *filename);
 		bool openSerializeInput(const char *filename, bool portable);
 		bool update(bool left);
 

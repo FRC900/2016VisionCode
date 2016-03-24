@@ -44,7 +44,7 @@ public:
     } exception_code;
     portable_binary_iarchive_exception(exception_code c = incompatible_integer_size ) :
         boost::archive::archive_exception(boost::archive::archive_exception::other_exception)
-    {}
+    {(void)c;}
     virtual const char *what( ) const throw( )
     {
         const char *msg = "programmer error";
@@ -54,7 +54,7 @@ public:
             break;
         default:
             msg = boost::archive::archive_exception::what();
-            assert(false);
+            //assert(false);
             break;
         }
         return msg;

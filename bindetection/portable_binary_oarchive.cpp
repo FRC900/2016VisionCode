@@ -17,6 +17,7 @@ portable_binary_oarchive::save_impl(
     const boost::intmax_t l,
     const char maxsize
 ){
+	(void)maxsize;
     char size = 0;
 
     if(l == 0){

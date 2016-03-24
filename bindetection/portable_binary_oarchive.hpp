@@ -41,7 +41,7 @@ public:
         invalid_flags
     } exception_code;
     portable_binary_oarchive_exception(exception_code c = invalid_flags )
-    {}
+    {(void)c;}
     virtual const char *what( ) const throw( )
     {
         const char *msg = "programmer error";
