@@ -53,6 +53,7 @@ bool CameraIn::update(void)
 
 bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
+	(void)pause;
 	if (!cap_.isOpened())
 		return false;
 	depth = Mat();

@@ -132,6 +132,7 @@ void MediaOut::writeThread(void)
 			boost::mutex::scoped_lock lock(matLock_);
 			while (!frameReady_)
 				frameCond_.wait(lock);
+
 			frame_.copyTo(frame);
 			depth_.copyTo(depth);
 			frameReady_ = false;
@@ -150,7 +151,10 @@ void MediaOut::writeThread(void)
 		{
 			boost::mutex::scoped_lock lock(matLock_);
 			if (!frameReady_)
+			{
 				writePending_ = false;
+				frameCond_.notify_all();
+			}
 		}
 		ft.mark();
 		std::cerr << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;

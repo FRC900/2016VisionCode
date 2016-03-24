@@ -5,6 +5,7 @@ sudo apt-get install libeigen3-dev build-essential gfortran git cmake libprotobu
 
 sudo apt-get install --no-install-recommends libboost-all-dev
 sudo apt-get install v4l-conf v4l-utils 
+sudo apt-get install exfat-fuse exfat-utils
 
 #install caffe
 cd

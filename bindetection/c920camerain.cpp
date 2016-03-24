@@ -129,6 +129,7 @@ bool C920CameraIn::update(void)
 
 bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 {
+	(void)pause;
 	if (!camera_.IsOpen())
 		return false;
 	depth = Mat();
