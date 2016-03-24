@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-//#define VERBOSE
+#define VERBOSE
 
 GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
 	_goal_shape(3),
@@ -14,7 +14,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_pastRects(2),
 	_min_valid_confidence(0.25),
 	_otsu_threshold(8.),
-	_blue_scale(30),
+	_blue_scale(40),
 	_red_scale(60)
 {
 	if (gui)
@@ -92,7 +92,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me, make me a percentage of screen area?
-		if ((br.area() < 450.0) || (br.area() > 8500))
+		if ((br.area() < 250.0) || (br.area() > 8500))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
@@ -104,7 +104,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Remove objects too low on the screen - these can't
 		// be goals. Should stop the robot from admiring its
 		// reflection in the diamond-plate at the end of the field
-		if (br.br().y > (image.rows * (2./3)))
+		if (br.br().y > (image.rows * 0.7f))
 		{ 
 #ifdef VERBOSE
 			cout << "Contour " << i << " br().y out of range "<< br.br().y << endl;
@@ -183,6 +183,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		//including area and x,y,z position of the goal
 		ObjectType goal_actual(_contours[i]);
 		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -9.5 * M_PI / 180.0);
+		//TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16 * M_PI / 180.0);
 
 		//percentage of the object filled in
 		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
@@ -205,7 +206,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		//taking the standard deviation of a bunch of values from the goal
 		//confidence is near 0.5 when value is near the mean
 		//confidence is small or large when value is not near mean
-		float confidence_height      = createConfidence(_goal_height, 0.259273877, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
+		float confidence_height      = createConfidence(_goal_height, 0.4, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
 		float confidence_com_x       = createConfidence(com_percent_expected.x, 0.075,  com_percent_actual.x);
 		float confidence_com_y       = createConfidence(com_percent_expected.y, 0.1539207,  com_percent_actual.y);
 		float confidence_filled_area = createConfidence(filledPercentageExpected, 0.33,   filledPercentageActual);
@@ -226,6 +227,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_ratio: " << confidence_ratio << endl;
 		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;		
+		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0 << endl;
 		cout << "br.area() " << br.area() << endl;
 		cout << "br.br().y " << br.br().y << endl;
 		cout << "Max middle row "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
