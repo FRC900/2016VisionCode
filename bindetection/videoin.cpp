@@ -26,21 +26,18 @@ VideoIn::VideoIn(const char *inpath) :
 		std::cerr << "Could not open input video "<< inpath << std::endl;
 }
 
-//this increment_ variable basically locks the update code to the speed of the getFrame loop.
-//This is to make sure that we run detection on every frame of the video
+// Do nothing - all of the work is acutally in getFrame
 bool VideoIn::update() 
 {
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	increment_ = true;
+	usleep(50000);
 	return true;
 }
 
-bool VideoIn::getFrame(Mat &frame, Mat &depth)
+bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	if (!cap_.isOpened())
 		return false;
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if(increment_) 
+	if(!pause) 
 	{
 		cap_ >> _frame;
 		if (_frame.empty())
@@ -49,24 +46,24 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth)
 			pyrDown(_frame, _frame);
 		frameNumber_ += 1;
 	}
-	increment_ = false;
 	depth = Mat();
 	_frame.copyTo(frame);
 	return true;
 }
 
-int VideoIn::width() const
+int VideoIn::width(void) const
 {
 	return width_;
 }
 
-int VideoIn::height() const
+int VideoIn::height(void) const
 {
 	return height_;
 }
 
 int VideoIn::frameCount(void) const
 {
+	std::cout << "Frames = " << frames_ << std::endl;
 	return frames_;
 }
 

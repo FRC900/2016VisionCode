@@ -34,8 +34,6 @@
 #include "FlowLocalizer.hpp"
 
 #include <boost/thread.hpp>
-#include <boost/interprocess/sync/interprocess_semaphore.hpp>
-#include <boost/interprocess/sync/named_semaphore.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
 
@@ -144,22 +142,27 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
     }
 }
 
-void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem) 
+void grabThread(MediaIn *cap, bool &pause)
 {
-	//this runs concurrently with the main while loop if using a camera
+	// this runs concurrently with the main while loop 
+	// If using a camera it will constantly grab frames
+	// in the background.  If input is an image or video,
+	// update() is a no-op so frames will only be read
+	// when getFrame is explicitly called in the main loop.
+	// That way all video frames are processed rather than 
+	// skipping some and repeating others since the update
+	// is out of sync with the main loop
 	FrameTicker frameTicker;
 	while(1) 
 	{
 		if(!pause) 
 		{
 			frameTicker.mark();
-			sem->wait();
 			if(!cap->update()) 
 			{
 				cerr << "Failed to capture" << endl;
-				usleep(100000);
+				isRunning = false;
 			}
-			sem->post();
 			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
 		}
 
@@ -203,12 +206,6 @@ int main( int argc, const char** argv )
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
-
-	//this is used to synchronize the main and grab loops
-	//when using a video
-	//initialize the semaphore to allow 1 loop to run at a time if isVideo and 2 loops if not
-	boost::interprocess::interprocess_semaphore *sem;
-    sem = new boost::interprocess::interprocess_semaphore(cap->semValue());
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -328,8 +325,7 @@ int main( int argc, const char** argv )
 	// --update the current frame
 	//this loop runs asynchronously with the main loop if the input is a camera
 	//and synchronously if the input is a video (i.e. one grab per process)
-	//the semaphore input controls the synchronicity of the frame
-	boost::thread g_thread(grabThread, cap, boost::ref(pause), sem);
+	boost::thread g_thread(grabThread, cap, boost::ref(pause));
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -338,10 +334,7 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(isRunning)
 	{
-		//sem->wait() stops the loop only if the input is a video and the grab loop is in the middle of running
-		//if the loop is stopped it will be restarted at the end of the grab loop
-		sem->wait();
-		if(!cap->getFrame(frame, depth))
+		if(!cap->getFrame(frame, depth, pause))
 			break;
 
 		frameTicker.mark(); // mark start of new frame
@@ -535,7 +528,7 @@ int main( int argc, const char** argv )
 				bool dateAndTime = true;
 				WriteOnFrame textWriter;
 				if (dateAndTime)
-				{
+		 		{
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
 				}
@@ -563,9 +556,16 @@ int main( int argc, const char** argv )
 						break;
 					// Otherwise, if not paused, move to the next frame
 					//TODO I don't think this will work as intended. Check it.
+					cap->frameNumber(frame);
 				}
 
-				cap->update();
+				// Force read of next frame
+				// Subsequent calls to update/getFrame will return
+				// same data since pause is set earlier
+				// If either return false, that probably means EOF
+				// so bail out
+				if (!cap->update() || !cap->getFrame(frame, depth, false))
+					isRunning = false;
 			}
 			else if (c == 'A') // toggle capture-all
 			{
@@ -595,7 +595,7 @@ int main( int argc, const char** argv )
 				// Save from a copy rather than the original
 				// so all the markup isn't saved, only the raw image
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy);
+				cap->getFrame(frameCopy, depthCopy, true);
 				for (size_t index = 0; index < detectRects.size(); index++)
 					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
 			}
@@ -667,7 +667,7 @@ int main( int argc, const char** argv )
 			else if (isdigit(c)) // save a single detected image
 			{
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy);
+				cap->getFrame(frameCopy, depthCopy, true);
 				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
 			}
 		}
@@ -700,7 +700,6 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
-		sem->post();
 	}
   	g_thread.interrupt();
   	g_thread.join();

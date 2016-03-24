@@ -28,8 +28,8 @@ class MediaIn
    public:
 		MediaIn(void);
 		virtual ~MediaIn() {}
-		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth) = 0;
 		virtual bool update() = 0;
+		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
 
 		// Image size
 		virtual int    width() const = 0;
@@ -37,9 +37,6 @@ class MediaIn
 
 		// How many frames?
 		virtual int    frameCount(void) const;
-
-		//initial semaphore value
-		virtual int semValue();
 
 		// Get and set current frame number
 		virtual int    frameNumber(void) const;

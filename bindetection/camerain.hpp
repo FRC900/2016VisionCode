@@ -9,12 +9,11 @@ class CameraIn : public MediaIn
 	public:
 		CameraIn(int stream = -1, bool gui = false);
 		~CameraIn() {}
-		bool getFrame(cv::Mat &frame, cv::Mat &depth);
 		bool update();
+		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 		int width(void) const;
 		int height(void) const;
 		int frameNumber(void) const;
-		bool saveFrame(cv::Mat &frame);
 
 	private:
 		int              lockedFrameNumber_;

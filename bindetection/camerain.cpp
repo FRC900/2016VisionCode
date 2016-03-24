@@ -46,7 +46,7 @@ bool CameraIn::update()
 	return true;
 }
 
-bool CameraIn::getFrame(Mat &frame, Mat &depth)
+bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	if (!cap_.isOpened())
 		return false;

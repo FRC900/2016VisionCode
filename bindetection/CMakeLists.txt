@@ -24,7 +24,7 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe-bvlc")
 
 include_directories(${OpenCV_INCLUDE_DIRS}
 	../caffe_classifier ../C920VideoCap
@@ -96,7 +96,7 @@ target_link_libraries( zv
 	${LibProtobuf}
 	${ZMQ_LIBRARIES})
 
-add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp)
+add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp)
 target_link_libraries( convertzms  ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )

@@ -21,11 +21,6 @@ void MediaIn::frameNumber(int frameNumber)
 	(void)frameNumber;
 }
 
-int MediaIn::semValue() 
-{
-	return 2;
-}
-
 CameraParams MediaIn::getCameraParams(bool left) const
 {
 	(void)left;

@@ -122,7 +122,7 @@ bool C920CameraIn::update()
 	return true;
 }
 
-bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth)
+bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 {
 	if (!camera_.IsOpen())
 		return false;

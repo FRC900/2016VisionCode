@@ -19,8 +19,9 @@ bool ImageIn::update() {
 	return true;
 }
 
-bool ImageIn::getFrame(Mat &frame, Mat &depth)
+bool ImageIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
+	(void)pause;
 	if (_frame.empty())
 		return false;
 	frame = _frame.clone();
