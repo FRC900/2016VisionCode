@@ -14,12 +14,17 @@ MediaOut::MediaOut(int frameSkip, int framesPerFile) :
 	fileCounter_(0),
 	framesPerFile_(framesPerFile),
 	frameReady_(false),
+	writePending_(false),
 	thread_(boost::bind(&MediaOut::writeThread, this))
 {
 }
 
 MediaOut::~MediaOut(void)
 {
+	// Make sure any pending frames have been
+	// written, then shut down the writer
+	// thread.  Once that's finished, exit
+	sync();
   	thread_.interrupt();
   	thread_.join();
 }
@@ -38,9 +43,10 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 	// the first frame, this will also open the initial output video
 	if ((frameCounter_ % (framesPerFile_ * frameSkip_)) == 0)
 	{
-		// Lock anything which changes the file
-		// pointers just in case
-		boost::mutex::scoped_lock lock(fileLock_);
+		// Wait until pending writes are complete
+		// before closing the previous file
+		sync();
+
 		if (!openNext())
 			return false;
 	}
@@ -55,12 +61,16 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
-		std::cerr << "saveFrame()" << std::endl;
-		{
-			boost::mutex::scoped_lock lock(fileLock_);
-			writeComplete_ = false;
-		}
-		frameCond.notify_one();
+		// Notify sync() that there's a write
+		// in progress. That function will
+		// not return until the write has been
+		// completed
+		writePending_ = true;
+
+		// Notifiy other threads waiting
+		// on the mutex that it is now
+		// available - wake them up to do work
+		frameCond_.notify_all();
 	}
 
 	// If we made it this far, the write was successful.
@@ -96,66 +106,75 @@ void MediaOut::writeThread(void)
 	{
 		// Grab the lock mutex
 		// Check that frameReady is set
-		//  if it hasn't, that means there's
-		//  no new data to write.  In that case,
-		//  call wait() to release the mutex and 
-		//  try again
+		// if it hasn't, that means there's
+		// no new data to write.  In that case,
+		// call wait() to release the mutex and 
+		// loop around to try again
 		// Once frameReady_ has been set, copy
 		// the data out of the member variables
 		// into a local var, release the lock, 
 		// and do the write with the copies
-		// of the Mats.  Using the copied will
-		// let saveFrame write to the shared vars
+		// of the Mats.  Using the copies will
+		// let saveFrame write new data to the shared vars
 		// while write() works on the old frame.
 		// Note that saveFrame intentionally
 		// doesn't check to see if frame_ and
-		{
-			boost::mutex::scoped_lock lock(fileLock_);
-			writeComplete_ = false;
-		}
-		// depth_ are valid before writing to them.
+		// depth_ have been copied by this thread
+		// before writing to them.
 		// This way if the write() call takes too
 		// long it is possible for saveFrame to
 		// update the frame_ and depth_ vars more 
 		// than once before this thread reads them.
 		// That will potentially drop frames, but it
-		// also lets the main thread run as quick
+		// also lets the main thread run as quickly
 		// as possible rather than waiting on this thread
 		{
 			boost::mutex::scoped_lock lock(matLock_);
 			while (!frameReady_)
-				frameCond.wait(lock);
+				frameCond_.wait(lock);
 			frame_.copyTo(frame);
 			depth_.copyTo(depth);
 			frameReady_ = false;
-			std::cerr << "writeThread" << std::endl;
 		}
 
-		// Lock access to the file, just in case
+		// Call a derived class' write() method
+		// to actually format and write the data to disk
+		write(frame, depth);
+		
+		// If there's no frame in the buffer above
+		// clear out writePending_
+		// Can't just unconditionally clear it since
+		// it is likely that saveFrame() added a new
+		// frame to the shared buffer while the 
+		// write() call just above was taking place
 		{
-			boost::mutex::scoped_lock lock(fileLock_);
-			write(frame, depth);
-			writeComplete_ = true;
+			boost::mutex::scoped_lock lock(matLock_);
+			if (!frameReady_)
+				writePending_ = false;
 		}
 		ft.mark();
-		std::cout << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;
+		std::cerr << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;
 
 		boost::this_thread::interruption_point();
 	}
 }
 
+// Loop until any pending write has completed
+// Normally we don't care if the writer gets out of sync
+// and drops frames, so long as the main thread isn't
+// slowed down in the process.  In some caes, though,
+// we do want to make sure everything gets written.
+// 1 - when converting or marking up a video input, we want
+//     to make sure every input frame is processed into
+//     the output video
+// 2 - when auto-splitting videos every N frames, we need
+//     to make sure the last frame is written before
+//     closing the old file and moving on to the new one
+// 3 - when shutting down, be sure all writes are finished
+//     before closing the output files
 void MediaOut::sync(void)
 {
-	while(1)
-	{
-		{
-			boost::mutex::scoped_lock lock(matLock_);
-			boost::mutex::scoped_lock lock2(fileLock_);
-			if (!frameReady_ && writeComplete_)
-			{
-				return;
-			}
-		}
-usleep(50000);
-	}
+	boost::mutex::scoped_lock lock(matLock_);
+	while (frameReady_ || writePending_)
+		frameCond_.wait(lock);
 }

@@ -37,9 +37,8 @@ class MediaOut
 		cv::Mat frame_;
 		cv::Mat depth_;
 		boost::mutex matLock_;
-		boost::mutex fileLock_;
-		boost::condition_variable frameCond;
+		boost::condition_variable frameCond_;
 		bool frameReady_;
-bool writeComplete_;
+		bool writePending_;
 		boost::thread thread_;
 };

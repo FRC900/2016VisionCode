@@ -21,8 +21,8 @@ int main(int argc, char **argv)
 	Mat depth;
 	while (in.update() && in.getFrame(image, depth) )
 	{
-		out.saveFrame(image, depth);
 		out.sync();
+		out.saveFrame(image, depth);
 	}
 	out.sync();
 	return 0;

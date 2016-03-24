@@ -249,12 +249,10 @@ bool ZedIn::update(bool left)
 
 bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 {
-	cout << "getFrame() " << pause << endl;
 	// If reading from a file and not paused, grab
 	// the next frame.
 	if (!pause && (archiveIn_ || portableArchiveIn_))
 	{
-		cout << "Reading from file" << endl;
 		// Ugly try-catch to detect EOF
 		try
 		{
@@ -263,11 +261,10 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 			else
 				*portableArchiveIn_ >> _frame >> depthMat_;
 		}
-		catch (const boost::archive::archive_exception &e)
+		catch (const std::exception &e)
 		{
 			return false;
 		}
-		cout << "_frame.size = " << _frame.size() << " depthMat_.size = " << depthMat_.size() << endl;
 
 		while (_frame.rows > 700)
 		{
@@ -286,7 +283,6 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	lockedFrameNumber_ = frameNumber_;
 	_frame.copyTo(frame);
 	depthMat_.copyTo(depth);
-	cerr << "getFrame()" << endl;
 	return true;
 }
 
