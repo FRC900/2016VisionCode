@@ -46,22 +46,22 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			// on both ARM and x86.  Handle loading both types,
 			// at least for the time being
 			cerr << "Loading " << inFileName << " for reading" << endl;
-			bool notLoaded = false;
+			bool loaded = false;
 			if (openSerializeInput(inFileName, true))
 			{
 				*portableArchiveIn_ >> _frame >> depthMat_;
+				loaded = true;
 			}
 			else if (openSerializeInput(inFileName, false))
 			{
 				*archiveIn_ >> _frame >> depthMat_;
-				notLoaded = true;
+				loaded = true;
 			}
 			else
 			{
-				notLoaded = true;
 				cerr << "Zed init : Could not open " << inFileName << " for reading" << endl;
 			}
-			if (!notLoaded)
+			if (loaded)
 			{
 				width_  = _frame.cols;
 				height_ = _frame.rows;
