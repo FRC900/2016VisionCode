@@ -75,7 +75,7 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 
 	// Create an output archive which writes to the previously
 	// created output chain (zlib->output file path)
-	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
+	archiveOut_ = new portable_binary_oarchive(*filtSBOut_);
 	if (!archiveOut_)
 	{
 		cerr << "Could not create binary_oarchive in constructor" <<endl;

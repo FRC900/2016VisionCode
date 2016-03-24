@@ -55,6 +55,11 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
+		std::cerr << "saveFrame()" << std::endl;
+		{
+			boost::mutex::scoped_lock lock(fileLock_);
+			writeComplete_ = false;
+		}
 		frameCond.notify_one();
 	}
 
@@ -104,6 +109,10 @@ void MediaOut::writeThread(void)
 		// while write() works on the old frame.
 		// Note that saveFrame intentionally
 		// doesn't check to see if frame_ and
+		{
+			boost::mutex::scoped_lock lock(fileLock_);
+			writeComplete_ = false;
+		}
 		// depth_ are valid before writing to them.
 		// This way if the write() call takes too
 		// long it is possible for saveFrame to
@@ -119,16 +128,34 @@ void MediaOut::writeThread(void)
 			frame_.copyTo(frame);
 			depth_.copyTo(depth);
 			frameReady_ = false;
+			std::cerr << "writeThread" << std::endl;
 		}
 
 		// Lock access to the file, just in case
 		{
 			boost::mutex::scoped_lock lock(fileLock_);
 			write(frame, depth);
+			writeComplete_ = true;
 		}
 		ft.mark();
 		std::cout << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;
 
 		boost::this_thread::interruption_point();
+	}
+}
+
+void MediaOut::sync(void)
+{
+	while(1)
+	{
+		{
+			boost::mutex::scoped_lock lock(matLock_);
+			boost::mutex::scoped_lock lock2(fileLock_);
+			if (!frameReady_ && writeComplete_)
+			{
+				return;
+			}
+		}
+usleep(50000);
 	}
 }

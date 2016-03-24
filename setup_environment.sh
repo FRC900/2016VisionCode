@@ -8,7 +8,6 @@ sudo apt-get install v4l-conf v4l-utils
 
 #install caffe
 cd
-
 git clone https://github.com/BVLC/caffe.git
 cd caffe
 mkdir build
@@ -43,7 +42,13 @@ rm -rf zeromq-4.1.4*
 cd /usr/local/include/
 sudo wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
 
-#Build repo
+
+cd
+wget https://www.stereolabs.com/download_327af3/ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
+chmod 755 ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
+./ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
+rm ./ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
+
 cd
 git clone https://github.com/FRC900/2016VisionCode.git
 cd 2016VisionCode
@@ -60,3 +65,5 @@ make -j4
 
 sudo mkdir /mnt/900_2
 sudo cp ~/2016VisionCode/zv.conf /etc/init
+sudo chmod 755 /usr/local/zed/settings
+sudo cp ~/2016VisionCode/

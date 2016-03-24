@@ -12,6 +12,7 @@ class MediaOut
 		MediaOut(int frameSkip, int framesPerFile);
 		virtual ~MediaOut();
 		bool saveFrame(const cv::Mat &frame, const cv::Mat &depth);
+		void sync(void);
 
    protected:
 		// The base class calls these dervied classes to do the 
@@ -39,5 +40,6 @@ class MediaOut
 		boost::mutex fileLock_;
 		boost::condition_variable frameCond;
 		bool frameReady_;
+bool writeComplete_;
 		boost::thread thread_;
 };

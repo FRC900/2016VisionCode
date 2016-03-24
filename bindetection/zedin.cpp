@@ -221,6 +221,7 @@ bool ZedIn::update(bool left)
 		{
 			return false;
 		}
+cerr << "Read frame " << endl;
 		boost::lock_guard<boost::mutex> guard(_mtx);
 		localFrame_.copyTo(_frame);
 		localDepth_.copyTo(depthMat_);
@@ -245,6 +246,7 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth)
 	lockedFrameNumber_ = frameNumber_;
 	_frame.copyTo(frame);
 	depthMat_.copyTo(depth);
+cerr << "getFrame()" << endl;
 	return true;
 }
 

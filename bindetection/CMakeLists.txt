@@ -46,7 +46,6 @@ link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
 add_executable(zv
-	test.cpp
 	objdetect.cpp
 	../goal-detection/GoalDetector.cpp
 	../caffe_classifier/detect.cpp
@@ -62,7 +61,10 @@ add_executable(zv
 	imagein.cpp
 	mediaout.cpp
 	aviout.cpp
+	pngout.cpp
 	zmsout.cpp
+	portable_binary_iarchive.cpp
+	portable_binary_oarchive.cpp
 	classifierio.cpp
 	Args.cpp
 	WriteOnFrame.cpp
@@ -73,7 +75,8 @@ add_executable(zv
 	../fovis/FovisLocalizer.cpp
 	FlowLocalizer.cpp
 	kalman.cpp
-	hungarian.cpp)
+	hungarian.cpp
+	test.cpp)
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
@@ -93,5 +96,7 @@ target_link_libraries( zv
 	${LibProtobuf}
 	${ZMQ_LIBRARIES})
 
+add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp)
+target_link_libraries( convertzms  ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
