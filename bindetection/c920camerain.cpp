@@ -108,7 +108,12 @@ bool C920CameraIn::initCamera(bool gui)
 	return true;
 }
 
-bool C920CameraIn::update() 
+bool C920CameraIn::isOpened(void) const
+{
+	return camera_.IsOpen();
+}
+
+bool C920CameraIn::update(void) 
 {
 	if (!camera_.IsOpen() ||
 	    !camera_.GrabFrame() ||

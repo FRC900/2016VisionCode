@@ -6,6 +6,11 @@ MediaIn::MediaIn()
 {
 }
 
+bool MediaIn::isOpened(void) const
+{
+	return false;
+}
+
 int MediaIn::frameCount(void) const
 {
 	return -1;

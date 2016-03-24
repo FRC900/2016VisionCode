@@ -9,7 +9,8 @@ class CameraIn : public MediaIn
 	public:
 		CameraIn(int stream = -1, bool gui = false);
 		~CameraIn() {}
-		bool update();
+		bool isOpened(void) const;
+		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 		int width(void) const;
 		int height(void) const;

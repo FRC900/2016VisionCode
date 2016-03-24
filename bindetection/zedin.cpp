@@ -229,6 +229,12 @@ ZedIn::~ZedIn()
 }
 
 
+bool ZedIn::isOpened(void) const
+{
+	return zed_ || archiveIn_ || !portableArchiveIn_;
+}
+
+
 bool ZedIn::update(bool left) 
 {
 	// Read from either the zed camera or from

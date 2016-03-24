@@ -11,7 +11,8 @@ class ImageIn : public MediaIn
    public:
       ImageIn(const char *outpath);
 	  ~ImageIn() {}
-      bool update();
+	  bool isOpened(void) const;
+      bool update(void);
       bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 	  int frameCount(void) const;

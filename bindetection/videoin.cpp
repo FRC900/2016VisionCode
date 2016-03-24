@@ -26,10 +26,15 @@ VideoIn::VideoIn(const char *inpath) :
 		std::cerr << "Could not open input video "<< inpath << std::endl;
 }
 
-// Do nothing - all of the work is acutally in getFrame
-bool VideoIn::update() 
+bool VideoIn::isOpened(void) const
 {
-	usleep(50000);
+	return cap_.isOpened();
+}
+
+// Do nothing - all of the work is acutally in getFrame
+bool VideoIn::update(void) 
+{
+	usleep(150000);
 	return true;
 }
 

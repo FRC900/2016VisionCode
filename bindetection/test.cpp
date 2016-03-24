@@ -173,7 +173,6 @@ void grabThread(MediaIn *cap, bool &pause)
 int main( int argc, const char** argv )
 {
 	// Flags for various UI features
-	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
 	bool gdDraw = false;      // draw goal detect details
 	int frameDisplayFrequency = 1;
@@ -189,6 +188,8 @@ int main( int argc, const char** argv )
 
 	if (!args.processArgs(argc, argv))
 		return -2;
+
+	bool pause = !args.batchMode && args.pause;
 
 	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
@@ -335,9 +336,6 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(isRunning)
 	{
-		if(!cap->getFrame(frame, depth, pause))
-			break;
-
 		frameTicker.mark(); // mark start of new frame
 
 		// Write raw video before anything gets drawn on it
@@ -701,6 +699,8 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
+		if(!cap->getFrame(frame, depth, pause))
+			break;
 	}
   	g_thread.interrupt();
   	g_thread.join();
@@ -802,11 +802,11 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 
 		cap = new ZedIn(NULL, gui);
 		Mat	mat, depth;
-		if(!cap->update() || !cap->getFrame(mat, depth))
+		if(!cap->isOpened())
 		{
 			delete cap;
 			cap = new C920CameraIn(camera, gui);
-			if (!cap->update() || !cap->getFrame(mat, depth))
+			if (!cap->isOpened())
 			{
 				delete cap;
 				cap = new CameraIn(camera, gui);

@@ -9,6 +9,7 @@ class VideoIn : public MediaIn
 	public:
 		VideoIn(const char *inpath);
 		~VideoIn() {}
+		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 		int width(void) const;

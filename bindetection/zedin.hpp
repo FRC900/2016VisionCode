@@ -20,7 +20,8 @@ class ZedIn : public MediaIn
 	public:
 		ZedIn(const char *inFileName = NULL, bool gui = false);
 		~ZedIn();
-		bool update();
+		bool isOpened(void) const;
+		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		int    width(void) const;

@@ -25,22 +25,23 @@ class CameraParams
 // Base class for input.  Derived classes are cameras, videos, etc
 class MediaIn
 {
-   public:
+	public:
 		MediaIn(void);
 		virtual ~MediaIn() {}
-		virtual bool update() = 0;
+		bool isOpened(void) const;
+		virtual bool update(void) = 0;
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
 
 		// Image size
-		virtual int    width() const = 0;
-		virtual int    height() const = 0;
+		virtual int  width() const = 0;
+		virtual int  height() const = 0;
 
 		// How many frames?
-		virtual int    frameCount(void) const;
+		virtual int  frameCount(void) const;
 
 		// Get and set current frame number
-		virtual int    frameNumber(void) const;
-		virtual void   frameNumber(int frameNumber);
+		virtual int  frameNumber(void) const;
+		virtual void frameNumber(int frameNumber);
 
 		// Other functions that really only work from zedin
 		virtual CameraParams getCameraParams(bool left) const;
