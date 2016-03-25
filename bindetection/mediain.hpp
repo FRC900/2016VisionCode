@@ -28,7 +28,7 @@ class MediaIn
 	public:
 		MediaIn(void);
 		virtual ~MediaIn() {}
-		bool isOpened(void) const;
+		virtual bool isOpened(void) const;
 		virtual bool update(void) = 0;
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
 

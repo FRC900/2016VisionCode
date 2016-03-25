@@ -801,7 +801,6 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
 		cap = new ZedIn(NULL, gui);
-		Mat	mat, depth;
 		if(!cap->isOpened())
 		{
 			delete cap;
