@@ -269,6 +269,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		info_writer.log(info); */
 	}
 
+	cout << best_goals.size() << " goals passed first detection" << endl;
+
 // Iterate over the list and remove elements with the least confidence until we only have 3
 	while(best_goals.size() > 3) {
 		int min_confidence = 0.5;

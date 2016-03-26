@@ -231,7 +231,7 @@ ZedIn::~ZedIn()
 
 bool ZedIn::isOpened(void) const
 {
-	return zed_ || archiveIn_ || !portableArchiveIn_;
+	return zed_ || archiveIn_ || portableArchiveIn_;
 }
 
 
