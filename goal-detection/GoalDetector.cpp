@@ -268,7 +268,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		info.push_back(to_string(goal_to_center_deg));
 		info_writer.log(info); */
 	}
-
+	if(best_goals.size() > 0) {
 	cout << best_goals.size() << " goals passed first detection" << endl;
 
 // Iterate over the list and remove elements with the least confidence until we only have 3
@@ -286,7 +286,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 // Decide between the last 3 goals based on their width
 	int max_width = 0;
-	int best_index;
+	int best_index = -1;
 	for(size_t i = 0; i < best_goals.size(); i++) {
 		if(best_goals[i].width > max_width) {
 			max_width = best_goals[i].width;
@@ -301,8 +301,11 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	_angle_to_goal = best_goals[best_index].angle;
 	_goal_rect     = best_goals[best_index].rect;
 
+
 	_pastRects.push_back(SmartRect(best_goals[best_index].rect));
 	isValid();
+
+	}
 }
 
 

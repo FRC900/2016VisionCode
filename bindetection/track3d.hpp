@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <string>
 #include <list>
-#include <Eigen/Geometry>
+//#include <Eigen/Geometry>
 #include <boost/circular_buffer.hpp>
 #include "kalman.hpp"
 
@@ -105,7 +105,7 @@ class TrackedObject
 
 		// Adjust tracked object position based on motion
 		// of the camera
-		void adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
+		//void adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		void adjustPosition(const cv::Mat &transform_mat, float depth, const cv::Point2f &fov_size, const cv::Size &frame_size);
 
 		//get position of a rect on the screen corresponding to the object size and location
@@ -113,7 +113,7 @@ class TrackedObject
 		cv::Rect getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const;
 		cv::Point3f getPosition(void) const { return _position; }
 
-		void adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
+		//void adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		void adjustKF(cv::Point3f delta_pos);
 
 		cv::Point3f predictKF(void);
@@ -181,7 +181,7 @@ class TrackedObjectList
 
 		// Adjust the angle of each tracked object based on
 		// the rotation of the robot straight from fovis
-		void adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
+		//void adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		void adjustLocation(const cv::Mat &transform_mat);
 		// Simple printout of list into
 		void print(void) const;

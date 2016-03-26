@@ -87,7 +87,7 @@ namespace utils {
 		rect_in.br() = rect_in.br() - cv::Point(shrink_factor/2.0 * rect_in.width, shrink_factor/2.0 * rect_in.height);
 
 	}
-
+#if 0
 	void printIsometry(const Eigen::Transform<double, 3, Eigen::Isometry> m) {
 
 		Eigen::Vector3d xyz = m.translation();
@@ -96,7 +96,7 @@ namespace utils {
 		cout << "Camera Rotation: " << rpy << endl;
 		
 	}
-
+#endif
 	double normalCFD(const pair<double,double> &meanAndStddev, double value)
 	{
 		double z_score = (value - meanAndStddev.first) / meanAndStddev.second;
