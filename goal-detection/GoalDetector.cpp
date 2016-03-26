@@ -284,14 +284,33 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		best_goals.erase(best_goals.begin()+min_confidence_index);
 	}
 
-// Decide between the last 3 goals based on their width
-	int max_width = 0;
-	int best_index = -1;
-	for(size_t i = 0; i < best_goals.size(); i++) {
-		if(best_goals[i].width > max_width) {
-			max_width = best_goals[i].width;
-			best_index = i;
+	// Remove down to 2 goals based on width
+	while(best_goals.size() > 2) {
+		int min_width = 10000000;
+		int min_width_index;
+		for(size_t i = 0; i < best_goals.size(); i++) {
+			if(best_goals[i].width < min_width) {
+				min_width = best_goals[i].width;
+				min_width_index = i;
+			}
 		}
+		best_goals.erase(best_goals.begin()+min_width_index);
+	}
+	
+	int best_index = -1;
+	//decide between finals 2 goals based on either width or position on screen
+	//decide how to decide based on if the goals have extremely similar widths
+	if(abs(best_goals[0].width - best_goals[1].width) > 5) {
+		if(best_goals[0].width > best_goals[1].width)
+			best_index = 0;
+		else
+			best_index = 1;
+	} else {
+		cout << "Deciding based on position " << endl;	
+		if(best_goals[0].rect.br().x < best_goals[1].rect.br().x)
+			best_index = 0;
+		else
+			best_index = 1;
 	}
 
 	// Save a bunch of info about the goal
