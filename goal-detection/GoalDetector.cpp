@@ -273,25 +273,18 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		{
 			cout << best_goals.size() << " goals passed first detection" << endl;
 			// Remove down to 3 goals based on confidence
-			// Sort by decreasing confidence, remove everything but
-			// the top 3 entries
+			// Sort by decreasing confidence - first entries will
+			// have the highest confidence
 			sort (best_goals.begin(), best_goals.end(), [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
 			{
 				return lhs.confidence > rhs.confidence;
 			});
-			if (best_goals.size() > 3)
-				best_goals.erase(best_goals.begin() + 3);
 
-			// Remove down to 2 goals based on width
-			// Sort by decreasing width, remove everything but
-			// the top 2 entries
-			sort (best_goals.begin(), best_goals.end(), [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
+			// Sort the top 3 entries by width
+			sort (best_goals.begin(), best_goals.begin()+2, [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
 			{
 				return lhs.rect.width > rhs.rect.width;
 			});
-			if (best_goals.size() > 2)
-				best_goals.erase(best_goals.begin() + 2);
-			cout << best_goals.size() << " goals after filtering width" << endl;
 
 			//decide between finals 2 goals based on either width or position on screen
 			//decide how to decide based on if the goals have extremely similar widths
@@ -319,7 +312,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		_angle_to_goal = best_goals[best_index].angle;
 		_goal_rect     = best_goals[best_index].rect;
 
-		_pastRects.push_back(SmartRect(best_goals[best_index].rect));
+		_pastRects.push_back(SmartRect(_goal_rect));
 	}
 	else
 		_pastRects.push_back(SmartRect(Rect()));
@@ -456,7 +449,6 @@ void GoalDetector::isValid()
 	SmartRect currentRect = _pastRects[0];
 	for(auto it = _pastRects.begin() + 1; it != _pastRects.end(); ++it)
 	{
-		cout << "isValid : currentRect = " << currentRect.myRect << " it = " << it->myRect << endl;
 		if(!(*it == currentRect))
 		{
 			_isValid = false;
