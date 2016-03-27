@@ -45,9 +45,9 @@ struct GoalInfo
 	float confidence;
 	float distance;
 	float angle;
-	int width;
 	Rect rect;
 };
+
 
 void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 {
@@ -101,9 +101,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// TODO :: Tune me, make me a percentage of screen area?
 		if ((br.area() < 250.0) || (br.area() > 8500))
 		{
-			#ifdef VERBOSE
+#ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
-			#endif
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -113,9 +113,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// reflection in the diamond-plate at the end of the field
 		if (br.br().y > (image.rows * 0.7f))
 		{
-			#ifdef VERBOSE
+#ifdef VERBOSE
 			cout << "Contour " << i << " br().y out of range "<< br.br().y << endl;
-			#endif
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -134,15 +134,15 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// If no depth data, calculate it using FOV and height of
 		// the target. This isn't perfect but better than nothing
 		if ((depth_z_min <= 0.) || (depth_z_max <= 0.))
-		depth_z_min = depth_z_max = distanceUsingFOV(br);
+			depth_z_min = depth_z_max = distanceUsingFOV(br);
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
 		if ((depth_z_min < 1.) || (depth_z_max > 12.))
 		{
-			#ifdef VERBOSE
+#ifdef VERBOSE
 			cout << "Contour " << i << " depth out of range "<< depth_z_min << " / " << depth_z_max << endl;
-			#endif
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -150,8 +150,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
-		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y,
-		1, cvRound(br.height / 2.))));
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 1, cvRound(br.height / 2.))));
 		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + 2./3*br.height), 1, cvRound(br.height / 3.))));
 		double topMaxVal;
 		minMaxLoc(topMidCol, NULL, &topMaxVal);
@@ -162,9 +161,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// max pixel value in the top rows of the middle column
 		if (topMaxVal > (.5 * botMaxVal))
 		{
-			#ifdef VERBOSE
+#ifdef VERBOSE
 			cout << "Contour " << i << " max top middle column val too large "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
-			#endif
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -179,10 +178,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		minMaxLoc(centerMidRow, NULL, &centerMaxVal);
 		if ((abs(rightMaxVal / leftMaxVal - 1) > .3) || (min(rightMaxVal, leftMaxVal) < 2 * centerMaxVal))
 		{
-			#ifdef VERBOSE
+#ifdef VERBOSE
 			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
 			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << ", Center: " << centerMidRow << endl;
-			#endif
+#endif
 			_confidence.push_back(0);
 			continue;
 		}
@@ -193,11 +192,11 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		//TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16 * M_PI / 180.0);
 
 		//percentage of the object filled in
-		float filledPercentageActual   = goal_actual.area() / goal_actual.boundingArea();
+		float filledPercentageActual = goal_actual.area() / goal_actual.boundingArea();
 
 		//center of mass as a percentage of the object size from top left
 		Point2f com_percent_actual((goal_actual.com().x - br.tl().x) / goal_actual.width(),
-		(goal_actual.com().y - br.tl().y) / goal_actual.height());
+								   (goal_actual.com().y - br.tl().y) / goal_actual.height());
 
 		//width to height ratio
 		float actualRatio = goal_actual.width() / goal_actual.height();
@@ -224,7 +223,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio/2. + confidence_screen_area/2.) / 5.0;
 		_confidence.push_back(confidence);
 
-		#ifdef VERBOSE
+#ifdef VERBOSE
 		cout << "-------------------------------------------" << endl;
 		cout << "Contour " << i << endl;
 		cout << "confidence_height: " << confidence_height << endl;
@@ -239,7 +238,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "br.br().y " << br.br().y << endl;
 		cout << "Max middle row "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
 		cout << "-------------------------------------------" << endl;
-		#endif
+#endif
 
 		if (confidence > _min_valid_confidence)
 		{
@@ -247,12 +246,11 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			// Add it to the list of best goals
 			GoalInfo goal_info;
 
-			goal_info.pos = goal_tracked_obj.getPosition();
+			goal_info.pos        = goal_tracked_obj.getPosition();
 			goal_info.confidence = confidence;
-			goal_info.distance  = hypotf(_goal_pos.x, _goal_pos.y);
-			goal_info.angle 		= atan2f(_goal_pos.x, _goal_pos.y) * 180. / M_PI;
-			goal_info.width = br.width;
-			goal_info.rect  		= br;
+			goal_info.distance   = hypotf(goal_info.pos.x, goal_info.pos.y);
+			goal_info.angle 	 = atan2f(goal_info.pos.x, goal_info.pos.y) * 180. / M_PI;
+			goal_info.rect   	 = br;
 
 			best_goals.push_back(goal_info);
 		}
@@ -268,63 +266,64 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		info.push_back(to_string(goal_to_center_deg));
 		info_writer.log(info); */
 	}
-	if(best_goals.size() > 0) {
-	cout << best_goals.size() << " goals passed first detection" << endl;
+	if(best_goals.size() > 0)
+	{
+		int best_index = 0;
+		if (best_goals.size() > 1)
+		{
+			cout << best_goals.size() << " goals passed first detection" << endl;
+			// Remove down to 3 goals based on confidence
+			// Sort by decreasing confidence, remove everything but
+			// the top 3 entries
+			sort (best_goals.begin(), best_goals.end(), [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
+			{
+				return lhs.confidence > rhs.confidence;
+			});
+			if (best_goals.size() > 3)
+				best_goals.erase(best_goals.begin() + 3);
 
-// Iterate over the list and remove elements with the least confidence until we only have 3
-	while(best_goals.size() > 3) {
-		int min_confidence = 0.5;
-		int min_confidence_index;
-		for(size_t i = 0; i < best_goals.size(); i++) {
-			if(best_goals[i].confidence < min_confidence) {
-				min_confidence = best_goals[i].confidence;
-				min_confidence_index = i;
+			// Remove down to 2 goals based on width
+			// Sort by decreasing width, remove everything but
+			// the top 2 entries
+			sort (best_goals.begin(), best_goals.end(), [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
+			{
+				return lhs.rect.width > rhs.rect.width;
+			});
+			if (best_goals.size() > 2)
+				best_goals.erase(best_goals.begin() + 2);
+			cout << best_goals.size() << " goals after filtering width" << endl;
+
+			//decide between finals 2 goals based on either width or position on screen
+			//decide how to decide based on if the goals have extremely similar widths
+			if(abs(best_goals[0].rect.width - best_goals[1].rect.width) > 5)
+			{
+				cout << "Deciding based on width" << endl;
+				if(best_goals[0].rect.width > best_goals[1].rect.width)
+					best_index = 0;
+				else
+					best_index = 1;
+			}
+			else
+			{
+				cout << "Deciding based on position " << endl;
+				if(best_goals[0].rect.br().x < best_goals[1].rect.br().x)
+					best_index = 0;
+				else
+					best_index = 1;
 			}
 		}
-		best_goals.erase(best_goals.begin()+min_confidence_index);
+
+		// Save a bunch of info about the goal
+		_goal_pos      = best_goals[best_index].pos;
+		_dist_to_goal  = best_goals[best_index].distance;
+		_angle_to_goal = best_goals[best_index].angle;
+		_goal_rect     = best_goals[best_index].rect;
+
+		_pastRects.push_back(SmartRect(best_goals[best_index].rect));
 	}
-
-	// Remove down to 2 goals based on width
-	while(best_goals.size() > 2) {
-		int min_width = 10000000;
-		int min_width_index;
-		for(size_t i = 0; i < best_goals.size(); i++) {
-			if(best_goals[i].width < min_width) {
-				min_width = best_goals[i].width;
-				min_width_index = i;
-			}
-		}
-		best_goals.erase(best_goals.begin()+min_width_index);
-	}
-	
-	int best_index = -1;
-	//decide between finals 2 goals based on either width or position on screen
-	//decide how to decide based on if the goals have extremely similar widths
-	if(abs(best_goals[0].width - best_goals[1].width) > 5) {
-		if(best_goals[0].width > best_goals[1].width)
-			best_index = 0;
-		else
-			best_index = 1;
-	} else {
-		cout << "Deciding based on position " << endl;	
-		if(best_goals[0].rect.br().x < best_goals[1].rect.br().x)
-			best_index = 0;
-		else
-			best_index = 1;
-	}
-
-	// Save a bunch of info about the goal
-	_isValid       = true;
-	_goal_pos      = best_goals[best_index].pos;
-	_dist_to_goal  = best_goals[best_index].distance;
-	_angle_to_goal = best_goals[best_index].angle;
-	_goal_rect     = best_goals[best_index].rect;
-
-
-	_pastRects.push_back(SmartRect(best_goals[best_index].rect));
+	else
+		_pastRects.push_back(SmartRect(Rect()));
 	isValid();
-
-	}
 }
 
 
@@ -457,6 +456,7 @@ void GoalDetector::isValid()
 	SmartRect currentRect = _pastRects[0];
 	for(auto it = _pastRects.begin() + 1; it != _pastRects.end(); ++it)
 	{
+		cout << "isValid : currentRect = " << currentRect.myRect << " it = " << it->myRect << endl;
 		if(!(*it == currentRect))
 		{
 			_isValid = false;
