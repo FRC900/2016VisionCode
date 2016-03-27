@@ -111,7 +111,7 @@ Point3f TKalmanFilter::Update(Point3f p)
 	return Point3f(estimated.at<float>(0), estimated.at<float>(1), estimated.at<float>(2));
 }
 //---------------------------------------------------------------------------
-
+#if 0
 void TKalmanFilter::adjustPrediction(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
 	Eigen::Vector3d prediction_vec = Eigen::Vector3d(kalman.statePre.at<float>(0), kalman.statePre.at<float>(1), kalman.statePre.at<float>(2));
@@ -127,7 +127,7 @@ void TKalmanFilter::adjustPrediction(const Eigen::Transform<double, 3, Eigen::Is
 	kalman.statePre.at<float>(4) = prediction_rot_vec(1);
 	kalman.statePre.at<float>(5) = prediction_rot_vec(2);
 }
-
+#endif
 void TKalmanFilter::adjustPrediction(cv::Point3f delta_pos)
 {
 	kalman.statePre.at<float>(0) = kalman.statePre.at<float>(0) + delta_pos.x;

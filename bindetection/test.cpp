@@ -29,7 +29,7 @@
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
 #include "GoalDetector.hpp"
-#include "FovisLocalizer.hpp"
+//#include "FovisLocalizer.hpp"
 #include "Utilities.hpp"
 #include "FlowLocalizer.hpp"
 

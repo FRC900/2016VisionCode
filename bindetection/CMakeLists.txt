@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -21,10 +21,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(CUDA REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams thread REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
+#find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe-bvlc")
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 include_directories(${OpenCV_INCLUDE_DIRS}
 	../caffe_classifier ../C920VideoCap
@@ -35,7 +35,7 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 	${CAFFE_BASE_DIR}/include
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
-   	${EIGEN3_INCLUDE_DIR}
+#   	${EIGEN3_INCLUDE_DIR}
 	../bindetection
 	../goal-detection
 	../fovis
@@ -72,7 +72,7 @@ add_executable(zv
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp
-	../fovis/FovisLocalizer.cpp
+	#../fovis/FovisLocalizer.cpp
 	FlowLocalizer.cpp
 	kalman.cpp
 	hungarian.cpp
@@ -85,7 +85,7 @@ find_library (LibProtobuf protobuf)
 target_link_libraries( zv
 	${OpenCV_LIBS}
 	${LibCaffe}
-	fovis
+	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
 	${ZED_LIBRARIES}
 	${CUDA_LIBRARIES}
