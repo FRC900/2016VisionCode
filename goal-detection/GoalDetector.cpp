@@ -76,8 +76,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	// find contours in the thresholded image - these will be blobs
 	// of green to check later on to see how well they match the
 	// expected shape of the goal
+	// Note : findContours modifies the input mat
+	Mat threshold_copy = threshold_image.clone();
 	vector<Vec4i>          hierarchy;
-	findContours(threshold_image, _contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	findContours(threshold_copy, _contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
 	// Create some target stats based on our idealized goal model
 	//center of mass as a percentage of the object size from top left
@@ -152,39 +154,45 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// middle going towards the top. Check for that here
 		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 1, cvRound(br.height / 2.))));
 		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + 2./3*br.height), 1, cvRound(br.height / 3.))));
-		double topMaxVal;
-		minMaxLoc(topMidCol, NULL, &topMaxVal);
-		double botMaxVal;
-		minMaxLoc(botMidCol, NULL, &botMaxVal);
+		double topMaxCol;
+		minMaxLoc(topMidCol, NULL, &topMaxCol);
+		double botMaxCol;
+		minMaxLoc(botMidCol, NULL, &botMaxCol);
 		// The max pixel value in the bottom rows of the
-		// middle column should be significantly higher than the
-		// max pixel value in the top rows of the middle column
-		if (topMaxVal > (.5 * botMaxVal))
+		// middle column should be > 0 and the max pixel
+		// value in the top rows of that same column should be 0
+		if ((topMaxCol >= 1.0) || (botMaxCol < 1.0))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " max top middle column val too large "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
+			cout << "Contour " << i << " middle column values wrong (top/bot) : " << (int)topMaxCol << " / " << (int)botMaxCol << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
 		}
+
+		// Grab max pixel values along a line through
+		// the middle row of the bounding rect. There
+		// should be high values on the left and
+		// right and no high values in the middle
 		Mat leftMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 3.), 1)));
 		Mat rightMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 3.), 1)));
 		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3./ 8.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 4.), 1)));
-		double rightMaxVal;
-		minMaxLoc(rightMidRow, NULL, &rightMaxVal);
-		double leftMaxVal;
-		minMaxLoc(leftMidRow, NULL, &leftMaxVal);
-		double centerMaxVal;
-		minMaxLoc(centerMidRow, NULL, &centerMaxVal);
-		if ((abs(rightMaxVal / leftMaxVal - 1) > .3) || (min(rightMaxVal, leftMaxVal) < 2 * centerMaxVal))
+		double rightMaxRow;
+		minMaxLoc(rightMidRow, NULL, &rightMaxRow);
+		double leftMaxRow;
+		minMaxLoc(leftMidRow, NULL, &leftMaxRow);
+		double centerMaxRow;
+		minMaxLoc(centerMidRow, NULL, &centerMaxRow);
+		if ((leftMaxRow < 1.0) || (centerMaxRow > 0.) || (rightMaxRow < 1.0))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " max center middle row val too large " << centerMaxVal * 2. << " / " << min(rightMaxVal, leftMaxVal) << endl;
-			cout << "Right: " << rightMidRow << ", Left: " << leftMidRow << ", Center: " << centerMidRow << endl;
+			cout << "Contour " << i << " middle row wrong (left / center / right)" << (int)leftMaxRow << "/" <<(int)centerMaxRow << "/" << (int)rightMaxRow << endl;
+			cout << "\tRight: " << rightMidRow << ", Left: " << leftMidRow << ", Center: " << centerMidRow << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
 		}
+
 		//create a trackedobject to get various statistics
 		//including area and x,y,z position of the goal
 		ObjectType goal_actual(_contours[i]);
@@ -234,9 +242,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;
 		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0 << endl;
-		cout << "br.area() " << br.area() << endl;
-		cout << "br.br().y " << br.br().y << endl;
-		cout << "Max middle row "<< topMaxVal << " / " << (botMaxVal *.5) << endl;
+		cout << "br.area(): " << br.area() << endl;
+		cout << "br.br().y: " << br.br().y << endl;
+		cout << "Middle col (top/bot): "<< (int)topMaxCol << " / " << (int)botMaxCol << endl;
+		cout << "Middle row (left / center / right): " << (int)leftMaxRow << "/" <<(int)centerMaxRow << " / " << (int)rightMaxRow << endl;
 		cout << "-------------------------------------------" << endl;
 #endif
 
@@ -281,13 +290,14 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			});
 
 			// Sort the top 3 entries by width
-			sort (best_goals.begin(), best_goals.begin()+2, [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
+			sort (best_goals.begin(), min(best_goals.end(), best_goals.begin()+3), [ ] (const GoalInfo &lhs, const GoalInfo &rhs)
 			{
 				return lhs.rect.width > rhs.rect.width;
 			});
-
-			//decide between finals 2 goals based on either width or position on screen
+			//decide between final 2 goals based on either width or position on screen
 			//decide how to decide based on if the goals have extremely similar widths
+			//note that goals near the edge of the screen will appear wider
+			//due to camera distortions
 			if(abs(best_goals[0].rect.width - best_goals[1].rect.width) > 5)
 			{
 				cout << "Deciding based on width" << endl;
@@ -358,7 +368,7 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 	// from the function.  If this value is too low, it means the image is
 	// really dark and the returned threshold image will be mostly noise.
 	// In that case, skip processing it entirely.
-	double otsuThreshold = threshold(imageOut, imageOut, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+	double otsuThreshold = threshold(imageOut, imageOut, 0., 255., CV_THRESH_BINARY | CV_THRESH_OTSU);
 #ifdef VERBOSE
 	cout << "OSTU THRESHOLD " << otsuThreshold << endl;
 #endif
