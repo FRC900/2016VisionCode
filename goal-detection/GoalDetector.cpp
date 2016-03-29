@@ -140,7 +140,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
-		if ((depth_z_min < 1.) || (depth_z_max > 12.))
+		if ((depth_z_max < 1.) || (depth_z_min > 10.))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " depth out of range "<< depth_z_min << " / " << depth_z_max << endl;
@@ -164,7 +164,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		if ((topMaxCol >= 1.0) || (botMaxCol < 1.0))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " middle column values wrong (top/bot) : " << (int)topMaxCol << " / " << (int)botMaxCol << endl;
+			cout << "Contour " << i << " middle column values wrong (top/bot):" << (int)topMaxCol << "/" << (int)botMaxCol << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
@@ -174,20 +174,30 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// the middle row of the bounding rect. There
 		// should be high values on the left and
 		// right and no high values in the middle
-		Mat leftMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 3.), 1)));
-		Mat rightMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 3.), 1)));
+		// Sample the edges at both .35 and .65 of the way
+		// down the rect  to find goals which look
+		// angled due to their offset
+		Mat leftTopMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .35), cvRound(br.width / 3.), 1)));
+		Mat leftBotMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .65), cvRound(br.width / 3.), 1)));
+		Mat rightTopMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height * .35), cvRound(br.width / 3.), 1)));
+		Mat rightBotMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height * .65), cvRound(br.width / 3.), 1)));
 		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3./ 8.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 4.), 1)));
+		double dummy;
 		double rightMaxRow;
-		minMaxLoc(rightMidRow, NULL, &rightMaxRow);
+		minMaxLoc(rightTopMidRow, NULL, &dummy);
+		minMaxLoc(rightBotMidRow, NULL, &rightMaxRow);
+		rightMaxRow = max(dummy, rightMaxRow);
 		double leftMaxRow;
-		minMaxLoc(leftMidRow, NULL, &leftMaxRow);
+		minMaxLoc(leftTopMidRow, NULL, &dummy);
+		minMaxLoc(leftBotMidRow, NULL, &leftMaxRow);
+		leftMaxRow = max(dummy, leftMaxRow);
 		double centerMaxRow;
 		minMaxLoc(centerMidRow, NULL, &centerMaxRow);
 		if ((leftMaxRow < 1.0) || (centerMaxRow > 0.) || (rightMaxRow < 1.0))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " middle row wrong (left / center / right)" << (int)leftMaxRow << "/" <<(int)centerMaxRow << "/" << (int)rightMaxRow << endl;
-			cout << "\tRight: " << rightMidRow << ", Left: " << leftMidRow << ", Center: " << centerMidRow << endl;
+			cout << "Contour " << i << " middle row wrong (left / center / right):" << (int)leftMaxRow << "/" <<(int)centerMaxRow << "/" << (int)rightMaxRow << endl;
+			cout << "\tRight(x2): " << rightTopMidRow << "/" << rightBotMidRow << " Center: " << centerMidRow << " Left(x2): " << leftTopMidRow << "/" << leftBotMidRow << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
@@ -199,6 +209,21 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -9.5 * M_PI / 180.0);
 		//TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16 * M_PI / 180.0);
 
+		// Gets the bounding box area observed divided by the
+		// bounding box area calculated given goal size and distance
+		// For an object the size of a goal we'd expect this to be
+		// close to 1.0 with some variance due to perspective
+		float exp_area = goal_tracked_obj.getScreenPosition(_fov_size, _frame_size).area();
+		float actualScreenArea = (float)br.area() / exp_area;
+
+		if (((exp_area / br.area()) < 0.25) || ((exp_area / br.area()) > 4.00))
+		{
+#ifdef VERBOSE
+			cout << "Contour " << i << " area out of range for depth (act/exp/ratio):" << br.area() << "/" << exp_area << "/" << actualScreenArea << endl;
+#endif
+			_confidence.push_back(0);
+			continue;
+		}
 		//percentage of the object filled in
 		float filledPercentageActual = goal_actual.area() / goal_actual.boundingArea();
 
@@ -209,23 +234,17 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		//width to height ratio
 		float actualRatio = goal_actual.width() / goal_actual.height();
 
-		// Gets the bounding box area observed divided by the
-		// bounding box area calculated given goal size and distance
-		// For an object the size of a goal we'd expect this to be
-		// close to 1.0 with some variance due to perspective
-		float actualScreenArea = (float)br.area() / goal_tracked_obj.getScreenPosition(_fov_size, _frame_size).area();
-
 		//parameters for the normal distributions
 		//values for standard deviation were determined by
 		//taking the standard deviation of a bunch of values from the goal
 		//confidence is near 0.5 when value is near the mean
 		//confidence is small or large when value is not near mean
 		float confidence_height      = createConfidence(_goal_height, 0.4, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
-		float confidence_com_x       = createConfidence(com_percent_expected.x, 0.075,  com_percent_actual.x);
+		float confidence_com_x       = createConfidence(com_percent_expected.x, 0.125,  com_percent_actual.x);
 		float confidence_com_y       = createConfidence(com_percent_expected.y, 0.1539207,  com_percent_actual.y);
 		float confidence_filled_area = createConfidence(filledPercentageExpected, 0.33,   filledPercentageActual);
 		float confidence_ratio       = createConfidence(expectedRatio, 0.537392,  actualRatio);
-		float confidence_screen_area = createConfidence(1.0, 0.5,  actualScreenArea);
+		float confidence_screen_area = createConfidence(1.0, 0.75,  actualScreenArea);
 
 		// higher is better
 		float confidence = (confidence_height + confidence_com_x + confidence_com_y + confidence_filled_area + confidence_ratio/2. + confidence_screen_area/2.) / 5.0;
@@ -242,10 +261,11 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;
 		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0 << endl;
+		cout << "Area exp/act: " << (int)exp_area << "/" << br.area() << endl;
 		cout << "br.area(): " << br.area() << endl;
 		cout << "br.br().y: " << br.br().y << endl;
-		cout << "Middle col (top/bot): "<< (int)topMaxCol << " / " << (int)botMaxCol << endl;
-		cout << "Middle row (left / center / right): " << (int)leftMaxRow << "/" <<(int)centerMaxRow << " / " << (int)rightMaxRow << endl;
+		cout << "Middle col (top/bot): "<< (int)topMaxCol << "/" << (int)botMaxCol << endl;
+		cout << "Middle row (left/center/right): " << (int)leftMaxRow << "/" <<(int)centerMaxRow << "/" << (int)rightMaxRow << endl;
 		cout << "-------------------------------------------" << endl;
 #endif
 
