@@ -737,7 +737,7 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
         }
     }
 
-    cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
+    //cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
 
     //Creates immutable strings for 0MQ Output
     stringstream gString;
@@ -872,6 +872,7 @@ string getVideoOutName(bool raw, const char *suffix)
 			ss << suffix;
 		}
         rc = stat(ss.str().c_str(), &statbuf);
-    } while (rc == 0);
+    } 
+	while (rc == 0);
     return ss.str();
 }
