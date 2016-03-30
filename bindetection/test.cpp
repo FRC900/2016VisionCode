@@ -165,7 +165,6 @@ void grabThread(MediaIn *cap, bool &pause)
 			}
 			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
 		}
-
 		boost::this_thread::interruption_point();
 	}
 }
@@ -215,7 +214,6 @@ int main( int argc, const char** argv )
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
-
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
