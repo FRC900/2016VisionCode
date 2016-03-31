@@ -56,17 +56,15 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 			while (frameReady_ || writePending_)
 				frameCond_.wait(lock);
 
-			if (!openNext())
+			if (!openNext(fileCounter_++))
 				return false;
 			framesThisFile_ = 0;
 		}
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
-		// Notify sync() that there's a write
-		// in progress. That function will
-		// not return until the write has been
-		// completed
+		// Set a flag to indicate there is a disk write
+		// that needs to complete
 		writePending_ = true;
 
 		// Notifiy other threads waiting
@@ -83,8 +81,9 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 
 // Dummy member functions - base class shouldn't be called
 // directly so these shouldn't be used
-bool MediaOut::openNext(void)
+bool MediaOut::openNext(int fileCounter)
 {
+	(void)fileCounter;
 	return false;
 }
 
@@ -111,7 +110,9 @@ void MediaOut::writeThread(void)
 		// if it hasn't, that means there's
 		// no new data to write.  In that case,
 		// call wait() to release the mutex and 
-		// loop around to try again
+		// loop around to try again. This lets a
+		// call to saveFrame to complete if one
+		// is waiting on the mutex.
 		// Once frameReady_ has been set, copy
 		// the data out of the member variables
 		// into a local var, release the lock, 
@@ -126,7 +127,7 @@ void MediaOut::writeThread(void)
 		// This way if the write() call takes too
 		// long it is possible for saveFrame to
 		// update the frame_ and depth_ vars more 
-		// than once before this thread reads them.
+		// than once before this thread reads them again.
 		// That will potentially drop frames, but it
 		// also lets the main thread run as quickly
 		// as possible rather than waiting on this thread
