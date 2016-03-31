@@ -37,7 +37,7 @@ MediaOut::~MediaOut(void)
 // to the current video
 bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 {
-	// Every frameSkip_ frames, write another frame
+	// Every frameSkip_ frames, copy another frame
 	// to the frame_ and depth_ vars. Then set frameReady_
 	// to trigger the writer thread to grab them and
 	// write them to disk
@@ -47,12 +47,14 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 
 		// Open a new video when we've written framesThisFile
 		// framesThisFile is initialized to framesPerFile so
-		// this also opens the initial 
+		// this also opens the file the first time this
+		// method is called
 		if (framesThisFile_ >= framesPerFile_)
 		{
 			// Wait until pending writes are complete
 			// before closing the previous file
-			sync();
+			while (frameReady_ || writePending_)
+				frameCond_.wait(lock);
 
 			if (!openNext())
 				return false;

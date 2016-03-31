@@ -858,8 +858,8 @@ string getVideoOutName(bool raw, const char *suffix)
     {
         ss.str(string(""));
         ss.clear();
-        ss << "Video-" << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << timeinfo->tm_year + 1900 << "_";
-        ss << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
+        ss << "Video-" << setfill('0') << setw(2) << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << setw(4) << timeinfo->tm_year + 1900 << "_";
+        ss << setfill('0') << setw(2) << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
         ss << index++;
         if (raw == false)
         {
