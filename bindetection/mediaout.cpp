@@ -13,6 +13,7 @@ MediaOut::MediaOut(int frameSkip, int framesPerFile) :
 	frameCounter_(0),
 	fileCounter_(0),
 	framesPerFile_(framesPerFile),
+	framesThisFile_(framesPerFile_),
 	frameReady_(false),
 	writePending_(false),
 	thread_(boost::bind(&MediaOut::writeThread, this))
@@ -36,21 +37,6 @@ MediaOut::~MediaOut(void)
 // to the current video
 bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 {
-	// Open a new video every framesPerFile_ * frameSkip_ frames.
-	// Since frames are written every frameSkip frames, this
-	// will put framesPerFile_ frames in each output
-	// Since we check this first when frameCounter == 0 on
-	// the first frame, this will also open the initial output video
-	if ((frameCounter_ % (framesPerFile_ * frameSkip_)) == 0)
-	{
-		// Wait until pending writes are complete
-		// before closing the previous file
-		sync();
-
-		if (!openNext())
-			return false;
-	}
-
 	// Every frameSkip_ frames, write another frame
 	// to the frame_ and depth_ vars. Then set frameReady_
 	// to trigger the writer thread to grab them and
@@ -58,6 +44,20 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 	if ((frameCounter_++ % frameSkip_) == 0)
 	{
 		boost::mutex::scoped_lock lock(matLock_);
+
+		// Open a new video when we've written framesThisFile
+		// framesThisFile is initialized to framesPerFile so
+		// this also opens the initial 
+		if (framesThisFile_ >= framesPerFile_)
+		{
+			// Wait until pending writes are complete
+			// before closing the previous file
+			sync();
+
+			if (!openNext())
+				return false;
+			framesThisFile_ = 0;
+		}
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
@@ -150,6 +150,7 @@ void MediaOut::writeThread(void)
 		// write() call just above was taking place
 		{
 			boost::mutex::scoped_lock lock(matLock_);
+			framesThisFile_ += 1;
 			if (!frameReady_)
 			{
 				writePending_ = false;

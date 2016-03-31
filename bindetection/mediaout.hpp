@@ -31,6 +31,7 @@ class MediaOut
 		int frameCounter_;
 		int fileCounter_;
 		int framesPerFile_;
+		int framesThisFile_;
 
    private: 
 		void writeThread(void);

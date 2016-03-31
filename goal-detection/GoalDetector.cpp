@@ -15,7 +15,8 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_min_valid_confidence(0.25),
 	_otsu_threshold(8.),
 	_blue_scale(40),
-	_red_scale(60)
+	_red_scale(60),
+	_camera_angle(90)
 {
 	if (gui)
 	{
@@ -23,6 +24,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 		createTrackbar("Blue Scale","Goal Detect Adjustments", &_blue_scale, 100);
 		createTrackbar("Red Scale","Goal Detect Adjustments", &_red_scale, 100);
 		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 255);
+		createTrackbar("Camera Angle","Goal Detect Adjustments", &_camera_angle, 255);
 	}
 }
 
@@ -206,7 +208,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		//create a trackedobject to get various statistics
 		//including area and x,y,z position of the goal
 		ObjectType goal_actual(_contours[i]);
-		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -9.5 * M_PI / 180.0);
+		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -((float)_camera_angle/10.) * M_PI / 180.0);
 		//TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16 * M_PI / 180.0);
 
 		// Gets the bounding box area observed divided by the
@@ -261,6 +263,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;
 		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0 << endl;
+		cout << "Depth min/max: " << depth_z_min << "/" << depth_z_max << endl;
 		cout << "Area exp/act: " << (int)exp_area << "/" << br.area() << endl;
 		cout << "br.area(): " << br.area() << endl;
 		cout << "br.br().y: " << br.br().y << endl;
@@ -409,7 +412,7 @@ float GoalDetector::distanceUsingFOV(const Rect &rect) const
 float GoalDetector::dist_to_goal(void) const
 {
  	//floor distance to goal in m
-	return _isValid ? _dist_to_goal : -1.0;
+	return _isValid ? _dist_to_goal * 1.1 : -1.0;
 }
 
 float GoalDetector::angle_to_goal(void) const
