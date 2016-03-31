@@ -150,6 +150,8 @@ void MediaOut::writeThread(void)
 		// write() call just above was taking place
 		{
 			boost::mutex::scoped_lock lock(matLock_);
+			// Update count of frames actually
+			// written to the output
 			framesThisFile_ += 1;
 			if (!frameReady_)
 			{
