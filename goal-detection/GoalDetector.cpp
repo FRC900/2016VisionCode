@@ -14,7 +14,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_pastRects(2),
 	_min_valid_confidence(0.25),
 	_otsu_threshold(8.),
-	_blue_scale(40),
+	_blue_scale(67),
 	_red_scale(60),
 	_camera_angle(90)
 {
