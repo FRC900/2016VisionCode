@@ -13,6 +13,7 @@ MediaOut::MediaOut(int frameSkip, int framesPerFile) :
 	frameCounter_(0),
 	fileCounter_(0),
 	framesPerFile_(framesPerFile),
+	framesThisFile_(framesPerFile_),
 	frameReady_(false),
 	writePending_(false),
 	thread_(boost::bind(&MediaOut::writeThread, this))
@@ -36,35 +37,34 @@ MediaOut::~MediaOut(void)
 // to the current video
 bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 {
-	// Open a new video every framesPerFile_ * frameSkip_ frames.
-	// Since frames are written every frameSkip frames, this
-	// will put framesPerFile_ frames in each output
-	// Since we check this first when frameCounter == 0 on
-	// the first frame, this will also open the initial output video
-	if ((frameCounter_ % (framesPerFile_ * frameSkip_)) == 0)
-	{
-		// Wait until pending writes are complete
-		// before closing the previous file
-		sync();
-
-		if (!openNext())
-			return false;
-	}
-
-	// Every frameSkip_ frames, write another frame
+	// Every frameSkip_ frames, copy another frame
 	// to the frame_ and depth_ vars. Then set frameReady_
 	// to trigger the writer thread to grab them and
 	// write them to disk
 	if ((frameCounter_++ % frameSkip_) == 0)
 	{
 		boost::mutex::scoped_lock lock(matLock_);
+
+		// Open a new video when we've written framesThisFile
+		// framesThisFile is initialized to framesPerFile so
+		// this also opens the file the first time this
+		// method is called
+		if (framesThisFile_ >= framesPerFile_)
+		{
+			// Wait until pending writes are complete
+			// before closing the previous file
+			while (frameReady_ || writePending_)
+				frameCond_.wait(lock);
+
+			if (!openNext(fileCounter_++))
+				return false;
+			framesThisFile_ = 0;
+		}
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
-		// Notify sync() that there's a write
-		// in progress. That function will
-		// not return until the write has been
-		// completed
+		// Set a flag to indicate there is a disk write
+		// that needs to complete
 		writePending_ = true;
 
 		// Notifiy other threads waiting
@@ -81,8 +81,9 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 
 // Dummy member functions - base class shouldn't be called
 // directly so these shouldn't be used
-bool MediaOut::openNext(void)
+bool MediaOut::openNext(int fileCounter)
 {
+	(void)fileCounter;
 	return false;
 }
 
@@ -109,7 +110,9 @@ void MediaOut::writeThread(void)
 		// if it hasn't, that means there's
 		// no new data to write.  In that case,
 		// call wait() to release the mutex and 
-		// loop around to try again
+		// loop around to try again. This lets a
+		// call to saveFrame to complete if one
+		// is waiting on the mutex.
 		// Once frameReady_ has been set, copy
 		// the data out of the member variables
 		// into a local var, release the lock, 
@@ -124,7 +127,7 @@ void MediaOut::writeThread(void)
 		// This way if the write() call takes too
 		// long it is possible for saveFrame to
 		// update the frame_ and depth_ vars more 
-		// than once before this thread reads them.
+		// than once before this thread reads them again.
 		// That will potentially drop frames, but it
 		// also lets the main thread run as quickly
 		// as possible rather than waiting on this thread
@@ -150,6 +153,9 @@ void MediaOut::writeThread(void)
 		// write() call just above was taking place
 		{
 			boost::mutex::scoped_lock lock(matLock_);
+			// Update count of frames actually
+			// written to the output
+			framesThisFile_ += 1;
 			if (!frameReady_)
 			{
 				writePending_ = false;

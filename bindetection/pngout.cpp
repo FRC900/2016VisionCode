@@ -31,7 +31,8 @@ bool PNGOut::write(const Mat &frame, const Mat &depth)
 }
 
 // Nothing to do here
-bool PNGOut::openNext(void)
+bool PNGOut::openNext(int fileCounter)
 {
+	(void)fileCounter;
 	return true;
 }

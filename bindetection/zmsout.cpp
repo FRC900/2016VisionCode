@@ -87,13 +87,12 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 
 // Create a filename by appening a fileCounter to
 // the end of the filename
-bool ZMSOut::openNext(void)
+bool ZMSOut::openNext(int fileCounter)
 {
 	if (fileName_.length() == 0)
 		return false;
 	stringstream ofName;
-	ofName << change_extension(fileName_, "").string() << "_" ;
-	ofName << fileCounter_++ << ".zms";
+	ofName << change_extension(fileName_, "").string() << "_" << fileCounter << ".zms";
 	if (!openSerializeOutput(ofName.str().c_str()))
 	{
 		cerr << "ZMSOut : could not open output file " << ofName.str() << endl;

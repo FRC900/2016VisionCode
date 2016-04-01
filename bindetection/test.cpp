@@ -165,7 +165,6 @@ void grabThread(MediaIn *cap, bool &pause)
 			}
 			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
 		}
-
 		boost::this_thread::interruption_point();
 	}
 }
@@ -215,7 +214,6 @@ int main( int argc, const char** argv )
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
-
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
@@ -737,7 +735,7 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
         }
     }
 
-    cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
+    //cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
 
     //Creates immutable strings for 0MQ Output
     stringstream gString;
@@ -801,7 +799,6 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
 		cap = new ZedIn(NULL, gui);
-cout << "Zedin isOpened = " << cap->isOpened() << endl;
 		if(!cap->isOpened())
 		{
 			delete cap;
@@ -861,8 +858,8 @@ string getVideoOutName(bool raw, const char *suffix)
     {
         ss.str(string(""));
         ss.clear();
-        ss << "Video-" << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << timeinfo->tm_year + 1900 << "_";
-        ss << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
+        ss << "Video-" << setfill('0') << setw(2) << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << setw(4) << timeinfo->tm_year + 1900 << "_";
+        ss << setfill('0') << setw(2) << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
         ss << index++;
         if (raw == false)
         {
@@ -873,6 +870,7 @@ string getVideoOutName(bool raw, const char *suffix)
 			ss << suffix;
 		}
         rc = stat(ss.str().c_str(), &statbuf);
-    } while (rc == 0);
+    } 
+	while (rc == 0);
     return ss.str();
 }

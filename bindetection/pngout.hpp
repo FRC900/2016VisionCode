@@ -11,7 +11,7 @@ class PNGOut : public MediaOut
 		~PNGOut();
 
 	private :
-		bool openNext(void);
+		bool openNext(int fileCounter);
 		bool write(const cv::Mat &frame, const cv::Mat &depth);
 
 		cv::Size         size_;

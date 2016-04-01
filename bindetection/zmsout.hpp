@@ -12,7 +12,7 @@ class ZMSOut : public MediaOut
 		~ZMSOut();
 
 	private :
-		bool openNext(void);
+		bool openNext(int fileCounter);
 		void deleteOutputPointers(void);
 		bool openSerializeOutput(const char *filename);
 		bool write(const cv::Mat &frame, const cv::Mat &depth);

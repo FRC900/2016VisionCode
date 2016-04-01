@@ -49,13 +49,27 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			bool loaded = false;
 			if (openSerializeInput(inFileName, true))
 			{
-				*portableArchiveIn_ >> _frame >> depthMat_;
 				loaded = true;
+				try
+				{
+					*portableArchiveIn_ >> _frame >> depthMat_;
+				}
+				catch (const std::exception &e)
+				{
+					loaded = false;
+				}
 			}
 			else if (openSerializeInput(inFileName, false))
 			{
-				*archiveIn_ >> _frame >> depthMat_;
 				loaded = true;
+				try
+				{
+					*archiveIn_ >> _frame >> depthMat_;
+				}
+				catch (const std::exception &e)
+				{
+					loaded = false;
+				}
 			}
 			else
 			{
@@ -70,10 +84,14 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 				if (!openSerializeInput(inFileName, archiveIn_ == NULL))
 					cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
 			}
+			else
+			{
+				deleteInputPointers();
+			}
 		}
 	}
 	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
+		zed_ = new sl::zed::Camera(sl::zed::HD720, 15);
 
 	if (zed_)
 	{
@@ -99,7 +117,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(3, this);
+			zedBrightnessCallback(2, this);
 			zedContrastCallback(6, this);
 			zedHueCallback(7, this);
 			zedSaturationCallback(4, this);
