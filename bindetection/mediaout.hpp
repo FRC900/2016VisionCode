@@ -19,9 +19,10 @@ class MediaOut
 		// heavy lifting.  They have to be implemented in the 
 		// base class as well, but hopefully those are never
 		// called 
-		virtual bool openNext(void);
+		virtual bool openNext(int fileCounter);
 		virtual bool write(const cv::Mat &frame, const cv::Mat &depth);
 
+   private: 
 		// Skip output frames if requested.  Skip is how many to 
 		// skip before writing next output frame, FrameCounter is how
 		// many total frames seen.
@@ -31,8 +32,7 @@ class MediaOut
 		int frameCounter_;
 		int fileCounter_;
 		int framesPerFile_;
-
-   private: 
+		int framesThisFile_;
 		void writeThread(void);
 		cv::Mat frame_;
 		cv::Mat depth_;
