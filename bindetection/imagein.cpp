@@ -14,13 +14,20 @@ ImageIn::ImageIn(const char *inpath)
 		pyrDown(_frame, _frame);
 }
 
-bool ImageIn::update() {
-	usleep(500000);
+bool ImageIn::isOpened(void) const
+{
+	return _frame.empty();
+}
+
+bool ImageIn::update(void) 
+{
+	usleep(250000);
 	return true;
 }
 
-bool ImageIn::getFrame(Mat &frame, Mat &depth)
+bool ImageIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
+	(void)pause;
 	if (_frame.empty())
 		return false;
 	frame = _frame.clone();

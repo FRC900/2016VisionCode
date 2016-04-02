@@ -433,7 +433,8 @@ int main(int argc, char *argv[])
             vector<vector<Point> > contours;
             vector<Vec4i>          hierarchy;
             int contour_index = contours.size(); // init to out of bounds in case there's no matches
-            findContours(btrack, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+			Mat btrackCopy = btrack.clone(); // findContours modifies input Mat
+            findContours(btrackCopy, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
             for (size_t i = 0; i < hierarchy.size(); i++)
             {
                 if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))

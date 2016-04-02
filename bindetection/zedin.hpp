@@ -7,6 +7,7 @@
 
 #ifdef ZED_SUPPORT
 #include <boost/archive/binary_iarchive.hpp>
+#include <portable_binary_iarchive.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 //zed include
 #include <zed/Mat.hpp>
@@ -19,9 +20,9 @@ class ZedIn : public MediaIn
 	public:
 		ZedIn(const char *inFileName = NULL, bool gui = false);
 		~ZedIn();
-		bool update();
-		bool getFrame(cv::Mat &frame, cv::Mat &depth);
-		int semValue() { return semValue_; }
+		bool isOpened(void) const;
+		bool update(void);
+		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		int    width(void) const;
 		int    height(void) const;
@@ -40,7 +41,7 @@ class ZedIn : public MediaIn
 	private:
 #ifdef ZED_SUPPORT
 		void deleteInputPointers(void);
-		bool openSerializeInput(const char *filename);
+		bool openSerializeInput(const char *filename, bool portable);
 		bool update(bool left);
 
 		sl::zed::Camera* zed_;
@@ -53,7 +54,6 @@ class ZedIn : public MediaIn
 		int height_;
 		int frameNumber_;
 		int lockedFrameNumber_;
-		int semValue_;
 
 		int brightness_;
 		int contrast_;
@@ -67,6 +67,7 @@ class ZedIn : public MediaIn
 		std::ifstream *serializeIn_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::input> *filtSBIn_;
 		boost::archive::binary_iarchive *archiveIn_;
+		portable_binary_iarchive *portableArchiveIn_;
 
 		// Mark these as friends so they can access private class data
 		friend void zedBrightnessCallback(int value, void *data);

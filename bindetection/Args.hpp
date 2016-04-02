@@ -11,6 +11,7 @@ class Args //class for processing arguments
 		bool rects;            // display frame by frame hit info
 		bool batchMode;        // non-interactive mode - no display, run through
 						       // as quickly as possible. Combine with --all?
+		bool pause;            // start paused
 		int  skip;             // skip over frames (video file input only)
 		bool writeVideo;       // write captured video to output
 		int  writeVideoSkip;   // only write 1 of every N frames

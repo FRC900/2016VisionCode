@@ -6,6 +6,11 @@ MediaIn::MediaIn()
 {
 }
 
+bool MediaIn::isOpened(void) const
+{
+	return false;
+}
+
 int MediaIn::frameCount(void) const
 {
 	return -1;
@@ -19,11 +24,6 @@ int MediaIn::frameNumber(void) const
 void MediaIn::frameNumber(int frameNumber)
 {
 	(void)frameNumber;
-}
-
-int MediaIn::semValue() 
-{
-	return 2;
 }
 
 CameraParams MediaIn::getCameraParams(bool left) const

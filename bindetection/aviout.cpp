@@ -44,7 +44,7 @@ bool AVIOut::write(const Mat &frame, const Mat &depth)
 // set by default to split outputs into multiple 
 // files. This way if we have corruption on one 
 // because we powered off we don't lose all of them.
-bool AVIOut::openNext(void)
+bool AVIOut::openNext(int fileCounter)
 {
 	if (fileName_.length() == 0)
 		return false;
@@ -55,8 +55,7 @@ bool AVIOut::openNext(void)
 		writer_ = NULL;
 	}
 	stringstream ofName;
-	ofName << change_extension(fileName_, "").string() << "_" ;
-	ofName << fileCounter_++ << ".avi";
+	ofName << change_extension(fileName_, "").string() << "_" << fileCounter << ".avi";
 	writer_ = new VideoWriter(ofName.str(), CV_FOURCC('M','J','P','G'), 30, size_, true);
 	if(!writer_ || !writer_->isOpened())
 	{

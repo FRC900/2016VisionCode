@@ -56,6 +56,8 @@ class GoalDetector
 		int   _blue_scale;
 		int   _red_scale;
 
+int _camera_angle;
+
 		float createConfidence(float expectedVal, float expectedStddev, float actualVal);
 		float distanceUsingFOV(const cv::Rect &rect) const;
 		bool generateThresholdAddSubtract(const cv::Mat& imageIn, cv::Mat& imageOut);

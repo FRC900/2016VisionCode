@@ -1,6 +1,6 @@
 #include "objdetect.hpp"
 
-int scale         = 35;
+int scale         = 15;
 int d12NmsThreshold = 40;
 int d24NmsThreshold = 75;
 int minDetectSize = 44;

@@ -217,6 +217,7 @@ void TrackedObject::setPosition(const Rect &screen_position, double avg_depth,
 	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, cameraElevation_));
 }
 
+#if 0
 void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
 	//Eigen::AngleAxisd rot(0.5*M_PI, Eigen::Vector3d::UnitZ());
@@ -233,7 +234,7 @@ void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isom
 		*it = Point3f(new_pos_vector[0], new_pos_vector[1], new_pos_vector[2]);
 	}
 }
-
+#endif
 void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const Point2f &fov_size, const Size &frame_size)
 {
 	//get the position of the object on the screen
@@ -351,12 +352,12 @@ Point3f TrackedObject::updateKF(Point3f pt)
 	return _KF.Update(pt);
 }
 
-
+#if 0
 void TrackedObject::adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
 	_KF.adjustPrediction(delta_robot);
 }
-
+#endif
 void TrackedObject::adjustKF(Point3f delta_pos)
 {
 	_KF.adjustPrediction(delta_pos);
@@ -372,7 +373,7 @@ TrackedObjectList::TrackedObjectList(const Size &imageSize, const Point2f &fovSi
 	_cameraElevation(cameraElevation)
 {
 }
-
+#if 0
 // Adjust position for camera motion between frames using fovis
 void TrackedObjectList::adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
@@ -382,7 +383,7 @@ void TrackedObjectList::adjustLocation(const Eigen::Transform<double, 3, Eigen::
 		it->adjustKF(delta_robot);
 	}
 }
-
+#endif
 // Adjust position for camera motion between frames using optical flow
 void TrackedObjectList::adjustLocation(const Mat &transform_mat)
 {

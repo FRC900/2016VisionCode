@@ -9,17 +9,16 @@ class VideoIn : public MediaIn
 	public:
 		VideoIn(const char *inpath);
 		~VideoIn() {}
-		bool update();
-		bool getFrame(cv::Mat &frame, cv::Mat &depth);
-		int width() const;
-		int height() const;
+		bool isOpened(void) const;
+		bool update(void);
+		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
+		int width(void) const;
+		int height(void) const;
 		int frameCount(void) const;
-		int semValue(void) { return 1; }
 		int frameNumber(void) const;
 		void frameNumber(int frameNumber);
 
 	private:
-		bool             increment_;
 		cv::VideoCapture cap_;
 		int              width_;
 		int              height_;

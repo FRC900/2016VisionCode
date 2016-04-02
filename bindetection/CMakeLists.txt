@@ -21,7 +21,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(CUDA REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams thread REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
+#find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
@@ -35,7 +35,7 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 	${CAFFE_BASE_DIR}/include
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
-   	${EIGEN3_INCLUDE_DIR}
+#   	${EIGEN3_INCLUDE_DIR}
 	../bindetection
 	../goal-detection
 	../fovis
@@ -46,7 +46,6 @@ link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
 add_executable(zv
-	test.cpp
 	objdetect.cpp
 	../goal-detection/GoalDetector.cpp
 	../caffe_classifier/detect.cpp
@@ -62,7 +61,10 @@ add_executable(zv
 	imagein.cpp
 	mediaout.cpp
 	aviout.cpp
+	pngout.cpp
 	zmsout.cpp
+	portable_binary_iarchive.cpp
+	portable_binary_oarchive.cpp
 	classifierio.cpp
 	Args.cpp
 	WriteOnFrame.cpp
@@ -70,10 +72,11 @@ add_executable(zv
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp
-	../fovis/FovisLocalizer.cpp
+	#../fovis/FovisLocalizer.cpp
 	FlowLocalizer.cpp
 	kalman.cpp
-	hungarian.cpp)
+	hungarian.cpp
+	test.cpp)
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
@@ -82,7 +85,7 @@ find_library (LibProtobuf protobuf)
 target_link_libraries( zv
 	${OpenCV_LIBS}
 	${LibCaffe}
-	fovis
+	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
 	${ZED_LIBRARIES}
 	${CUDA_LIBRARIES}
@@ -93,5 +96,9 @@ target_link_libraries( zv
 	${LibProtobuf}
 	${ZMQ_LIBRARIES})
 
+add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp)
+target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES})
+add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp)
+target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )

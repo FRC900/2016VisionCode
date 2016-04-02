@@ -11,16 +11,17 @@ class ImageIn : public MediaIn
    public:
       ImageIn(const char *outpath);
 	  ~ImageIn() {}
-      bool update();
-      bool getFrame(cv::Mat &frame, cv::Mat &depth);
-	  int semValue(void) { return 1; }
+	  bool isOpened(void) const;
+      bool update(void);
+      bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 	  int frameCount(void) const;
 	  int frameNumber(void) const;
 
       int width() const;
       int height() const;
-  private:
-    std::string outpath_;
+
+   private:
+	  std::string outpath_;
 };
 #endif

@@ -23,18 +23,17 @@
 #include "c920camerain.hpp"
 #include "zedin.hpp"
 #include "aviout.hpp"
+#include "pngout.hpp"
 #include "zmsout.hpp"
 #include "track3d.hpp"
 #include "Args.hpp"
 #include "WriteOnFrame.hpp"
 #include "GoalDetector.hpp"
-#include "FovisLocalizer.hpp"
+//#include "FovisLocalizer.hpp"
 #include "Utilities.hpp"
 #include "FlowLocalizer.hpp"
 
 #include <boost/thread.hpp>
-#include <boost/interprocess/sync/interprocess_semaphore.hpp>
-#include <boost/interprocess/sync/named_semaphore.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
 
@@ -51,7 +50,7 @@ void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
-string getVideoOutName(bool raw = true, bool zms = false);
+string getVideoOutName(bool raw, const char *suffix);
 
 static bool isRunning = true;
 
@@ -143,25 +142,29 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
     }
 }
 
-void grabThread(MediaIn *cap, bool &pause, boost::interprocess::interprocess_semaphore *sem)
+void grabThread(MediaIn *cap, bool &pause)
 {
-	//this runs concurrently with the main while loop if using a camera
+	// this runs concurrently with the main while loop 
+	// If using a camera it will constantly grab frames
+	// in the background.  If input is an image or video,
+	// update() is a no-op so frames will only be read
+	// when getFrame is explicitly called in the main loop.
+	// That way all video frames are processed rather than 
+	// skipping some and repeating others since the update
+	// is out of sync with the main loop
 	FrameTicker frameTicker;
 	while(1)
 	{
 		if(!pause)
 		{
 			frameTicker.mark();
-			sem->wait();
-			if(!cap->update())
+			if(!cap->update()) 
 			{
 				cerr << "Failed to capture" << endl;
-				usleep(100000);
+				isRunning = false;
 			}
-			sem->post();
 			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
 		}
-
 		boost::this_thread::interruption_point();
 	}
 }
@@ -207,7 +210,6 @@ int main( int argc, const char** argv )
 
 
 	// Flags for various UI features
-	bool pause = false;       // pause playback?
 	bool printFrames = false; // print frame number?
 	bool gdDraw = false;      // draw goal detect details
 	int frameDisplayFrequency = 1;
@@ -224,6 +226,8 @@ int main( int argc, const char** argv )
 	if (!args.processArgs(argc, argv))
 		return -2;
 
+	bool pause = !args.batchMode && args.pause;
+
 	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
     sigIntHandler.sa_handler = my_handler;
@@ -239,15 +243,21 @@ int main( int argc, const char** argv )
 			  !args.batchMode, args.writeVideo || args.saveVideo);
 
 
+	// Current frame data - BGR image and depth data (if available)
+	Mat frame;
+  	Mat depth;
+	//load an initial frame for stuff like optical flow which requires an initial 
+	// frame to compute difference against
+	//also checks to make sure that the cap object works
+	if (!cap->update() || !cap->getFrame(frame, depth))
+	{
+		cerr << "Could not open input file " << args.inputName << endl;
+		return 0;
+	}
+
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
 	vector<Rect> groundTruthList;
-
-	//this is used to synchronize the main and grab loops
-	//when using a video
-	//initialize the semaphore to allow 1 loop to run at a time if isVideo and 2 loops if not
-	boost::interprocess::interprocess_semaphore *sem;
-    sem = new boost::interprocess::interprocess_semaphore(cap->semValue());
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -257,9 +267,6 @@ int main( int argc, const char** argv )
 	if (!args.batchMode)
 		namedWindow(windowName, WINDOW_AUTOSIZE);
 
-	// Current frame data - BGR image and depth data (if available)
-	Mat frame;
-  	Mat depth;
 	Mat top_frame; // top-down view of tracked objects
 
 	CameraParams camParams = cap->getCameraParams(true);
@@ -270,7 +277,6 @@ int main( int argc, const char** argv )
 	float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
 	minDetectSize = angular_size * (cap->width() / camParams.fov.x);
 	cout << "Min Detect Size: " << minDetectSize << endl;
-
 
 	// If UI is up, pop up the parameters window
 	if (!args.batchMode && args.detection)
@@ -287,7 +293,6 @@ int main( int argc, const char** argv )
 	}
 
 	// Create list of tracked objects
-	// balls / boulders are 8" wide?
 	TrackedObjectList objectTrackingList(Size(cap->width(),cap->height()), camParams.fov);
 
 	zmq::context_t context(1);
@@ -330,19 +335,6 @@ int main( int argc, const char** argv )
 		cap->frameNumber(frameNum);
 	}
 
-<<<<<<< HEAD
-	//load an initial frame for stuff like optical flow which requires an initial frame to compute difference against
-=======
-	//load an initial frame for stuff like optical flow which requires an initial
-	// frame to compute difference against
->>>>>>> master
-	//also checks to make sure that the cap object works
-	if (!cap->update() || !cap->getFrame(frame, depth))
-	{
-		cerr << "Could not open input file " << args.inputName << endl;
-		return 0;
-	}
-
 	// Open file to save raw video into. If depth data
 	// is available, use a ZMS file since that can save
 	// both RGB and depth info. If there's no depth
@@ -351,9 +343,9 @@ int main( int argc, const char** argv )
 	if (args.writeVideo)
 	{
 		if (depth.empty())
-			rawOut = new AVIOut(getVideoOutName(true,false).c_str(), frame.size(), args.writeVideoSkip);
+			rawOut = new AVIOut(getVideoOutName(true, ".avi").c_str(), frame.size(), args.writeVideoSkip);
 		else
-			rawOut = new ZMSOut(getVideoOutName(true,true).c_str(), args.writeVideoSkip);
+			rawOut = new ZMSOut(getVideoOutName(true, ".zms").c_str(), args.writeVideoSkip);
 	}
 
 	// No point in saving ZMS files of processed output, since
@@ -361,10 +353,16 @@ int main( int argc, const char** argv )
 	// the code through zv again.  This means we won't need
 	// the depth info which is the only reason to use ZMS
 	// files in the first place
-	// TODO : add a .PNG output option for images
 	MediaOut *processedOut = NULL;
 	if (args.saveVideo)
-		processedOut = new AVIOut(getVideoOutName(false,false).c_str(), frame.size(), args.saveVideoSkip);
+	{
+		// Inputs with 1 frame are still images - write their
+		// output as still images as well
+		if (cap->frameCount() == 1)
+			processedOut = new PNGOut(getVideoOutName(false, ".png").c_str());
+		else
+			processedOut = new AVIOut(getVideoOutName(false, ".avi").c_str(), frame.size(), args.saveVideoSkip);
+	}
 
 	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
 
@@ -378,12 +376,7 @@ int main( int argc, const char** argv )
 	// --update the current frame
 	//this loop runs asynchronously with the main loop if the input is a camera
 	//and synchronously if the input is a video (i.e. one grab per process)
-	//the semaphore input controls the synchronicity of the frame
-<<<<<<< HEAD
-	boost::thread g_thread(grabThread, cap, boost::ref(pause) , sem);
-=======
-	boost::thread g_thread(grabThread, cap, boost::ref(pause), sem);
->>>>>>> master
+	boost::thread g_thread(grabThread, cap, boost::ref(pause));
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -392,12 +385,6 @@ int main( int argc, const char** argv )
 	//  -- add those newly detected objects to the list of tracked objects
 	while(isRunning)
 	{
-		//sem->wait() stops the loop only if the input is a video and the grab loop is in the middle of running
-		//if the loop is stopped it will be restarted at the end of the grab loop
-		sem->wait();
-		if(!cap->getFrame(frame, depth))
-			break;
-
 		frameTicker.mark(); // mark start of new frame
 
 		// Write raw video before anything gets drawn on it
@@ -621,7 +608,7 @@ int main( int argc, const char** argv )
 				bool dateAndTime = true;
 				WriteOnFrame textWriter;
 				if (dateAndTime)
-				{
+		 		{
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
 				}
@@ -649,9 +636,16 @@ int main( int argc, const char** argv )
 						break;
 					// Otherwise, if not paused, move to the next frame
 					//TODO I don't think this will work as intended. Check it.
+					cap->frameNumber(frame);
 				}
 
-				cap->update();
+				// Force read of next frame
+				// Subsequent calls to update/getFrame will return
+				// same data since pause is set earlier
+				// If either return false, that probably means EOF
+				// so bail out
+				if (!cap->update() || !cap->getFrame(frame, depth, false))
+					isRunning = false;
 			}
 			else if (c == 'A') // toggle capture-all
 			{
@@ -681,7 +675,7 @@ int main( int argc, const char** argv )
 				// Save from a copy rather than the original
 				// so all the markup isn't saved, only the raw image
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy);
+				cap->getFrame(frameCopy, depthCopy, true);
 				for (size_t index = 0; index < detectRects.size(); index++)
 					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
 			}
@@ -753,7 +747,7 @@ int main( int argc, const char** argv )
 			else if (isdigit(c)) // save a single detected image
 			{
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy);
+				cap->getFrame(frameCopy, depthCopy, true);
 				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
 			}
 		}
@@ -786,7 +780,8 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
-		sem->post();
+		if(!cap->getFrame(frame, depth, pause))
+			break;
 	}
   	g_thread.interrupt();
   	g_thread.join();
@@ -802,6 +797,7 @@ int main( int argc, const char** argv )
     	delete cap;
 	return 0;
 }
+
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd)
 {
     stringstream zmqString;
@@ -822,7 +818,7 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
         }
     }
 
-    cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
+    //cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
 
     //Creates immutable strings for 0MQ Output
     stringstream gString;
@@ -886,12 +882,11 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
 		cap = new ZedIn(NULL, gui);
-		Mat	mat, depth;
-		if(!cap->update() || !cap->getFrame(mat, depth))
+		if(!cap->isOpened())
 		{
 			delete cap;
 			cap = new C920CameraIn(camera, gui);
-			if (!cap->update() || !cap->getFrame(mat, depth))
+			if (!cap->isOpened())
 			{
 				delete cap;
 				cap = new CameraIn(camera, gui);
@@ -931,7 +926,7 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 }
 
 // Video-MM-DD-YY_hr-min-sec-##.avi
-string getVideoOutName(bool raw, bool zms)
+string getVideoOutName(bool raw, const char *suffix)
 {
     int          index = 0;
     int          rc;
@@ -946,22 +941,19 @@ string getVideoOutName(bool raw, bool zms)
     {
         ss.str(string(""));
         ss.clear();
-        ss << "Video-" << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << timeinfo->tm_year + 1900 << "_";
-        ss << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
+        ss << "Video-" << setfill('0') << setw(2) << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << setw(4) << timeinfo->tm_year + 1900 << "_";
+        ss << setfill('0') << setw(2) << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
         ss << index++;
         if (raw == false)
         {
             ss << "_processed";
         }
-        if (zms == false)
-        {
-            ss << ".avi";
-        }
-        else
-        {
-            ss << ".zms";
-        }
+		if (suffix)
+		{
+			ss << suffix;
+		}
         rc = stat(ss.str().c_str(), &statbuf);
-    } while (rc == 0);
+    } 
+	while (rc == 0);
     return ss.str();
 }

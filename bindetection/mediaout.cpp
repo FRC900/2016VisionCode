@@ -13,13 +13,19 @@ MediaOut::MediaOut(int frameSkip, int framesPerFile) :
 	frameCounter_(0),
 	fileCounter_(0),
 	framesPerFile_(framesPerFile),
+	framesThisFile_(framesPerFile_),
 	frameReady_(false),
+	writePending_(false),
 	thread_(boost::bind(&MediaOut::writeThread, this))
 {
 }
 
 MediaOut::~MediaOut(void)
 {
+	// Make sure any pending frames have been
+	// written, then shut down the writer
+	// thread.  Once that's finished, exit
+	sync();
   	thread_.interrupt();
   	thread_.join();
 }
@@ -31,31 +37,40 @@ MediaOut::~MediaOut(void)
 // to the current video
 bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 {
-	// Open a new video every framesPerFile_ * frameSkip_ frames.
-	// Since frames are written every frameSkip frames, this
-	// will put framesPerFile_ frames in each output
-	// Since we check this first when frameCounter == 0 on
-	// the first frame, this will also open the initial output video
-	if ((frameCounter_ % (framesPerFile_ * frameSkip_)) == 0)
-	{
-		// Lock anything which changes the file
-		// pointers just in case
-		boost::mutex::scoped_lock lock(fileLock_);
-		if (!openNext())
-			return false;
-	}
-
-	// Every frameSkip_ frames, write another frame
+	// Every frameSkip_ frames, copy another frame
 	// to the frame_ and depth_ vars. Then set frameReady_
 	// to trigger the writer thread to grab them and
 	// write them to disk
 	if ((frameCounter_++ % frameSkip_) == 0)
 	{
 		boost::mutex::scoped_lock lock(matLock_);
+
+		// Open a new video when we've written framesThisFile
+		// framesThisFile is initialized to framesPerFile so
+		// this also opens the file the first time this
+		// method is called
+		if (framesThisFile_ >= framesPerFile_)
+		{
+			// Wait until pending writes are complete
+			// before closing the previous file
+			while (frameReady_ || writePending_)
+				frameCond_.wait(lock);
+
+			if (!openNext(fileCounter_++))
+				return false;
+			framesThisFile_ = 0;
+		}
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
-		frameCond.notify_one();
+		// Set a flag to indicate there is a disk write
+		// that needs to complete
+		writePending_ = true;
+
+		// Notifiy other threads waiting
+		// on the mutex that it is now
+		// available - wake them up to do work
+		frameCond_.notify_all();
 	}
 
 	// If we made it this far, the write was successful.
@@ -66,8 +81,9 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 
 // Dummy member functions - base class shouldn't be called
 // directly so these shouldn't be used
-bool MediaOut::openNext(void)
+bool MediaOut::openNext(int fileCounter)
 {
+	(void)fileCounter;
 	return false;
 }
 
@@ -91,44 +107,84 @@ void MediaOut::writeThread(void)
 	{
 		// Grab the lock mutex
 		// Check that frameReady is set
-		//  if it hasn't, that means there's
-		//  no new data to write.  In that case,
-		//  call wait() to release the mutex and 
-		//  try again
+		// if it hasn't, that means there's
+		// no new data to write.  In that case,
+		// call wait() to release the mutex and 
+		// loop around to try again. This lets a
+		// call to saveFrame to complete if one
+		// is waiting on the mutex.
 		// Once frameReady_ has been set, copy
 		// the data out of the member variables
 		// into a local var, release the lock, 
 		// and do the write with the copies
-		// of the Mats.  Using the copied will
-		// let saveFrame write to the shared vars
+		// of the Mats.  Using the copies will
+		// let saveFrame write new data to the shared vars
 		// while write() works on the old frame.
 		// Note that saveFrame intentionally
 		// doesn't check to see if frame_ and
-		// depth_ are valid before writing to them.
+		// depth_ have been copied by this thread
+		// before writing to them.
 		// This way if the write() call takes too
 		// long it is possible for saveFrame to
 		// update the frame_ and depth_ vars more 
-		// than once before this thread reads them.
+		// than once before this thread reads them again.
 		// That will potentially drop frames, but it
-		// also lets the main thread run as quick
+		// also lets the main thread run as quickly
 		// as possible rather than waiting on this thread
 		{
 			boost::mutex::scoped_lock lock(matLock_);
 			while (!frameReady_)
-				frameCond.wait(lock);
+				frameCond_.wait(lock);
+
 			frame_.copyTo(frame);
 			depth_.copyTo(depth);
 			frameReady_ = false;
 		}
 
-		// Lock access to the file, just in case
+		// Call a derived class' write() method
+		// to actually format and write the data to disk
+		write(frame, depth);
+		
+		// If there's no frame in the buffer above
+		// clear out writePending_
+		// Can't just unconditionally clear it since
+		// it is likely that saveFrame() added a new
+		// frame to the shared buffer while the 
+		// write() call just above was taking place
 		{
-			boost::mutex::scoped_lock lock(fileLock_);
-			write(frame, depth);
+			boost::mutex::scoped_lock lock(matLock_);
+			// Update count of frames actually
+			// written to the output
+			framesThisFile_ += 1;
+			if (!frameReady_)
+			{
+				writePending_ = false;
+				frameCond_.notify_all();
+			}
 		}
 		ft.mark();
-		std::cout << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;
+		std::cerr << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;
 
 		boost::this_thread::interruption_point();
 	}
+}
+
+// Loop until any pending write has completed
+// Normally we don't care if the writer gets out of sync
+// and drops frames, so long as the main thread isn't
+// slowed down in the process.  In some caes, though,
+// we do want to make sure everything gets written.
+// 1 - when converting or marking up a video input, we want
+//     to make sure every input frame is processed into
+//     the output video
+// 2 - when auto-splitting videos every N frames, we need
+//     to make sure the last frame is written before
+//     closing the old file and moving on to the new one
+// 3 - when shutting down, be sure all writes are finished
+//     before closing the output files
+void MediaOut::sync(void)
+{
+	boost::mutex::scoped_lock lock(matLock_);
+	while (frameReady_ || writePending_)
+		frameCond_.wait(lock);
 }

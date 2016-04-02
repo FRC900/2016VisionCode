@@ -26,13 +26,13 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 	frameNumber_(0),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
-	archiveIn_(NULL)
+	archiveIn_(NULL),
+	portableArchiveIn_(NULL)
 {
 	if (inFileName)
 	{
 		// Might be svo, might be zms
 		string fnExt = path(inFileName).extension().string();
-		semValue_ = 1;
 		if ((fnExt == ".svo") || (fnExt == ".SVO"))
 			zed_ = new sl::zed::Camera(inFileName);
 		else if ((fnExt == ".zms") || (fnExt == ".ZMS"))
@@ -41,18 +41,57 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			// which just dumps raw a image and depth Mat data to a file.
 			// Apply a light bit of compression because
 			// the files will get out of hand quickly otherwise
+			// Initial versions of these files were non-portable
+			// but later versions were changed to be useable
+			// on both ARM and x86.  Handle loading both types,
+			// at least for the time being
 			cerr << "Loading " << inFileName << " for reading" << endl;
-			if (!openSerializeInput(inFileName))
+			bool loaded = false;
+			if (openSerializeInput(inFileName, true))
+			{
+				loaded = true;
+				try
+				{
+					*portableArchiveIn_ >> _frame >> depthMat_;
+				}
+				catch (const std::exception &e)
+				{
+					loaded = false;
+				}
+			}
+			else if (openSerializeInput(inFileName, false))
+			{
+				loaded = true;
+				try
+				{
+					*archiveIn_ >> _frame >> depthMat_;
+				}
+				catch (const std::exception &e)
+				{
+					loaded = false;
+				}
+			}
+			else
+			{
 				cerr << "Zed init : Could not open " << inFileName << " for reading" << endl;
+			}
+			if (loaded)
+			{
+				width_  = _frame.cols;
+				height_ = _frame.rows;
+
+				// Reopen the file so callers can get the first frame
+				if (!openSerializeInput(inFileName, archiveIn_ == NULL))
+					cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
+			}
+			else
+			{
+				deleteInputPointers();
+			}
 		}
-		else
-			cerr << "Zed failed to start : unknown file extension " << fnExt << endl;
 	}
-	else
-	{  // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::HD720,15);
-		semValue_ = 2;
-	}
+	else // Open an actual camera for input
+		zed_ = new sl::zed::Camera(sl::zed::HD720, 15);
 
 	if (zed_)
 	{
@@ -78,7 +117,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(3, this);
+			zedBrightnessCallback(2, this);
 			zedContrastCallback(6, this);
 			zedHueCallback(7, this);
 			zedSaturationCallback(4, this);
@@ -103,16 +142,6 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			}
 		}
 	}
-	else if (archiveIn_)
-	{
-		// Zed == NULL and serializeStream_ means reading from
-		// a serialized file. Grab height_ and width_
-		*archiveIn_ >> _frame >> depthMat_;
-		if (!openSerializeInput(inFileName))
-			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
-		width_  = _frame.cols;
-		height_ = _frame.rows;
-	}
 
 	while (height_ > 700)
 	{
@@ -127,7 +156,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 // much space. Last item is the actual boost binary archive template
 // If all three are opened, return true. If not, delete and set to
 // NULL all pointers related to serialized Input
-bool ZedIn::openSerializeInput(const char *inFileName)
+bool ZedIn::openSerializeInput(const char *inFileName, bool portable)
 {
 	deleteInputPointers();
 	serializeIn_ = new ifstream(inFileName, ios::in | ios::binary);
@@ -147,12 +176,39 @@ bool ZedIn::openSerializeInput(const char *inFileName)
 	}
 	filtSBIn_->push(boost::iostreams::zlib_decompressor());
 	filtSBIn_->push(*serializeIn_);
-	archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
-	if (!archiveIn_)
+	if (portable)
 	{
-		cerr << "Could not create new binary_iarchive" << endl;
-		deleteInputPointers();
-		return false;
+		try 
+		{
+			portableArchiveIn_ = new portable_binary_iarchive(*filtSBIn_);
+		}
+		catch (std::exception &e)
+		{
+			portableArchiveIn_ = NULL;
+		}
+		if (!portableArchiveIn_)
+		{
+			cerr << "Could not create new portable_binary_iarchive" << endl;
+			deleteInputPointers();
+			return false;
+		}
+	}
+	else
+	{
+		try 
+		{
+			archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
+		}
+		catch (std::exception &e)
+		{
+			portableArchiveIn_ = NULL;
+		}
+		if (!archiveIn_)
+		{
+			cerr << "Could not create new binary_iarchive" << endl;
+			deleteInputPointers();
+			return false;
+		}
 	}
 	return true;
 }
@@ -164,6 +220,11 @@ void ZedIn::deleteInputPointers(void)
 	{
 		delete archiveIn_;
 		archiveIn_ = NULL;
+	}
+	if (portableArchiveIn_)
+	{
+		delete portableArchiveIn_;
+		portableArchiveIn_ = NULL;
 	}
 	if (filtSBIn_)
 	{
@@ -178,7 +239,6 @@ void ZedIn::deleteInputPointers(void)
 }
 
 
-
 ZedIn::~ZedIn()
 {
 	deleteInputPointers();
@@ -186,7 +246,14 @@ ZedIn::~ZedIn()
 		delete zed_;
 }
 
-bool ZedIn::update(bool left)
+
+bool ZedIn::isOpened(void) const
+{
+	return zed_ || archiveIn_ || portableArchiveIn_;
+}
+
+
+bool ZedIn::update(bool left) 
 {
 	// Read from either the zed camera or from
 	// a previously-serialized ZMS file
@@ -208,20 +275,36 @@ bool ZedIn::update(bool left)
 		}
 		frameNumber_ += 1;
 	}
-	else if (archiveIn_)
+	else if (archiveIn_ || portableArchiveIn_)
+		usleep (50000);
+	else
+		return false;
+
+	return true;
+}
+
+
+bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
+{
+	if (!zed_ && !archiveIn_ && !portableArchiveIn_)
+		return false;
+
+	// If reading from a file and not paused, grab
+	// the next frame.
+	if (!pause && (archiveIn_ || portableArchiveIn_))
 	{
 		// Ugly try-catch to detect EOF
 		try
 		{
-			*archiveIn_ >> localFrame_ >> localDepth_;
+			if (archiveIn_)
+				*archiveIn_ >> _frame >> depthMat_;
+			else
+				*portableArchiveIn_ >> _frame >> depthMat_;
 		}
-		catch (const boost::archive::archive_exception &e)
+		catch (const std::exception &e)
 		{
 			return false;
 		}
-		boost::lock_guard<boost::mutex> guard(_mtx);
-		localFrame_.copyTo(_frame);
-		localDepth_.copyTo(depthMat_);
 
 		while (_frame.rows > 700)
 		{
@@ -230,14 +313,12 @@ bool ZedIn::update(bool left)
 		}
 		frameNumber_ += 1;
 	}
-	else
-		return false;
-	return true;
-}
-
-
-bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth)
-{
+	
+	// If video is paused, this will just re-use the
+	// previous frame.  If camera input, this
+	// will return the last frame read in update -
+	// this can also be paused by the calling code
+	// if desired
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	lockedFrameNumber_ = frameNumber_;
 	_frame.copyTo(frame);
@@ -260,7 +341,7 @@ int ZedIn::frameCount(void) const
 	if (zed_)
 		return zed_->getSVONumberOfFrames();
 
-	// If using a video, there's no way to tell
+	// If using zms or a live camera, there's no way to tell
 	return -1;
 }
 

@@ -187,15 +187,15 @@ void NNDetect<MatT>::generateInitialWindows(
 		
         float depth_min = depth_avg - depth_avg * depth_multiplier;
         float depth_max = depth_avg + depth_avg * depth_multiplier;
-        cout << fixed << "Target size:" << wsize / scaledImages[scale].second << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max;
+        cout << fixed << "Target size:" << wsize / scaledImages[scale].second << " Mat Size :" << scaledImages[scale].first.size() << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max;
 		size_t thisWindowsChecked = 0;
 		size_t thisWindowsPassed  = 0;
 
         // Start at the upper left corner.  Loop through the rows and cols until
         // the detection window falls off the edges of the scaled image
-        for (int r = 0; (r + wsize) <= scaledImages[scale].first.rows; r += step)
+        for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
         {
-            for (int c = 0; (c + wsize) <= scaledImages[scale].first.cols; c += step)
+            for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
             {
 				thisWindowsChecked += 1;
                 if (!depthIn.empty())

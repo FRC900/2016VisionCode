@@ -1,6 +1,5 @@
 #pragma once
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/binary_iarchive.hpp>
+#include <portable_binary_oarchive.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include "mediaout.hpp"
 
@@ -13,7 +12,7 @@ class ZMSOut : public MediaOut
 		~ZMSOut();
 
 	private :
-		bool openNext(void);
+		bool openNext(int fileCounter);
 		void deleteOutputPointers(void);
 		bool openSerializeOutput(const char *filename);
 		bool write(const cv::Mat &frame, const cv::Mat &depth);
@@ -22,5 +21,5 @@ class ZMSOut : public MediaOut
 
 		std::ofstream *serializeOut_;
 		boost::iostreams::filtering_streambuf<boost::iostreams::output> *filtSBOut_;
-		boost::archive::binary_oarchive *archiveOut_;
+		portable_binary_oarchive *archiveOut_;
 };

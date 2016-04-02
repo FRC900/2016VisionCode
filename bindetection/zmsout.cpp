@@ -75,7 +75,7 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 
 	// Create an output archive which writes to the previously
 	// created output chain (zlib->output file path)
-	archiveOut_ = new boost::archive::binary_oarchive(*filtSBOut_);
+	archiveOut_ = new portable_binary_oarchive(*filtSBOut_);
 	if (!archiveOut_)
 	{
 		cerr << "Could not create binary_oarchive in constructor" <<endl;
@@ -87,13 +87,12 @@ bool ZMSOut::openSerializeOutput(const char *fileName)
 
 // Create a filename by appening a fileCounter to
 // the end of the filename
-bool ZMSOut::openNext(void)
+bool ZMSOut::openNext(int fileCounter)
 {
 	if (fileName_.length() == 0)
 		return false;
 	stringstream ofName;
-	ofName << change_extension(fileName_, "").string() << "_" ;
-	ofName << fileCounter_++ << ".zms";
+	ofName << change_extension(fileName_, "").string() << "_" << fileCounter << ".zms";
 	if (!openSerializeOutput(ofName.str().c_str()))
 	{
 		cerr << "ZMSOut : could not open output file " << ofName.str() << endl;

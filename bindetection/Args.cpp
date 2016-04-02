@@ -44,6 +44,7 @@ Args::Args(void)
 	tracking           = true;
 	rects              = true;
 	batchMode          = false;
+	pause              = false;
 	skip               = 0;
 	calibrate          = false;
 	writeVideo         = false;
@@ -66,6 +67,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string frameOpt           = "--frame=";          // start at given frame
 	const string captureAllOpt      = "--all";             // capture all detected images in each frame
 	const string batchModeOpt       = "--batch";           // run without GUI
+	const string pauseOpt           = "--pause";           // start paused
 	const string skipOpt            = "--skip=";           // skip frames in input video file
 	const string calibrateOpt       = "--calibrate";       // bring up crosshair to calibrate camera position
 	const string writeVideoOpt      = "--capture";         // save camera video to output file
@@ -94,6 +96,8 @@ bool Args::processArgs(int argc, const char **argv)
 			captureAll = true;
 		else if (batchModeOpt.compare(0, batchModeOpt.length(), argv[fileArgc], batchModeOpt.length()) == 0)
 			batchMode = true;
+		else if (pauseOpt.compare(0, pauseOpt.length(), argv[fileArgc], pauseOpt.length()) == 0)
+			pause = true;
 		else if (skipOpt.compare(0, skipOpt.length(), argv[fileArgc], skipOpt.length()) == 0)
 			skip = atoi(argv[fileArgc] + skipOpt.length());
 		else if (calibrateOpt.compare(0, calibrateOpt.length(), argv[fileArgc], calibrateOpt.length()) == 0)

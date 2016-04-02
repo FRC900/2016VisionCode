@@ -19,8 +19,9 @@ class C920CameraIn : public MediaIn
    public:
       C920CameraIn(int _stream = -1, bool gui = false);
 	  ~C920CameraIn() {}
-      bool getFrame(cv::Mat &frame, cv::Mat &depth);
-      bool update();
+	  bool isOpened(void) const;
+      bool update(void);
+      bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
       int width(void) const;
       int height(void) const;

@@ -30,7 +30,12 @@ CameraIn::CameraIn(int stream, bool gui) :
 		std::cerr << "Could not open camera" << std::endl;
 }
 
-bool CameraIn::update() 
+bool CameraIn::isOpened() const
+{
+	return cap_.isOpened();
+}
+
+bool CameraIn::update(void) 
 {
 	if (!cap_.isOpened())
 		return false;
@@ -46,8 +51,9 @@ bool CameraIn::update()
 	return true;
 }
 
-bool CameraIn::getFrame(Mat &frame, Mat &depth)
+bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
+	(void)pause;
 	if (!cap_.isOpened())
 		return false;
 	depth = Mat();
