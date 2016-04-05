@@ -13,8 +13,8 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_isValid(false),
 	_pastRects(2),
 	_min_valid_confidence(0.25),
-	_otsu_threshold(8.),
-	_blue_scale(40),
+	_otsu_threshold(5),
+	_blue_scale(67),
 	_red_scale(60),
 	_camera_angle(90)
 {
@@ -154,7 +154,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
-		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 1, cvRound(br.height / 2.))));
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 1, cvRound(br.height / 4.))));
 		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + 2./3*br.height), 1, cvRound(br.height / 3.))));
 		double topMaxCol;
 		minMaxLoc(topMidCol, NULL, &topMaxCol);
@@ -183,7 +183,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		Mat leftBotMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .65), cvRound(br.width / 3.), 1)));
 		Mat rightTopMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height * .35), cvRound(br.width / 3.), 1)));
 		Mat rightBotMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height * .65), cvRound(br.width / 3.), 1)));
-		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3./ 8.), cvRound(br.tl().y + br.height / 2.), cvRound(br.width / 4.), 1)));
+		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3./ 8.), cvRound(br.tl().y + br.height / 4.), cvRound(br.width / 4.), 1)));
 		double dummy;
 		double rightMaxRow;
 		minMaxLoc(rightTopMidRow, NULL, &dummy);
@@ -421,21 +421,33 @@ float GoalDetector::angle_to_goal(void) const
 	if (!_isValid)
 		return -1;
 
-	float mag = fabsf(_angle_to_goal);
 	float delta = 0;
-	if (mag >= 40)
-		delta = 2.0;
-	else if (mag >= 35)
-		delta = 1.5;
-	else if (mag >= 30)
-		delta = 1.0;
-	else if (mag >= 25)
-		delta = 0.5;
+	if (_angle_to_goal >= 40)
+		delta = -3.00; // >= 40
+	else if (_angle_to_goal >= 35)
+		delta = -2.50; // 35 < x <= 40
+	else if (_angle_to_goal >= 30)
+		delta = -2.00; // 30 < x <= 35
+	else if (_angle_to_goal >= 25)
+		delta = -0.50; // 25 < x <= 30
+	else if (_angle_to_goal >= 20)
+		delta = -0.15; // 20 < x <= 25
+	else if (_angle_to_goal >= -20)
+		delta = 0;     // -20 <= x <= 20
+	else if (_angle_to_goal >= -25)
+		delta = 0.25;  // -25 <= x < -20
+	else if (_angle_to_goal >= -30)
+		delta = 0.50;  // -30 <= x < -25
+	else if (_angle_to_goal >= -35)
+		delta = 2.50;  // -35 <= x < -30
+	else if (_angle_to_goal >= -40)
+		delta = 3.50;  // -40 <= x < -35
+	else
+		delta = 4.55;  // -40 > x 
 
-	//cout << "angle " << _angle_to_goal << "Mag " << mag << " delta " << delta << " foo " << ((_angle_to_goal < 0) ? delta : -delta) << endl;
-	//return _isValid ? _angle_to_goal : -1.0;
+	cout << "angle:" << _angle_to_goal << " delta:" << delta << endl;
 
-	return _angle_to_goal + ((_angle_to_goal < 0) ? delta : -delta);
+	return _angle_to_goal + delta;
 }
 
 // Screen rect bounding the goal

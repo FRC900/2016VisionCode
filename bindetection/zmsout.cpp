@@ -17,7 +17,7 @@ using namespace boost::filesystem;
 // method to serialize image and depth data to disk rather than
 // relying on Stereolab's SVO format.
 ZMSOut::ZMSOut(const char *outFile, int frameSkip) :
-	MediaOut(frameSkip, 300),
+	MediaOut(frameSkip,  50),
 	fileName_(outFile),
 	serializeOut_(NULL),
 	filtSBOut_(NULL),
