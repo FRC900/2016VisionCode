@@ -117,7 +117,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
 			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
 #endif
-			zedBrightnessCallback(3, this);
+			zedBrightnessCallback(2, this);
 			zedContrastCallback(6, this);
 			zedHueCallback(7, this);
 			zedSaturationCallback(4, this);
