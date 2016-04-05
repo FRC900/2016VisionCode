@@ -154,8 +154,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
-		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), br.tl().y, 1, cvRound(br.height / 4.))));
-		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + 2./3*br.height), 1, cvRound(br.height / 3.))));
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 4.), br.tl().y, cvRound(br.width/2.), cvRound(br.height / 3.))));
+		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + br.height * .8), 1, cvRound(br.height *.2))));
 		double topMaxCol;
 		minMaxLoc(topMidCol, NULL, &topMaxCol);
 		double botMaxCol;
