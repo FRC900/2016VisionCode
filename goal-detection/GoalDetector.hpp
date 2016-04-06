@@ -55,6 +55,7 @@ class GoalDetector
 		int   _otsu_threshold;
 		int   _blue_scale;
 		int   _red_scale;
+		int _unwarp = 0;
 
 int _camera_angle;
 

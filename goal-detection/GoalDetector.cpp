@@ -25,6 +25,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 		createTrackbar("Red Scale","Goal Detect Adjustments", &_red_scale, 100);
 		createTrackbar("Otsu Threshold","Goal Detect Adjustments", &_otsu_threshold, 255);
 		createTrackbar("Camera Angle","Goal Detect Adjustments", &_camera_angle, 255);
+		createTrackbar("Unwarp", "Goal Detect Adjustments", &_unwarp, 1);
 	}
 }
 
@@ -100,6 +101,52 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// ObjectType computes a ton of useful properties so create
 		// one for what we're looking at
 		Rect br(boundingRect(_contours[i]));
+
+		//create a transform that will transform from the skewed shape to the
+		//non skewed shape
+		Point2f input_points[4];
+		Point2f output_points[4];
+
+
+		if(_unwarp == 1){
+			//create a rotatedrect surrounding the contour and input the points into an array
+			RotatedRect warped_shape = minAreaRect(_contours[i]);
+			warped_shape.points(input_points);
+
+			//find how far slanted the goal is away from the screen
+			Mat contour_mask = Mat::zeros(depth.size(), CV_8UC1);
+			drawContours(contour_mask,_contours,i,Scalar(255), CV_FILLED);
+			std::pair<double,double> slope_of_shape = utils::slopeOfMasked(depth,contour_mask,_fov_size);
+			float x_angle = atan(slope_of_shape.first);
+			float y_angle = atan(slope_of_shape.second);
+
+			//create another rotatedrect to transform the points into. This is in the same spot
+			//as the actual contour but the size is changed to match what it would be if facing it straight on
+			RotatedRect unwarped_shape(warped_shape.center, Size(cos(x_angle)*warped_shape.size.width, cos(y_angle)*warped_shape.size.height), 0);
+
+			//something about opencv's handling of rotatedrects causes the contours to spin 90 if the width < height
+			if(unwarped_shape.size.width < unwarped_shape.size.height)
+				unwarped_shape.angle = -90;
+
+			unwarped_shape.points(output_points);
+
+			//create a transformation that maps points from warped to unwarped goal
+			Mat warp_transform(3,3,CV_32FC1);
+			warp_transform = getPerspectiveTransform(input_points, output_points);
+
+			//apply the transformation to the contour
+			//in order to do this the points to be transformed have to be floats
+			vector<Point2f> unwarped_contour_f;
+			vector<Point> unwarped_contour;
+			for(size_t j = 0; j < _contours[i].size(); j++)
+				unwarped_contour_f.push_back(Point2f((float)((_contours[i])[j]).x,(float)((_contours[i])[j]).y));
+
+			cv::perspectiveTransform(unwarped_contour_f,unwarped_contour_f, warp_transform);
+
+			//convert back from floats and apply to contours list
+			for(size_t j = 0; j < unwarped_contour_f.size(); j++)
+	    	_contours[i][j] = Point((int)unwarped_contour_f[j].x,(int)unwarped_contour_f[j].y);
+		}
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me, make me a percentage of screen area?
@@ -285,6 +332,20 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			goal_info.rect   	 = br;
 
 			best_goals.push_back(goal_info);
+	#if 0
+			Mat display_warped;
+			display_warped = Mat::zeros(image.rows,image.cols,CV_8UC3);
+			drawContours(display_warped,_contours,i,Scalar(0,0,255));
+
+			vector<vector<Point>> temp_contour_arr;
+			temp_contour_arr.push_back(unwarped_contour);
+			Mat display_unwarped;
+			display_unwarped = Mat::zeros(image.rows,image.cols,CV_8UC3);
+			drawContours(display_unwarped,temp_contour_arr,0,Scalar(0,0,255));
+
+			imshow("Warped Contour " + to_string(i), display_warped);
+			imshow("Unwarped Contour " + to_string(i), display_unwarped);
+	#endif
 		}
 
 		/*vector<string> info;
@@ -443,7 +504,7 @@ float GoalDetector::angle_to_goal(void) const
 	else if (_angle_to_goal >= -40)
 		delta = 3.50;  // -40 <= x < -35
 	else
-		delta = 4.55;  // -40 > x 
+		delta = 4.55;  // -40 > x
 
 	cout << "angle:" << _angle_to_goal << " delta:" << delta << endl;
 
