@@ -103,7 +103,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me, make me a percentage of screen area?
-		if ((br.area() <= 300.0) || (br.area() > 8500))
+		if ((br.area() <= 350.0) || (br.area() > 8500))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
@@ -142,7 +142,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
-		if ((depth_z_max < 1.) || (depth_z_min > 10.))
+		if ((depth_z_max < 1.) || (depth_z_min > 6.2))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " depth out of range "<< depth_z_min << " / " << depth_z_max << endl;
@@ -154,7 +154,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
-		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width * .3f), br.tl().y, cvRound(br.width * .4f), cvRound(br.height / 3.f))));
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width * .35f), br.tl().y, cvRound(br.width * .3f), cvRound(br.height / 3.f))));
 		Mat botMidCol(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .85f), br.width, cvRound(br.height * .15f))));
 		double topMaxCol;
 		minMaxLoc(topMidCol, NULL, &topMaxCol);
@@ -235,7 +235,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//width to height ratio
 		float actualRatio = goal_actual.width() / goal_actual.height();
-		if ((actualRatio <= (1.0/2.6)) || (actualRatio >= 2.6))
+		if ((actualRatio <= (1.0/2.25)) || (actualRatio >= 2.25))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " aspectRatio out of range:" << actualRatio << endl;
@@ -274,7 +274,6 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "Depth min/max: " << depth_z_min << "/" << depth_z_max << endl;
 		cout << "Area exp/act: " << (int)exp_area << "/" << br.area() << endl;
 		cout << "Aspect ratio exp/act : " << expectedRatio << "/" << actualRatio << endl;
-		cout << "br.area(): " << br.area() << endl;
 		cout << "br.br().y: " << br.br().y << endl;
 		cout << "-------------------------------------------" << endl;
 #endif
