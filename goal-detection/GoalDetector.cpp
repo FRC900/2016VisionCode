@@ -235,7 +235,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//width to height ratio
 		float actualRatio = goal_actual.width() / goal_actual.height();
-		if ((actualRatio < 0.25) || (actualRatio > 4.00))
+		if ((actualRatio < (1.0/3.0)) || (actualRatio > 3.0))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " aspectRatio out of range:" << actualRatio << endl;
