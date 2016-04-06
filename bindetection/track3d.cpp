@@ -4,8 +4,11 @@
 #include "track3d.hpp"
 #include "hungarian.hpp"
 
+#include "Utilities.hpp"
+
 using namespace std;
 using namespace cv;
+using namespace utils;
 
 const int missedFrameCountMax = 10;
 
@@ -97,50 +100,6 @@ bool ObjectType::operator== (const ObjectType &t1) const {
 	return this->shape() == t1.shape();
 }
 
-
-static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
-{
-	/*
-	Method:
-		find the center of the rect
-		compute the distance from the center of the rect to center of image (pixels)
-		convert to degrees based on fov and image size
-		do a polar to cartesian cordinate conversion to find x,y,z of object
-	Equations:
-		x=rsin(inclination) * cos(azimuth)
-		y=rsin(inclination) * sin(azimuth)
-		z=rcos(inclination)
-	Notes:
-		Z is up, X is left-right, and Y is forward
-		(0,0,0) = (r,0,0) = right in front of you
-	*/
-
-	Point2f rect_center(
-			screen_position.tl().x + (screen_position.width  / 2.0),
-			screen_position.tl().y + (screen_position.height / 2.0));
-	Point2f dist_to_center(
-			rect_center.x - (frame_size.width / 2.0),
-			-rect_center.y + (frame_size.height / 2.0));
-	Point2f percent_fov(
-			dist_to_center.x / frame_size.width,
-			dist_to_center.y / frame_size.height);
-
-	float azimuth = percent_fov.x * fov_size.x;
-	float inclination = percent_fov.y * fov_size.y - cameraElevation;
-
-	Point3f retPt(
-			avg_depth * cosf(inclination) * sinf(azimuth),
-			avg_depth * cosf(inclination) * cosf(azimuth),
-			avg_depth * sinf(inclination));
-
-	//cout << "Distance to center: " << dist_to_center << endl;
-	//cout << "Actual Inclination: " << inclination << endl;
-	//cout << "Actual Azimuth: " << azimuth << endl;
-	//cout << "Actual location: " << retPt << endl;
-
-	return retPt;
-}
-
 static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
 {
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
@@ -149,7 +108,7 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 
 	Point2f percent_fov = Point2f(azimuth / fov_size.x, inclination / fov_size.y);
 	Point2f dist_to_center(percent_fov.x * frame_size.width,
-			                   percent_fov.y * frame_size.height);
+												 percent_fov.y * frame_size.height);
 
 	Point2f rect_center(
 			dist_to_center.x + (frame_size.width / 2.0),
@@ -166,6 +125,7 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 			return Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
+
 TrackedObject::TrackedObject(int id,
 							 const ObjectType &type_in,
 							 const Rect   &screen_position,
@@ -179,7 +139,8 @@ TrackedObject::TrackedObject(int id,
 		_type(type_in),
 		_detectHistory(historyLength),
 		_positionHistory(historyLength),
-		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation),
+		_KF(screenToWorldCoords(Point(screen_position.x+screen_position.width,screen_position.y+screen_position.height),
+			avg_depth, fov_size, frame_size, camera_elevation),
 			dt, accel_noise_mag),
 		missedFrameCount_(0),
 		cameraElevation_(camera_elevation)
@@ -214,7 +175,7 @@ void TrackedObject::setPosition(const Point3f &new_position)
 void TrackedObject::setPosition(const Rect &screen_position, double avg_depth,
 		                        const Point2f &fov_size, const Size &frame_size)
 {
-	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, cameraElevation_));
+	setPosition(screenToWorldCoords(Point(screen_position.x+screen_position.width,screen_position.y+screen_position.height), avg_depth, fov_size, frame_size, cameraElevation_));
 }
 
 #if 0
@@ -265,8 +226,7 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 		pos_mat.at<double>(0,2) = 1.0;
 		Mat new_screen_pos_mat = transform_mat * pos_mat;
 		Point new_screen_pos = Point(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
-		Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
-		*it = screenToWorldCoords(new_screen_rect, depth, fov_size, frame_size, cameraElevation_);
+		*it = screenToWorldCoords(new_screen_pos, depth, fov_size, frame_size, cameraElevation_);
 	}
 
 }
@@ -443,8 +403,9 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		cout << detectedRects.size() << " objects" << endl;
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
+		Point rect_center = Point(detectedRects[i].x+detectedRects[i].width,detectedRects[i].y+detectedRects[i].height);
 		detectedPositions.push_back(
-				screenToWorldCoords(detectedRects[i], depths[i], _fovSize, _imageSize, _cameraElevation));
+				screenToWorldCoords(rect_center, depths[i], _fovSize, _imageSize, _cameraElevation));
 		cout << "Detected rect [" << i << "] = " << detectedRects[i] << " positions[" << detectedPositions.size() - 1 << "]:" << detectedPositions[detectedPositions.size()-1] << endl;
 	}
 	// TODO :: Combine overlapping detections into one?
