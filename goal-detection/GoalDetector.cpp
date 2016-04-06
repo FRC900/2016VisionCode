@@ -154,8 +154,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
-		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 4.), br.tl().y, cvRound(br.width/2.), cvRound(br.height / 3.))));
-		Mat botMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width / 2.), cvRound(br.tl().y + br.height * .8), 1, cvRound(br.height *.2))));
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width * .3f), br.tl().y, cvRound(br.width * .4f), cvRound(br.height / 3.f))));
+		Mat botMidCol(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .85f), br.width, cvRound(br.height * .15f))));
 		double topMaxCol;
 		minMaxLoc(topMidCol, NULL, &topMaxCol);
 		double botMaxCol;
@@ -177,13 +177,13 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// should be high values on the left and
 		// right and no high values in the middle
 		// Sample the edges at both .35 and .65 of the way
-		// down the rect  to find goals which look
+		// down the rect to find goals which look
 		// angled due to their offset
-		Mat leftTopMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .35), cvRound(br.width / 3.), 1)));
-		Mat leftBotMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .65), cvRound(br.width / 3.), 1)));
-		Mat rightTopMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height * .35), cvRound(br.width / 3.), 1)));
-		Mat rightBotMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2. / 3.), cvRound(br.tl().y + br.height * .65), cvRound(br.width / 3.), 1)));
-		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3./ 8.), cvRound(br.tl().y + br.height / 4.), cvRound(br.width / 4.), 1)));
+		Mat leftTopMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .35f), cvRound(br.width / 3.f), 1)));
+		Mat leftBotMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .65f), cvRound(br.width / 3.f), 1)));
+		Mat rightTopMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2.f / 3.f), cvRound(br.tl().y + br.height * .35f), cvRound(br.width / 3.f), 1)));
+		Mat rightBotMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2.f / 3.f), cvRound(br.tl().y + br.height * .65f), cvRound(br.width / 3.f), 1)));
+		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3.f / 8.f), cvRound(br.tl().y + br.height / 4.f), cvRound(br.width / 4.f), 1)));
 		double dummy;
 		double rightMaxRow;
 		minMaxLoc(rightTopMidRow, NULL, &dummy);
@@ -218,10 +218,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		float exp_area = goal_tracked_obj.getScreenPosition(_fov_size, _frame_size).area();
 		float actualScreenArea = (float)br.area() / exp_area;
 
-		if (((exp_area / br.area()) < 0.25) || ((exp_area / br.area()) > 4.00))
+		if (((exp_area / br.area()) < 0.20) || ((exp_area / br.area()) > 5.00))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " area out of range for depth (act/exp/ratio):" << br.area() << "/" << exp_area << "/" << actualScreenArea << endl;
+			cout << "Contour " << i << " area out of range for depth (depth_min/depth_max/act/exp/ratio):" << depth_z_min << "/" << depth_z_max << "/" << br.area() << "/" << exp_area << "/" << actualScreenArea << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
@@ -235,6 +235,14 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//width to height ratio
 		float actualRatio = goal_actual.width() / goal_actual.height();
+		if ((actualRatio < 0.25) || (actualRatio > 4.00))
+		{
+#ifdef VERBOSE
+			cout << "Contour " << i << " aspectRatio out of range:" << actualRatio << endl;
+#endif
+			_confidence.push_back(0);
+			continue;
+		}
 
 		//parameters for the normal distributions
 		//values for standard deviation were determined by
@@ -265,10 +273,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0 << endl;
 		cout << "Depth min/max: " << depth_z_min << "/" << depth_z_max << endl;
 		cout << "Area exp/act: " << (int)exp_area << "/" << br.area() << endl;
+		cout << "Aspect ratio exp/act : " << expectedRatio << "/" << actualRatio << endl;
 		cout << "br.area(): " << br.area() << endl;
 		cout << "br.br().y: " << br.br().y << endl;
-		cout << "Middle col (top/bot): "<< (int)topMaxCol << "/" << (int)botMaxCol << endl;
-		cout << "Middle row (left/center/right): " << (int)leftMaxRow << "/" <<(int)centerMaxRow << "/" << (int)rightMaxRow << endl;
 		cout << "-------------------------------------------" << endl;
 #endif
 
