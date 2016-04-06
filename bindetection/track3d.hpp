@@ -35,6 +35,8 @@ class ObjectType {
 		float area (void) const { return area_; }
 		float boundingArea (void) const { return width_ * height_; }
 
+		void drawScaled(Mat &image);
+
 		//comparison operator overload just checks if the contours are equal
 		bool operator== (const ObjectType &t1) const;
 

@@ -98,10 +98,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 	for (size_t i = 0; i < _contours.size(); i++)
 	{
-		// ObjectType computes a ton of useful properties so create
-		// one for what we're looking at
-		Rect br(boundingRect(_contours[i]));
-
+		
 		//create a transform that will transform from the skewed shape to the
 		//non skewed shape
 		Point2f input_points[4];
@@ -145,8 +142,11 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 			//convert back from floats and apply to contours list
 			for(size_t j = 0; j < unwarped_contour_f.size(); j++)
-	    	_contours[i][j] = Point((int)unwarped_contour_f[j].x,(int)unwarped_contour_f[j].y);
+	    			_contours[i][j] = Point((int)unwarped_contour_f[j].x,(int)unwarped_contour_f[j].y);
 		}
+		
+
+		Rect br(boundingRect(_contours[i]));
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me, make me a percentage of screen area?
@@ -198,6 +198,20 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			continue;
 		}
 
+		//the idea here is to find areas that are for sure
+		//going to be brigh or dark
+		Mat shape_draw_mat_dilate = Mat::zeros(_goal_shape.width() * 1000, _goal_shape.height() * 1000, CV_8UC1);
+		_goal_shape.drawScaled(shape_draw_mat_dilate);
+		Mat shape_draw_mat_erode;
+		shape_draw_mat_dilate.copyTo(shape_draw_mat_erode);
+		
+		//dilate and erode copies of the contour
+		dilate(shape_draw_mat_dilate, shape_draw_mat_dilate);
+		erode(shape_draw_mat_erode, shape_draw_mat_erode);
+
+		//mask the actual image with the contours and take the average of both sections
+		
+		
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
