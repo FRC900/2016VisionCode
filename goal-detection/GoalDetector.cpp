@@ -103,7 +103,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// Remove objects which are obviously too small
 		// TODO :: Tune me, make me a percentage of screen area?
-		if ((br.area() < 250.0) || (br.area() > 8500))
+		if ((br.area() <= 300.0) || (br.area() > 8500))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
@@ -179,10 +179,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Sample the edges at both .35 and .65 of the way
 		// down the rect to find goals which look
 		// angled due to their offset
-		Mat leftTopMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .35f), cvRound(br.width / 3.f), 1)));
-		Mat leftBotMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .65f), cvRound(br.width / 3.f), 1)));
-		Mat rightTopMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2.f / 3.f), cvRound(br.tl().y + br.height * .35f), cvRound(br.width / 3.f), 1)));
-		Mat rightBotMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 2.f / 3.f), cvRound(br.tl().y + br.height * .65f), cvRound(br.width / 3.f), 1)));
+		Mat leftTopMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .35f), cvRound(br.width * .15f), 1)));
+		Mat leftBotMidRow(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .65f), cvRound(br.width * .15f), 1)));
+		Mat rightTopMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * .85f), cvRound(br.tl().y + br.height * .35f), cvRound(br.width * .15f), 1)));
+		Mat rightBotMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * .85f), cvRound(br.tl().y + br.height * .65f), cvRound(br.width * .15f), 1)));
 		Mat centerMidRow(threshold_image(Rect(br.tl().x + cvRound(br.width * 3.f / 8.f), cvRound(br.tl().y + br.height / 4.f), cvRound(br.width / 4.f), 1)));
 		double dummy;
 		double rightMaxRow;
@@ -235,7 +235,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//width to height ratio
 		float actualRatio = goal_actual.width() / goal_actual.height();
-		if ((actualRatio < (1.0/3.0)) || (actualRatio > 3.0))
+		if ((actualRatio <= (1.0/2.6)) || (actualRatio >= 2.6))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " aspectRatio out of range:" << actualRatio << endl;
