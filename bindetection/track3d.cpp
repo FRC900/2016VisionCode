@@ -74,18 +74,18 @@ ObjectType::ObjectType(const vector< Point > &contour_in)
 
 }
 
-void ObjectType::drawScaled(Mat& image) {
+void ObjectType::drawScaled(Mat& image, Rect roi) {
 	vector<vector<Point>> draw_contour_array;
 	vector<Point> draw_contour;
 	
-	float scale_x = image.cols / width_;
-	float scale_y = image.rows / height_;
+	float scale_x = roi.width / width_;
+	float scale_y = roi.height / height_;
 	
 	for(size_t i = 0; i < contour_.size(); i++)
-		draw_contour.push_back(Point(scale_x * contour_[i], Point(scale_y * contour_[i])));
+		draw_contour.push_back(Point(scale_x * contour_[i].x + roi.tl().x, scale_y * contour_[i].y + roi.tl().y));
 
 	draw_contour_array.push_back(draw_contour);
-	drawContours(image,draw_contour_array,0,Scalar(255));
+	drawContours(image,draw_contour_array,0,Scalar(255), CV_FILLED);
 }
 
 void ObjectType::computeProperties()

@@ -96,6 +96,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 	vector<GoalInfo> best_goals;
 
+	Mat display_copy = image.clone();
+
 	for (size_t i = 0; i < _contours.size(); i++)
 	{
 		
@@ -200,17 +202,42 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//the idea here is to find areas that are for sure
 		//going to be brigh or dark
-		Mat shape_draw_mat_dilate = Mat::zeros(_goal_shape.width() * 1000, _goal_shape.height() * 1000, CV_8UC1);
-		_goal_shape.drawScaled(shape_draw_mat_dilate);
+		Mat shape_draw_mat_dilate = Mat::zeros(image.rows, image.cols, CV_8UC1);
+		_goal_shape.drawScaled(shape_draw_mat_dilate, br);
 		Mat shape_draw_mat_erode;
-		shape_draw_mat_dilate.copyTo(shape_draw_mat_erode);
-		
-		//dilate and erode copies of the contour
-		dilate(shape_draw_mat_dilate, shape_draw_mat_dilate);
-		erode(shape_draw_mat_erode, shape_draw_mat_erode);
+		shape_draw_mat_dilate.copyTo(shape_draw_mat_erode);	
 
-		//mask the actual image with the contours and take the average of both sections
-		
+	
+		//dilate and erode copies of the contour
+		Mat erodeElement(getStructuringElement(MORPH_RECT, Size(3, 3)));
+		Mat dilateElement(getStructuringElement(MORPH_RECT, Size(3, 3)));	
+		dilate(shape_draw_mat_dilate, shape_draw_mat_dilate, dilateElement);
+		erode(shape_draw_mat_erode, shape_draw_mat_erode, erodeElement);
+
+		display_copy.setTo(Scalar(0,255,0), shape_draw_mat_dilate);
+		display_copy.setTo(Scalar(0,0,255), shape_draw_mat_erode);
+
+		subtract(Scalar(255), shape_draw_mat_dilate, shape_draw_mat_dilate);
+		//take the average of both sections
+		Scalar masked_mean, masked_stddev, unmasked_mean, unmasked_stddev;
+		cv::meanStdDev(image, masked_mean, masked_stddev, shape_draw_mat_erode);
+		cv::meanStdDev(image, unmasked_mean, unmasked_stddev, shape_draw_mat_dilate);
+
+
+		float masked_mean_f = (masked_mean.val[0] + masked_mean.val[1] + masked_mean.val[2]) / 3.0;
+		float unmasked_mean_f = (unmasked_mean.val[0] + unmasked_mean.val[1] + unmasked_mean.val[2]) / 3.0;
+		#if 0
+		imshow("Dilated Mask Contour " + to_string(i), shape_draw_mat_dilate);
+		imshow("Eroded Mask Contour " + to_string(i), shape_draw_mat_erode);
+		#endif
+
+		cout << "Mean of masked area contour " << i << " : " << masked_mean_f << endl;
+		cout << "Mean of unmasked area contour " << i << " : " <<  unmasked_mean_f << endl;		
+	
+		if(masked_mean_f < 1.2 * unmasked_mean_f) {	
+			cout << "Eliminating based on masked brightness" << endl;
+			continue;
+		}
 		
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
@@ -424,6 +451,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	}
 	else
 		_pastRects.push_back(SmartRect(Rect()));
+
+	imshow("Display Copy", display_copy);
 	isValid();
 }
 
