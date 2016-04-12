@@ -54,6 +54,7 @@ struct GoalInfo
 
 void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 {
+	int64 loopTimer = cv::getTickCount();
 	// Use to mask the contour off from the rest of the
 	// image - used when grabbing depth data for the contour
 	Mat contour_mask(image.rows, image.cols, CV_8UC1, Scalar(0));
@@ -66,6 +67,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	_goal_pos  = Point3f();
 	_confidence.clear();
 	_contours.clear();
+	_corrected_contours.clear();
 
 	// Look for parts the the image which are within the
 	// expected bright green color range
@@ -97,62 +99,47 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	vector<GoalInfo> best_goals;
 
 	Mat display_copy = image.clone();
-
+	int64 stepTimer;
 	for (size_t i = 0; i < _contours.size(); i++)
 	{
+			if(_contours[i].size() <= 3) {	
+				_confidence.push_back(0);
+				_corrected_contours.push_back(_contours[i]);
+				continue;
+				}
 		
-		//create a transform that will transform from the skewed shape to the
-		//non skewed shape
+		ObjectType goal_actual(_contours[i]);
+
 		Point2f input_points[4];
-		Point2f output_points[4];
-
-
-		if(_unwarp == 1){
-			//create a rotatedrect surrounding the contour and input the points into an array
-			RotatedRect warped_shape = minAreaRect(_contours[i]);
-			warped_shape.points(input_points);
-
-			//find how far slanted the goal is away from the screen
-			Mat contour_mask = Mat::zeros(depth.size(), CV_8UC1);
-			drawContours(contour_mask,_contours,i,Scalar(255), CV_FILLED);
-			std::pair<double,double> slope_of_shape = utils::slopeOfMasked(depth,contour_mask,_fov_size);
-			float x_angle = atan(slope_of_shape.first);
-			float y_angle = atan(slope_of_shape.second);
-
-			//create another rotatedrect to transform the points into. This is in the same spot
-			//as the actual contour but the size is changed to match what it would be if facing it straight on
-			RotatedRect unwarped_shape(warped_shape.center, Size(cos(x_angle)*warped_shape.size.width, cos(y_angle)*warped_shape.size.height), 0);
-
-			//something about opencv's handling of rotatedrects causes the contours to spin 90 if the width < height
-			if(unwarped_shape.size.width < unwarped_shape.size.height)
-				unwarped_shape.angle = -90;
-
-			unwarped_shape.points(output_points);
-
-			//create a transformation that maps points from warped to unwarped goal
-			Mat warp_transform(3,3,CV_32FC1);
-			warp_transform = getPerspectiveTransform(input_points, output_points);
-
-			//apply the transformation to the contour
-			//in order to do this the points to be transformed have to be floats
-			vector<Point2f> unwarped_contour_f;
-			vector<Point> unwarped_contour;
-			for(size_t j = 0; j < _contours[i].size(); j++)
-				unwarped_contour_f.push_back(Point2f((float)((_contours[i])[j]).x,(float)((_contours[i])[j]).y));
-
-			cv::perspectiveTransform(unwarped_contour_f,unwarped_contour_f, warp_transform);
-
-			//convert back from floats and apply to contours list
-			for(size_t j = 0; j < unwarped_contour_f.size(); j++)
-	    			_contours[i][j] = Point((int)unwarped_contour_f[j].x,(int)unwarped_contour_f[j].y);
-		}
+		//create a rotatedrect surrounding the contour and input the points into an array
+		RotatedRect warped_shape = minAreaRect(_contours[i]);
+		warped_shape.points(input_points);
 		
+		//find how far slanted the goal is away from the screen
+		Mat contour_mask = Mat::zeros(depth.size(), CV_8UC1);
+		drawContours(contour_mask,_contours,i,Scalar(255), CV_FILLED);
+		std::pair<double,double> slope_of_shape = utils::slopeOfMasked(depth,contour_mask,_fov_size);
+		float x_angle = atan(slope_of_shape.first);
+		float y_angle = atan(slope_of_shape.second);
 
-		Rect br(boundingRect(_contours[i]));
+		//create another rotatedrect to transform the points into. This is in the same spot
+		//as the actual contour but the size is changed to match what it would be if facing it straight on
+		RotatedRect unwarped_shape(warped_shape.center, Size(warped_shape.size.width/cos(x_angle), warped_shape.size.height/cos(y_angle)), 0);
 
+		//something about opencv's handling of rotatedrects causes the contours to spin 90 if the width < height
+		if(unwarped_shape.size.width < unwarped_shape.size.height)
+			unwarped_shape.angle -= 90;
+		
+		//adjust the contour to compensate for tilt away from the camera
+		vector<Point> corrected_contour = goal_actual.transformContour(unwarped_shape);
+		_corrected_contours.push_back(corrected_contour);
+		//goal_actual is the uncorrected goal
+		//
+		ObjectType goal_corrected(corrected_contour);
+#if 0
 		// Remove objects which are obviously too small
 		// TODO :: Tune me, make me a percentage of screen area?
-		if ((br.area() < 250.0) || (br.area() > 8500))
+		if ((goal_actual.area() < 250.0) || (goal_actual.area() > 8500))
 		{
 #ifdef VERBOSE
 			cout << "Contour " << i << " area out of range " << br.area() << endl;
@@ -164,10 +151,11 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Remove objects too low on the screen - these can't
 		// be goals. Should stop the robot from admiring its
 		// reflection in the diamond-plate at the end of the field
-		if (br.br().y > (image.rows * 0.7f))
+#endif
+		if (goal_actual.br().y > (image.rows * 0.7f))
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " br().y out of range "<< br.br().y << endl;
+			cout << "Contour " << i << " br().y out of range "<< goal_actual.br().y << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
@@ -180,14 +168,14 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		// get the minimum and maximum depth values in the contour,
 		// copy them into individual floats
-		pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, br, 10);
+		pair<float, float> minMax = utils::minOfDepthMat(depth, contour_mask, goal_actual.br(), 10);
 		float depth_z_min = minMax.first;
 		float depth_z_max = minMax.second;
 
 		// If no depth data, calculate it using FOV and height of
 		// the target. This isn't perfect but better than nothing
 		if ((depth_z_min <= 0.) || (depth_z_max <= 0.))
-			depth_z_min = depth_z_max = distanceUsingFOV(br);
+			depth_z_min = depth_z_max = distanceUsingFOV(goal_corrected.br());
 
 		// TODO : Figure out how well this works in practice
 		// Filter out goals which are too close or too far
@@ -199,11 +187,10 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			_confidence.push_back(0);
 			continue;
 		}
-
 		//the idea here is to find areas that are for sure
 		//going to be brigh or dark
 		Mat shape_draw_mat_dilate = Mat::zeros(image.rows, image.cols, CV_8UC1);
-		_goal_shape.drawScaled(shape_draw_mat_dilate, br);
+		_goal_shape.drawScaled(shape_draw_mat_dilate, unwarped_shape);
 		Mat shape_draw_mat_erode;
 		shape_draw_mat_dilate.copyTo(shape_draw_mat_erode);	
 
@@ -226,19 +213,16 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		float masked_mean_f = (masked_mean.val[0] + masked_mean.val[1] + masked_mean.val[2]) / 3.0;
 		float unmasked_mean_f = (unmasked_mean.val[0] + unmasked_mean.val[1] + unmasked_mean.val[2]) / 3.0;
-		#if 0
-		imshow("Dilated Mask Contour " + to_string(i), shape_draw_mat_dilate);
-		imshow("Eroded Mask Contour " + to_string(i), shape_draw_mat_erode);
-		#endif
 
-		cout << "Mean of masked area contour " << i << " : " << masked_mean_f << endl;
-		cout << "Mean of unmasked area contour " << i << " : " <<  unmasked_mean_f << endl;		
-	
+
 		if(masked_mean_f < 1.2 * unmasked_mean_f) {	
+			cout << "Mean of masked area contour " << i << " : " << masked_mean_f << endl;
+			cout << "Mean of unmasked area contour " << i << " : " <<  unmasked_mean_f << endl;			
 			cout << "Eliminating based on masked brightness" << endl;
+			_confidence.push_back(0);
 			continue;
 		}
-		
+#if 0		
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
@@ -292,44 +276,37 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			_confidence.push_back(0);
 			continue;
 		}
-
-		//create a trackedobject to get various statistics
-		//including area and x,y,z position of the goal
-		ObjectType goal_actual(_contours[i]);
-		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -((float)_camera_angle/10.) * M_PI / 180.0);
-		//TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16 * M_PI / 180.0);
+#endif
+		TrackedObject goal_tracked_obj(0, _goal_shape, goal_actual.br(), depth_z_max, _fov_size, _frame_size, -((float)_camera_angle/10.) * M_PI / 180.0);
 
 		// Gets the bounding box area observed divided by the
 		// bounding box area calculated given goal size and distance
 		// For an object the size of a goal we'd expect this to be
 		// close to 1.0 with some variance due to perspective
 		float exp_area = goal_tracked_obj.getScreenPosition(_fov_size, _frame_size).area();
-		float actualScreenArea = (float)br.area() / exp_area;
+		float actualScreenArea = (float)goal_corrected.area() / exp_area;
 
-		if (((exp_area / br.area()) < 0.25) || ((exp_area / br.area()) > 4.00))
+		if (actualScreenArea < 0.25 || actualScreenArea > 4.00)
 		{
 #ifdef VERBOSE
-			cout << "Contour " << i << " area out of range for depth (act/exp/ratio):" << br.area() << "/" << exp_area << "/" << actualScreenArea << endl;
+			cout << "Contour " << i << " area out of range for depth (act/exp/ratio):" << goal_corrected.area() << "/" << exp_area << "/" << actualScreenArea << endl;
 #endif
 			_confidence.push_back(0);
 			continue;
 		}
 		//percentage of the object filled in
-		float filledPercentageActual = goal_actual.area() / goal_actual.boundingArea();
+		float filledPercentageActual = goal_corrected.area() / goal_corrected.boundingArea();
 
 		//center of mass as a percentage of the object size from top left
-		Point2f com_percent_actual((goal_actual.com().x - br.tl().x) / goal_actual.width(),
-								   (goal_actual.com().y - br.tl().y) / goal_actual.height());
-
+		Point2f com_percent_actual((float)goal_corrected.com().x / goal_corrected.width(), (float)goal_corrected.com().y / goal_corrected.height());
 		//width to height ratio
-		float actualRatio = goal_actual.width() / goal_actual.height();
-
+		float actualRatio = (float)goal_corrected.width() / (float)goal_corrected.height();
 		//parameters for the normal distributions
 		//values for standard deviation were determined by
 		//taking the standard deviation of a bunch of values from the goal
 		//confidence is near 0.5 when value is near the mean
 		//confidence is small or large when value is not near mean
-		float confidence_height      = createConfidence(_goal_height, 0.4, goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0);
+		float confidence_height      = createConfidence(_goal_height, 0.4, goal_tracked_obj.getPosition().z - (_goal_shape.height() / 1000.0) / 2.0);
 		float confidence_com_x       = createConfidence(com_percent_expected.x, 0.125,  com_percent_actual.x);
 		float confidence_com_y       = createConfidence(com_percent_expected.y, 0.1539207,  com_percent_actual.y);
 		float confidence_filled_area = createConfidence(filledPercentageExpected, 0.33,   filledPercentageActual);
@@ -346,17 +323,25 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		cout << "confidence_height: " << confidence_height << endl;
 		cout << "confidence_com_x: " << confidence_com_x << endl;
 		cout << "confidence_com_y: " << confidence_com_y << endl;
+		cout << "COM Actual: " << com_percent_actual << endl;
+		cout << "COM Expected: " << com_percent_expected << endl;
 		cout << "confidence_filled_area: " << confidence_filled_area << endl;
 		cout << "confidence_ratio: " << confidence_ratio << endl;
+		cout << "ratio (act/exp): " << actualRatio << " / " << expectedRatio << endl;
 		cout << "confidence_screen_area: " << confidence_screen_area << endl;
 		cout << "confidence: " << confidence << endl;
-		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - _goal_shape.height() / 2.0 << endl;
+		cout << "Height exp/act: " << _goal_height << "/" <<  goal_tracked_obj.getPosition().z - (_goal_shape.height()/ 1000.0) / 2.0 << endl;
 		cout << "Depth min/max: " << depth_z_min << "/" << depth_z_max << endl;
-		cout << "Area exp/act: " << (int)exp_area << "/" << br.area() << endl;
-		cout << "br.area(): " << br.area() << endl;
-		cout << "br.br().y: " << br.br().y << endl;
+		cout << "Area exp/act: " << (int)exp_area << "/" << goal_actual.area() << endl;
+		cout << "br.area(): " << goal_actual.area() << endl;
+		cout << "br.br().y: " << goal_actual.br().br().y << endl;
+		cout << endl << "Angle facing from goal: " << x_angle << "," << y_angle << endl;
+		cout << "Slope from goal: " << slope_of_shape.first << "," << slope_of_shape.second << endl;
+		cout << "Width changed from " << goal_actual.width() << " to " << goal_corrected.width() << endl;
+#if 0
 		cout << "Middle col (top/bot): "<< (int)topMaxCol << "/" << (int)botMaxCol << endl;
 		cout << "Middle row (left/center/right): " << (int)leftMaxRow << "/" <<(int)centerMaxRow << "/" << (int)rightMaxRow << endl;
+#endif
 		cout << "-------------------------------------------" << endl;
 #endif
 
@@ -370,7 +355,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			goal_info.confidence = confidence;
 			goal_info.distance   = hypotf(goal_info.pos.x, goal_info.pos.y);
 			goal_info.angle 	 = atan2f(goal_info.pos.x, goal_info.pos.y) * 180. / M_PI;
-			goal_info.rect   	 = br;
+			goal_info.rect   	 = goal_actual.br();
 
 			best_goals.push_back(goal_info);
 	#if 0
@@ -451,8 +436,8 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 	}
 	else
 		_pastRects.push_back(SmartRect(Rect()));
+	cout << "Time to loop: " << (float)(loopTimer - cv::getTickCount()) / cv::getTickFrequency() << endl;
 
-	imshow("Display Copy", display_copy);
 	isValid();
 }
 
@@ -510,7 +495,7 @@ float GoalDetector::distanceUsingFOV(const Rect &rect) const
 {
 	float percent_image = (float)rect.height / _frame_size.height;
 	float size_fov = percent_image * _fov_size.y; //TODO fov size
-	return _goal_shape.height() / (2.0 * tanf(size_fov / 2.0));
+	return (_goal_shape.height() / 1000.0) / (2.0 * tanf(size_fov / 2.0));
 }
 
 float GoalDetector::dist_to_goal(void) const
@@ -573,17 +558,27 @@ void GoalDetector::drawOnFrame(Mat &image) const
 {
 	for (size_t i = 0; i < _contours.size(); i++)
 	{
-		drawContours(image, _contours, i, Scalar(0,0,255), 3);
+		drawContours(image, _contours, i, Scalar(0,0,255), 2);
+		drawContours(image, _corrected_contours, i, Scalar(0,0,160), 2);
 		Rect br(boundingRect(_contours[i]));
-		rectangle(image, br, Scalar(255,0,0), 2);
+	
+		//draw rotated rects around the contours
+		Point2f contour_pts[4]; minAreaRect(_contours[i]).points(contour_pts);	
+		Point2f corrected_contour_pts[4]; minAreaRect(_corrected_contours[i]).points(corrected_contour_pts);
+		Scalar draw_color(255,0,0); //blue
+		if(!(_pastRects[_pastRects.size() - 1] == SmartRect(Rect())))
+			draw_color = Scalar(0,255,0); //if good change to green
+		for( int j = 0; j < 4; j++ ) {
+         		line( image, contour_pts[j], contour_pts[(j+1)%4], draw_color, 1, 8 );
+         		line( image, corrected_contour_pts[j], corrected_contour_pts[(j+1)%4], draw_color * 0.75, 1, 8 );	
+			}
+
 		stringstream confStr;
 		confStr << fixed << setprecision(2) << _confidence[i];
 		putText(image, confStr.str(), br.tl(), FONT_HERSHEY_PLAIN, 1, Scalar(255,0,0));
 		putText(image, to_string(i), br.br(), FONT_HERSHEY_PLAIN, 1, Scalar(0,255,0));
 	}
 
-	if(!(_pastRects[_pastRects.size() - 1] == SmartRect(Rect())))
-		rectangle(image, _pastRects[_pastRects.size() - 1].myRect, Scalar(0,255,0), 2);
 }
 
 // Look for the N most recent detected rectangles to be

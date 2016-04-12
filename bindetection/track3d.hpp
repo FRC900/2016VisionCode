@@ -22,34 +22,37 @@ class ObjectType {
 		ObjectType(int contour_type_id);
 
 		//this constructor takes a custom contour
-		ObjectType(const std::vector< cv::Point2f > &contour_in);
 		ObjectType(const std::vector< cv::Point > &contour_in);
 
 		//get the contour associated with the object type. Useful for shape comparison
-		std::vector< cv::Point2f > shape (void) const { return contour_; }
+		std::vector< cv::Point > shape (void) const { return contour_; }
 
 		//get physical characteristics
-		cv::Point2f com (void) const { return com_; }
+		cv::Point com (void) const { return com_; }
 		float width (void) const {return width_; }
 		float height (void) const {return height_; }
+		cv::Rect br (void) const { return br_; }
 		float area (void) const { return area_; }
 		float boundingArea (void) const { return width_ * height_; }
 
-		void drawScaled(cv::Mat &image, cv::Rect roi);
+		//draw contour inside the ROI onto the input image
+		//meant to be used for masks
+		std::vector<cv::Point> transformContour(cv::RotatedRect roi);
+		void drawScaled(cv::Mat &image, cv::RotatedRect roi);
 
 		//comparison operator overload just checks if the contours are equal
 		bool operator== (const ObjectType &t1) const;
 
 	private:
-		std::vector< cv::Point2f > contour_;
+		std::vector< cv::Point > contour_;
 
 		// properties are computed and stored internally so that they
 		// don't have to be recomputed every time the get functions are called
 		float width_;
 		float height_;
 		float area_;
-		cv::Point2f com_; //center of mass
-
+		cv::Point com_; //center of mass
+		cv::Rect br_;
 		//called by constructor to compute properties
 		void computeProperties(void);
 };
@@ -94,11 +97,6 @@ class TrackedObject
 		double getDetectedRatio(void) const;
 
 		bool tooManyMissedFrames(void) const;
-
-		//contour area is the area of the contour stored in ObjectType
-		//scaled into the bounding rect
-		//only different in cases where contour is not a rectangle
-		double contourArea(const cv::Point2f &fov_size, const cv::Size &frame_size) const; //P.S. underestimates slightly
 
 		// Update current object position based on a 3d position or
 		//input rect on screen and depth

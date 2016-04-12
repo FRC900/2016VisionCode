@@ -161,7 +161,7 @@ namespace utils {
 		for (size_t j = 0; j < depth.rows; j++) {
 
 			const float *ptr_depth = depth.ptr<float>(j);
-			const uchar *ptr_mask = depth.ptr<uchar>(j);
+			const uchar *ptr_mask = mask.ptr<uchar>(j);
 
 			for (size_t i = 0; i < depth.cols; i++) {
 				if(ptr_mask[i] == 255 && ptr_depth[i] > 0) {
@@ -172,8 +172,13 @@ namespace utils {
 				}
 			}
 		}
+			
+		if(slope_x_values.size() <= 5)
+			return std::make_pair<double,double>(0,0);
+		double slope_h =  slope_list(slope_x_values, slope_y_values);
+		double slope_v =  slope_list(slope_z_values, slope_y_values);
 
-		return std::make_pair<double,double>(slope_list(slope_x_values, slope_y_values), slope_list(slope_z_values, slope_y_values));
+		return std::make_pair(slope_h, slope_v);
 
 	}
 

@@ -18,100 +18,127 @@ ObjectType::ObjectType(int contour_type_id=1) {
 
 		case 1: //a ball!
 			{
-				float ball_diameter = 0.2476; // meters
-				contour_.push_back(Point2f(0,0));
-				contour_.push_back(Point2f(0,ball_diameter));
-				contour_.push_back(Point2f(ball_diameter,ball_diameter));
-				contour_.push_back(Point2f(ball_diameter,0));
+				int ball_diameter = 248; // mm
+				contour_.push_back(Point(0,0));
+				contour_.push_back(Point(0,ball_diameter));
+				contour_.push_back(Point(ball_diameter,ball_diameter));
+				contour_.push_back(Point(ball_diameter,0));
 			}
 			break;
 
-		case 2: //a bin (just because)
-			contour_.push_back(Point2f(0,0));
-			contour_.push_back(Point2f(0,0.5842));
-			contour_.push_back(Point2f(0.5842,0.5842));
-			contour_.push_back(Point2f(0.5842,0));
-			break;
-
+		case 2: { //a bin (just because)
+				contour_.push_back(Point(0,0));
+				contour_.push_back(Point(0,584));
+				contour_.push_back(Point(584,584));
+				contour_.push_back(Point(584,0));
+				break;
+			}
 		case 3: //the vision goal
 			{
+				vector<Point2f> contour_f;
 				float max_y = .3048;
-				contour_.push_back(Point2f(0, max_y - 0));
-				contour_.push_back(Point2f(0, max_y - 0.3048));
-				contour_.push_back(Point2f(0.0508, max_y - 0.3048));
-				contour_.push_back(Point2f(0.0508, max_y - 0.0508));
-				contour_.push_back(Point2f(0.508-0.0508, max_y - 0.0508));
-				contour_.push_back(Point2f(0.508-0.0508, max_y - 0.3048));
-				contour_.push_back(Point2f(0.508, max_y - 0.3048));
-				contour_.push_back(Point2f(0.508, max_y - 0));
+				contour_f.push_back(Point2f(0, max_y - 0));
+				contour_f.push_back(Point2f(0, max_y - 0.3048));
+				contour_f.push_back(Point2f(0.0508, max_y - 0.3048));
+				contour_f.push_back(Point2f(0.0508, max_y - 0.0508));
+				contour_f.push_back(Point2f(0.508-0.0508, max_y - 0.0508));
+				contour_f.push_back(Point2f(0.508-0.0508, max_y - 0.3048));
+				contour_f.push_back(Point2f(0.508, max_y - 0.3048));
+				contour_f.push_back(Point2f(0.508, max_y - 0));
+
+				//m to mm
+				for(size_t i = 0; i < contour_f.size(); i++)
+					contour_.push_back(Point(contour_f[i].x * 1000, contour_f[i].y * 1000));
+				break;
 			}
-			break;
 
 		default:
-			cerr << "error initializing object!" << endl;
+				cerr << "error initializing object!" << endl;
 	}
-
 	computeProperties();
 
-}
-
-ObjectType::ObjectType(const vector< Point2f > &contour_in) :
-	contour_(contour_in)
-{
-	computeProperties();
 }
 
 ObjectType::ObjectType(const vector< Point > &contour_in)
 {
-	for(size_t i = 0; i < contour_in.size(); i++)
-	{
-		Point2f p;
-		p.x = (float)contour_in[i].x;
-		p.y = (float)contour_in[i].y;
-		contour_.push_back(p);
-	}
+	contour_ = contour_in;
 	computeProperties();
-
 }
 
-void ObjectType::drawScaled(Mat& image, Rect roi) {
-	vector<vector<Point>> draw_contour_array;
-	vector<Point> draw_contour;
+
+//takes a rect as an input and then transforms the contour_
+//to fit perfectly inside the rect
+vector<Point> ObjectType::transformContour(RotatedRect roi) {
+	Point2f src_points[4];
+	Point2f dst_points[4];
+
+	RotatedRect contour_rect = minAreaRect(contour_);
+	contour_rect.points(src_points);
+
+	roi.points(dst_points);
+
+	Mat transform = getPerspectiveTransform(src_points,dst_points);
 	
-	float scale_x = roi.width / width_;
-	float scale_y = roi.height / height_;
+
+	vector<Point2f> in_contour_f;
+	vector<Point2f> out_contour_f;
 	
+	vector<Point> out_contour;
+	vector<vector<Point>> out_contour_arr;
+	
+	//convert to float
 	for(size_t i = 0; i < contour_.size(); i++)
-		draw_contour.push_back(Point(scale_x * contour_[i].x + roi.tl().x, scale_y * contour_[i].y + roi.tl().y));
+		in_contour_f.push_back(contour_[i]);
 
-	draw_contour_array.push_back(draw_contour);
-	drawContours(image,draw_contour_array,0,Scalar(255), CV_FILLED);
+	cv::perspectiveTransform(in_contour_f,out_contour_f, transform);	
+
+	//convert back to int
+	for(size_t i = 0; i < contour_.size(); i++)
+		out_contour.push_back(out_contour_f[i]);
+	return out_contour;
 }
+
+void ObjectType::drawScaled(Mat &image, RotatedRect roi) {
+	vector<Point> draw_contour = transformContour(roi);
+	vector<vector<Point>> draw_contour_arr;
+	draw_contour_arr.push_back(draw_contour);
+	drawContours(image,draw_contour_arr,0,Scalar(255), CV_FILLED);
+}
+
 
 void ObjectType::computeProperties()
 {
-	float min_x = numeric_limits<float>::max();
-	float min_y = numeric_limits<float>::max();
-	float max_x = numeric_limits<float>::min();
-	float max_y = numeric_limits<float>::min();
+	int min_x = numeric_limits<int>::max();
+	int min_y = numeric_limits<int>::max();
+	int max_x = numeric_limits<int>::min();
+	int max_y = numeric_limits<int>::min();
 	for (auto it = contour_.cbegin(); it != contour_.cend(); ++it)
 	{
-		min_x = min(min_x, it->x);
-		min_y = min(min_y, it->y);
-		max_x = max(max_x, it->x);
-		max_y = max(max_y, it->y);
+		min_x = std::min(min_x, it->x);
+		min_y = std::min(min_y, it->y);
+		max_x = std::max(max_x, it->x);
+		max_y = std::max(max_y, it->y);
 	}
 	width_ = max_x - min_x;
 	height_ = max_y - min_y;
-	area_ = contourArea(contour_);
+
+	br_ = Rect(Point(min_x, min_y), Point(max_x, max_y));
+	
+	//to compute area the contour needs to be in floats
+	vector<Point2f> contour_f;
+	for(size_t i = 0; i < contour_.size(); i++)
+		contour_f.push_back(contour_[i]);
+	area_ = contourArea(contour_f);
 
 	//compute moments and use them to find center of mass
-	Moments mu = moments(contour_, false);
-	com_ = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
+	Moments mu = moments(contour_f, false);
+	com_ = Point(mu.m10 / mu.m00, mu.m01 / mu.m00);
+
+	com_ -= br_.tl();
 }
 
 bool ObjectType::operator== (const ObjectType &t1) const {
-	return this->shape() == t1.shape();
+	return contour_ == t1.shape();
 }
 
 static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
@@ -128,7 +155,7 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
 
-	Point2f angular_size( 2.0 * atan2f(_type.width(), (2.0*r)), 2.0 * atan2f(_type.height(), (2.0*r)));
+	Point2f angular_size( 2.0 * atan2f(_type.width() / 1000., (2.0*r)), 2.0 * atan2f(_type.height() / 1000.0, (2.0*r)));
 	Point2f screen_size(
 			angular_size.x * (frame_size.width / fov_size.x),
 			angular_size.y * (frame_size.height / fov_size.y));
@@ -297,23 +324,6 @@ Rect TrackedObject::getScreenPosition(const Point2f &fov_size, const Size &frame
 }
 
 
-//fit the contour of the object into the rect of it and return the area of that
-//kinda gimmicky but pretty cool and might have uses in the future
-double TrackedObject::contourArea(const Point2f &fov_size, const Size &frame_size) const
-{
-	Rect screen_position = getScreenPosition(fov_size, frame_size);
-	float scale_factor_x = (float)screen_position.width / _type.width();
-	float scale_factor_y = (float)screen_position.height / _type.height();
-	float scale_factor   = min(scale_factor_x, scale_factor_y);
-
-	vector<Point2f> scaled_contour;
-	for(size_t i = 0; i < _type.shape().size(); i++)
-	{
-		scaled_contour.push_back(_type.shape()[i] * scale_factor);
-	}
-
-	return cv::contourArea(scaled_contour);
-}
 
 Point3f TrackedObject::predictKF(void)
 {

@@ -48,6 +48,7 @@ class GoalDetector
 
 		// Save all contours found in case we want to display
 		std::vector<std::vector<cv::Point> > _contours;
+		std::vector<std::vector<cv::Point> > _corrected_contours;
 		std::vector<float> _confidence;
 
 		float _min_valid_confidence;
