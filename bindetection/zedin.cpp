@@ -91,7 +91,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui) :
 		}
 	}
 	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::HD720, 15);
+		zed_ = new sl::zed::Camera(sl::zed::HD720, 30);
 
 	if (zed_)
 	{
@@ -260,7 +260,11 @@ bool ZedIn::update(bool left)
 	if (zed_)
 	{
 		if (zed_->grab(sl::zed::SENSING_MODE::RAW)) 
-			return false;
+{
+cerr << "********---------GRAB RETURNED FALSE " << endl;
+usleep(30000);
+			return true;
+}
 
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
 		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);

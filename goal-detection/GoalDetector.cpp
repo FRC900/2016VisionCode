@@ -14,7 +14,7 @@ GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) 
 	_pastRects(2),
 	_min_valid_confidence(0.25),
 	_otsu_threshold(5),
-	_blue_scale(67),
+	_blue_scale(87),
 	_red_scale(60),
 	_camera_angle(90)
 {
@@ -154,7 +154,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		// Since the goal is a U shape, there should be bright pixels
 		// at the bottom center of the contour and dimmer ones in the
 		// middle going towards the top. Check for that here
-		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width * .35f), br.tl().y, cvRound(br.width * .3f), cvRound(br.height / 3.f))));
+		Mat topMidCol(threshold_image(Rect(cvRound(br.tl().x + br.width * .35f), br.tl().y, cvRound(br.width * .3f), cvRound(br.height * .4f))));
 		Mat botMidCol(threshold_image(Rect(br.tl().x, cvRound(br.tl().y + br.height * .85f), br.width, cvRound(br.height * .15f))));
 		double topMaxCol;
 		minMaxLoc(topMidCol, NULL, &topMaxCol);
@@ -339,9 +339,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			{
 				cout << "Deciding based on position " << endl;
 				if(best_goals[0].rect.br().x < best_goals[1].rect.br().x)
-					best_index = 0;
-				else
 					best_index = 1;
+				else
+					best_index = 0;
 			}
 		}
 
