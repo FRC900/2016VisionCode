@@ -75,7 +75,7 @@ add_executable(zv
 	FlowLocalizer.cpp
 	kalman.cpp
 	hungarian.cpp
-	test.cpp)
+	zv.cpp)
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
