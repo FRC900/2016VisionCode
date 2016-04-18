@@ -27,7 +27,7 @@ find_package(ZMQ REQUIRED)
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 include_directories(${OpenCV_INCLUDE_DIRS}
-	../caffe_classifier ../C920VideoCap
+	../caffe_classifier
 	${ZED_INCLUDE_DIRS}
 	${CUDA_INCLUDE_DIRS}
 	${CAFFE_BASE_DIR}/build/install/include
@@ -36,7 +36,7 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
 #   	${EIGEN3_INCLUDE_DIR}
-	../bindetection
+	../zebravision
 	../goal-detection
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
@@ -56,7 +56,7 @@ add_executable(zv
 	mediain.cpp
 	videoin.cpp
 	camerain.cpp
-	../C920VideoCap/C920Camera.cpp
+	C920Camera.cpp
 	c920camerain.cpp
 	imagein.cpp
 	mediaout.cpp
