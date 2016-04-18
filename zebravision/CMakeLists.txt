@@ -36,8 +36,7 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
 #   	${EIGEN3_INCLUDE_DIR}
-	../zebravision
-	../goal-detection
+	.
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
 
@@ -47,11 +46,11 @@ link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
 add_executable(zv
 	objdetect.cpp
-	../goal-detection/GoalDetector.cpp
-	../caffe_classifier/detect.cpp
-	../caffe_classifier/CaffeBatchPrediction.cpp
-	../caffe_classifier/fast_nms.cpp
-	../caffe_classifier/scalefactor.cpp
+	GoalDetector.cpp
+	detect.cpp
+	CaffeBatchPrediction.cpp
+	fast_nms.cpp
+	scalefactor.cpp
 	detectstate.cpp
 	mediain.cpp
 	videoin.cpp

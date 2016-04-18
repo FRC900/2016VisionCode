@@ -4,6 +4,6 @@ project( foo)
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Ofast")
-
-add_executable( C920VideoCap C920VideoCap.cpp C920Camera.cpp)
+include_directories( ../zebravision) 
+add_executable( C920VideoCap C920VideoCap.cpp ../zebravision/C920Camera.cpp)
 target_link_libraries( C920VideoCap ${OpenCV_LIBS} )

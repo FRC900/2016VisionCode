@@ -21,9 +21,9 @@ if (${ZED_FOUND})
 endif()
 find_package( Boost COMPONENTS system filesystem iostreams serialization REQUIRED )
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe-bvlc")
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
-include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CAFFE_BASE_DIR}/build/include ${CAFFE_BASE_DIR}/include ${Boost_INCLUDE_DIR} ../bindetection)
+include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CAFFE_BASE_DIR}/build/include ${CAFFE_BASE_DIR}/include ${Boost_INCLUDE_DIR} ../zebravision)
 
 link_directories( ${ZED_LIBRARY_DIR} )
 
@@ -31,7 +31,7 @@ find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 
-cuda_add_executable( CaffeBatchPrediction CaffeBatchPrediction.cpp fast_nms.cpp scalefactor.cpp main.cpp detect.cpp )
-cuda_add_executable( DetectCheck CaffeBatchPrediction.cpp detectcheck.cpp fast_nms.cpp scalefactor.cpp detect.cpp ../bindetection/mediain.cpp ../bindetection/zedin.cpp)
+cuda_add_executable( CaffeBatchPrediction ../zebravision/CaffeBatchPrediction.cpp ../zebravision/fast_nms.cpp ../zebravision/scalefactor.cpp main.cpp ../zebravision/detect.cpp )
+cuda_add_executable( DetectCheck ../zebravision/CaffeBatchPrediction.cpp detectcheck.cpp ../zebravision/fast_nms.cpp ../zebravision/scalefactor.cpp ../zebravision/detect.cpp ../zebravision/mediain.cpp ../zebravision/zedin.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
 target_link_libraries( CaffeBatchPrediction ${OpenCV_LIBS} ${LibCaffe} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} )
 target_link_libraries( DetectCheck ${ZED_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${Boost_LIBRARIES} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} )
