@@ -313,7 +313,8 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         }
     }
 }
-/*void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
+template<class MatT>
+void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
 					const vector<MatT>& imgs,
 					float threshold,
 					const string& label,
@@ -340,9 +341,9 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         {
             if (it->second >= threshold)
             {
-		dsc+=ds[(stof(label) - stof(label)%9)/9];
-		dxc+=dx*(((stof(label) - stof(label)%15)/15) - 1);
-		dyc+=dy*(stof(label)%15 - 1);
+		dsc+=ds[(stoi(label) - stoi(label)%9)/9];
+		dxc+=dx*(((stoi(label) - stoi(label)%15)/15) - 1);
+		dyc+=dy*(stoi(label)%15 - 1);
 		counter++;
             }
         }
@@ -353,8 +354,9 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
 	shifts.push_back(dsc);
 	shifts.push_back(dxc);
 	shifts.push_back(dyc);
+	shift.push_back(shifts);
     }
-}*/
+}
 				
 // Be conservative here - if any of the depth values in the target rect
 // are in the expected range, consider the rect in range.  Also 
