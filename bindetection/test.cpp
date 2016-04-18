@@ -806,7 +806,7 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 			if (!cap->isOpened())
 			{
 				delete cap;
-				cap = new CameraIn(camera, gui);
+				cap = new CameraIn(camera);
 				ss << "Default Camera ";
 			}
 			else

@@ -7,8 +7,8 @@
 class CameraIn : public MediaIn
 {
 	public:
-		CameraIn(int stream = -1, bool gui = false);
-		~CameraIn() {}
+		CameraIn(int stream = -1);
+		~CameraIn();
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
@@ -21,9 +21,9 @@ class CameraIn : public MediaIn
 		int              frameNumber_;
 		int              width_;
 		int              height_;
+		double           fps_;
 
 		cv::Mat          localFrame_;
 		cv::VideoCapture cap_;
-		cv::VideoWriter  writer_;
 };
 #endif

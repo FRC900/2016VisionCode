@@ -1,21 +1,34 @@
 #include <iostream>
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 #include "camerain.hpp"
 
 using namespace cv;
 
-CameraIn::CameraIn(int stream, bool gui) :
+template <class T>
+void readFromXML(const FileNode& node, T& x, const T& default_value = T())
+{
+	if(node.empty())
+		x = default_value;
+	else
+		node >> x;
+}
+CameraIn::CameraIn(int stream) :
 	frameNumber_(0),
 	width_(1280),
     height_(720),
+	fps_(30.),
 	cap_(stream)
 {
-	(void)gui;
 	if (cap_.isOpened())
 	{
-		cap_.set(CV_CAP_PROP_FPS, 30.0);
+		FileStorage fs("camerain.xml", FileStorage::READ);
+		FileNode    fn = fs["camerain"];
+		readFromXML(fn["FPS"], fps_, fps_);
+		readFromXML(fn["width"], width_, width_);
+		readFromXML(fn["height"], height_, height_);
+
+		cap_.set(CV_CAP_PROP_FPS, fps_);
 		cap_.set(CV_CAP_PROP_FRAME_WIDTH, width_);
 		cap_.set(CV_CAP_PROP_FRAME_HEIGHT, height_);
 		// getNextFrame resizes large inputs,
@@ -30,12 +43,24 @@ CameraIn::CameraIn(int stream, bool gui) :
 		std::cerr << "Could not open camera" << std::endl;
 }
 
+CameraIn::~CameraIn()
+{
+	FileStorage fs("camerain.xml", FileStorage::WRITE);
+	// Can't get FPS from a camera even though it
+	// can be set...
+	fs << "camerain" << "{" ;
+	fs << "fps" << fps_;
+	fs << "width" << cap_.get(CV_CAP_PROP_FRAME_WIDTH);
+	fs << "height" << cap_.get(CV_CAP_PROP_FRAME_HEIGHT);
+	fs << "}";
+}
+
 bool CameraIn::isOpened() const
 {
 	return cap_.isOpened();
 }
 
-bool CameraIn::update(void) 
+bool CameraIn::update(void)
 {
 	if (!cap_.isOpened())
 		return false;
