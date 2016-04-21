@@ -313,7 +313,49 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         }
     }
 }
-
+/*void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
+					const vector<MatT>& imgs,
+					float threshold,
+					const string& label,
+                                        vector<size_t>&     detected,
+                                        vector<vector<float> >&      shift)
+{
+    detected.clear();
+    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
+    float ds[] = {.81, .93, 1, 1.10, 1.21};
+    float dx = .17;
+    float dy = .17;
+    // Each outer loop is the predictions for one input image
+    for (size_t i = 0; i < imgs.size(); ++i)
+    {
+        // Each inner loop is the prediction for a particular label
+        // for the given image, sorted by score.
+        //
+        // Look for object with label <label>, > threshold confidence
+	float dsc = 0;
+	float dxc = 0;
+	float dyc = 0;
+	int counter = 0;
+        for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
+        {
+            if (it->second >= threshold)
+            {
+		dsc+=ds[(stof(label) - stof(label)%9)/9];
+		dxc+=dx*(((stof(label) - stof(label)%15)/15) - 1);
+		dyc+=dy*(stof(label)%15 - 1);
+		counter++;
+            }
+        }
+	dsc/=counter;
+	dxc/=counter;
+	dyc/=counter;
+	vector<float> shifts;
+	shifts.push_back(dsc);
+	shifts.push_back(dxc);
+	shifts.push_back(dyc);
+    }
+}*/
+				
 // Be conservative here - if any of the depth values in the target rect
 // are in the expected range, consider the rect in range.  Also 
 // say that it is in range if any of the depth values are negative (i.e. no

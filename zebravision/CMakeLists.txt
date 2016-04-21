@@ -27,7 +27,7 @@ find_package(ZMQ REQUIRED)
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 include_directories(${OpenCV_INCLUDE_DIRS}
-	../caffe_classifier ../C920VideoCap
+	../caffe_classifier
 	${ZED_INCLUDE_DIRS}
 	${CUDA_INCLUDE_DIRS}
 	${CAFFE_BASE_DIR}/build/install/include
@@ -36,8 +36,7 @@ include_directories(${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
 #   	${EIGEN3_INCLUDE_DIR}
-	../bindetection
-	../goal-detection
+	.
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
 
@@ -47,16 +46,16 @@ link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
 add_executable(zv
 	objdetect.cpp
-	../goal-detection/GoalDetector.cpp
-	../caffe_classifier/detect.cpp
-	../caffe_classifier/CaffeBatchPrediction.cpp
-	../caffe_classifier/fast_nms.cpp
-	../caffe_classifier/scalefactor.cpp
+	GoalDetector.cpp
+	detect.cpp
+	CaffeBatchPrediction.cpp
+	fast_nms.cpp
+	scalefactor.cpp
 	detectstate.cpp
 	mediain.cpp
 	videoin.cpp
 	camerain.cpp
-	../C920VideoCap/C920Camera.cpp
+	C920Camera.cpp
 	c920camerain.cpp
 	imagein.cpp
 	mediaout.cpp
@@ -76,7 +75,7 @@ add_executable(zv
 	FlowLocalizer.cpp
 	kalman.cpp
 	hungarian.cpp
-	test.cpp)
+	zv.cpp)
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)

@@ -8,7 +8,7 @@
 #include "mediain.hpp"
 
 #ifdef __linux__
-#include "../C920VideoCap/C920Camera.h"
+#include "C920Camera.h"
 #endif
 
 // Code specific for C920 camera. We have lots of

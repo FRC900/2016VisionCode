@@ -13,7 +13,7 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-	ZedIn cap(argc == 2 ? argv[1] : NULL, NULL, true);
+	ZedIn cap(argc == 2 ? argv[1] : NULL, NULL);
 
 	GoalDetector gd(Point2f(cap.getCameraParams(left).fov.x, 
 				            cap.getCameraParams(left).fov.y), 
