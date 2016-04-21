@@ -68,7 +68,6 @@ ObjectType::ObjectType(const vector< Point > &contour_in)
 		contour_.push_back(p);
 	}
 	computeProperties();
-
 }
 
 void ObjectType::computeProperties()
@@ -93,7 +92,8 @@ void ObjectType::computeProperties()
 	com_ = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
 
-bool ObjectType::operator== (const ObjectType &t1) const {
+bool ObjectType::operator== (const ObjectType &t1) const 
+{
 	return this->shape() == t1.shape();
 }
 
@@ -125,6 +125,8 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 			dist_to_center.x / frame_size.width,
 			dist_to_center.y / frame_size.height);
 
+// TODO : replace with formula from http://www.chiefdelphi.com/forums/showpost.php?p=1571187&postcount=4
+// need focal length from camera information
 	float azimuth = percent_fov.x * fov_size.x;
 	float inclination = percent_fov.y * fov_size.y - cameraElevation;
 
@@ -143,6 +145,11 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 
 static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
 {
+	// TODO : replace magic numbers with an object depth property
+	// This constant is half a ball diameter (9.75-ish inches), converted to meters
+	// For example, goals will have 0 depth since we're just shooting at
+	// a plane. 3d objects will have depth, though, so we track the center of the
+	// rather than the front.
 	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
 	float azimuth = asinf(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asinf( _position.z / r ) + cameraElevation;
@@ -155,7 +162,7 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
 
-	Point2f angular_size( 2.0 * atan2f(_type.width(), (2.0*r)), 2.0 * atan2f(_type.height(), (2.0*r)));
+	Point2f angular_size( 2.0 * atan2f(_type.width(), 2.0*r), 2.0 * atan2f(_type.height(), 2.0*r));
 	Point2f screen_size(
 			angular_size.x * (frame_size.width / fov_size.x),
 			angular_size.y * (frame_size.height / fov_size.y));
@@ -169,13 +176,13 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 TrackedObject::TrackedObject(int id,
 							 const ObjectType &type_in,
 							 const Rect   &screen_position,
-							 double            avg_depth,
+							 double        avg_depth,
 							 Point2f       fov_size,
 							 Size          frame_size,
-							 float             camera_elevation,
-							 float             dt,
-							 float             accel_noise_mag,
-							 size_t            historyLength) :
+							 float         camera_elevation,
+							 float         dt,
+							 float         accel_noise_mag,
+							 size_t        historyLength) :
 		_type(type_in),
 		_detectHistory(historyLength),
 		_positionHistory(historyLength),
