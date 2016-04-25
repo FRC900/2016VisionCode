@@ -80,6 +80,7 @@ add_executable(zv
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
+find_library (LibTinyXML2 tinyxml2)
 
 target_link_libraries( zv
 	${OpenCV_LIBS}
@@ -93,11 +94,12 @@ target_link_libraries( zv
 	${Boost_LIBRARIES}
 	${LibGLOG}
 	${LibProtobuf}
-	${ZMQ_LIBRARIES})
+	${ZMQ_LIBRARIES}
+	${LibTinyXML2})
 
 add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp)
-target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES})
+target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp)
-target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES})
+target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )

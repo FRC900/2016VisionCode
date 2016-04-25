@@ -3,6 +3,9 @@
 
 #include <opencv2/core/core.hpp>
 #include <boost/thread.hpp>
+#include <tinyxml2.h>
+
+using namespace tinyxml2;
 
 class CameraParams
 {
