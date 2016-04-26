@@ -1,6 +1,3 @@
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/objdetect/objdetect.hpp"
 #include <opencv2/opencv.hpp>
 
 #include <iostream>
@@ -18,7 +15,6 @@ using namespace cv;
 RNG rng(12345);
 int main(int argc, char *argv[])
 {
-    VideoCapture image(argv[1]);
     string filename = argv[1];
     auto pos = filename.rfind('/');
     if (pos != std::string::npos)
@@ -31,10 +27,9 @@ int main(int argc, char *argv[])
     float dy = .17;
     float ds[5] = {.83, .91, 1.0, 1.10, 1.21};
     string dir_name = "";
-    Mat original;
+    Mat original = imread(argv[1], CV_LOAD_IMAGE_COLOR);
     Mat copy;
     Mat final;
-    image >> original;
     int expand = original.rows * dx / 2;
     for (int is = 0; is < 5; is++)
     {
@@ -84,6 +79,15 @@ int main(int argc, char *argv[])
                 {
                     copy1.copyTo(final);
                 }
+				if (mkdir((output_dir+"/"+dir_name).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
+				{
+					if (errno != EEXIST)
+					{
+						cerr << "Could not create " << (output_dir+"/"+dir_name).c_str() << ":";
+						perror("");
+					}
+				}
+				
                 string write_file = output_dir + "/" + dir_name + "/" + filename;
                 for(int i = 0; i < final.rows; i++)
                 {
@@ -96,10 +100,11 @@ int main(int argc, char *argv[])
                     }
                 }
                 //imshow("Final", final);
+				resize (final, final, Size(24,24));
                 bool truth = imwrite(write_file, final);
                 if(truth == false)
                 {
-                    cout << "Error! Could not write file." << endl;
+                    cout << "Error! Could not write file "<<  write_file << endl;
                 }
                 //waitKey(1000);
             }
