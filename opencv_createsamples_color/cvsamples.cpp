@@ -187,8 +187,6 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
 
 		data->mask = new cv::Mat(data->src->height, data->src->width, CV_8UC1);
 
-		printf ("data->mask width = %d, height = %d, rows = %d, cols = %d\n",
-				data->src->width, data->src->height, data->mask->rows, data->mask->cols);
         /* make mask image */
         for( r = 0; r < data->mask->rows; r++ )
         {
