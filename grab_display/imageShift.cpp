@@ -13,6 +13,10 @@
 using namespace std;
 using namespace cv;
 RNG rng(12345);
+Rect shiftRect(const Rect rectIn, float ds, float dx, float dy)
+{
+    return Rect(rectIn.tl().x - (dx*rectIn.width/ds), rectIn.tl().y-(dy*rectIn.height/ds), rectIn.width/ds, rectIn.height/ds);
+}
 int main(int argc, char *argv[])
 {
     string filename = argv[1];
@@ -33,11 +37,16 @@ int main(int argc, char *argv[])
     int expand = original.rows * dx / 2;
     for (int is = 0; is < 5; is++)
     {
-        for (int ix = 0; ix < 3; ix++)
+        for (int ix = -1; ix < 2; ix++)
         {
-            for (int iy = 0; iy < 3; iy++)
+            for (int iy = -1; iy < 2; iy++)
             {
                 original.copyTo(copy);
+                copyMakeBorder(copy, copy, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0,0,255));
+                Rect ROI = Rect(expand, expand, original.cols, original.rows);
+                ROI = shiftRect(ROI, ds[is], ix*dx, iy*dy);
+                copy(ROI).copyTo(final);
+                /*original.copyTo(copy);
                 original.copyTo(final);
                 dir_name = to_string(is*9 + ix*3 + iy);
                 Rect ROI = Rect(0,0,copy.cols,copy.rows);
@@ -79,6 +88,7 @@ int main(int argc, char *argv[])
                 {
                     copy1.copyTo(final);
                 }
+                */
 				if (mkdir((output_dir+"/"+dir_name).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
 				{
 					if (errno != EEXIST)
@@ -87,7 +97,7 @@ int main(int argc, char *argv[])
 						perror("");
 					}
 				}
-				
+
                 string write_file = output_dir + "/" + dir_name + "/" + filename;
                 for(int i = 0; i < final.rows; i++)
                 {
