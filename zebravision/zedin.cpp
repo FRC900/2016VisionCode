@@ -8,6 +8,7 @@ using namespace std;
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "cvMatSerialize.hpp"
+#include "ZvSettings.hpp"
 
 using namespace cv;
 using namespace boost::filesystem;
@@ -19,7 +20,8 @@ void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
 void zedWhiteBalanceCallback(int value, void *data);
 
-ZedIn::ZedIn(const char *inFileName, bool gui) :
+ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
+  MediaIn(settings),
 	zed_(NULL),
 	width_(0),
 	height_(0),
@@ -178,7 +180,7 @@ bool ZedIn::openSerializeInput(const char *inFileName, bool portable)
 	filtSBIn_->push(*serializeIn_);
 	if (portable)
 	{
-		try 
+		try
 		{
 			portableArchiveIn_ = new portable_binary_iarchive(*filtSBIn_);
 		}
@@ -195,7 +197,7 @@ bool ZedIn::openSerializeInput(const char *inFileName, bool portable)
 	}
 	else
 	{
-		try 
+		try
 		{
 			archiveIn_ = new boost::archive::binary_iarchive(*filtSBIn_);
 		}
@@ -253,13 +255,13 @@ bool ZedIn::isOpened(void) const
 }
 
 
-bool ZedIn::update(bool left) 
+bool ZedIn::update(bool left)
 {
 	// Read from either the zed camera or from
 	// a previously-serialized ZMS file
 	if (zed_)
 	{
-		if (zed_->grab(sl::zed::SENSING_MODE::RAW)) 
+		if (zed_->grab(sl::zed::SENSING_MODE::RAW))
 {
 cerr << "********---------GRAB RETURNED FALSE " << endl;
 usleep(30000);
@@ -317,7 +319,7 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		}
 		frameNumber_ += 1;
 	}
-	
+
 	// If video is paused, this will just re-use the
 	// previous frame.  If camera input, this
 	// will return the last frame read in update -

@@ -28,7 +28,7 @@ class Args //class for processing arguments
 		int  d24StageNum;       // stage to use
 		std::string inputName; // input file name or camera number
 		bool groundTruth;      // only test frames with ground truth data
-		std::string xmlFile;   // XML settings file
+		std::string xmlFilename;   // XML settings file
 
 		Args(void);
 		bool processArgs(int argc, const char **argv);

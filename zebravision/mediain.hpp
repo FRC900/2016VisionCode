@@ -5,7 +5,11 @@
 #include <boost/thread.hpp>
 #include <tinyxml2.h>
 
+#include "ZvSettings.hpp"
+
 using namespace tinyxml2;
+
+class ZvSettings;
 
 class CameraParams
 {
@@ -29,8 +33,11 @@ class CameraParams
 class MediaIn
 {
 	public:
-		MediaIn(void);
+		MediaIn(ZvSettings *settings);
 		virtual ~MediaIn() {}
+		virtual bool loadSettings();
+		virtual bool saveSettings();
+		virtual std::string getClassName() const { return "MediaIn"; }
 		virtual bool isOpened(void) const;
 		virtual bool update(void) = 0;
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
@@ -52,5 +59,6 @@ class MediaIn
 	protected:
 		cv::Mat _frame;
 		boost::mutex _mtx;
+		ZvSettings *_settings;
 };
 #endif

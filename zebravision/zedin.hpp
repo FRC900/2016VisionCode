@@ -15,11 +15,16 @@
 #include <zed/utils/GlobalDefine.hpp>
 #endif
 
+class ZvSettings;
+
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn(const char *inFileName = NULL, bool gui = false);
+		ZedIn(const char *inFileName = NULL, bool gui = false, ZvSettings *settings = NULL);
 		~ZedIn();
+		bool loadSettings() { return true; }
+		bool saveSettings() { return true; }
+		std::string getClassName() const { return "ZedIn"; }
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);

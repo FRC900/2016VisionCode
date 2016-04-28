@@ -4,11 +4,16 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "mediain.hpp"
 
+class ZvSettings;
+
 class VideoIn : public MediaIn
 {
 	public:
-		VideoIn(const char *inpath);
+		VideoIn(const char *inpath, ZvSettings *settings = NULL);
 		~VideoIn() {}
+		bool loadSettings() { return true; }
+		bool saveSettings() { return true; }
+		std::string getClassName() const { return "VideoIn"; }
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);

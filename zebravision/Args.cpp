@@ -61,7 +61,7 @@ Args::Args(void)
 	d24StageNum        = 0;
 	frameStart         = 0.0;
 	groundTruth        = false;
-	xmlFile            = "/home/ubuntu/2016VisionCode/zebravision/settings.xml";
+	xmlFilename        = "/home/ubuntu/2016VisionCode/zebravision/settings.xml";
 }
 
 bool Args::processArgs(int argc, const char **argv)
@@ -134,7 +134,7 @@ bool Args::processArgs(int argc, const char **argv)
 		else if (groundTruthOpt.compare(0, groundTruthOpt.length(), argv[fileArgc], groundTruthOpt.length()) == 0)
 			groundTruth = true;
 		else if (xmlFileOpt.compare(0, xmlFileOpt.length(), argv[fileArgc], xmlFileOpt.length()) == 0)
-			xmlFile = string(argv[fileArgc] + xmlFileOpt.length());
+			xmlFilename = string(argv[fileArgc] + xmlFileOpt.length());
 		else if (badOpt.compare(0, badOpt.length(), argv[fileArgc], badOpt.length()) == 0) // unknown option
 		{
 			cerr << "Unknown command line option " << argv[fileArgc] << endl;

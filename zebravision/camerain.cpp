@@ -4,29 +4,21 @@
 #include "camerain.hpp"
 
 using namespace cv;
+using namespace std;
 
-template <class T>
-void readFromXML(const FileNode& node, T& x, const T& default_value = T())
-{
-	if(node.empty())
-		x = default_value;
-	else
-		node >> x;
-}
-CameraIn::CameraIn(int stream) :
+CameraIn::CameraIn(int stream, ZvSettings *settings) :
+  MediaIn(settings),
 	frameNumber_(0),
 	width_(1280),
-    height_(720),
+  height_(720),
 	fps_(30.),
 	cap_(stream)
 {
 	if (cap_.isOpened())
 	{
-		FileStorage fs("camerain.xml", FileStorage::READ);
-		FileNode    fn = fs["camerain"];
-		readFromXML(fn["FPS"], fps_, fps_);
-		readFromXML(fn["width"], width_, width_);
-		readFromXML(fn["height"], height_, height_);
+    if (!loadSettings()) {
+      cerr << "Failed to load CameraIn settings" << endl;
+    }
 
 		cap_.set(CV_CAP_PROP_FPS, fps_);
 		cap_.set(CV_CAP_PROP_FRAME_WIDTH, width_);
@@ -45,14 +37,35 @@ CameraIn::CameraIn(int stream) :
 
 CameraIn::~CameraIn()
 {
-	FileStorage fs("camerain.xml", FileStorage::WRITE);
+	//FileStorage fs("camerain.xml", FileStorage::WRITE);
 	// Can't get FPS from a camera even though it
 	// can be set...
-	fs << "camerain" << "{" ;
-	fs << "fps" << fps_;
-	fs << "width" << cap_.get(CV_CAP_PROP_FRAME_WIDTH);
-	fs << "height" << cap_.get(CV_CAP_PROP_FRAME_HEIGHT);
-	fs << "}";
+	//fs << "camerain" << "{" ;
+	//fs << "fps" << fps_;
+	//fs << "width" << cap_.get(CV_CAP_PROP_FRAME_WIDTH);
+	//fs << "height" << cap_.get(CV_CAP_PROP_FRAME_HEIGHT);
+	//fs << "}";
+}
+
+bool CameraIn::loadSettings()
+{
+  if (_settings) {
+    _settings->getDouble(getClassName(), "fps", fps_);
+    _settings->getInt(getClassName(), "width", width_);
+    _settings->getInt(getClassName(), "height", height_);
+cerr << "ESB: fps=" << fps_ << " width=" << width_ << " height=" << height_ << endl;
+    return true;
+  }
+	return false;
+}
+
+bool CameraIn::saveSettings()
+{
+	//XMLElement* root = doc.FirstChildElement();
+	//XMLElement* newElement = doc.NewElement( "Subelement" );
+  //root->InsertEndChild( newElement );
+
+	return true;
 }
 
 bool CameraIn::isOpened() const
