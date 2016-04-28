@@ -16,11 +16,25 @@ public:
   bool getDouble(const std::string &sectionName,
                  const std::string &name,
                  double &value);
+/*
+  bool setInt(const std::string &sectionName,
+              const std::string &name,
+              int &value);
+
+  bool setDouble(const std::string &sectionName,
+                 const std::string &name,
+                 double &value);
+*/
+  template <class T>
+  void set(const std::string &sectionName,
+           const std::string &name,
+           const T value);
 
 private:
   tinyxml2::XMLElement *getElement(const std::string &sectionName,
                                    const std::string &name);
   tinyxml2::XMLDocument xmlDoc_;
+  std::string filename_;
 };
 
 #endif
