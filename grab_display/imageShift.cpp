@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     Mat original = imread(argv[1], CV_LOAD_IMAGE_COLOR);
     Mat copy;
     Mat final;
-    int expand = original.rows * dx / 2;
+    int expand = original.rows / 2;
     for (int is = 0; is < 5; is++)
     {
         for (int ix = -1; ix < 2; ix++)
@@ -43,6 +43,8 @@ int main(int argc, char *argv[])
             {
                 original.copyTo(copy);
                 copyMakeBorder(copy, copy, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0,0,255));
+                imshow("copy", copy);
+                waitKey(1000);
                 Rect ROI = Rect(expand, expand, original.cols, original.rows);
                 ROI = shiftRect(ROI, ds[is], ix*dx, iy*dy);
                 copy(ROI).copyTo(final);
@@ -109,14 +111,14 @@ int main(int argc, char *argv[])
                         }
                     }
                 }
-                //imshow("Final", final);
+                imshow("Final", final);
 				resize (final, final, Size(24,24));
                 bool truth = imwrite(write_file, final);
                 if(truth == false)
                 {
                     cout << "Error! Could not write file "<<  write_file << endl;
                 }
-                //waitKey(1000);
+                waitKey(1000);
             }
         }
     }
