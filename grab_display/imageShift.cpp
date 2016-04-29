@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
                 original.copyTo(copy);
                 copyMakeBorder(copy, copy, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0,0,255));
                 Rect ROI = Rect(expand, expand, original.cols, original.rows);
-                ROI = shiftRect(ROI, ds[is], ix*dx, iy*dy);
+                ROI = shiftRect(ROI, ds[is], (ix-1)*dx, (iy-1)*dy);
                 copy(ROI).copyTo(final);
                 /*original.copyTo(copy);
                 original.copyTo(final);
