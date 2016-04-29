@@ -108,6 +108,15 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 		}
 		else
 		{
+			// Make sure there's at least one good frame read
+			// before kicking off the main capture thread
+			if (!inFileName && !update())
+			{
+				cerr << "********** TOO MANY BAD FRAMES, ABORTING" << endl;
+				delete zed_;
+				zed_ = NULL;
+				return;
+			}
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
@@ -261,12 +270,21 @@ bool ZedIn::update(bool left)
 	// a previously-serialized ZMS file
 	if (zed_)
 	{
-		if (zed_->grab(sl::zed::SENSING_MODE::RAW))
-{
-cerr << "********---------GRAB RETURNED FALSE " << endl;
-usleep(30000);
-			return true;
-}
+		int badReadCounter = 0;
+		while (zed_->grab(sl::zed::SENSING_MODE::RAW))
+		{
+			cerr << "********---------GRAB RETURNED FALSE " << endl;
+			usleep(33333);
+			// If there is an existing frame and the
+			// grab fails, just return. This will
+			// cause the code to use the last good frame
+			if (!_frame.empty())
+				return true;
+			// Otherwise try to grab a bunch of times before
+			// bailing out and failing
+			if (++badReadCounter == 100)
+				return false;
+		}
 
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
 		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);

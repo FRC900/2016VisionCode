@@ -74,9 +74,13 @@ class NNDetect
 				std::vector<Window> &windowsOut,
 				std::vector<float> &scores);
 
-		void runNMS(const std::vector<Window> &windows, 
+		void runGlobalNMS(const std::vector<Window> &windows, 
 				const std::vector<float> &scores,  
 				const std::vector<std::pair<MatT, double> > &scaledImages,
+				double nmsThreshold,
+				std::vector<Window> &windowsOut);
+		void runLocalNMS(const std::vector<Window> &windows, 
+				const std::vector<float> &scores,  
 				double nmsThreshold,
 				std::vector<Window> &windowsOut);
 

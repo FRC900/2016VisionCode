@@ -185,7 +185,7 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
         data->dy = data->src->height / 2;
         data->bgcolor = bgcolor;
 
-		data->mask = new cv::Mat(data->src->width, data->src->height, CV_8UC1);
+		data->mask = new cv::Mat(data->src->height, data->src->width, CV_8UC1);
 
         /* make mask image */
         for( r = 0; r < data->mask->rows; r++ )
@@ -263,11 +263,12 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
         }
 
 
-        data->img     = new cv::Mat( data->src->width  + 2 * data->dx,
-						   	         data->src->height + 2 * data->dy,
+        data->img     = new cv::Mat( data->src->height + 2 * data->dy,
+									 data->src->width  + 2 * data->dx,
 							         CV_8UC(data->src->nChannels) );
-        data->maskimg = new cv::Mat( data->src->width + 2 * data->dx,
-                                     data->src->height + 2 * data->dy, CV_8UC1);
+        data->maskimg = new cv::Mat( data->src->height + 2 * data->dy, 
+									 data->src->width + 2 * data->dx,
+									 CV_8UC1);
 
         return 1;
     }
@@ -362,8 +363,8 @@ void icvPlaceDistortedSample( CvArr* background,
     roi.width  = (int) (scale * bgimg->cols);
     roi.height = (int) (scale * bgimg->rows);
 
-	cv::Mat img( bgimg->cols, bgimg->rows, CV_8UC(data->src->nChannels ) );
-	cv::Mat maskimg( bgimg->cols, bgimg->rows, CV_8UC1 );
+	cv::Mat img( bgimg->rows, bgimg->cols, CV_8UC(data->src->nChannels ) );
+	cv::Mat maskimg( bgimg->rows, bgimg->cols, CV_8UC1 );
 
 	cv::resize( (*data->img)(roi), img, img.size() );
 	cv::resize( (*data->maskimg)(roi), maskimg, maskimg.size() );
