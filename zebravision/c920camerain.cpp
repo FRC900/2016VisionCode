@@ -21,8 +21,8 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(int _stream, bool gui) :
-	camera_(_stream >= 0 ? _stream : 0)
+C920CameraIn::C920CameraIn(int _stream, bool gui, ZvSettings *settings) :
+	MediaIn(settings), camera_(_stream >= 0 ? _stream : 0)
 {
 	if (!camera_.IsOpen())
 		cerr << "Could not open C920 camera" << endl;
@@ -113,7 +113,7 @@ bool C920CameraIn::isOpened(void) const
 	return camera_.IsOpen();
 }
 
-bool C920CameraIn::update(void) 
+bool C920CameraIn::update(void)
 {
 	if (!camera_.IsOpen() ||
 	    !camera_.GrabFrame() ||

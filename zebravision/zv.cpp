@@ -32,6 +32,7 @@
 //#include "FovisLocalizer.hpp"
 #include "Utilities.hpp"
 #include "FlowLocalizer.hpp"
+#include "ZvSettings.hpp"
 
 #include <boost/thread.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
@@ -48,11 +49,12 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, string xmlFilename);
 void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
 string getVideoOutName(bool raw, const char *suffix);
 
 static bool isRunning = true;
+static ZvSettings *zvSettings = NULL;
 
 void my_handler(int s)
 {
@@ -144,21 +146,21 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
 
 void grabThread(MediaIn *cap, bool &pause)
 {
-	// this runs concurrently with the main while loop 
+	// this runs concurrently with the main while loop
 	// If using a camera it will constantly grab frames
 	// in the background.  If input is an image or video,
 	// update() is a no-op so frames will only be read
 	// when getFrame is explicitly called in the main loop.
-	// That way all video frames are processed rather than 
+	// That way all video frames are processed rather than
 	// skipping some and repeating others since the update
 	// is out of sync with the main loop
 	FrameTicker frameTicker;
-	while(1) 
+	while(1)
 	{
-		if(!pause) 
+		if(!pause)
 		{
 			frameTicker.mark();
-			if(!cap->update()) 
+			if(!cap->update())
 			{
 				cerr << "Failed to capture" << endl;
 				isRunning = false;
@@ -201,12 +203,14 @@ int main( int argc, const char** argv )
 	string capPath; // Output directory for captured images
 	MediaIn* cap; //input object
 
-	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode);
+  shared_ptr<XMLDocument> capSettings;
+	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode,
+            args.xmlFilename);
 
 	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
-  	Mat depth;
-	//load an initial frame for stuff like optical flow which requires an initial 
+  Mat depth;
+	//load an initial frame for stuff like optical flow which requires an initial
 	// frame to compute difference against
 	//also checks to make sure that the cap object works
 	if (!cap->update() || !cap->getFrame(frame, depth))
@@ -404,7 +408,7 @@ int main( int argc, const char** argv )
 		{
 			cout << "Detected object at: " << *it;
 			Rect depthRect = *it;
-			
+
 			//when we use optical flow to adjust we need to recompute the depth based on the new locations.
 			//to do this shrink the bounding rectangle and take the minimum rect of the inside
 			shrinkRect(depthRect,depthRectScale);
@@ -520,7 +524,7 @@ int main( int argc, const char** argv )
 			imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a file
-			if (args.saveVideo && processedOut) 
+			if (args.saveVideo && processedOut)
 			{
 				bool dateAndTime = true;
 				WriteOnFrame textWriter;
@@ -789,8 +793,11 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui)
+void openMedia(MediaIn *&cap, const string readFileName, string &capPath,
+               string &windowName, bool gui, const string xmlFilename)
 {
+  zvSettings = new ZvSettings(xmlFilename);
+
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
 		((readFileName.find('.') == string::npos) && isdigit(readFileName[0])))
@@ -798,15 +805,15 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
-		cap = new ZedIn(NULL, gui);
+		cap = new ZedIn(NULL, gui, zvSettings);
 		if(!cap->isOpened())
 		{
 			delete cap;
-			cap = new C920CameraIn(camera, gui);
+			cap = new C920CameraIn(camera, gui, zvSettings);
 			if (!cap->isOpened())
 			{
 				delete cap;
-				cap = new CameraIn(camera);
+				cap = new CameraIn(camera, zvSettings);
 				ss << "Default Camera ";
 			}
 			else
@@ -826,12 +833,12 @@ void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string
 	{
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
-			cap = new ImageIn((char*)readFileName.c_str());
+			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
-			cap = new ZedIn(readFileName.c_str(), gui);
+			cap = new ZedIn(readFileName.c_str(), gui, zvSettings);
 		else
-			cap = new VideoIn(readFileName.c_str());
+			cap = new VideoIn(readFileName.c_str(), zvSettings);
 
 		// Strip off directory for capture path
 		capPath = readFileName;
@@ -870,7 +877,7 @@ string getVideoOutName(bool raw, const char *suffix)
 			ss << suffix;
 		}
         rc = stat(ss.str().c_str(), &statbuf);
-    } 
+    }
 	while (rc == 0);
     return ss.str();
 }

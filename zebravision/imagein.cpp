@@ -2,10 +2,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "imagein.hpp"
+#include "ZvSettings.hpp"
 
 using namespace cv;
 
-ImageIn::ImageIn(const char *inpath)
+ImageIn::ImageIn(const char *inpath, ZvSettings *settings) :
+  MediaIn(settings)
 {
 	imread(inpath).copyTo(_frame);
 	if (_frame.empty())
@@ -19,7 +21,7 @@ bool ImageIn::isOpened(void) const
 	return _frame.empty();
 }
 
-bool ImageIn::update(void) 
+bool ImageIn::update(void)
 {
 	usleep(250000);
 	return true;

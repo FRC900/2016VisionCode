@@ -22,7 +22,7 @@ static void Usage(void)
    cout << "\t--save               write processed video to output file" << endl;
    cout << "\t--saveSkip-          only save one of every N processed frames" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
-   cout << "\t--no-tracking        start with tracking rectangles disabled" << endl; 
+   cout << "\t--no-tracking        start with tracking rectangles disabled" << endl;
    cout << "\t--no-detection       disable object detection" << endl;
    cout << "\t--d12Base=           base directory for d12 info" << endl;
    cout << "\t--d12Dir=            pick d12 dir and stage number" << endl;
@@ -31,6 +31,7 @@ static void Usage(void)
    cout << "\t--d24Dir=            pick d24 dir and stage number" << endl;
    cout << "\t--d24Stage=          from command line" << endl;
    cout << "\t--groundTruth        only test frames which have ground truth data " << endl;
+   cout << "\t--xmlFile=           XML file to read/write settings to/from" << endl;
    cout << endl;
    cout << "Examples:" << endl;
    cout << "test : start in GUI mode, open default camera, start detecting and tracking while displaying results in the GUI" << endl;
@@ -60,6 +61,7 @@ Args::Args(void)
 	d24StageNum        = 0;
 	frameStart         = 0.0;
 	groundTruth        = false;
+	xmlFilename        = "/home/ubuntu/2016VisionCode/zebravision/settings.xml";
 }
 
 bool Args::processArgs(int argc, const char **argv)
@@ -84,6 +86,7 @@ bool Args::processArgs(int argc, const char **argv)
 	const string d24DirOpt          = "--d24Dir=";         // pick d24 dir and stage number
 	const string d24StageOpt        = "--d24Stage=";       // from command line
 	const string groundTruthOpt     = "--groundTruth";     // only test frames which have ground truth data
+	const string xmlFileOpt         = "--xmlFile=";        // read camera settings from XML file
 	const string badOpt             = "--";
 	// Read through command line args, extract
 	// cmd line parameters and input filename
@@ -130,6 +133,8 @@ bool Args::processArgs(int argc, const char **argv)
 			d24StageNum = atoi(argv[fileArgc] + d24StageOpt.length());
 		else if (groundTruthOpt.compare(0, groundTruthOpt.length(), argv[fileArgc], groundTruthOpt.length()) == 0)
 			groundTruth = true;
+		else if (xmlFileOpt.compare(0, xmlFileOpt.length(), argv[fileArgc], xmlFileOpt.length()) == 0)
+			xmlFilename = string(argv[fileArgc] + xmlFileOpt.length());
 		else if (badOpt.compare(0, badOpt.length(), argv[fileArgc], badOpt.length()) == 0) // unknown option
 		{
 			cerr << "Unknown command line option " << argv[fileArgc] << endl;

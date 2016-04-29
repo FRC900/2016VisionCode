@@ -11,22 +11,27 @@
 #include "C920Camera.h"
 #endif
 
+class ZvSettings;
+
 // Code specific for C920 camera. We have lots of
 // extra controls avaiable for this, so use it if
 // possible
 class C920CameraIn : public MediaIn
 {
    public:
-      C920CameraIn(int _stream = -1, bool gui = false);
-	  ~C920CameraIn() {}
-	  bool isOpened(void) const;
+      C920CameraIn(int _stream = -1, bool gui = false, ZvSettings *settings = NULL);
+	    ~C920CameraIn() {}
+      bool loadSettings() { return true; }
+  		bool saveSettings() { return true; }
+		  std::string getClassName() const { return "C920CameraIn"; }
+      bool isOpened(void) const;
       bool update(void);
       bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
       int width(void) const;
       int height(void) const;
 
-	  int frameNumber(void) const;
+	    int frameNumber(void) const;
 
 #ifdef __linux__
 	  CameraParams getCameraParams(bool left) const;

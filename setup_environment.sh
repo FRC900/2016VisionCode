@@ -1,7 +1,7 @@
 #install basic dependencies
 sudo apt-get update
 
-sudo apt-get install libeigen3-dev build-essential gfortran git cmake libprotobuf-dev libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev protobuf-compiler liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip
+sudo apt-get install libeigen3-dev build-essential gfortran git cmake libprotobuf-dev libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev protobuf-compiler liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev
 
 sudo apt-get install --no-install-recommends libboost-all-dev
 sudo apt-get install v4l-conf v4l-utils 

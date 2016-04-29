@@ -21,13 +21,14 @@ class Args //class for processing arguments
 		bool calibrate;        // crosshair to calibrate camera
 		bool detection;         // enable object detection?
 		std::string d12BaseDir; // base directory for d12 net info
-		int  d12DirNum;         // d12 directory and 
+		int  d12DirNum;         // d12 directory and
 		int  d12StageNum;       // stage to use
 		std::string d24BaseDir; // base directory for d24 net info
-		int  d24DirNum;         // d24 directory and 
+		int  d24DirNum;         // d24 directory and
 		int  d24StageNum;       // stage to use
 		std::string inputName; // input file name or camera number
 		bool groundTruth;      // only test frames with ground truth data
+		std::string xmlFilename;   // XML settings file
 
 		Args(void);
 		bool processArgs(int argc, const char **argv);

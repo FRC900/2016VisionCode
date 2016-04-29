@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<ZebraVision>
+<CameraIn>
+  <fps>30.</fps>
+  <width>1280.</width>
+  <height>720.</height>
+</CameraIn>
+</ZebraVision>

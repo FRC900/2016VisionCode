@@ -2,10 +2,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "videoin.hpp"
+#include "ZvSettings.hpp"
 
 using namespace cv;
 
-VideoIn::VideoIn(const char *inpath) :
+VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
+  MediaIn(settings),
 	cap_(inpath)
 {
 	if (cap_.isOpened())
@@ -32,7 +34,7 @@ bool VideoIn::isOpened(void) const
 }
 
 // Do nothing - all of the work is acutally in getFrame
-bool VideoIn::update(void) 
+bool VideoIn::update(void)
 {
 	usleep(150000);
 	return true;
@@ -42,7 +44,7 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	if (!cap_.isOpened())
 		return false;
-	if(!pause) 
+	if(!pause)
 	{
 		cap_ >> _frame;
 		if (_frame.empty())

@@ -1,9 +1,22 @@
 #include "mediain.hpp"
+#include "ZvSettings.hpp"
 
 using namespace cv;
 
-MediaIn::MediaIn()
+MediaIn::MediaIn(ZvSettings *settings) : _settings(settings)
 {
+}
+
+bool MediaIn::loadSettings()
+{
+	// MediaIn has no settings to load currently
+	return true;
+}
+
+bool MediaIn::saveSettings()
+{
+	// MediaIn has no settings to save currently
+	return true;
 }
 
 bool MediaIn::isOpened(void) const
