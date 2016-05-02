@@ -17,6 +17,12 @@ ZvSettings::ZvSettings(const std::string &filename) :
 }
 
 bool
+ZvSettings::save()
+{
+  return xmlDoc_.SaveFile(filename_.c_str()) == XML_SUCCESS;
+}
+
+bool
 ZvSettings::getInt(const std::string &sectionName,
                    const std::string &name,
                    int &value)
@@ -48,37 +54,23 @@ ZvSettings::getDouble(const std::string &sectionName,
   }
 }
 
-/*
 bool
 ZvSettings::setInt(const std::string &sectionName,
                    const std::string &name,
-                   int &value)
+                   const int value)
 {
-  XMLElement *elem = getElement(sectionName, name);
-  if (elem && elem->QueryDoubleText(&tmpDouble) == XML_SUCCESS) {
-    value = tmpDouble;
-    return true;
-  }
-  else {
-    return false;
-  }
+  set(sectionName, name, value);
+  return true;
 }
 
 bool
 ZvSettings::setDouble(const std::string &sectionName,
                       const std::string &name,
-                      double &value)
+                      const double value)
 {
-  XMLElement *elem = getElement(sectionName, name);
-  if (elem && elem->QueryDoubleText(&tmpDouble) == XML_SUCCESS) {
-    value = tmpDouble;
-    return true;
-  }
-  else {
-    return false;
-  }
+  set(sectionName, name, value);
+  return true;
 }
-*/
 
 template <class T>
 void
@@ -87,7 +79,10 @@ ZvSettings::set(const std::string &sectionName,
          const T value)
 {
   XMLElement *elem = getElement(sectionName, name);
-  if (elem && elem->SetText(value) != XML_SUCCESS) {
+  if (elem) {
+    elem->SetText(value);
+  }
+  else {
     cerr << "Failed to set value, name=" << name << " value=" << value << endl;
   }
 }
@@ -96,24 +91,30 @@ XMLElement*
 ZvSettings::getElement(const std::string &sectionName,
                        const std::string &name)
 {
+  bool saveNeeded = false;
   XMLElement *ret = NULL;
   XMLElement *topElem = xmlDoc_.FirstChildElement(TOPLEVEL_NAME);
   if (!topElem) {
-    topElem = xmlDoc_.InsertFirstChild(xmlDoc_.NewElement(TOPLEVEL_NAME))->ToElement();
+    saveNeeded = true;
+    topElem = xmlDoc_.InsertEndChild(xmlDoc_.NewElement(TOPLEVEL_NAME))->ToElement();
   }
   if (topElem) {
     XMLElement *secElem = topElem->FirstChildElement(sectionName.c_str());
     if (!secElem) {
-      secElem = topElem->InsertFirstChild(xmlDoc_.NewElement(sectionName.c_str()))->ToElement();
+      saveNeeded = true;
+      secElem = topElem->InsertEndChild(xmlDoc_.NewElement(sectionName.c_str()))->ToElement();
     }
     if (secElem) {
       ret = secElem->FirstChildElement(name.c_str());
       if (!ret) {
-        ret = secElem->InsertFirstChild(xmlDoc_.NewElement(name.c_str()))->ToElement();
+        saveNeeded = true;
+        ret = secElem->InsertEndChild(xmlDoc_.NewElement(name.c_str()))->ToElement();
       }
     }
   }
-  if (xmlDoc_.SaveFile(filename_.c_str()) != XML_SUCCESS)
-    cerr << "Failed to save settings file: " << filename_ << endl;
+  if (saveNeeded) {
+    if (xmlDoc_.SaveFile(filename_.c_str()) != XML_SUCCESS)
+      cerr << "Failed to save settings file: " << filename_ << endl;
+  }
   return ret;
 }

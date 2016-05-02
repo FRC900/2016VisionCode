@@ -12,13 +12,13 @@
 #include "track3d.hpp"
 
 class SmartRect
-{   
+{
     public:
         SmartRect(const cv::Rect &myRect);
         cv::Rect myRect;
         bool operator== (const SmartRect &thatRect)const;
 };
-class GoalDetector 
+class GoalDetector
 {
 	public:
 		GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui = false);
@@ -38,7 +38,7 @@ class GoalDetector
 
 		//const float _goal_height = .5f;
 
-		// Save detection info 
+		// Save detection info
 		bool _isValid;
 		boost::circular_buffer<SmartRect> _pastRects;
 		float _dist_to_goal;

@@ -22,8 +22,8 @@ class ZedIn : public MediaIn
 	public:
 		ZedIn(const char *inFileName = NULL, bool gui = false, ZvSettings *settings = NULL);
 		~ZedIn();
-		bool loadSettings() { return true; }
-		bool saveSettings() { return true; }
+		bool loadSettings();
+		bool saveSettings();
 		std::string getClassName() const { return "ZedIn"; }
 		bool isOpened(void) const;
 		bool update(void);

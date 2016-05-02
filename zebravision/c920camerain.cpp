@@ -33,6 +33,43 @@ C920CameraIn::C920CameraIn(int _stream, bool gui, ZvSettings *settings) :
 	}
 }
 
+bool
+C920CameraIn::loadSettings()
+{
+	if (_settings) {
+		_settings->getInt(getClassName(), "brightness",              brightness_);
+		_settings->getInt(getClassName(), "contrast",                contrast_);
+		_settings->getInt(getClassName(), "saturation",              saturation_);
+		_settings->getInt(getClassName(), "sharpness",               sharpness_);
+		_settings->getInt(getClassName(), "gain",                    gain_);
+		_settings->getInt(getClassName(), "focus",                   focus_);
+		_settings->getInt(getClassName(), "autoExposure",            autoExposure_);
+		_settings->getInt(getClassName(), "backlightCompensation",   backlightCompensation_);
+		_settings->getInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
+		return true;
+	}
+	return false;
+}
+
+bool
+C920CameraIn::saveSettings()
+{
+	if (_settings) {
+		_settings->setInt(getClassName(), "brightness",              brightness_);
+		_settings->setInt(getClassName(), "contrast",                contrast_);
+		_settings->setInt(getClassName(), "saturation",              saturation_);
+		_settings->setInt(getClassName(), "sharpness",               sharpness_);
+		_settings->setInt(getClassName(), "gain",                    gain_);
+		_settings->setInt(getClassName(), "focus",                   focus_);
+		_settings->setInt(getClassName(), "autoExposure",            autoExposure_);
+		_settings->setInt(getClassName(), "backlightCompensation",   backlightCompensation_);
+		_settings->setInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
+		_settings->save();
+		return true;
+	}
+	return false;
+}
+
 bool C920CameraIn::initCamera(bool gui)
 {
 	brightness_ = 128;
@@ -42,6 +79,9 @@ bool C920CameraIn::initCamera(bool gui)
 	gain_       = 1;
 	backlightCompensation_   = 0;
 	whiteBalanceTemperature_ = 0;
+
+  if (!loadSettings())
+		cerr << "Failed to load C920 settings from XML file" << endl;
 
 	// TODO - do we want to set these or go
 	// with the values set above?
@@ -55,6 +95,7 @@ bool C920CameraIn::initCamera(bool gui)
 	{
 		return false;
 	}
+#if 0
 	if (!camera_.GetBrightness(brightness_))
 	{
 		return false;
@@ -84,6 +125,7 @@ bool C920CameraIn::initCamera(bool gui)
 		return false;
 	}
 	++whiteBalanceTemperature_;
+#endif
 
 	// force focus to farthest distance, non-auto
 	focusCallback(1, this);
@@ -204,6 +246,7 @@ void brightnessCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->brightness_ = value;
 	camPtr->camera_.SetBrightness(value);
+	camPtr->saveSettings();
 }
 
 void contrastCallback(int value, void *data)
@@ -211,6 +254,7 @@ void contrastCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->contrast_ = value;
 	camPtr->camera_.SetContrast(value);
+	camPtr->saveSettings();
 }
 
 void saturationCallback(int value, void *data)
@@ -218,6 +262,7 @@ void saturationCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->saturation_ = value;
 	camPtr->camera_.SetSaturation(value);
+	camPtr->saveSettings();
 }
 
 void sharpnessCallback(int value, void *data)
@@ -225,6 +270,7 @@ void sharpnessCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->sharpness_ = value;
 	camPtr->camera_.SetSharpness(value);
+	camPtr->saveSettings();
 }
 
 void gainCallback(int value, void *data)
@@ -232,6 +278,7 @@ void gainCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->gain_ = value;
 	camPtr->camera_.SetGain(value);
+	camPtr->saveSettings();
 }
 
 void backlightCompensationCallback(int value, void *data)
@@ -239,6 +286,7 @@ void backlightCompensationCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->backlightCompensation_ = value;
 	camPtr->camera_.SetBacklightCompensation(value);
+	camPtr->saveSettings();
 }
 
 void autoExposureCallback(int value, void *data)
@@ -246,6 +294,7 @@ void autoExposureCallback(int value, void *data)
 	C920CameraIn *camPtr = (C920CameraIn *)data;
 	camPtr->autoExposure_ = value;
 	camPtr->camera_.SetAutoExposure(value);
+	camPtr->saveSettings();
 }
 
 void whiteBalanceTemperatureCallback(int value, void *data)
@@ -254,6 +303,7 @@ void whiteBalanceTemperatureCallback(int value, void *data)
 	camPtr->whiteBalanceTemperature_ = value;
 	// Off by one to allow -1=auto
 	camPtr->camera_.SetWhiteBalanceTemperature(value - 1);
+	camPtr->saveSettings();
 }
 
 void focusCallback(int value, void *data)
@@ -262,6 +312,7 @@ void focusCallback(int value, void *data)
 	camPtr->focus_ = value;
 	// Off by one to allow -1=auto
 	camPtr->camera_.SetFocus(value - 1);
+	camPtr->saveSettings();
 }
 
 #else
