@@ -49,6 +49,7 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 		cap_ >> _frame;
 		if (_frame.empty())
 			return false;
+		lockedTimeStamp_ = setTimeStamp();
 		while (_frame.rows > 800)
 			pyrDown(_frame, _frame);
 		frameNumber_ += 1;

@@ -120,6 +120,7 @@ bool C920CameraIn::update(void)
 	    !camera_.RetrieveMat(localFrame_))
 		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
+	setTimeStamp();
 	localFrame_.copyTo(_frame);
 	while (_frame.rows > 700)
 		pyrDown(_frame, _frame);
@@ -138,6 +139,7 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		return false;
 	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
+	lockedTimeStamp_ = timeStamp_;
 	return true;
 }
 

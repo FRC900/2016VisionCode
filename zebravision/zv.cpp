@@ -43,7 +43,7 @@ using namespace cv;
 using namespace utils;
 
 //function prototypes
-void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd);
+void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp);
 void writeImage(const Mat& frame, const vector<Rect>& rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
@@ -429,7 +429,7 @@ int main( int argc, const char** argv )
 		vector<TrackedObjectDisplay> displayList;
         objectTrackingList.getDisplay(displayList);
 
-        sendZMQData(netTableArraySize, publisher, displayList, gd);
+        sendZMQData(netTableArraySize, publisher, displayList, gd, cap->timeStamp());
 
 		// Ground truth is a way of storing known locations of objects in a file.
 		// Check ground truth data on videos and images,
@@ -719,7 +719,7 @@ int main( int argc, const char** argv )
 	return 0;
 }
 
-void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd)
+void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp)
 {
     stringstream zmqString;
 
@@ -739,7 +739,7 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
         }
     }
 
-    //cout << "B : " << zmqString.str().length() << " : " << zmqString.str() << endl;
+    //cout << "B : " << timestamp << " : " << zmqString.str() << endl;
 
     //Creates immutable strings for 0MQ Output
     stringstream gString;
@@ -747,7 +747,7 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
     gString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
     gString << fixed << setprecision(2) << gd.angle_to_goal();
 
-    cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
+    cout << "G " << timestamp << " : " << gString.str().length() << " : " << gString.str() << endl;
     zmq::message_t request(zmqString.str().length() - 1);
     zmq::message_t grequest(gString.str().length() - 1);
     memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);

@@ -11,7 +11,11 @@ ImageIn::ImageIn(const char *inpath, ZvSettings *settings) :
 {
 	imread(inpath).copyTo(_frame);
 	if (_frame.empty())
+	{
 		std::cerr << "Could not open image file " << inpath << std::endl;
+		return;
+	}
+	lockedTimeStamp_ = setTimeStamp();
 	while (_frame.rows > 800)
 		pyrDown(_frame, _frame);
 }

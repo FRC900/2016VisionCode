@@ -39,6 +39,7 @@ class ZedIn : public MediaIn
 		// Get and set current frame number
 		int    frameNumber(void) const;
 		void   frameNumber(int frameNumber);
+		long long timeStamp(void) const;
 
 		CameraParams getCameraParams(bool left) const;
 #endif

@@ -289,6 +289,9 @@ bool ZedIn::update(bool left)
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
 		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
 		boost::lock_guard<boost::mutex> guard(_mtx);
+		lockedTimeStamp_ = zed_->getCameraTimestamp();
+		if (lockedTimeStamp_ == -1)
+			setTimeStamp();
 		cvtColor(slMat2cvMat(slFrame_), _frame, CV_RGBA2RGB);
 		slMat2cvMat(slDepth_).copyTo(depthMat_);
 
@@ -329,6 +332,7 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		{
 			return false;
 		}
+		setTimeStamp(); // TODO : read this from the ZMS file instead - this will break the format, though
 
 		while (_frame.rows > 700)
 		{
@@ -345,6 +349,8 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	// if desired
 	boost::lock_guard<boost::mutex> guard(_mtx);
 	lockedFrameNumber_ = frameNumber_;
+	lockedTimeStamp_   = timeStamp_;
+
 	_frame.copyTo(frame);
 	depthMat_.copyTo(depth);
 	return true;
@@ -383,6 +389,11 @@ void ZedIn::frameNumber(int frameNumber)
 {
 	if (zed_ && zed_->setSVOPosition(frameNumber))
 		frameNumber_ = frameNumber;
+}
+
+long long ZedIn::timeStamp(void) const
+{
+	return lockedTimeStamp_;
 }
 
 

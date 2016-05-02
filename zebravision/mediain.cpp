@@ -1,9 +1,13 @@
+#include <sys/time.h>
+
 #include "mediain.hpp"
 #include "ZvSettings.hpp"
 
 using namespace cv;
 
-MediaIn::MediaIn(ZvSettings *settings) : _settings(settings)
+MediaIn::MediaIn(ZvSettings *settings) :
+	_settings(settings),
+	lockedTimeStamp_(0)
 {
 }
 
@@ -37,6 +41,22 @@ int MediaIn::frameNumber(void) const
 void MediaIn::frameNumber(int frameNumber)
 {
 	(void)frameNumber;
+}
+
+long long MediaIn::timeStamp(void) const
+{
+	return lockedTimeStamp_;
+}
+
+long long MediaIn::setTimeStamp(void)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+
+	timeStamp_ = (long long)tv.tv_sec * 1000000000ULL +
+		         (long long)tv.tv_usec * 1000ULL;
+
+	return timeStamp_;
 }
 
 CameraParams MediaIn::getCameraParams(bool left) const

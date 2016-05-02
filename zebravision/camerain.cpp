@@ -75,13 +75,12 @@ bool CameraIn::isOpened() const
 
 bool CameraIn::update(void)
 {
-	if (!cap_.isOpened())
-		return false;
-	if (!cap_.grab())
-		return false;
-	if (!cap_.retrieve(localFrame_))
+	if (!cap_.isOpened()  ||
+	    !cap_.grab() ||
+	    !cap_.retrieve(localFrame_))
 		return false;
 	boost::lock_guard<boost::mutex> guard(_mtx);
+	setTimeStamp();
 	localFrame_.copyTo(_frame);
 	while (_frame.rows > 700)
 		pyrDown(_frame, _frame);
@@ -100,6 +99,7 @@ bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 		return false;
 	_frame.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
+	lockedTimeStamp_ = timeStamp_;
 	return true;
 }
 
