@@ -3,6 +3,7 @@
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
 #include "detect.hpp"
+#include "Utilities.hpp"
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/gpu/gpu.hpp>
 
@@ -32,6 +33,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
                                       double                scaleFactor,
                                       const vector<double>& nmsThreshold,
                                       const vector<double>& detectThreshold,
+                                      const vector<double>& calibrationThreshold,
                                       vector<Rect>&         rectsOut)
 {
     // Size of the first level classifier. Others are an integer multiple
@@ -49,6 +51,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     // with the index of the scaled image it corresponds with.
     vector<Window> windowsIn;
     vector<Window> windowsOut;
+    vector<Window> windowsMid;
 
     // Confidence scores (0.0 - 1.0) for each detected rectangle
     vector<float> scores;
@@ -70,8 +73,9 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     // and returns the list which have a score for "ball" above the
     // threshold listed.
     cout << "d12 windows in = " << windowsIn.size() << endl;
-    runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsOut, scores);
+    runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
     cout << "d12 windows out = " << windowsOut.size() << endl;
+    runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], "ball", wsize, windowsOut);
     runNMS(windowsOut, scores, scaledImages12, nmsThreshold[0], windowsIn);
     cout << "d12 nms windows out = " << windowsIn.size() << endl;
 
@@ -89,6 +93,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
         cout << "d24 windows in = " << windowsIn.size() << endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
         cout << "d24 windows out = " << windowsOut.size() << endl;
+        runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], "ball", wsize, windowsOut);
         runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
 		cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
@@ -314,14 +319,38 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
     }
 }
 template<class MatT>
+void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
+				    const vector<pair<MatT, double> >& scaledImages,
+				    CaffeClassifier<MatT>& classifier,
+				    float threshold,
+				    const string &label,
+				    const int &wsize,
+				    vector<Window>& windowsOut)
+{
+    windowsOut.clear();
+    vector<MatT> images;
+    vector<vector<float> > shift;
+    for(vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
+    {
+        images.push_back(scaledImages[it->second].first(it->first));
+    }
+    doBatchCalibration(classifier, images, threshold, label, shift);
+    for(int i = 0; i < windowsIn.size(); i++)
+    {
+	Rect rOut = windowsIn[i].first;
+	rOut += Point(wsize*shift[i][1], wsize*shift[i][2]);
+	utils::shrinkRect(rOut, shift[i][0]);
+	windowsOut.push_back(Window(rOut, windowsIn[i].second));
+    }
+}
+template<class MatT>
 void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
 					const vector<MatT>& imgs,
 					float threshold,
 					const string& label,
-                                        vector<size_t>&     detected,
                                         vector<vector<float> >&      shift)
 {
-    detected.clear();
+    shift.clear();
     vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
     float ds[] = {.81, .93, 1, 1.10, 1.21};
     float dx = .17;
@@ -343,7 +372,7 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
             {
 		dsc+=ds[(stoi(label) - stoi(label)%9)/9];
 		dxc+=dx*(((stoi(label) - stoi(label)%15)/15) - 1);
-		dyc+=dy*(stoi(label)%15 - 1);
+		dyc+=dy*(stoi(label)%3 - 1);
 		counter++;
             }
         }

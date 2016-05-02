@@ -46,6 +46,7 @@ class NNDetect
 				double scaleFactor,
 				const std::vector<double> &nmsThreshold,
 				const std::vector<double> &detectThreshold,
+				const std::vector<double> &calThreshold,
 				std::vector<cv::Rect> &rectsOut);
 
 	private:
@@ -86,11 +87,18 @@ class NNDetect
 				double nmsThreshold,
 				std::vector<Window> &windowsOut);
 		
+		void runCalibration(const std::vector<Window>& windowsIn,
+				    const std::vector<std::pair<MatT, double> > &scaledImages,
+				    CaffeClassifier<MatT>& classifier,
+				    float threshold,
+				    const std::string &label,
+				    const int &wsize,
+				    std::vector<Window>& windowsOut);
+
 		void doBatchCalibration(CaffeClassifier<MatT>& classifier,
 					const std::vector<MatT>& imags,
 					float threshold,
 					const std::string& label,
-					std::vector<size_t>& detected,
 					std::vector<std::vector<float> >& shift);
 		bool depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck);
 };

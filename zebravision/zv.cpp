@@ -250,6 +250,8 @@ int main( int argc, const char** argv )
 		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()));
 		createTrackbar ("D12 Threshold", detectWindowName, &d12Threshold, 100);
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
+		createTrackbar ("C12 Threshold", detectWindowName, &c12Threshold, 100);
+		createTrackbar ("C24 Threshold", detectWindowName, &c24Threshold, 100);
 	}
 
 	// Create list of tracked objects
@@ -273,6 +275,8 @@ int main( int argc, const char** argv )
 		detectState = new DetectState(
 				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
+				ClassifierIO(args.c12BaseDir, args.c12DirNum, args.c12StageNum),
+				ClassifierIO(args.c24BaseDir, args.c24DirNum, args.c24StageNum),
 				camParams.fov.x, gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data

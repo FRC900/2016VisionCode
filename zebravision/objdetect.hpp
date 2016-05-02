@@ -65,9 +65,11 @@ class GPU_NNDetect : public ObjDetect
 	public :
 		GPU_NNDetect(const std::vector<std::string> &d12Info,
 					 const std::vector<std::string> &d24Info,
+					 const std::vector<std::string> &c12Info,
+					 const std::vector<std::string> &c24Info,
 					 float hfov) :
 						ObjDetect(),
-						classifier_(d12Info, d24Info, hfov)
+						classifier_(d12Info, d24Info, c12Info, c24Info, hfov)
 		{
 			/* struct stat statbuf;		
 			   if (stat(cascadeName, &statbuf) != 0)
@@ -108,5 +110,7 @@ extern int minDetectSize;
 extern int maxDetectSize;
 extern int d12Threshold;
 extern int d24Threshold;
+extern int c12Threshold;
+extern int c24Threshold;
 
 #endif

@@ -26,6 +26,12 @@ class Args //class for processing arguments
 		std::string d24BaseDir; // base directory for d24 net info
 		int  d24DirNum;         // d24 directory and 
 		int  d24StageNum;       // stage to use
+		std::string c12BaseDir; // base directory for d12 net info
+		int  c12DirNum;         // d12 directory and 
+		int  c12StageNum;       // stage to use
+		std::string c24BaseDir; // base directory for d24 net info
+		int  c24DirNum;         // d24 directory and 
+		int  c24StageNum;       // stage to use
 		std::string inputName; // input file name or camera number
 		bool groundTruth;      // only test frames with ground truth data
 
