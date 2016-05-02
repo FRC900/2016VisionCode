@@ -43,6 +43,15 @@ rm -rf zeromq-4.1.4*
 cd /usr/local/include/
 sudo wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
 
+# Install tinyxml2
+cd
+git clone https://github.com/leethomason/tinyxml2.git
+cd tinyxml2
+mkdir build
+cd build
+cmake ..
+sudo make install
+
 
 cd
 wget https://www.stereolabs.com/download_327af3/ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
