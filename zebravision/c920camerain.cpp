@@ -57,9 +57,11 @@ C920CameraIn::loadSettings(void)
 		settings_->getInt(getClassName(), "autoExposure",            autoExposure_);
 		settings_->getInt(getClassName(), "backlightCompensation",   backlightCompensation_);
 		settings_->getInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
-		int dummy; // Capture* are enums, have to explicitly convert to int in C++
+		int dummy = captureSize_;; // Capture* are enums, have to explicitly convert to int in C++
 		settings_->getInt(getClassName(), "captureSize",             dummy);
 		captureSize_ = static_cast<v4l2::CaptureSize>(dummy);
+
+		dummy = captureFPS_;
 		settings_->getInt(getClassName(), "captureFPS",              dummy);
 		captureFPS_ = static_cast<v4l2::CaptureFPS>(dummy);
 		return true;
@@ -80,8 +82,8 @@ C920CameraIn::saveSettings(void) const
 		settings_->setInt(getClassName(), "autoExposure",            autoExposure_);
 		settings_->setInt(getClassName(), "backlightCompensation",   backlightCompensation_);
 		settings_->setInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
-		settings_->setInt(getClassName(), "captureSize",             captureSize_);
-		settings_->setInt(getClassName(), "captureFPS",              captureFPS_);
+		settings_->setInt(getClassName(), "captureSize",             (int)captureSize_);
+		settings_->setInt(getClassName(), "captureFPS",              (int)captureFPS_);
 		settings_->save();
 		return true;
 	}
@@ -90,6 +92,7 @@ C920CameraIn::saveSettings(void) const
 
 C920CameraIn::~C920CameraIn()
 {
+	saveSettings();
 }
 
 bool C920CameraIn::initCamera(bool gui)
