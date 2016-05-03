@@ -203,7 +203,7 @@ int main( int argc, const char** argv )
 	string capPath; // Output directory for captured images
 	MediaIn* cap; //input object
 
-  shared_ptr<XMLDocument> capSettings;
+	shared_ptr<tinyxml2::XMLDocument> capSettings;
 	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode,
             args.xmlFilename);
 

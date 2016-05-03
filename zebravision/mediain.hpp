@@ -7,10 +7,6 @@
 
 #include "ZvSettings.hpp"
 
-using namespace tinyxml2;
-
-class ZvSettings;
-
 class CameraParams
 {
 	public:
