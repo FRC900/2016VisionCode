@@ -14,10 +14,9 @@ class VideoIn : public MediaIn
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
-		int width(void) const;
-		int height(void) const;
-		int frameCount(void) const;
-		int frameNumber(void) const;
+		int  width(void) const;
+		int  height(void) const;
+		int  frameCount(void) const;
 		void frameNumber(int frameNumber);
 
 	private:
@@ -25,7 +24,7 @@ class VideoIn : public MediaIn
 		int              width_;
 		int              height_;
 		int              frames_;
-		int              frameNumber_;
+
 		bool loadSettings(void) { return true; }
 		bool saveSettings(void) const { return true; }
 		std::string getClassName() const { return "VideoIn"; }

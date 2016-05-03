@@ -14,19 +14,18 @@ class CameraIn : public MediaIn
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
-		int width(void) const;
-		int height(void) const;
-		int frameNumber(void) const;
+		int  width(void) const;
+		int  height(void) const;
 
 	private:
-		int              lockedFrameNumber_;
-		int              frameNumber_;
 		int              width_;
 		int              height_;
+		int              saveWidth_;
+		int              saveHeight_;
 		double           fps_;
-
 		cv::Mat          localFrame_;
 		cv::VideoCapture cap_;
+
 		std::string getClassName() const { return "CameraIn"; } 
 		bool loadSettings(void);
 		bool saveSettings(void) const;

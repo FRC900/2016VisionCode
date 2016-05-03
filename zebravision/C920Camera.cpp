@@ -304,7 +304,7 @@ namespace v4l2 {
 		fprintf(stdout, "C920Camera::InitilizeCapture INFO: Opening capture device %s.\n", capture->DeviceName);
 		capture->DeviceHandle = open(capture->DeviceName, O_RDWR /* required */| O_NONBLOCK, 0);
 		if (capture->DeviceHandle == 0) {
-			fprintf(stderr, "C920Camera::InitilizeCapture ERROR: Unable to open %s.", capture->DeviceName);
+			fprintf(stderr, "C920Camera::InitilizeCapture ERROR: Unable to open %s.\n", capture->DeviceName);
 			this->CloseCapture(capture);
 			return -1;
 		}
@@ -540,7 +540,7 @@ try_again: capture->V4L2RequestBuffers.count = buffer_number;
 	}
 	int C920Camera::SetControl(V4L2CameraCapture* capture) {
 		if (xioctl(capture->DeviceHandle, VIDIOC_S_CTRL, &capture->V4L2Control) == -1) {
-			fprintf(stderr, "C920Camera::SetControl ERROR: Unable to set control...");
+			fprintf(stderr, "C920Camera::SetControl ERROR: Unable to set control...\n");
 			return false;
 		}
 		return true;

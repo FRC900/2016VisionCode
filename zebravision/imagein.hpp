@@ -18,7 +18,6 @@ class ImageIn : public MediaIn
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		int frameCount(void) const;
-		int frameNumber(void) const;
 
 		int width() const;
 		int height() const;

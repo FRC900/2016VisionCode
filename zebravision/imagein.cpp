@@ -7,7 +7,7 @@
 using namespace cv;
 
 ImageIn::ImageIn(const char *inpath, ZvSettings *settings) :
-  MediaIn(settings)
+	MediaIn(settings)
 {
 	imread(inpath).copyTo(frame_);
 	if (frame_.empty())
@@ -15,7 +15,6 @@ ImageIn::ImageIn(const char *inpath, ZvSettings *settings) :
 		std::cerr << "Could not open image file " << inpath << std::endl;
 		return;
 	}
-	lockedTimeStamp_ = setTimeStamp();
 	while (frame_.rows > 800)
 		pyrDown(frame_, frame_);
 }
@@ -57,7 +56,3 @@ int ImageIn::frameCount(void) const
 	return 1;
 }
 
-int ImageIn::frameNumber(void) const
-{
-	return 1;
-}

@@ -22,7 +22,6 @@ VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
 			height_ /= 2;
 		}
 		frames_ = cap_.get(CV_CAP_PROP_FRAME_COUNT);
-		frameNumber_ = 0;
 	}
 	else
 		std::cerr << "Could not open input video "<< inpath << std::endl;
@@ -49,13 +48,15 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 		cap_ >> frame_;
 		if (frame_.empty())
 			return false;
-		lockedTimeStamp_ = setTimeStamp();
+		setTimeStamp();
+		incFrameNumber();
 		while (frame_.rows > 800)
 			pyrDown(frame_, frame_);
-		frameNumber_ += 1;
 	}
 	depth = Mat();
 	frame_.copyTo(frame);
+	lockTimeStamp();
+	lockFrameNumber();
 	return true;
 }
 
@@ -71,13 +72,7 @@ int VideoIn::height(void) const
 
 int VideoIn::frameCount(void) const
 {
-	std::cout << "Frames = " << frames_ << std::endl;
 	return frames_;
-}
-
-int VideoIn::frameNumber(void) const
-{
-	return frameNumber_;
 }
 
 void VideoIn::frameNumber(int frameNumber)
@@ -85,6 +80,6 @@ void VideoIn::frameNumber(int frameNumber)
 	if (frameNumber < frames_)
 	{
 		cap_.set(CV_CAP_PROP_POS_FRAMES, frameNumber);
-		frameNumber_ = frameNumber;
+		setFrameNumber(frameNumber);
 	}
 }

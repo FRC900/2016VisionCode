@@ -8,9 +8,8 @@ using namespace std;
 
 CameraIn::CameraIn(int stream, ZvSettings *settings) :
 	MediaIn(settings),
-	frameNumber_(0),
-	width_(1280),
-	height_(720),
+	saveWidth_(1280),
+	saveHeight_(720),
 	fps_(30.),
 	cap_(stream)
 {
@@ -20,6 +19,8 @@ CameraIn::CameraIn(int stream, ZvSettings *settings) :
 			cerr << "Failed to load CameraIn settings" << endl;
 		}
 
+		width_ = saveWidth_;
+		height_ = saveHeight_;
 		cap_.set(CV_CAP_PROP_FPS, fps_);
 		cap_.set(CV_CAP_PROP_FRAME_WIDTH, width_);
 		cap_.set(CV_CAP_PROP_FRAME_HEIGHT, height_);
@@ -44,8 +45,8 @@ bool CameraIn::loadSettings(void)
 {
 	if (settings_) {
 		settings_->getDouble(getClassName(), "fps", fps_);
-		settings_->getInt(getClassName(), "width", width_);
-		settings_->getInt(getClassName(), "height", height_);
+		settings_->getInt(getClassName(), "width", saveWidth_);
+		settings_->getInt(getClassName(), "height", saveHeight_);
 		return true;
 	}
 	return false;
@@ -55,8 +56,8 @@ bool CameraIn::saveSettings(void) const
 {
 	if (settings_) {
 		settings_->setDouble(getClassName(), "fps", fps_);
-		settings_->setInt(getClassName(), "width", width_);
-		settings_->setInt(getClassName(), "height", height_);
+		settings_->setInt(getClassName(), "width", saveWidth_);
+		settings_->setInt(getClassName(), "height", saveHeight_);
 		settings_->save();
 		return true;
 	}
@@ -76,10 +77,10 @@ bool CameraIn::update(void)
 		return false;
 	boost::lock_guard<boost::mutex> guard(mtx_);
 	setTimeStamp();
+	incFrameNumber();
 	localFrame_.copyTo(frame_);
 	while (frame_.rows > 700)
 		pyrDown(frame_, frame_);
-	frameNumber_ += 1;
 	return true;
 }
 
@@ -93,8 +94,8 @@ bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	if (frame_.empty())
 		return false;
 	frame_.copyTo(frame);
-	lockedFrameNumber_ = frameNumber_;
-	lockedTimeStamp_ = timeStamp_;
+	lockTimeStamp();
+	lockFrameNumber();
 	return true;
 }
 
@@ -108,7 +109,3 @@ int CameraIn::height(void) const
    return height_;
 }
 
-int CameraIn::frameNumber(void) const
-{
-   return lockedFrameNumber_;
-}

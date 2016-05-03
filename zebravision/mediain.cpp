@@ -7,6 +7,9 @@ using namespace cv;
 
 MediaIn::MediaIn(ZvSettings *settings) :
 	settings_(settings),
+	frameNumber_(0),
+	lockedFrameNumber_(0),
+	timeStamp_(0), // TODO : default to setTimeStamp() instead?
 	lockedTimeStamp_(0)
 {
 }
@@ -33,14 +36,33 @@ int MediaIn::frameCount(void) const
 	return -1;
 }
 
-int MediaIn::frameNumber(void) const
+// set the time stamp to match the frame just read
+// during update().  Since update can run in a 
+// separate thread after getFrame() was called, don't
+// use this variable for anything returned outside of 
+// the class. Intead keep a separate locked version which
+// gets updated when getFrame is called. That way the
+// timestamp returned outside the class always matches
+// up with the frame returned from getFrame()
+void MediaIn::setTimeStamp(long long timeStamp)
 {
-	return -1;
+	if (timeStamp != -1)
+	{
+		timeStamp_ = -1;
+	}
+	else
+	{
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+
+		timeStamp_ = (long long)tv.tv_sec * 1000000000ULL +
+					 (long long)tv.tv_usec * 1000ULL;
+	}
 }
 
-void MediaIn::frameNumber(int frameNumber)
+void MediaIn::lockTimeStamp(void)
 {
-	(void)frameNumber;
+	lockedTimeStamp_ = timeStamp_;
 }
 
 long long MediaIn::timeStamp(void) const
@@ -48,15 +70,31 @@ long long MediaIn::timeStamp(void) const
 	return lockedTimeStamp_;
 }
 
-long long MediaIn::setTimeStamp(void)
+// Same thing with frame numbers
+void MediaIn::setFrameNumber(int frameNumber)
 {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
+	frameNumber_ = frameNumber;
+}
 
-	timeStamp_ = (long long)tv.tv_sec * 1000000000ULL +
-		         (long long)tv.tv_usec * 1000ULL;
+void MediaIn::incFrameNumber(void)
+{
+	frameNumber_ += 1;
+}
 
-	return timeStamp_;
+void MediaIn::lockFrameNumber(void)
+{
+	lockedFrameNumber_ = frameNumber_;
+}
+
+int MediaIn::frameNumber(void) const
+{
+	return lockedFrameNumber_;
+}
+
+void MediaIn::frameNumber(int frameNumber)
+{
+	setFrameNumber(frameNumber);
+	lockFrameNumber();
 }
 
 CameraParams MediaIn::getCameraParams(bool left) const

@@ -33,8 +33,7 @@ C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
 	backlightCompensation_   (0),
 	whiteBalanceTemperature_ (0),
 	captureSize_             (v4l2::CAPTURE_SIZE_1280x720),
-	captureFPS_              (v4l2::CAPTURE_FPS_30),
-	frameNumber_             (0)
+	captureFPS_              (v4l2::CAPTURE_FPS_30)
 {
 	if (!camera_.IsOpen())
 		cerr << "Could not open C920 camera" << endl;
@@ -98,11 +97,14 @@ bool C920CameraIn::initCamera(bool gui)
 	if (!loadSettings())
 		cerr << "Failed to load C920 settings from XML file" << endl;
 
-	// Check return codes on these to be sure we're actually
-	// talking to a C920.  Other cameras can be opened 
-	// successfully but will fail when setting these
-	// values.  If these fail, the code should fall
-	// back to standard OpenCV VideoCapture code
+	// Use the return code from this set function to be sure
+	// we're really talking to a C920. If if fails, 
+	// fall back to using standard VideoCapture stuff instead
+	if (!camera_.SetGain(gain_))
+	{
+		return false;
+	}
+
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
 		return false;
@@ -153,10 +155,10 @@ bool C920CameraIn::update(void)
 		return false;
 	boost::lock_guard<boost::mutex> guard(mtx_);
 	setTimeStamp();
+	incFrameNumber();
 	localFrame_.copyTo(frame_);
 	while (frame_.rows > 700)
 		pyrDown(frame_, frame_);
-	frameNumber_ += 1;
 	return true;
 }
 
@@ -170,8 +172,8 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	if( frame_.empty() )
 		return false;
 	frame_.copyTo(frame);
-	lockedFrameNumber_ = frameNumber_;
-	lockedTimeStamp_ = timeStamp_;
+	lockFrameNumber();
+	lockTimeStamp();
 	return true;
 }
 
@@ -209,11 +211,6 @@ int C920CameraIn::height(void) const
 	}
 
 	return height;
-}
-
-int C920CameraIn::frameNumber(void) const
-{
-	return lockedFrameNumber_;
 }
 
 CameraParams C920CameraIn::getCameraParams(bool left) const

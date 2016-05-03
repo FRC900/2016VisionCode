@@ -47,9 +47,10 @@ class MediaIn
 		virtual int  frameCount(void) const;
 
 		// Get and set current frame number
-		virtual int  frameNumber(void) const;
 		virtual void frameNumber(int frameNumber);
-		virtual long long timeStamp(void) const;
+
+		int frameNumber(void) const;
+		long long timeStamp(void) const;
 
 		// Other functions that really only work from zedin
 		virtual CameraParams getCameraParams(bool left) const;
@@ -58,12 +59,21 @@ class MediaIn
 		cv::Mat frame_;
 		boost::mutex mtx_;
 		ZvSettings *settings_;
-		long long timeStamp_;
-		long long lockedTimeStamp_;
 
-		virtual long long setTimeStamp(void);
+		void setTimeStamp(long long timeStamp = -1);
+		void lockTimeStamp(void);
+		void setFrameNumber(int frameNumber);
+		void incFrameNumber(void);
+		void lockFrameNumber(void);
+
 		virtual bool loadSettings(void);
 		virtual bool saveSettings(void) const;
 		virtual std::string getClassName() const { return "MediaIn"; }
+
+	private:
+		int       frameNumber_;
+		int       lockedFrameNumber_;
+		long long timeStamp_;
+		long long lockedTimeStamp_;
 };
 #endif

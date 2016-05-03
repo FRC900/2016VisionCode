@@ -28,8 +28,6 @@ class C920CameraIn : public MediaIn
 	   int width(void) const;
 	   int height(void) const;
 
-	   int frameNumber(void) const;
-
 #ifdef __linux__
 	   CameraParams getCameraParams(bool left) const;
 #endif
@@ -65,8 +63,6 @@ class C920CameraIn : public MediaIn
 	   int               whiteBalanceTemperature_;
 	   v4l2::CaptureSize captureSize_;
 	   v4l2::CaptureFPS  captureFPS_;
-	   int               frameNumber_;
-	   int               lockedFrameNumber_;
 #endif
 };
 #endif

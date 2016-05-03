@@ -25,7 +25,6 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 	zed_(NULL),
 	width_(0),
 	height_(0),
-	frameNumber_(0),
 	brightness_(2),
 	contrast_(6),
 	hue_(7),
@@ -321,9 +320,8 @@ bool ZedIn::update(bool left)
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
 		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
 		boost::lock_guard<boost::mutex> guard(mtx_);
-		lockedTimeStamp_ = zed_->getCameraTimestamp();
-		if (lockedTimeStamp_ == -1)
-			setTimeStamp();
+		setTimeStamp();
+		incFrameNumber();
 		cvtColor(slMat2cvMat(slFrame_), frame_, CV_RGBA2RGB);
 		slMat2cvMat(slDepth_).copyTo(depthMat_);
 
@@ -332,7 +330,6 @@ bool ZedIn::update(bool left)
 			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
 		}
-		frameNumber_ += 1;
 	}
 	else if (archiveIn_ || portableArchiveIn_)
 		usleep (50000);
@@ -365,13 +362,13 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 			return false;
 		}
 		setTimeStamp(); // TODO : read this from the ZMS file instead - this will break the format, though
+		incFrameNumber();
 
 		while (frame_.rows > 700)
 		{
 			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
 		}
-		frameNumber_ += 1;
 	}
 
 	// If video is paused, this will just re-use the
@@ -380,8 +377,8 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	// this can also be paused by the calling code
 	// if desired
 	boost::lock_guard<boost::mutex> guard(mtx_);
-	lockedFrameNumber_ = frameNumber_;
-	lockedTimeStamp_   = timeStamp_;
+	lockTimeStamp();
+	lockFrameNumber();
 
 	frame_.copyTo(frame);
 	depthMat_.copyTo(depth);
@@ -408,24 +405,13 @@ int ZedIn::frameCount(void) const
 }
 
 
-int ZedIn::frameNumber(void) const
-{
-	return lockedFrameNumber_;
-}
-
-
 // Seek to a given frame number. This is possible if the
 // input is a video. If reading live camera data it will
 // fail, but nothing we can do about that so fail silently
 void ZedIn::frameNumber(int frameNumber)
 {
 	if (zed_ && zed_->setSVOPosition(frameNumber))
-		frameNumber_ = frameNumber;
-}
-
-long long ZedIn::timeStamp(void) const
-{
-	return lockedTimeStamp_;
+		setFrameNumber(frameNumber);
 }
 
 
