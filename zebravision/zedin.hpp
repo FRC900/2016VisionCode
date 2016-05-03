@@ -22,9 +22,6 @@ class ZedIn : public MediaIn
 	public:
 		ZedIn(const char *inFileName = NULL, bool gui = false, ZvSettings *settings = NULL);
 		~ZedIn();
-		bool loadSettings();
-		bool saveSettings();
-		std::string getClassName() const { return "ZedIn"; }
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
@@ -49,6 +46,9 @@ class ZedIn : public MediaIn
 		void deleteInputPointers(void);
 		bool openSerializeInput(const char *filename, bool portable);
 		bool update(bool left);
+		bool loadSettings(void);
+		bool saveSettings(void) const;
+		std::string getClassName() const { return "ZedIn"; }
 
 		sl::zed::Camera* zed_;
 		sl::zed::Mat slDepth_;

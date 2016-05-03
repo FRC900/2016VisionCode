@@ -6,7 +6,7 @@
 using namespace cv;
 
 MediaIn::MediaIn(ZvSettings *settings) :
-	_settings(settings),
+	settings_(settings),
 	lockedTimeStamp_(0)
 {
 }
@@ -17,7 +17,7 @@ bool MediaIn::loadSettings()
 	return true;
 }
 
-bool MediaIn::saveSettings()
+bool MediaIn::saveSettings() const
 {
 	// MediaIn has no settings to save currently
 	return true;

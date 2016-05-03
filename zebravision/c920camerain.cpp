@@ -6,10 +6,9 @@ using namespace std;
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-using namespace std;
 using namespace cv;
 
-// Prototypes for various callbacks used by scrollbars
+// Prototypes for various callbacks used by GUI sliders
 void brightnessCallback(int value, void *data);
 void contrastCallback(int value, void *data);
 void saturationCallback(int value, void *data);
@@ -21,8 +20,21 @@ void whiteBalanceTemperatureCallback(int value, void *data);
 void focusCallback(int value, void *data);
 
 // Constructor
-C920CameraIn::C920CameraIn(int _stream, bool gui, ZvSettings *settings) :
-	MediaIn(settings), camera_(_stream >= 0 ? _stream : 0)
+C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
+	MediaIn(settings), 
+	camera_(stream >= 0 ? stream : 0),
+	brightness_              (128),
+	contrast_                (128),
+	saturation_              (128),
+	sharpness_               (128),
+	gain_                    (1),
+	focus_                   (1),
+	autoExposure_            (1),
+	backlightCompensation_   (0),
+	whiteBalanceTemperature_ (0),
+	captureSize_             (v4l2::CAPTURE_SIZE_1280x720),
+	captureFPS_              (v4l2::CAPTURE_FPS_30),
+	frameNumber_             (0)
 {
 	if (!camera_.IsOpen())
 		cerr << "Could not open C920 camera" << endl;
@@ -34,102 +46,81 @@ C920CameraIn::C920CameraIn(int _stream, bool gui, ZvSettings *settings) :
 }
 
 bool
-C920CameraIn::loadSettings()
+C920CameraIn::loadSettings(void)
 {
-	if (_settings) {
-		_settings->getInt(getClassName(), "brightness",              brightness_);
-		_settings->getInt(getClassName(), "contrast",                contrast_);
-		_settings->getInt(getClassName(), "saturation",              saturation_);
-		_settings->getInt(getClassName(), "sharpness",               sharpness_);
-		_settings->getInt(getClassName(), "gain",                    gain_);
-		_settings->getInt(getClassName(), "focus",                   focus_);
-		_settings->getInt(getClassName(), "autoExposure",            autoExposure_);
-		_settings->getInt(getClassName(), "backlightCompensation",   backlightCompensation_);
-		_settings->getInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
+	if (settings_) {
+		settings_->getInt(getClassName(), "brightness",              brightness_);
+		settings_->getInt(getClassName(), "contrast",                contrast_);
+		settings_->getInt(getClassName(), "saturation",              saturation_);
+		settings_->getInt(getClassName(), "sharpness",               sharpness_);
+		settings_->getInt(getClassName(), "gain",                    gain_);
+		settings_->getInt(getClassName(), "focus",                   focus_);
+		settings_->getInt(getClassName(), "autoExposure",            autoExposure_);
+		settings_->getInt(getClassName(), "backlightCompensation",   backlightCompensation_);
+		settings_->getInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
+		int dummy; // Capture* are enums, have to explicitly convert to int in C++
+		settings_->getInt(getClassName(), "captureSize",             dummy);
+		captureSize_ = static_cast<v4l2::CaptureSize>(dummy);
+		settings_->getInt(getClassName(), "captureFPS",              dummy);
+		captureFPS_ = static_cast<v4l2::CaptureFPS>(dummy);
 		return true;
 	}
 	return false;
 }
 
 bool
-C920CameraIn::saveSettings()
+C920CameraIn::saveSettings(void) const
 {
-	if (_settings) {
-		_settings->setInt(getClassName(), "brightness",              brightness_);
-		_settings->setInt(getClassName(), "contrast",                contrast_);
-		_settings->setInt(getClassName(), "saturation",              saturation_);
-		_settings->setInt(getClassName(), "sharpness",               sharpness_);
-		_settings->setInt(getClassName(), "gain",                    gain_);
-		_settings->setInt(getClassName(), "focus",                   focus_);
-		_settings->setInt(getClassName(), "autoExposure",            autoExposure_);
-		_settings->setInt(getClassName(), "backlightCompensation",   backlightCompensation_);
-		_settings->setInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
-		_settings->save();
+	if (settings_) {
+		settings_->setInt(getClassName(), "brightness",              brightness_);
+		settings_->setInt(getClassName(), "contrast",                contrast_);
+		settings_->setInt(getClassName(), "saturation",              saturation_);
+		settings_->setInt(getClassName(), "sharpness",               sharpness_);
+		settings_->setInt(getClassName(), "gain",                    gain_);
+		settings_->setInt(getClassName(), "focus",                   focus_);
+		settings_->setInt(getClassName(), "autoExposure",            autoExposure_);
+		settings_->setInt(getClassName(), "backlightCompensation",   backlightCompensation_);
+		settings_->setInt(getClassName(), "whiteBalanceTemperature", whiteBalanceTemperature_);
+		settings_->setInt(getClassName(), "captureSize",             captureSize_);
+		settings_->setInt(getClassName(), "captureFPS",              captureFPS_);
+		settings_->save();
 		return true;
 	}
 	return false;
 }
 
+C920CameraIn::~C920CameraIn()
+{
+}
+
 bool C920CameraIn::initCamera(bool gui)
 {
-	brightness_ = 128;
-	contrast_   = 128;
-	saturation_ = 128;
-	sharpness_  = 128;
-	gain_       = 1;
-	backlightCompensation_   = 0;
-	whiteBalanceTemperature_ = 0;
-
 	if (!loadSettings())
 		cerr << "Failed to load C920 settings from XML file" << endl;
 
-	// TODO - do we want to set these or go
-	// with the values set above?
-	//captureSize_ = v4l2::CAPTURE_SIZE_640x480;
-  	captureSize_ = v4l2::CAPTURE_SIZE_1280x720;
+	// Check return codes on these to be sure we're actually
+	// talking to a C920.  Other cameras can be opened 
+	// successfully but will fail when setting these
+	// values.  If these fail, the code should fall
+	// back to standard OpenCV VideoCapture code
 	if (!camera_.ChangeCaptureSize(captureSize_))
 	{
 		return false;
 	}
-	if (!camera_.ChangeCaptureFPS(v4l2::CAPTURE_FPS_30))
+	if (!camera_.ChangeCaptureFPS(captureFPS_))
 	{
 		return false;
 	}
-#if 0
-	if (!camera_.GetBrightness(brightness_))
-	{
-		return false;
-	}
-	if (!camera_.GetContrast(contrast_))
-	{
-		return false;
-	}
-	if (!camera_.GetSaturation(saturation_))
-	{
-		return false;
-	}
-	if (!camera_.GetSharpness(sharpness_))
-	{
-		return false;
-	}
-	if (!camera_.GetGain(gain_))
-	{
-		return false;
-	}
-	if (!camera_.GetBacklightCompensation(backlightCompensation_))
-	{
-		return false;
-	}
-	if (!camera_.GetWhiteBalanceTemperature(whiteBalanceTemperature_))
-	{
-		return false;
-	}
-	++whiteBalanceTemperature_;
-#endif
 
-	// force focus to farthest distance, non-auto
-	focusCallback(1, this);
-	autoExposureCallback(3, this);
+	brightnessCallback(brightness_, this);
+	contrastCallback(contrast_, this);
+	saturationCallback(saturation_, this);
+	sharpnessCallback(sharpness_, this);
+	gainCallback(gain_, this);
+	focusCallback(focus_, this);
+	autoExposureCallback(autoExposure_, this);
+	backlightCompensationCallback(backlightCompensation_, this);
+	whiteBalanceTemperatureCallback(whiteBalanceTemperature_, this);
 
 	if (gui)
 	{
@@ -146,7 +137,6 @@ bool C920CameraIn::initCamera(bool gui)
 		cv::createTrackbar("Focus", "Adjustments", &focus_, 256, focusCallback, this);
 	}
 
-	frameNumber_ = 0;
 	return true;
 }
 
@@ -161,11 +151,11 @@ bool C920CameraIn::update(void)
 	    !camera_.GrabFrame() ||
 	    !camera_.RetrieveMat(localFrame_))
 		return false;
-	boost::lock_guard<boost::mutex> guard(_mtx);
+	boost::lock_guard<boost::mutex> guard(mtx_);
 	setTimeStamp();
-	localFrame_.copyTo(_frame);
-	while (_frame.rows > 700)
-		pyrDown(_frame, _frame);
+	localFrame_.copyTo(frame_);
+	while (frame_.rows > 700)
+		pyrDown(frame_, frame_);
 	frameNumber_ += 1;
 	return true;
 }
@@ -176,10 +166,10 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	if (!camera_.IsOpen())
 		return false;
 	depth = Mat();
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if( _frame.empty() )
+	boost::lock_guard<boost::mutex> guard(mtx_);
+	if( frame_.empty() )
 		return false;
-	_frame.copyTo(frame);
+	frame_.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
 	lockedTimeStamp_ = timeStamp_;
 	return true;
@@ -241,7 +231,6 @@ CameraParams C920CameraIn::getCameraParams(bool left) const
 		cp.fov = Point2f(70.42 * M_PI / 180., 43.3 * M_PI / 180.);
 	return cp;
 }
-
 
 void brightnessCallback(int value, void *data)
 {
@@ -319,11 +308,11 @@ void focusCallback(int value, void *data)
 
 #else
 
-C920CameraIn::C920CameraIn(int _stream, bool gui)
+C920CameraIn::C920CameraIn(int stream, bool gui)
 {
 	(void)_stream;
 	(void)gui;
-	std::cerr << "C920 support not enabled" << std::endl;
+	cerr << "C920 support not enabled" << endl;
 }
 
 #endif

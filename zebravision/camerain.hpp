@@ -11,9 +11,6 @@ class CameraIn : public MediaIn
 	public:
 		CameraIn(int stream = -1, ZvSettings *settings = NULL);
 		~CameraIn();
-		bool loadSettings();
-		bool saveSettings();
-		std::string getClassName() const { return "CameraIn"; }
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
@@ -30,5 +27,8 @@ class CameraIn : public MediaIn
 
 		cv::Mat          localFrame_;
 		cv::VideoCapture cap_;
+		std::string getClassName() const { return "CameraIn"; } 
+		bool loadSettings(void);
+		bool saveSettings(void) const;
 };
 #endif

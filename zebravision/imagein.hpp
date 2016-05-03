@@ -10,23 +10,23 @@ class ZvSettings;
 // Still image (png, jpg) processing
 class ImageIn : public MediaIn
 {
-   public:
-      ImageIn(const char *outpath, ZvSettings *settings = NULL);
-	    ~ImageIn() {}
-      bool loadSettings() { return true; }
-  		bool saveSettings() { return true; }
-  		std::string getClassName() const { return "ImageIn"; }
-	    bool isOpened(void) const;
-      bool update(void);
-      bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
+	public:
+		ImageIn(const char *outpath, ZvSettings *settings = NULL);
+		~ImageIn() {}
+		bool isOpened(void) const;
+		bool update(void);
+		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
-	    int frameCount(void) const;
-	    int frameNumber(void) const;
+		int frameCount(void) const;
+		int frameNumber(void) const;
 
-      int width() const;
-      int height() const;
+		int width() const;
+		int height() const;
 
-   private:
-	    std::string outpath_;
+	private:
+		std::string outpath_;
+		std::string getClassName() const { return "ImageIn"; }
+		bool loadSettings(void) { return true; }
+		bool saveSettings(void) const { return true; }
 };
 #endif

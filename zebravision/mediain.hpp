@@ -35,9 +35,6 @@ class MediaIn
 	public:
 		MediaIn(ZvSettings *settings);
 		virtual ~MediaIn() {}
-		virtual bool loadSettings();
-		virtual bool saveSettings();
-		virtual std::string getClassName() const { return "MediaIn"; }
 		virtual bool isOpened(void) const;
 		virtual bool update(void) = 0;
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
@@ -58,12 +55,15 @@ class MediaIn
 		virtual CameraParams getCameraParams(bool left) const;
 
 	protected:
-		cv::Mat _frame;
-		boost::mutex _mtx;
-		ZvSettings *_settings;
+		cv::Mat frame_;
+		boost::mutex mtx_;
+		ZvSettings *settings_;
 		long long timeStamp_;
 		long long lockedTimeStamp_;
 
 		virtual long long setTimeStamp(void);
+		virtual bool loadSettings(void);
+		virtual bool saveSettings(void) const;
+		virtual std::string getClassName() const { return "MediaIn"; }
 };
 #endif

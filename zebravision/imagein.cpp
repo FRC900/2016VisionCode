@@ -9,20 +9,20 @@ using namespace cv;
 ImageIn::ImageIn(const char *inpath, ZvSettings *settings) :
   MediaIn(settings)
 {
-	imread(inpath).copyTo(_frame);
-	if (_frame.empty())
+	imread(inpath).copyTo(frame_);
+	if (frame_.empty())
 	{
 		std::cerr << "Could not open image file " << inpath << std::endl;
 		return;
 	}
 	lockedTimeStamp_ = setTimeStamp();
-	while (_frame.rows > 800)
-		pyrDown(_frame, _frame);
+	while (frame_.rows > 800)
+		pyrDown(frame_, frame_);
 }
 
 bool ImageIn::isOpened(void) const
 {
-	return _frame.empty();
+	return frame_.empty();
 }
 
 bool ImageIn::update(void)
@@ -34,21 +34,21 @@ bool ImageIn::update(void)
 bool ImageIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	(void)pause;
-	if (_frame.empty())
+	if (frame_.empty())
 		return false;
-	frame = _frame.clone();
+	frame = frame_.clone();
 	depth = Mat();
 	return true;
 }
 
 int ImageIn::width(void) const
 {
-	return _frame.cols;
+	return frame_.cols;
 }
 
 int ImageIn::height(void) const
 {
-	return _frame.rows;
+	return frame_.rows;
 }
 
 // Images have only 1 "frame"

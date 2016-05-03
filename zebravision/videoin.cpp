@@ -7,7 +7,7 @@
 using namespace cv;
 
 VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
-  MediaIn(settings),
+	MediaIn(settings),
 	cap_(inpath)
 {
 	if (cap_.isOpened())
@@ -46,16 +46,16 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 		return false;
 	if(!pause)
 	{
-		cap_ >> _frame;
-		if (_frame.empty())
+		cap_ >> frame_;
+		if (frame_.empty())
 			return false;
 		lockedTimeStamp_ = setTimeStamp();
-		while (_frame.rows > 800)
-			pyrDown(_frame, _frame);
+		while (frame_.rows > 800)
+			pyrDown(frame_, frame_);
 		frameNumber_ += 1;
 	}
 	depth = Mat();
-	_frame.copyTo(frame);
+	frame_.copyTo(frame);
 	return true;
 }
 

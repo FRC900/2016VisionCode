@@ -11,9 +11,6 @@ class VideoIn : public MediaIn
 	public:
 		VideoIn(const char *inpath, ZvSettings *settings = NULL);
 		~VideoIn() {}
-		bool loadSettings() { return true; }
-		bool saveSettings() { return true; }
-		std::string getClassName() const { return "VideoIn"; }
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
@@ -29,5 +26,8 @@ class VideoIn : public MediaIn
 		int              height_;
 		int              frames_;
 		int              frameNumber_;
+		bool loadSettings(void) { return true; }
+		bool saveSettings(void) const { return true; }
+		std::string getClassName() const { return "VideoIn"; }
 };
 #endif

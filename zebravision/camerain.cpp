@@ -7,18 +7,18 @@ using namespace cv;
 using namespace std;
 
 CameraIn::CameraIn(int stream, ZvSettings *settings) :
-  MediaIn(settings),
+	MediaIn(settings),
 	frameNumber_(0),
 	width_(1280),
-  height_(720),
+	height_(720),
 	fps_(30.),
 	cap_(stream)
 {
 	if (cap_.isOpened())
 	{
-    if (!loadSettings()) {
-      cerr << "Failed to load CameraIn settings" << endl;
-    }
+		if (!loadSettings()) {
+			cerr << "Failed to load CameraIn settings" << endl;
+		}
 
 		cap_.set(CV_CAP_PROP_FPS, fps_);
 		cap_.set(CV_CAP_PROP_FRAME_WIDTH, width_);
@@ -40,26 +40,26 @@ CameraIn::~CameraIn()
 	saveSettings();
 }
 
-bool CameraIn::loadSettings()
+bool CameraIn::loadSettings(void)
 {
-  if (_settings) {
-    _settings->getDouble(getClassName(), "fps", fps_);
-    _settings->getInt(getClassName(), "width", width_);
-    _settings->getInt(getClassName(), "height", height_);
-    return true;
-  }
+	if (settings_) {
+		settings_->getDouble(getClassName(), "fps", fps_);
+		settings_->getInt(getClassName(), "width", width_);
+		settings_->getInt(getClassName(), "height", height_);
+		return true;
+	}
 	return false;
 }
 
-bool CameraIn::saveSettings()
+bool CameraIn::saveSettings(void) const
 {
-  if (_settings) {
-    _settings->setDouble(getClassName(), "fps", fps_);
-    _settings->setInt(getClassName(), "width", width_);
-    _settings->setInt(getClassName(), "height", height_);
-    _settings->save();
-    return true;
-  }
+	if (settings_) {
+		settings_->setDouble(getClassName(), "fps", fps_);
+		settings_->setInt(getClassName(), "width", width_);
+		settings_->setInt(getClassName(), "height", height_);
+		settings_->save();
+		return true;
+	}
 	return false;
 }
 
@@ -74,11 +74,11 @@ bool CameraIn::update(void)
 	    !cap_.grab() ||
 	    !cap_.retrieve(localFrame_))
 		return false;
-	boost::lock_guard<boost::mutex> guard(_mtx);
+	boost::lock_guard<boost::mutex> guard(mtx_);
 	setTimeStamp();
-	localFrame_.copyTo(_frame);
-	while (_frame.rows > 700)
-		pyrDown(_frame, _frame);
+	localFrame_.copyTo(frame_);
+	while (frame_.rows > 700)
+		pyrDown(frame_, frame_);
 	frameNumber_ += 1;
 	return true;
 }
@@ -89,10 +89,10 @@ bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	if (!cap_.isOpened())
 		return false;
 	depth = Mat();
-	boost::lock_guard<boost::mutex> guard(_mtx);
-	if (_frame.empty())
+	boost::lock_guard<boost::mutex> guard(mtx_);
+	if (frame_.empty())
 		return false;
-	_frame.copyTo(frame);
+	frame_.copyTo(frame);
 	lockedFrameNumber_ = frameNumber_;
 	lockedTimeStamp_ = timeStamp_;
 	return true;

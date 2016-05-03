@@ -21,17 +21,17 @@ void zedGainCallback(int value, void *data);
 void zedWhiteBalanceCallback(int value, void *data);
 
 ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
-  MediaIn(settings),
+	MediaIn(settings),
 	zed_(NULL),
 	width_(0),
 	height_(0),
 	frameNumber_(0),
-  brightness_(2),
-  contrast_(6),
-  hue_(7),
-  saturation_(4),
-  gain_(1),
-  whiteBalance_(3101),
+	brightness_(2),
+	contrast_(6),
+	hue_(7),
+	saturation_(4),
+	gain_(1),
+	whiteBalance_(3101),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
 	archiveIn_(NULL),
@@ -60,7 +60,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 				loaded = true;
 				try
 				{
-					*portableArchiveIn_ >> _frame >> depthMat_;
+					*portableArchiveIn_ >> frame_ >> depthMat_;
 				}
 				catch (const std::exception &e)
 				{
@@ -72,7 +72,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 				loaded = true;
 				try
 				{
-					*archiveIn_ >> _frame >> depthMat_;
+					*archiveIn_ >> frame_ >> depthMat_;
 				}
 				catch (const std::exception &e)
 				{
@@ -85,8 +85,8 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 			}
 			if (loaded)
 			{
-				width_  = _frame.cols;
-				height_ = _frame.rows;
+				width_  = frame_.cols;
+				height_ = frame_.rows;
 
 				// Reopen the file so callers can get the first frame
 				if (!openSerializeInput(inFileName, archiveIn_ == NULL))
@@ -126,8 +126,8 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
-      if (!loadSettings())
-        cerr << "Failed to load ZedIn settings from XML" << endl;
+			if (!loadSettings())
+				cerr << "Failed to load ZedIn settings from XML" << endl;
 
 			zedBrightnessCallback(brightness_, this);
 			zedContrastCallback(contrast_, this);
@@ -162,33 +162,33 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 	}
 }
 
-bool ZedIn::loadSettings()
+bool ZedIn::loadSettings(void)
 {
-  if (_settings) {
-    _settings->getInt(getClassName(), "brightness",   brightness_);
-    _settings->getInt(getClassName(), "contrast",     contrast_);
-    _settings->getInt(getClassName(), "hue",          hue_);
-    _settings->getInt(getClassName(), "saturation",   saturation_);
-    _settings->getInt(getClassName(), "gain",         gain_);
-    _settings->getInt(getClassName(), "whiteBalance", whiteBalance_);
-    return true;
-  }
-  return false;
+	if (settings_) {
+		settings_->getInt(getClassName(), "brightness",   brightness_);
+		settings_->getInt(getClassName(), "contrast",     contrast_);
+		settings_->getInt(getClassName(), "hue",          hue_);
+		settings_->getInt(getClassName(), "saturation",   saturation_);
+		settings_->getInt(getClassName(), "gain",         gain_);
+		settings_->getInt(getClassName(), "whiteBalance", whiteBalance_);
+		return true;
+	}
+	return false;
 }
 
-bool ZedIn::saveSettings()
+bool ZedIn::saveSettings(void) const
 {
-  if (_settings) {
-    _settings->setInt(getClassName(), "brightness",   brightness_);
-    _settings->setInt(getClassName(), "contrast",     contrast_);
-    _settings->setInt(getClassName(), "hue",          hue_);
-    _settings->setInt(getClassName(), "saturation",   saturation_);
-    _settings->setInt(getClassName(), "gain",         gain_);
-    _settings->setInt(getClassName(), "whiteBalance", whiteBalance_);
-    _settings->save();
-    return true;
-  }
-  return false;
+	if (settings_) {
+		settings_->setInt(getClassName(), "brightness",   brightness_);
+		settings_->setInt(getClassName(), "contrast",     contrast_);
+		settings_->setInt(getClassName(), "hue",          hue_);
+		settings_->setInt(getClassName(), "saturation",   saturation_);
+		settings_->setInt(getClassName(), "gain",         gain_);
+		settings_->setInt(getClassName(), "whiteBalance", whiteBalance_);
+		settings_->save();
+		return true;
+	}
+	return false;
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -282,8 +282,8 @@ void ZedIn::deleteInputPointers(void)
 
 ZedIn::~ZedIn()
 {
-  if (!saveSettings())
-    cerr << "Failed to save ZedIn settings to XML" << endl;
+	if (!saveSettings())
+		cerr << "Failed to save ZedIn settings to XML" << endl;
 	deleteInputPointers();
 	if (zed_)
 		delete zed_;
@@ -310,7 +310,7 @@ bool ZedIn::update(bool left)
 			// If there is an existing frame and the
 			// grab fails, just return. This will
 			// cause the code to use the last good frame
-			if (!_frame.empty())
+			if (!frame_.empty())
 				return true;
 			// Otherwise try to grab a bunch of times before
 			// bailing out and failing
@@ -320,16 +320,16 @@ bool ZedIn::update(bool left)
 
 		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
 		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
-		boost::lock_guard<boost::mutex> guard(_mtx);
+		boost::lock_guard<boost::mutex> guard(mtx_);
 		lockedTimeStamp_ = zed_->getCameraTimestamp();
 		if (lockedTimeStamp_ == -1)
 			setTimeStamp();
-		cvtColor(slMat2cvMat(slFrame_), _frame, CV_RGBA2RGB);
+		cvtColor(slMat2cvMat(slFrame_), frame_, CV_RGBA2RGB);
 		slMat2cvMat(slDepth_).copyTo(depthMat_);
 
-		while (_frame.rows > 700)
+		while (frame_.rows > 700)
 		{
-			pyrDown(_frame, _frame);
+			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
 		}
 		frameNumber_ += 1;
@@ -356,9 +356,9 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		try
 		{
 			if (archiveIn_)
-				*archiveIn_ >> _frame >> depthMat_;
+				*archiveIn_ >> frame_ >> depthMat_;
 			else
-				*portableArchiveIn_ >> _frame >> depthMat_;
+				*portableArchiveIn_ >> frame_ >> depthMat_;
 		}
 		catch (const std::exception &e)
 		{
@@ -366,9 +366,9 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		}
 		setTimeStamp(); // TODO : read this from the ZMS file instead - this will break the format, though
 
-		while (_frame.rows > 700)
+		while (frame_.rows > 700)
 		{
-			pyrDown(_frame, _frame);
+			pyrDown(frame_, frame_);
 			pyrDown(depthMat_, depthMat_);
 		}
 		frameNumber_ += 1;
@@ -379,11 +379,11 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	// will return the last frame read in update -
 	// this can also be paused by the calling code
 	// if desired
-	boost::lock_guard<boost::mutex> guard(_mtx);
+	boost::lock_guard<boost::mutex> guard(mtx_);
 	lockedFrameNumber_ = frameNumber_;
 	lockedTimeStamp_   = timeStamp_;
 
-	_frame.copyTo(frame);
+	frame_.copyTo(frame);
 	depthMat_.copyTo(depth);
 	return true;
 }
