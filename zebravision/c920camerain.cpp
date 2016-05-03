@@ -80,7 +80,7 @@ bool C920CameraIn::initCamera(bool gui)
 	backlightCompensation_   = 0;
 	whiteBalanceTemperature_ = 0;
 
-  if (!loadSettings())
+	if (!loadSettings())
 		cerr << "Failed to load C920 settings from XML file" << endl;
 
 	// TODO - do we want to set these or go
