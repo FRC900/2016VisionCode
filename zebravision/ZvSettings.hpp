@@ -8,6 +8,7 @@ class ZvSettings
 {
 public:
   ZvSettings(const std::string &filename);
+  bool save();
 
   bool getInt(const std::string &sectionName,
               const std::string &name,
@@ -16,15 +17,15 @@ public:
   bool getDouble(const std::string &sectionName,
                  const std::string &name,
                  double &value);
-/*
+
   bool setInt(const std::string &sectionName,
               const std::string &name,
-              int &value);
+              const int value);
 
   bool setDouble(const std::string &sectionName,
                  const std::string &name,
-                 double &value);
-*/
+                 const double value);
+
   template <class T>
   void set(const std::string &sectionName,
            const std::string &name,

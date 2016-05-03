@@ -37,14 +37,7 @@ CameraIn::CameraIn(int stream, ZvSettings *settings) :
 
 CameraIn::~CameraIn()
 {
-	//FileStorage fs("camerain.xml", FileStorage::WRITE);
-	// Can't get FPS from a camera even though it
-	// can be set...
-	//fs << "camerain" << "{" ;
-	//fs << "fps" << fps_;
-	//fs << "width" << cap_.get(CV_CAP_PROP_FRAME_WIDTH);
-	//fs << "height" << cap_.get(CV_CAP_PROP_FRAME_HEIGHT);
-	//fs << "}";
+	saveSettings();
 }
 
 bool CameraIn::loadSettings()
@@ -53,7 +46,6 @@ bool CameraIn::loadSettings()
     _settings->getDouble(getClassName(), "fps", fps_);
     _settings->getInt(getClassName(), "width", width_);
     _settings->getInt(getClassName(), "height", height_);
-cerr << "ESB: fps=" << fps_ << " width=" << width_ << " height=" << height_ << endl;
     return true;
   }
 	return false;
@@ -61,11 +53,14 @@ cerr << "ESB: fps=" << fps_ << " width=" << width_ << " height=" << height_ << e
 
 bool CameraIn::saveSettings()
 {
-	//XMLElement* root = doc.FirstChildElement();
-	//XMLElement* newElement = doc.NewElement( "Subelement" );
-  //root->InsertEndChild( newElement );
-
-	return true;
+  if (_settings) {
+    _settings->setDouble(getClassName(), "fps", fps_);
+    _settings->setInt(getClassName(), "width", width_);
+    _settings->setInt(getClassName(), "height", height_);
+    _settings->save();
+    return true;
+  }
+	return false;
 }
 
 bool CameraIn::isOpened() const

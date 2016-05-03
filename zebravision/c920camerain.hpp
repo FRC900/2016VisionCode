@@ -21,8 +21,8 @@ class C920CameraIn : public MediaIn
    public:
       C920CameraIn(int _stream = -1, bool gui = false, ZvSettings *settings = NULL);
 	    ~C920CameraIn() {}
-      bool loadSettings() { return true; }
-  		bool saveSettings() { return true; }
+      bool loadSettings();
+  		bool saveSettings();
 		  std::string getClassName() const { return "C920CameraIn"; }
       bool isOpened(void) const;
       bool update(void);

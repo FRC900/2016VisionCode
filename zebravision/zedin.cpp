@@ -26,6 +26,12 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 	width_(0),
 	height_(0),
 	frameNumber_(0),
+  brightness_(2),
+  contrast_(6),
+  hue_(7),
+  saturation_(4),
+  gain_(1),
+  whiteBalance_(3101),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
 	archiveIn_(NULL),
@@ -120,20 +126,15 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
-#if 0
-			brightness_ = zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS);
-			contrast_ = zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST);
-			hue_ = zed_->getCameraSettingsValue(sl::zed::ZED_HUE);
-			saturation_ = zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION);
-			gain_ = zed_->getCameraSettingsValue(sl::zed::ZED_GAIN);
-			whiteBalance_ = zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE);
-#endif
-			zedBrightnessCallback(2, this);
-			zedContrastCallback(6, this);
-			zedHueCallback(7, this);
-			zedSaturationCallback(4, this);
-			zedGainCallback(1, this);
-			zedWhiteBalanceCallback(3101, this);
+      if (!loadSettings())
+        cerr << "Failed to load ZedIn settings from XML" << endl;
+
+			zedBrightnessCallback(brightness_, this);
+			zedContrastCallback(contrast_, this);
+			zedHueCallback(hue_, this);
+			zedSaturationCallback(saturation_, this);
+			zedGainCallback(gain_, this);
+			zedWhiteBalanceCallback(whiteBalance_, this);
 
 			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
 			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
@@ -159,6 +160,35 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 		width_  /= 2;
 		height_ /= 2;
 	}
+}
+
+bool ZedIn::loadSettings()
+{
+  if (_settings) {
+    _settings->getInt(getClassName(), "brightness",   brightness_);
+    _settings->getInt(getClassName(), "contrast",     contrast_);
+    _settings->getInt(getClassName(), "hue",          hue_);
+    _settings->getInt(getClassName(), "saturation",   saturation_);
+    _settings->getInt(getClassName(), "gain",         gain_);
+    _settings->getInt(getClassName(), "whiteBalance", whiteBalance_);
+    return true;
+  }
+  return false;
+}
+
+bool ZedIn::saveSettings()
+{
+  if (_settings) {
+    _settings->setInt(getClassName(), "brightness",   brightness_);
+    _settings->setInt(getClassName(), "contrast",     contrast_);
+    _settings->setInt(getClassName(), "hue",          hue_);
+    _settings->setInt(getClassName(), "saturation",   saturation_);
+    _settings->setInt(getClassName(), "gain",         gain_);
+    _settings->setInt(getClassName(), "whiteBalance", whiteBalance_);
+    _settings->save();
+    return true;
+  }
+  return false;
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -252,6 +282,8 @@ void ZedIn::deleteInputPointers(void)
 
 ZedIn::~ZedIn()
 {
+  if (!saveSettings())
+    cerr << "Failed to save ZedIn settings to XML" << endl;
 	deleteInputPointers();
 	if (zed_)
 		delete zed_;
