@@ -189,7 +189,7 @@ void NNDetect<MatT>::generateInitialWindows(
         float percent_image = (float)wsize / scaledImages[scale].first.cols;
 		float size_fov = percent_image * hfov_; //TODO fov size
 		float depth_avg = (ball_real_size / (2.0 * tanf(size_fov / 2.0))) - (4.572 * 25.4);
-		
+
         float depth_min = depth_avg - depth_avg * depth_multiplier;
         float depth_max = depth_avg + depth_avg * depth_multiplier;
         cout << fixed << "Target size:" << wsize / scaledImages[scale].second << " Mat Size :" << scaledImages[scale].first.size() << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max;
@@ -370,9 +370,9 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
         {
             if (it->second >= threshold)
             {
-		dsc+=ds[(stoi(label) - stoi(label)%9)/9];
-		dxc+=dx*(((stoi(label) - stoi(label)%15)/15) - 1);
-		dyc+=dy*(stoi(label)%3 - 1);
+                dsc+=ds[(stoi(label) - stoi(label)%9)/9];
+        		dxc+=dx*(((stoi(label)%9)/3) - 1);
+        		dyc+=dy*(stoi(label)%3 - 1);
 		counter++;
             }
         }
@@ -386,9 +386,9 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
 	shift.push_back(shifts);
     }
 }
-				
+
 // Be conservative here - if any of the depth values in the target rect
-// are in the expected range, consider the rect in range.  Also 
+// are in the expected range, consider the rect in range.  Also
 // say that it is in range if any of the depth values are negative (i.e. no
 // depth info for those pixels)
 template <class MatT>
