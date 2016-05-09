@@ -1,6 +1,3 @@
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/objdetect/objdetect.hpp"
 #include <opencv2/opencv.hpp>
 
 #include <iostream>
@@ -16,9 +13,12 @@
 using namespace std;
 using namespace cv;
 RNG rng(12345);
+Rect shiftRect(const Rect rectIn, float ds, float dx, float dy)
+{
+    return Rect(rectIn.tl().x - (dx*rectIn.width/ds), rectIn.tl().y-(dy*rectIn.height/ds), rectIn.width/ds, rectIn.height/ds);
+}
 int main(int argc, char *argv[])
 {
-    VideoCapture image(argv[1]);
     string filename = argv[1];
     auto pos = filename.rfind('/');
     if (pos != std::string::npos)
@@ -31,18 +31,22 @@ int main(int argc, char *argv[])
     float dy = .17;
     float ds[5] = {.83, .91, 1.0, 1.10, 1.21};
     string dir_name = "";
-    Mat original;
+    Mat original = imread(argv[1], CV_LOAD_IMAGE_COLOR);
     Mat copy;
     Mat final;
-    image >> original;
-    int expand = original.rows * dx / 2;
+    int expand = original.rows / 2;
     for (int is = 0; is < 5; is++)
     {
-        for (int ix = 0; ix < 3; ix++)
+        for (int ix = 0; ix < 2; ix++)
         {
-            for (int iy = 0; iy < 3; iy++)
+            for (int iy = 0; iy < 2; iy++)
             {
                 original.copyTo(copy);
+                copyMakeBorder(copy, copy, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0,0,255));
+                Rect ROI = Rect(expand, expand, original.cols, original.rows);
+                ROI = shiftRect(ROI, ds[is], (ix-1)*dx, (iy-1)*dy);
+                copy(ROI).copyTo(final);
+                /*original.copyTo(copy);
                 original.copyTo(final);
                 dir_name = to_string(is*9 + ix*3 + iy);
                 Rect ROI = Rect(0,0,copy.cols,copy.rows);
@@ -84,6 +88,17 @@ int main(int argc, char *argv[])
                 {
                     copy1.copyTo(final);
                 }
+                */
+                dir_name = to_string(is*9 + ix*3 + iy);
+				if (mkdir((output_dir+"/"+dir_name).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
+				{
+					if (errno != EEXIST)
+					{
+						cerr << "Could not create " << (output_dir+"/"+dir_name).c_str() << ":";
+						perror("");
+					}
+				}
+
                 string write_file = output_dir + "/" + dir_name + "/" + filename;
                 for(int i = 0; i < final.rows; i++)
                 {
@@ -95,11 +110,12 @@ int main(int argc, char *argv[])
                         }
                     }
                 }
+				resize (final, final, Size(24,24));
                 //imshow("Final", final);
                 bool truth = imwrite(write_file, final);
                 if(truth == false)
                 {
-                    cout << "Error! Could not write file." << endl;
+                    cout << "Error! Could not write file "<<  write_file << endl;
                 }
                 //waitKey(1000);
             }

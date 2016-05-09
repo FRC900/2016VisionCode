@@ -52,12 +52,18 @@ Args::Args(void)
 	saveVideo          = false;
 	saveVideoSkip      = 1;
 	detection          = true;
-	d12BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d12";
+	d12BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/d12";
 	d12DirNum          = -1;
 	d12StageNum        = 0;
-	d24BaseDir         = "/home/ubuntu/2016VisionCode/bindetection/d24";
+	d24BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/d24";
 	d24DirNum          = -1;
 	d24StageNum        = 0;
+	c12BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c12";
+	c12DirNum          = -1;
+	c12StageNum        = 0;
+	c24BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c24";
+	c24DirNum          = -1;
+	c24StageNum        = 0;
 	frameStart         = 0.0;
 	groundTruth        = false;
 }

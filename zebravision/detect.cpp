@@ -74,8 +74,8 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     // threshold listed.
     cout << "d12 windows in = " << windowsIn.size() << endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
-    cout << "d12 windows out = " << windowsOut.size() << endl;
-    runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], "ball", wsize, windowsOut);
+    cout << "d12 windows out = " << windowsMid.size() << endl;
+    runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], wsize, windowsOut);
     runNMS(windowsOut, scores, scaledImages12, nmsThreshold[0], windowsIn);
     cout << "d12 nms windows out = " << windowsIn.size() << endl;
 
@@ -93,7 +93,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
         cout << "d24 windows in = " << windowsIn.size() << endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
         cout << "d24 windows out = " << windowsOut.size() << endl;
-        runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], "ball", wsize, windowsOut);
+       // runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], wsize, windowsOut);
         runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
         cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
@@ -325,7 +325,6 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
                                     const vector<pair<MatT, double> >& scaledImages,
                                     CaffeClassifier<MatT>& classifier,
                                     float threshold,
-                                    const string& label,
                                     const int& wsize,
                                     vector<Window>& windowsOut)
 {
@@ -336,12 +335,16 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
     {
         images.push_back(scaledImages[it->second].first(it->first));
     }
-    doBatchCalibration(classifier, images, threshold, label, shift);
+    cout << images.size() << endl;
+    doBatchCalibration(classifier, images, threshold, shift);
+    cout << "10" << endl;
     for (int i = 0; i < windowsIn.size(); i++)
     {
         Rect rOut = windowsIn[i].first;
-        rOut += Point(wsize * shift[i][1], wsize * shift[i][2]);
-        utils::shrinkRect(rOut, shift[i][0]);
+	float ds = shift[i][0];
+	float dx = shift[i][1];
+	float dy = shift[i][2];
+	rOut = Rect(rOut.tl().x - dx*rOut.width/ds, rOut.tl().y - dy*rOut.height/ds, rOut.width/ds, rOut.height/ds);
         windowsOut.push_back(Window(rOut, windowsIn[i].second));
     }
 }
@@ -351,11 +354,12 @@ template<class MatT>
 void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
                                         const vector<MatT>&     imgs,
                                         float                   threshold,
-                                        const string&           label,
                                         vector<vector<float> >& shift)
 {
     shift.clear();
-    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
+    cerr << "1" << endl;
+    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
+    cerr << "2" << endl;
     float ds[] = { .81, .93, 1, 1.10, 1.21 };
     float dx   = .17;
     float dy   = .17;
@@ -374,6 +378,8 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
         {
             if (it->second >= threshold)
             {
+		string label = it->first;
+		cout << "label: " << label << endl;
                 dsc += ds[(stoi(label) - stoi(label) % 9) / 9];
                 dxc += dx * (((stoi(label) % 9) / 3) - 1);
                 dyc += dy * (stoi(label) % 3 - 1);

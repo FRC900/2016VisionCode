@@ -91,14 +91,12 @@ class NNDetect
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
 				    CaffeClassifier<MatT>& classifier,
 				    float threshold,
-				    const std::string &label,
 				    const int &wsize,
 				    std::vector<Window>& windowsOut);
 
 		void doBatchCalibration(CaffeClassifier<MatT>& classifier,
 					const std::vector<MatT>& imags,
 					float threshold,
-					const std::string& label,
 					std::vector<std::vector<float> >& shift);
 		bool depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck);
 };
