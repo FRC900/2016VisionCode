@@ -319,6 +319,9 @@ void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 template <class MatT>
 void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 {
+	CHECK(imgs.size() <= batch_size_) <<
+		"PreprocessBatch() : too many input images : batch size is " << batch_size_ << "imgs.size() = " << imgs.size(); 
+
 	for (int i = 0 ; i < imgs.size(); i++)
 	{
 		// If image is already the correct format,
@@ -337,9 +340,9 @@ void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 		std::vector<MatT> *input_channels = &input_batch.at(i);
 		split(sample_normalized_, *input_channels);
 
-#if 1
+#if 0
 		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
-		if (i ==0 )
+		if (i == 0)
 			CHECK(reinterpret_cast<float*>(input_channels->at(0).data)
 					== GetBlobData(net_->input_blobs()[0]))
 				<< "Input channels are not wrapping the input layer of the network.";
