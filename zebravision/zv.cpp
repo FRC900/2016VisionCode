@@ -235,7 +235,8 @@ int main( int argc, const char** argv )
 	//use trigonometry to predict how big in pixels the object will be and set minDetectSize to that
 	float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
 	float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
-	minDetectSize = angular_size * (cap->width() / camParams.fov.x);
+	//minDetectSize = angular_size * (cap->width() / camParams.fov.x);
+	minDetectSize = 40;
 	cout << "Min Detect Size: " << minDetectSize << endl;
 
 	// If UI is up, pop up the parameters window

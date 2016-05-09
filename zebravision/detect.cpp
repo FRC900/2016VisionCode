@@ -331,20 +331,40 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
     windowsOut.clear();
     vector<MatT>           images;
     vector<vector<float> > shift;
+    vector<vector<float> > shifts;
     for (vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
     {
         images.push_back(scaledImages[it->second].first(it->first));
+        if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+	{
+    		doBatchCalibration(classifier, images, threshold, shift);
+		shifts.insert(shifts.end(), shift.begin(), shift.end());
+		images.clear();
+	}
     }
-    cout << images.size() << endl;
-    doBatchCalibration(classifier, images, threshold, shift);
-    cout << "10" << endl;
     for (int i = 0; i < windowsIn.size(); i++)
     {
         Rect rOut = windowsIn[i].first;
-	float ds = shift[i][0];
-	float dx = shift[i][1];
-	float dy = shift[i][2];
+	float ds = shifts[i][0];
+	float dx = shifts[i][1];
+	float dy = shifts[i][2];
 	rOut = Rect(rOut.tl().x - dx*rOut.width/ds, rOut.tl().y - dy*rOut.height/ds, rOut.width/ds, rOut.height/ds);
+	if(rOut.tl().x < 0)
+	{
+		rOut -= Point(rOut.tl().x, 0);
+	}
+	if(rOut.tl().y < 0)
+	{
+		rOut -= Point(rOut.tl().y, 0);
+	}
+	if(rOut.br().x > scaledImages[windowsIn[i].second].first.cols)
+	{
+		rOut += Point(scaledImages[windowsIn[i].second].first.cols - rOut.br().x, 0);
+	}
+	if(rOut.br().y > scaledImages[windowsIn[i].second].first.rows)
+	{
+		rOut += Point(scaledImages[windowsIn[i].second].first.rows - rOut.br().y, 0);
+	}
         windowsOut.push_back(Window(rOut, windowsIn[i].second));
     }
 }
@@ -357,9 +377,7 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
                                         vector<vector<float> >& shift)
 {
     shift.clear();
-    cerr << "1" << endl;
     vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
-    cerr << "2" << endl;
     float ds[] = { .81, .93, 1, 1.10, 1.21 };
     float dx   = .17;
     float dy   = .17;
@@ -379,16 +397,24 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
             if (it->second >= threshold)
             {
 		string label = it->first;
-		cout << "label: " << label << endl;
                 dsc += ds[(stoi(label) - stoi(label) % 9) / 9];
                 dxc += dx * (((stoi(label) % 9) / 3) - 1);
                 dyc += dy * (stoi(label) % 3 - 1);
                 counter++;
             }
         }
-        dsc /= counter;
-        dxc /= counter;
-        dyc /= counter;
+	if(counter == 0)
+	{
+		dsc = 1;
+		dxc = 0;
+		dyc = 0;
+	}
+	else
+	{
+        	dsc /= counter;
+        	dxc /= counter;
+        	dyc /= counter;
+	}
         vector<float> shifts;
         shifts.push_back(dsc);
         shifts.push_back(dxc);

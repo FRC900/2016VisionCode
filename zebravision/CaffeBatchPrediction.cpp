@@ -131,9 +131,7 @@ std::vector< std::vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
-	std::cerr << "3" << std::endl;
 	std::vector<float> output_batch = PredictBatch(imgs);
-	std::cerr << "4" << std::endl;
 	std::vector< std::vector<Prediction> > predictions;
 	size_t labels_size = labels_.size();
 	num_classes = std::min(num_classes, labels_size);
@@ -239,17 +237,13 @@ std::vector<float> CaffeClassifier<MatT>::PredictBatch(
 	// Process each image so they match the format
 	// expected by the net, then copy the images
 	// into the net's input buffers
-	std::cerr << "5" << std::endl;
 	PreprocessBatch(imgs);
-	std::cerr << "6" << std::endl;
 	// Run a forward pass with the data filled in from above
 	net_->ForwardPrefilled();
-	std::cerr << "7" << std::endl;
 	/* Copy the output layer to a flat std::vector */
 	caffe::Blob<float>* output_layer = net_->output_blobs()[0];
 	const float* begin = output_layer->cpu_data();
 	const float* end = begin + output_layer->channels()*imgs.size();
-	std::cerr << "8" << std::endl;
 	return std::vector<float>(begin, end);
 }
 
@@ -342,7 +336,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 
 #if 1
 		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
-		//if (i ==0 )
+		if (i ==0 )
 			CHECK(reinterpret_cast<float*>(input_channels->at(0).data)
 					== GetBlobData(net_->input_blobs()[0]))
 				<< "Input channels are not wrapping the input layer of the network.";
