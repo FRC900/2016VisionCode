@@ -666,6 +666,46 @@ int main( int argc, const char** argv )
 				if (detectState)
 				detectState->changeD24Model(false);
 			}
+			else if (c == '\'') // higher classifier stage
+			{
+				if (detectState)
+				detectState->changeC12SubModel(true);
+			}
+			else if (c == ';') // lower classifier stage
+			{
+				if (detectState)
+				detectState->changeC12SubModel(false);
+			}
+			else if (c == '\"') // higher classifier dir num
+			{
+				if (detectState)
+				detectState->changeC12Model(true);
+			}
+			else if (c == ':') // lower classifier dir num
+			{
+				if (detectState)
+				detectState->changeC12Model(false);
+			}
+			else if (c == 'l') // higher classifier stage
+			{
+				if (detectState)
+				detectState->changeC24SubModel(true);
+			}
+			else if (c == 'k') // lower classifier stage
+			{
+				if (detectState)
+				detectState->changeC24SubModel(false);
+			}
+			else if (c == 'L') // higher classifier dir num
+			{
+				if (detectState)
+				detectState->changeC24Model(true);
+			}
+			else if (c == 'K') // lower classifier dir num
+			{
+				if (detectState)
+				detectState->changeC24Model(false);
+			}
 			else if (isdigit(c)) // save a single detected image
 			{
 				Mat frameCopy, depthCopy;
