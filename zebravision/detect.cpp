@@ -7,6 +7,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/gpu/gpu.hpp>
 
+//#define VERBOSE
+
 using namespace std;
 using namespace cv;
 
@@ -366,24 +368,58 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 #endif
 		// Shift rectangles if they extend past the borders
 		// of their respective scaledImages
+		Size scaledImageSize = scaledImages[windowsIn[i].second].first.size();
+
+		// Make sure new rect isn't resized to be larger
+		// than the scaledImage size
+		if (rOut.width > scaledImageSize.width)
+		{
+			rOut.x = 0;
+			rOut.width = rOut.height = scaledImageSize.width;
+#ifdef VERBOSE
+			cout << " resized width to " << rOut << " to fit in " << scaledImageSize;
+#endif
+		}
+		if (rOut.height > scaledImageSize.height)
+		{
+			rOut.y = 0;
+			rOut.width = rOut.height = scaledImageSize.height;
+#ifdef VERBOSE
+			cout << " resized height to " << rOut << " to fit in " << scaledImageSize;
+#endif
+		}
 		if(rOut.tl().x < 0)
 		{
 			rOut -= Point(rOut.tl().x, 0);
+#ifdef VERBOSE
+			cout << " Shifted X to 0:" << rOut << " size="<< scaledImageSize
+#endif
 		}
-		else if(rOut.br().x > scaledImages[windowsIn[i].second].first.cols)
+		else if(rOut.br().x >= scaledImageSize.width)
 		{
-			rOut += Point(scaledImages[windowsIn[i].second].first.cols - 1 - rOut.br().x, 0);
+			rOut += Point(scaledImageSize.width - 1 - rOut.br().x, 0);
+#ifdef VERBOSE
+			cout << " Shifted X to max:" << rOut << " size="<< scaledImageSize;
+#endif
 		}
 		if(rOut.tl().y < 0)
 		{
 			rOut -= Point(0, rOut.tl().y);
+#ifdef VERBOSE
+			cout << " Shifted Y to 0:" << rOut << " size="<< scaledImageSize;
+#endif
 		}
-		else if(rOut.br().y > scaledImages[windowsIn[i].second].first.rows)
+		else if(rOut.br().y >= scaledImageSize.height)
 		{
-			rOut += Point(0, scaledImages[windowsIn[i].second].first.rows - 1 - rOut.br().y);
+			rOut += Point(0, scaledImageSize.height - 1 - rOut.br().y);
+#ifdef VERBOSE
+			cout << " Shifted Y to max:" << rOut << " size="<< scaledImageSize;
+#endif
 		}
 		windowsOut.push_back(Window(rOut, windowsIn[i].second));
+#ifdef VERBOSE
 		cout << endl;
+#endif
 	}
 }
 
