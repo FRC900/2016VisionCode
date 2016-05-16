@@ -91,7 +91,6 @@ class NNDetect
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
 				    CaffeClassifier<MatT>& classifier,
 				    float threshold,
-				    const int &wsize,
 				    std::vector<Window>& windowsOut);
 
 		void doBatchCalibration(CaffeClassifier<MatT>& classifier,

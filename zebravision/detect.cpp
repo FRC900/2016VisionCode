@@ -75,7 +75,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     cout << "d12 windows in = " << windowsIn.size() << endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
     cout << "d12 windows out = " << windowsMid.size() << endl;
-    runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], wsize, windowsOut);
+    runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], windowsOut);
     runNMS(windowsOut, scores, scaledImages12, nmsThreshold[0], windowsIn);
     cout << "d12 nms windows out = " << windowsIn.size() << endl;
 
@@ -93,7 +93,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
         cout << "d24 windows in = " << windowsIn.size() << endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
         cout << "d24 windows out = " << windowsOut.size() << endl;
-       // runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], wsize, windowsOut);
+       // runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], windowsOut);
         runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
         cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
@@ -325,48 +325,66 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
                                     const vector<pair<MatT, double> >& scaledImages,
                                     CaffeClassifier<MatT>& classifier,
                                     float threshold,
-                                    const int& wsize,
                                     vector<Window>& windowsOut)
 {
-    windowsOut.clear();
-    vector<MatT>           images;
-    vector<vector<float> > shift;
-    vector<vector<float> > shifts;
-    for (vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
-    {
-        images.push_back(scaledImages[it->second].first(it->first));
-        if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+	windowsOut.clear();
+	vector<MatT>           images;
+	vector<vector<float> > shift;
+	vector<vector<float> > shifts;
+	for (vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
 	{
-    		doBatchCalibration(classifier, images, threshold, shift);
-		shifts.insert(shifts.end(), shift.begin(), shift.end());
-		images.clear();
+		images.push_back(scaledImages[it->second].first(it->first));
+		if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+		{
+			doBatchCalibration(classifier, images, threshold, shift);
+			shifts.insert(shifts.end(), shift.begin(), shift.end());
+			images.clear();
+		}
 	}
-    }
-    for (int i = 0; i < windowsIn.size(); i++)
-    {
-        Rect rOut = windowsIn[i].first;
-	float ds = shifts[i][0];
-	float dx = shifts[i][1];
-	float dy = shifts[i][2];
-	rOut = Rect(rOut.tl().x - dx*rOut.width/ds, rOut.tl().y - dy*rOut.height/ds, rOut.width/ds, rOut.height/ds);
-	if(rOut.tl().x < 0)
+	for (int i = 0; i < windowsIn.size(); i++)
 	{
-		rOut -= Point(rOut.tl().x, 0);
+		Rect rOut = windowsIn[i].first;
+		// These are the inverse of the values used
+		// to train the calibration net, since we want
+		// to "unshift" the image back to the correct
+		// location and size
+		float ds = 1.0 / shifts[i][0];
+		float dx = -shifts[i][1];
+		float dy = -shifts[i][2];
+#ifdef VERBOSE
+		cout << "i = " << i << " In=" << rOut;
+		cout << " ds=" << ds;
+		cout << " dx=" << dx;
+		cout << " dy=" << dy;
+#endif
+		rOut = Rect(cvRound(rOut.tl().x - dx*rOut.width/ds), 
+				    cvRound(rOut.tl().y - dy*rOut.height/ds), 
+					cvRound(rOut.width/ds), 
+					cvRound(rOut.height/ds));
+#ifdef VERBOSE
+		cout << " Out=" << rOut;
+#endif
+		// Shift rectangles if they extend past the borders
+		// of their respective scaledImages
+		if(rOut.tl().x < 0)
+		{
+			rOut -= Point(rOut.tl().x, 0);
+		}
+		else if(rOut.br().x > scaledImages[windowsIn[i].second].first.cols)
+		{
+			rOut += Point(scaledImages[windowsIn[i].second].first.cols - 1 - rOut.br().x, 0);
+		}
+		if(rOut.tl().y < 0)
+		{
+			rOut -= Point(0, rOut.tl().y);
+		}
+		else if(rOut.br().y > scaledImages[windowsIn[i].second].first.rows)
+		{
+			rOut += Point(0, scaledImages[windowsIn[i].second].first.rows - 1 - rOut.br().y);
+		}
+		windowsOut.push_back(Window(rOut, windowsIn[i].second));
+		cout << endl;
 	}
-	if(rOut.tl().y < 0)
-	{
-		rOut -= Point(rOut.tl().y, 0);
-	}
-	if(rOut.br().x > scaledImages[windowsIn[i].second].first.cols)
-	{
-		rOut += Point(scaledImages[windowsIn[i].second].first.cols - rOut.br().x, 0);
-	}
-	if(rOut.br().y > scaledImages[windowsIn[i].second].first.rows)
-	{
-		rOut += Point(scaledImages[windowsIn[i].second].first.rows - rOut.br().y, 0);
-	}
-        windowsOut.push_back(Window(rOut, windowsIn[i].second));
-    }
 }
 
 
@@ -376,51 +394,64 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
                                         float                   threshold,
                                         vector<vector<float> >& shift)
 {
-    shift.clear();
-    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
-    float ds[] = { .81, .93, 1, 1.10, 1.21 };
-    float dx   = .17;
-    float dy   = .17;
-    // Each outer loop is the predictions for one input image
-    for (size_t i = 0; i < imgs.size(); ++i)
-    {
-        // Each inner loop is the prediction for a particular label
-        // for the given image, sorted by score.
-        //
-        // Look for object with label <label>, > threshold confidence
-        float dsc     = 0;
-        float dxc     = 0;
-        float dyc     = 0;
-        int   counter = 0;
-        for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
-        {
-            if (it->second >= threshold)
-            {
-		string label = it->first;
-                dsc += ds[(stoi(label) - stoi(label) % 9) / 9];
-                dxc += dx * (((stoi(label) % 9) / 3) - 1);
-                dyc += dy * (stoi(label) % 3 - 1);
-                counter++;
-            }
-        }
-	if(counter == 0)
+	shift.clear();
+	vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
+	float ds[] = { .81, .93, 1, 1.10, 1.21 };
+	float dx   = .17;
+	float dy   = .17;
+	// Each outer loop is the predictions for one input image
+	for (size_t i = 0; i < imgs.size(); ++i)
 	{
-		dsc = 1;
-		dxc = 0;
-		dyc = 0;
+		// Each inner loop is the prediction for a particular label
+		// for the given image, sorted by score.
+		//
+		// Look for object with label <label>, > threshold confidence
+		float dsc     = 0;
+		float dxc     = 0;
+		float dyc     = 0;
+		int   counter = 0;
+		for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
+		{
+			if (it->second >= threshold)
+			{
+				int index = stoi(it->first);
+				dsc += ds[(index - index % 9) / 9]; //probably should just be index/9
+				dxc += dx * (((index % 9) / 3) - 1);
+				dyc += dy * (index % 3 - 1);
+				counter++;
+#ifdef VERBOSE
+				cout << "i=" << i << " Label=" << it->first << " thresh=" << it->second ;
+				cout << " ds idx=" << (index - index % 9) / 9;
+				cout << " dx idx=" << (((index % 9) / 3) - 1);
+				cout << " dy idx=" << (index % 3 - 1);
+				cout << " ds=" << ds[(index-index%9)/9];
+				cout << " dx=" << dx * (((index % 9) / 3) - 1);
+				cout << " dy=" << dy * (index % 3 - 1);
+				cout << " dsc=" << dsc;
+				cout << " dx=" << dx;
+				cout << " dy=" << dy;
+				cout << endl;
+#endif
+			}
+		}
+		if(counter == 0)
+		{
+			dsc = 1;
+			dxc = 0;
+			dyc = 0;
+		}
+		else
+		{
+			dsc /= counter;
+			dxc /= counter;
+			dyc /= counter;
+		}
+		vector<float> shifts;
+		shifts.push_back(dsc);
+		shifts.push_back(dxc);
+		shifts.push_back(dyc);
+		shift.push_back(shifts);
 	}
-	else
-	{
-        	dsc /= counter;
-        	dxc /= counter;
-        	dyc /= counter;
-	}
-        vector<float> shifts;
-        shifts.push_back(dsc);
-        shifts.push_back(dxc);
-        shifts.push_back(dyc);
-        shift.push_back(shifts);
-    }
 }
 
 
