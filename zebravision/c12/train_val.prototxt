@@ -7,6 +7,7 @@ layer {
     phase: TRAIN
   }
   transform_param {
+    mirror: false
     mean_file: "/home/kjaget/DIGITS/digits/jobs/20160504-125826-1b43/mean.binaryproto"
   }
   data_param {
@@ -24,6 +25,7 @@ layer {
     phase: TEST
   }
   transform_param {
+    mirror: false
     mean_file: "/home/kjaget/DIGITS/digits/jobs/20160504-125826-1b43/mean.binaryproto"
   }
   data_param {
