@@ -93,9 +93,9 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     if ((detectThreshold.size() > 1) && (detectThreshold[1] > 0.0))
     {
         cout << "d24 windows in = " << windowsIn.size() << endl;
-        runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
+        runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsMid, scores);
         cout << "d24 windows out = " << windowsOut.size() << endl;
-       // runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], windowsOut);
+        runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], windowsOut);
         runNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
         cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
