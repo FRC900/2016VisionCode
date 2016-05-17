@@ -7,8 +7,8 @@ int minDetectSize = 44;
 int maxDetectSize = 450;
 int d12Threshold  = 75;
 int d24Threshold  = 85;
-int c12Threshold  = 0;
-int c24Threshold  = 0;
+int c12Threshold  = 4;
+int c24Threshold  = 4;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios
