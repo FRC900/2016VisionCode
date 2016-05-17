@@ -60,6 +60,18 @@ bool MediaOut::saveFrame(const Mat &frame, const Mat &depth)
 				return false;
 			framesThisFile_ = 0;
 		}
+		// Copy input args to shared frame_ and depth_
+		// buffers. Do it unconditionally. This means that
+		// it is possible for the update thread to miss
+		// frames if two calls to this function come in back 
+		// to back. That's OK - the goal here is to
+		// write as many frames as possible
+		// without slowing down performance rather
+		// that waiting to be sure that every frame
+		// it captured to disk.  Programs which
+		// need to save every frame can explicitly
+		// call the sync() method below before
+		// each call to this function.
 		frame.copyTo(frame_);
 		depth.copyTo(depth_);
 		frameReady_ = true;
