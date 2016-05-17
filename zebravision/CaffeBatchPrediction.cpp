@@ -340,7 +340,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 		std::vector<MatT> *input_channels = &input_batch.at(i);
 		split(sample_normalized_, *input_channels);
 
-#if 0
+#if 1
 		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
 		if (i == 0)
 			CHECK(reinterpret_cast<float*>(input_channels->at(0).data)
