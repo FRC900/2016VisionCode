@@ -68,7 +68,7 @@ void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
     {
         // Mark detected rectangle on image
         // Change color based on direction we think the bin is pointing
-        rectangle(image, *it, rectColor, 3);
+        rectangle(image, *it, rectColor, 2);
         // Label each outlined image with a digit.  Top-level code allows
         // users to save these small images by hitting the key they're labeled with
         // This should be a quick way to grab lots of falsly detected images
@@ -189,6 +189,7 @@ int main( int argc, const char** argv )
 		return -2;
 
 	bool pause = !args.batchMode && args.pause;
+	bool calibRects = false;
 
 	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
@@ -251,8 +252,8 @@ int main( int argc, const char** argv )
 		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()));
 		createTrackbar ("D12 Threshold", detectWindowName, &d12Threshold, 100);
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
-		createTrackbar ("C12 Threshold", detectWindowName, &c12Threshold, 100);
-		createTrackbar ("C24 Threshold", detectWindowName, &c24Threshold, 100);
+		createTrackbar ("C12 Threshold", detectWindowName, &c12Threshold, 15);
+		createTrackbar ("C24 Threshold", detectWindowName, &c24Threshold, 15);
 	}
 
 	// Create list of tracked objects
@@ -374,8 +375,9 @@ int main( int argc, const char** argv )
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
+		vector<Rect> uncalibDetectRects;
 		if (detectState)
-			detectState->detector()->Detect(frame, depth, detectRects);
+			detectState->detector()->Detect(frame, depth, detectRects, uncalibDetectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -473,7 +475,9 @@ int main( int argc, const char** argv )
 		// 3, 5 or whatever frames instead.
 		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
-			drawRects(frame,detectRects);
+			drawRects(frame, detectRects);
+			if (calibRects)
+				drawRects(frame, uncalibDetectRects, Scalar(0,255,255), false);
 
 			// Draw tracking info if it is enabled
 			if (args.tracking)
@@ -539,13 +543,17 @@ int main( int argc, const char** argv )
 
 			// Process user input for this frame
 			char c = waitKey(5);
-			if ((c == 'c') || (c == 'q') || (c == 27))
+			if ((c == 'q') || (c == 27))
 			{ // exit
 				break;
 			}
 			else if( c == ' ')  // Toggle pause
 			{
 				pause = !pause;
+			}
+			else if( c == 'c')
+			{
+				calibRects = !calibRects;
 			}
 			else if( c == 'f')  // advance to next frame
 			{

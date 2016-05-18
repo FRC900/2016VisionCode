@@ -47,7 +47,8 @@ class NNDetect
 				const std::vector<double> &nmsThreshold,
 				const std::vector<double> &detectThreshold,
 				const std::vector<double> &calThreshold,
-				std::vector<cv::Rect> &rectsOut);
+				std::vector<cv::Rect> &rectsOut,
+				std::vector<cv::Rect> &uncalibRectsOut);
 
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
