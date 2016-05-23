@@ -490,7 +490,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		// clear assignment from pairs with large distance
 		for(size_t i = 0; i < assignment.size(); i++)
 			if ((assignment[i] != -1) && (Cost[i][assignment[i]] > dist_thresh_))
-				assignment[i] =- 1;
+				assignment[i] = -1;
 	}
 
 	// Search for unassigned detects and start new tracks for them.

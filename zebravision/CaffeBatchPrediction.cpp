@@ -316,7 +316,7 @@ void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 template <class MatT>
 void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 {
-	for (int i = 0 ; i < imgs.size(); i++)
+	for (size_t i = 0 ; i < imgs.size(); i++)
 	{
 		// If image is already the correct format,
 		// don't both resizing/converting it again

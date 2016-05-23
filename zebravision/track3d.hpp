@@ -199,7 +199,6 @@ class TrackedObjectList
 	private :
 		std::list<TrackedObject> _list; // list of currently valid detected objects
 		int _detectCount;               // ID of next object to be created
-		double _objectWidth;            // width of the object tracked
 
 		//values stay constant throughout the run but are needed for computing stuff
 		cv::Size    _imageSize;
