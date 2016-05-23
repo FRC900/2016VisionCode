@@ -9,9 +9,7 @@ static const char * const TOPLEVEL_NAME = "ZebraVision";
 ZvSettings::ZvSettings(const std::string &filename) :
     filename_(filename)
 {
-    if (xmlDoc_.LoadFile(filename.c_str()) == XML_SUCCESS) {
-    }
-    else {
+    if (xmlDoc_.LoadFile(filename.c_str()) != XML_SUCCESS) {
         cerr << "Failed to open settings file" << endl;
     }
 }
@@ -33,9 +31,7 @@ ZvSettings::getInt(const std::string &sectionName,
         value = tmpInt;
         return true;
     }
-    else {
-        return false;
-    }
+	return false;
 }
 
 bool
@@ -49,9 +45,7 @@ ZvSettings::getDouble(const std::string &sectionName,
         value = tmpDouble;
         return true;
     }
-    else {
-        return false;
-    }
+	return false;
 }
 
 bool
@@ -112,9 +106,8 @@ ZvSettings::getElement(const std::string &sectionName,
             }
         }
     }
-    if (saveNeeded) {
-        if (xmlDoc_.SaveFile(filename_.c_str()) != XML_SUCCESS)
-            cerr << "Failed to save settings file: " << filename_ << endl;
+    if (saveNeeded && (xmlDoc_.SaveFile(filename_.c_str()) != XML_SUCCESS))
+		cerr << "Failed to save settings file: " << filename_ << endl;
     }
     return ret;
 }

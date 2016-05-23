@@ -26,7 +26,7 @@ portable_binary_oarchive::save_impl(
     }
 
     boost::intmax_t ll;
-    bool negative = (l < 0);
+    bool negative = l < 0;
     if(negative)
         ll = -l;
     else
