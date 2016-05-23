@@ -6,9 +6,10 @@ using namespace std;
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+using namespace std;
 using namespace cv;
 
-// Prototypes for various callbacks used by GUI sliders
+// Prototypes for various callbacks used by scrollbars
 void brightnessCallback(int value, void *data);
 void contrastCallback(int value, void *data);
 void saturationCallback(int value, void *data);

@@ -150,14 +150,13 @@ namespace v4l2 {
 			this->capture->V4L2Control.id = V4L2_CID_FOCUS_AUTO;
 			this->capture->V4L2Control.value = true;
 			return this->SetControl(this->capture);
-		} else {
-			this->capture->V4L2Control.id = V4L2_CID_FOCUS_AUTO;
-			this->capture->V4L2Control.value = false;
-			if (this->SetControl(this->capture)) {
-				this->capture->V4L2Control.id = V4L2_CID_FOCUS_ABSOLUTE;
-				this->capture->V4L2Control.value = value;
-				return this->SetControl(this->capture);
-			}
+		} 
+		this->capture->V4L2Control.id = V4L2_CID_FOCUS_AUTO;
+		this->capture->V4L2Control.value = false;
+		if (this->SetControl(this->capture)) {
+			this->capture->V4L2Control.id = V4L2_CID_FOCUS_ABSOLUTE;
+			this->capture->V4L2Control.value = value;
+			return this->SetControl(this->capture);
 		}
 		return false;
 	}
@@ -166,14 +165,13 @@ namespace v4l2 {
 			this->capture->V4L2Control.id = V4L2_CID_AUTO_WHITE_BALANCE;
 			this->capture->V4L2Control.value = true;
 			return this->SetControl(this->capture);
-		} else {
-			this->capture->V4L2Control.id = V4L2_CID_AUTO_WHITE_BALANCE;
-			this->capture->V4L2Control.value = false;
-			if (this->SetControl(this->capture)) {
-				this->capture->V4L2Control.id = V4L2_CID_WHITE_BALANCE_TEMPERATURE;
-				this->capture->V4L2Control.value = value;
-				return this->SetControl(this->capture);
-			}
+		} 
+		this->capture->V4L2Control.id = V4L2_CID_AUTO_WHITE_BALANCE;
+		this->capture->V4L2Control.value = false;
+		if (this->SetControl(this->capture)) {
+			this->capture->V4L2Control.id = V4L2_CID_WHITE_BALANCE_TEMPERATURE;
+			this->capture->V4L2Control.value = value;
+			return this->SetControl(this->capture);
 		}
 		return false;
 	}
@@ -387,13 +385,12 @@ try_again: capture->V4L2RequestBuffers.count = buffer_number;
 				   /* free capture, and returns an error code */
 				   this->CloseCapture(capture);
 				   return -2;
-			   } else {
-				   buffer_number--;
-				   fprintf(stderr,
-						   "C920Camera::InitializeCaptureBuffers ERROR: Insufficient buffer memory on %s -- decreaseing buffers\n",
-						   capture->DeviceName);
-				   goto try_again;
-			   }
+			   } 
+			   buffer_number--;
+			   fprintf(stderr,
+					   "C920Camera::InitializeCaptureBuffers ERROR: Insufficient buffer memory on %s -- decreaseing buffers\n",
+					   capture->DeviceName);
+			   goto try_again;
 		   }
 		   for (unsigned int n_buffers = 0; n_buffers < capture->V4L2RequestBuffers.count; ++n_buffers) {
 			   struct v4l2_buffer buffer;
@@ -521,15 +518,16 @@ try_again: capture->V4L2RequestBuffers.count = buffer_number;
 			capture->Frame.imageData = (char *) cvAlloc(capture->Frame.imageSize);
 		}
 		// Decode image from MJPEG to RGB24
-		if (capture->Buffers[capture->BufferIndex].start) {
-			if (!this->MJPEG2RGB24(capture->V4L2Format.fmt.pix.width, capture->V4L2Format.fmt.pix.height,
-						(unsigned char*) (capture->Buffers[capture->BufferIndex].start), capture->Buffers[capture->BufferIndex].length,
-						(unsigned char*) capture->Frame.imageData)) {
-				fprintf(stdout, "C920Camera::RetrieveFrame ERROR: Unable to decode frame.\n");
-				return 0;
-			}
+		if ((capture->Buffers[capture->BufferIndex].start) &&
+			!this->MJPEG2RGB24(capture->V4L2Format.fmt.pix.width, 
+				               capture->V4L2Format.fmt.pix.height,
+					           (unsigned char*) capture->Buffers[capture->BufferIndex].start, 
+							   capture->Buffers[capture->BufferIndex].length,
+					           (unsigned char*) capture->Frame.imageData)) {
+			fprintf(stdout, "C920Camera::RetrieveFrame ERROR: Unable to decode frame.\n");
+			return 0;
 		}
-		return (&capture->Frame);
+		return &capture->Frame;
 	}
 	bool C920Camera::MJPEG2RGB24(int width, int height, unsigned char *src, int length, unsigned char *dst) {
 		cv::Mat temp = cv::imdecode(cv::Mat(std::vector<uchar>(src, src + length)), 1);
