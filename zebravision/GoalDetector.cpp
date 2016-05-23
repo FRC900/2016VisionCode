@@ -403,7 +403,7 @@ bool GoalDetector::generateThresholdAddSubtract(const Mat& imageIn, Mat& imageOu
 #endif
 	if (otsuThreshold < _otsu_threshold)
 		return false;
-    return (countNonZero(imageOut) != 0);
+    return countNonZero(imageOut) != 0;
 }
 
 // Use the camera FOV, image size and rect size to
@@ -529,5 +529,5 @@ bool SmartRect::operator== (const SmartRect &thatRect)const
 	double intersectArea = (myRect & thatRect.myRect).area();
 	double unionArea     = myRect.area() + thatRect.myRect.area() - intersectArea;
 
-	return ((intersectArea / unionArea) >= .8);
+	return (intersectArea / unionArea) >= .8;
 }

@@ -27,7 +27,7 @@ portable_binary_iarchive::load_impl(boost::intmax_t & l, char maxsize){
         return;
     }
 
-    bool negative = (size < 0);
+    bool negative = size < 0;
     if(negative)
         size = -size;
 

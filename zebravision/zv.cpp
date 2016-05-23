@@ -70,7 +70,7 @@ void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
     {
         // Mark detected rectangle on image
         // Change color based on direction we think the bin is pointing
-        rectangle(image, *it, rectColor, 3);
+        rectangle(image, *it, rectColor, 2);
         // Label each outlined image with a digit.  Top-level code allows
         // users to save these small images by hitting the key they're labeled with
         // This should be a quick way to grab lots of falsly detected images
@@ -146,21 +146,21 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
 
 void grabThread(MediaIn *cap, bool &pause)
 {
-	// this runs concurrently with the main while loop
+	// this runs concurrently with the main while loop 
 	// If using a camera it will constantly grab frames
 	// in the background.  If input is an image or video,
 	// update() is a no-op so frames will only be read
 	// when getFrame is explicitly called in the main loop.
-	// That way all video frames are processed rather than
+	// That way all video frames are processed rather than 
 	// skipping some and repeating others since the update
 	// is out of sync with the main loop
 	FrameTicker frameTicker;
-	while(1)
+	while(1) 
 	{
-		if(!pause)
+		if(!pause) 
 		{
 			frameTicker.mark();
-			if(!cap->update())
+			if(!cap->update()) 
 			{
 				cerr << "Failed to capture" << endl;
 				isRunning = false;
@@ -221,7 +221,6 @@ int main( int argc, const char** argv )
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
-	vector<Rect> groundTruthList;
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -237,9 +236,10 @@ int main( int argc, const char** argv )
 
 	//we need to detect from a maximum of 25 feet
 	//use trigonometry to predict how big in pixels the object will be and set minDetectSize to that
-	float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
-	float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
-	minDetectSize = angular_size * (cap->width() / camParams.fov.x);
+	//float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
+	//float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
+	//minDetectSize = angular_size * (cap->width() / camParams.fov.x);
+	minDetectSize = 40;
 	cout << "Min Detect Size: " << minDetectSize << endl;
 
 	// If UI is up, pop up the parameters window
@@ -399,7 +399,7 @@ int main( int argc, const char** argv )
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
-		stepTimer = cv::getTickCount();
+		//stepTimer = cv::getTickCount();
 		vector<Rect>depthFilteredDetectRects;
 		vector<float> depths;
 		vector<ObjectType> objTypes;
@@ -444,7 +444,7 @@ int main( int argc, const char** argv )
 		// avoid printing too much stuff
 		if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
+			  ( args.batchMode && (((cap->frameNumber() * ((args.skip > 0) ? args.skip : 1)) % 1) == 0))))
 		{
 			int frames = cap->frameCount();
 			stringstream frameStr;
