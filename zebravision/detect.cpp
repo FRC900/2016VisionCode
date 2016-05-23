@@ -3,8 +3,11 @@
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
 #include "detect.hpp"
+#include "Utilities.hpp"
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/gpu/gpu.hpp>
+
+//#define VERBOSE
 
 using namespace std;
 using namespace cv;
@@ -36,7 +39,9 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
                                       double                scaleFactor,
                                       const vector<double>& nmsThreshold,
                                       const vector<double>& detectThreshold,
-                                      vector<Rect>&         rectsOut)
+                                      const vector<double>& calibrationThreshold,
+                                      vector<Rect>&         rectsOut,
+									  vector<Rect>&         uncalibRectsOut)
 {
     // Size of the first level classifier. Others are an integer multiple
     // of this initial size (2x and maybe 4x if we need it)
@@ -57,7 +62,9 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	// Keeping both allows the code to resize the window to 
 	// the correct size and location on the original input image
     vector<Window> windowsIn;
+    vector<Window> windowsMid;
     vector<Window> windowsOut;
+    vector<Window> uncalibWindowsOut;
 
     // Confidence scores (0.0 - 1.0) for each detected rectangle
 	// Higher confidence means more likely to be what the net is 
@@ -83,8 +90,15 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     // and returns the list which have a score for "ball" above the
     // threshold listed.
     cout << "d12 windows in = " << windowsIn.size() << endl;
-    runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsOut, scores);
-    cout << "d12 windows out = " << windowsOut.size() << endl;
+    runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
+    cout << "d12 windows out = " << windowsMid.size() << endl;
+	// If not running d24/c24, use the d12 output as the
+	// uncalibrated results
+    if ((detectThreshold.size() == 1) || (detectThreshold[1] <= 0.0))
+	{
+		runGlobalNMS(windowsMid, scores, scaledImages12, nmsThreshold[0], uncalibWindowsOut);
+	}
+    runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], windowsOut);
     runLocalNMS(windowsOut, scores, nmsThreshold[0], windowsIn);
     cout << "d12 nms windows out = " << windowsIn.size() << endl;
 
@@ -100,10 +114,15 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     if ((detectThreshold.size() > 1) && (detectThreshold[1] > 0.0))
     {
         cout << "d24 windows in = " << windowsIn.size() << endl;
-        runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsOut, scores);
+        runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsMid, scores);
         cout << "d24 windows out = " << windowsOut.size() << endl;
+		// Save uncalibrated results for debugging
+		runGlobalNMS(windowsMid, scores, scaledImages12, nmsThreshold[1], uncalibWindowsOut);
+		// Use calibration nets to try and better align the 
+		// detection rectangle
+        runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], windowsOut);
         runGlobalNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
-		cout << "d24 nms windows out = " << windowsIn.size() << endl;
+        cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
 
     // Final result - scale the output rectangles back to the
@@ -116,11 +135,32 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
         Rect scaledRect(Rect(cvRound(rect.x / scale), cvRound(rect.y / scale), cvRound(rect.width / scale), cvRound(rect.height / scale)));
         rectsOut.push_back(scaledRect);
     }
+
+	// Also return the uncalibrated results for debuging
+    uncalibRectsOut.clear();
+    for (auto it = uncalibWindowsOut.cbegin(); it != uncalibWindowsOut.cend(); ++it)
+    {
+		double scale;
+		if ((detectThreshold.size() == 1) || (detectThreshold[1] <= 0.0))
+			scale = scaledImages12[it->second].second;
+		else
+			scale = scaledImages24[it->second].second;
+        Rect rect(it->first);
+        Rect scaledRect(Rect(cvRound(rect.x / scale), cvRound(rect.y / scale), cvRound(rect.width / scale), cvRound(rect.height / scale)));
+        uncalibRectsOut.push_back(scaledRect);
+    }
 }
 
 
-// Run NMS globally across all detected windows
-// regardless of scale
+// Non-maximum suppression eliminates overlapping detection
+// rectangles.  It looks for sets of overlapping rectangles
+// (with the amount of overlap to tolerate as nmsThreshold)
+// and keeps only the one with the best score, rejecting 
+// the others.
+// This method runs NMS across windows of all scales - that
+// is, a window from one scale can overlap and eliminate
+// a window at a different scale. Use this for the last
+// level of detection only
 template<class MatT>
 void NNDetect<MatT>::runGlobalNMS(const vector<Window>& windows,
                                   const vector<float>& scores,
@@ -221,10 +261,29 @@ void NNDetect<MatT>::runLocalNMS(const vector<Window>& windows,
 }
 
 
+// Generate a set of scaled images.  The first scale resizes
+// the image such that objects which were minSize are now 
+// wsize - the size of the input to the neural net.  This allows
+// the net to detect those. It then repeatedly creates new scaled
+// images by resizing them by factor scaleFactor until the detection
+// size is maxsize.  This allows the code to detect objects
+// at multiple scales using a fixed-size neural net input
+// For each of these scaled images, move a fixed wsize
+// window across all the rows and columns.  This sets up
+// the code to detect objects at multiple locations in each
+// scaled image.
+// If depth info is present, filter out windows which would
+// give objects which are the wrong size (calculated from
+// scale info and depth information). That is, for a given 
+// depth we know how big in pixels the boulder should be.  If
+// the scaled wsize value is too far away from that predicted
+// size, anyting we detect in that rect can't really be a boulder
+// and should be filtered out of the initial list of possible
+// detection windows.
 template<class MatT>
 void NNDetect<MatT>::generateInitialWindows(
     const MatT& input,
-    const Mat&  depthIn,
+    const Mat& depthIn,
     const Size& minSize,
     const Size& maxSize,
     int wsize,
@@ -253,44 +312,54 @@ void NNDetect<MatT>::generateInitialWindows(
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
-		float depth_multiplier = 0.2;
-		float ball_real_size = 247.6; // ball is 9.75in diameter = 247.6 mm
-        float percent_image = (float)wsize / scaledImages[scale].first.cols;
-		float size_fov = percent_image * hfov_; //TODO fov size
-		float depth_avg = ball_real_size / (2.0 * tanf(size_fov / 2.0)) - 4.572 * 25.4;
-		
+        float depth_multiplier = 0.2;
+        float ball_real_size   = 247.6;                 // ball is 9.75in diameter = 247.6 mm
+        float percent_image    = (float)wsize / scaledImages[scale].first.cols;
+        float size_fov         = percent_image * hfov_; //TODO fov size
+        float depth_avg        = (ball_real_size / (2.0 * tanf(size_fov / 2.0))) - (4.572 * 25.4);
+
         float depth_min = depth_avg - depth_avg * depth_multiplier;
         float depth_max = depth_avg + depth_avg * depth_multiplier;
         cout << fixed << "Target size:" << wsize / scaledImages[scale].second << " Mat Size :" << scaledImages[scale].first.size() << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max;
-		size_t thisWindowsChecked = 0;
-		size_t thisWindowsPassed  = 0;
+        size_t thisWindowsChecked = 0;
+        size_t thisWindowsPassed  = 0;
 
-        // Start at the upper left corner.  Loop through the rows and cols until
-        // the detection window falls off the edges of the scaled image
+        // Start at the upper left corner.  Loop through the rows and cols adding
+		// each position to the list to check until the detection window falls off 
+		// the edges of the scaled image
+		// Throw out rects which would indicate an object that is totally the
+		// wrong size for the objects we're trying to detect
         for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
         {
             for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
             {
-				thisWindowsChecked += 1;
+                thisWindowsChecked += 1;
                 if (!depthIn.empty())
                 {
                     Mat detectCheck = Mat(scaledDepth[scale].first(Rect(c, r, wsize, wsize)));
-                    if(!depthInRange(depth_min, depth_max, detectCheck))
+                    if (!depthInRange(depth_min, depth_max, detectCheck))
                     {
                         continue;
                     }
                 }
                 windows.push_back(Window(Rect(c, r, wsize, wsize), scale));
-				thisWindowsPassed += 1;
+                thisWindowsPassed += 1;
             }
         }
-		windowsChecked += thisWindowsChecked;
-		cout << " Windows Passed:"<< thisWindowsPassed << "/" << thisWindowsChecked << endl;
+        windowsChecked += thisWindowsChecked;
+        cout << " Windows Passed:" << thisWindowsPassed << "/" << thisWindowsChecked << endl;
     }
     cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << endl;
 }
 
 
+// Run the actual detection.  Pass in the classifer (a d12 or d24 
+// neural net) along with a set of windows to search. The scaledImages
+// vector is a set of the actual images to grab input data from.
+// Threshold is the confidence limit we need to see to accept an
+// image as detected, and label is the name of the object
+// we're looking for.
+// For each detected window, also return a score 
 template<class MatT>
 void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
                                   const vector<pair<MatT, double> >& scaledImages,
@@ -307,10 +376,10 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
     vector<MatT> images;
 
     // Return value from detection. This is a list of indexes from
-    // the input which have a high enough confidence score
+    // the input array above which have a high enough confidence score
     vector<size_t> detected;
 
-    size_t batchSize = classifier.BatchSize();
+    size_t batchSize = classifier.BatchSize(); // defined when classifer is constructed
     int    counter   = 0;
     double start     = gtod_wrapper(); // grab start time
 
@@ -323,9 +392,10 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
         // scaledImages[x].first is a Mat holding the image
         // scaled to the correct size for the given rect.
         // it->second is the index into scaledImages to look at
-        // so scaledImages[it->second] is a Mat at the correct
-        // scale for the current window. it->first is the
-        // rect describing the subset of that image we need to process
+        // so scaledImages[it->second] is a Mat holding the original images 
+		// resized to the correct scale for the current window. 
+		// it->first is the rect describing the subset of that image 
+		// we need to process
         images.push_back(scaledImages[it->second].first(it->first));
         if ((images.size() == batchSize) || ((it + 1) == windows.cend()))
         {
@@ -335,6 +405,9 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
             // of processing fresh
             images.clear();
 
+			// detected is a list of indexes of entries in the input
+			// which returned confidences higher than threshold. Keep
+			// those as valid detections and ignore the rest
             for (size_t j = 0; j < detected.size(); j++)
             {
                 // Indexes in detected array are relative to the start of the
@@ -354,12 +427,12 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 // do 1 run of the classifier. This takes up batch_size predictions
 // and adds the index of anything found to the detected list
 template<class MatT>
-void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
-                                       const vector<MatT>& imgs,
-                                       float                    threshold,
-                                       const string&       label,
-                                       vector<size_t>&     detected,
-                                       vector<float>&      scores)
+void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
+                                       const vector<MatT>&    imgs,
+                                       float                  threshold,
+                                       const string&          label,
+                                       vector<size_t>&        detected,
+                                       vector<float>&         scores)
 {
     detected.clear();
     // Grab the top 2 detected classes.  Since we're doing an object /
@@ -372,7 +445,10 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         // Each inner loop is the prediction for a particular label
         // for the given image, sorted by score.
         //
-        // Look for object with label <label>, > threshold confidence
+        // Look for object with label <label>, >= <threshold> confidence
+		// Higher confidences from the prediction mean that the net
+		// thinks it is more likely that the label correctly
+		// identifies the image passed in
         for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
         {
             if (it->first == label)
@@ -387,55 +463,195 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>&   classifier,
         }
     }
 }
-/*void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&   classifier,
-					const vector<MatT>& imgs,
-					float threshold,
-					const string& label,
-                                        vector<size_t>&     detected,
-                                        vector<vector<float> >&      shift)
+
+// Use a specially-traned net to adjust the position of a detection
+// rectangle to better match the actual position of the object we're
+// looking for.
+// The net is trained with a number of shifted and resized images. Each
+// label 0-44 is some fixed permutation of shift and resize values.
+// If the confidence for that label is high enough it means that
+// the net thinks the ball is shifted/resized by the amount 
+// corresponding to that label.  
+// The actual shift/resize to apply is the average of all of them
+// with a high enough confidence
+template<class MatT>
+void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
+                                    const vector<pair<MatT, double> >& scaledImages,
+                                    CaffeClassifier<MatT>& classifier,
+                                    float threshold,
+                                    vector<Window>& windowsOut)
 {
-    detected.clear();
-    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
-    float ds[] = {.81, .93, 1, 1.10, 1.21};
-    float dx = .17;
-    float dy = .17;
-    // Each outer loop is the predictions for one input image
-    for (size_t i = 0; i < imgs.size(); ++i)
-    {
-        // Each inner loop is the prediction for a particular label
-        // for the given image, sorted by score.
-        //
-        // Look for object with label <label>, > threshold confidence
-	float dsc = 0;
-	float dxc = 0;
-	float dyc = 0;
-	int counter = 0;
-        for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
-        {
-            if (it->second >= threshold)
-            {
-		dsc+=ds[(stof(label) - stof(label)%9)/9];
-		dxc+=dx*(((stof(label) - stof(label)%15)/15) - 1);
-		dyc+=dy*(stof(label)%15 - 1);
-		counter++;
-            }
-        }
-	dsc/=counter;
-	dxc/=counter;
-	dyc/=counter;
-	vector<float> shifts;
-	shifts.push_back(dsc);
-	shifts.push_back(dxc);
-	shifts.push_back(dyc);
-    }
-}*/
-				
+	windowsOut.clear();
+	vector<MatT>           images; // input images
+	vector<vector<float> > shift;  // shift list for this batch
+	vector<vector<float> > shifts; // complete list of all shifts
+	for (vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
+	{
+		// Grab the rect from the scaled image represented
+		// but each input window
+		images.push_back(scaledImages[it->second].first(it->first));
+		if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+		{
+			doBatchCalibration(classifier, images, threshold, shift);
+			shifts.insert(shifts.end(), shift.begin(), shift.end());
+			images.clear();
+		}
+	}
+	for (size_t i = 0; i < windowsIn.size(); i++)
+	{
+		Rect rOut = windowsIn[i].first;
+		// These are the inverse of the values used
+		// to train the calibration net, since we want
+		// to "unshift" the image back to the correct
+		// location and size
+		float ds = 1.0 / shifts[i][0];
+		float dx = -shifts[i][1];
+		float dy = -shifts[i][2];
+#ifdef VERBOSE
+		cout << "i = " << i << " In=" << rOut;
+		cout << " ds=" << ds;
+		cout << " dx=" << dx;
+		cout << " dy=" << dy;
+#endif
+		// Actually apply the shift/scale
+		rOut = Rect(cvRound(rOut.tl().x - dx*rOut.width/ds), 
+				    cvRound(rOut.tl().y - dy*rOut.height/ds), 
+					cvRound(rOut.width/ds), 
+					cvRound(rOut.height/ds));
+#ifdef VERBOSE
+		cout << " Out=" << rOut;
+#endif
+		// Shift rectangles if they extend past the borders
+		// of their respective scaledImages
+		Size scaledImageSize = scaledImages[windowsIn[i].second].first.size();
+
+		// Make sure new rect isn't resized to be larger
+		// than the scaledImage size
+		if (rOut.width > scaledImageSize.width)
+		{
+			rOut.x = 0;
+			rOut.width = rOut.height = scaledImageSize.width;
+#ifdef VERBOSE
+			cout << " resized width to " << rOut << " to fit in " << scaledImageSize;
+#endif
+		}
+		if (rOut.height > scaledImageSize.height)
+		{
+			rOut.y = 0;
+			rOut.width = rOut.height = scaledImageSize.height;
+#ifdef VERBOSE
+			cout << " resized height to " << rOut << " to fit in " << scaledImageSize;
+#endif
+		}
+		if(rOut.tl().x < 0)
+		{
+			rOut -= Point(rOut.tl().x, 0);
+#ifdef VERBOSE
+			cout << " Shifted X to 0:" << rOut << " size="<< scaledImageSize
+#endif
+		}
+		else if(rOut.br().x >= scaledImageSize.width)
+		{
+			rOut += Point(scaledImageSize.width - 1 - rOut.br().x, 0);
+#ifdef VERBOSE
+			cout << " Shifted X to max:" << rOut << " size="<< scaledImageSize;
+#endif
+		}
+		if(rOut.tl().y < 0)
+		{
+			rOut -= Point(0, rOut.tl().y);
+#ifdef VERBOSE
+			cout << " Shifted Y to 0:" << rOut << " size="<< scaledImageSize;
+#endif
+		}
+		else if(rOut.br().y >= scaledImageSize.height)
+		{
+			rOut += Point(0, scaledImageSize.height - 1 - rOut.br().y);
+#ifdef VERBOSE
+			cout << " Shifted Y to max:" << rOut << " size="<< scaledImageSize;
+#endif
+		}
+		windowsOut.push_back(Window(rOut, windowsIn[i].second));
+#ifdef VERBOSE
+		cout << endl;
+#endif
+	}
+}
+
+
+template<class MatT>
+void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
+                                        const vector<MatT>&     imgs,
+                                        float                   threshold,
+                                        vector<vector<float> >& shift)
+{
+	shift.clear();
+	vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
+	float ds[] = { .81, .93, 1, 1.10, 1.21 };
+	float dx   = .17;
+	float dy   = .17;
+	// Each outer loop is the predictions for one input image
+	for (size_t i = 0; i < imgs.size(); ++i)
+	{
+		// Each inner loop is the prediction for a particular label
+		// for the given image, sorted by score.
+		//
+		// Look for object with label <label>, >= threshold confidence
+		float dsc     = 0;
+		float dxc     = 0;
+		float dyc     = 0;
+		int   counter = 0;
+		for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
+		{
+			if (it->second >= threshold)
+			{
+				int index = stoi(it->first);
+				dsc += ds[(index - index % 9) / 9]; //probably should just be index/9
+				dxc += dx * (((index % 9) / 3) - 1);
+				dyc += dy * (index % 3 - 1);
+				counter++;
+#ifdef VERBOSE
+				cout << "i=" << i << " Label=" << it->first << " thresh=" << it->second ;
+				cout << " ds idx=" << (index - index % 9) / 9;
+				cout << " dx idx=" << (((index % 9) / 3) - 1);
+				cout << " dy idx=" << (index % 3 - 1);
+				cout << " ds=" << ds[(index-index%9)/9];
+				cout << " dx=" << dx * (((index % 9) / 3) - 1);
+				cout << " dy=" << dy * (index % 3 - 1);
+				cout << " dsc=" << dsc;
+				cout << " dx=" << dx;
+				cout << " dy=" << dy;
+				cout << endl;
+#endif
+			}
+		}
+		if(counter == 0)
+		{
+			dsc = 1;
+			dxc = 0;
+			dyc = 0;
+		}
+		else
+		{
+			dsc /= counter;
+			dxc /= counter;
+			dyc /= counter;
+		}
+		vector<float> shifts;
+		shifts.push_back(dsc);
+		shifts.push_back(dxc);
+		shifts.push_back(dyc);
+		shift.push_back(shifts);
+	}
+}
+
+
 // Be conservative here - if any of the depth values in the target rect
-// are in the expected range, consider the rect in range.  Also 
+// are in the expected range, consider the rect in range.  Also
 // say that it is in range if any of the depth values are negative (i.e. no
 // depth info for those pixels)
-template <class MatT>
-bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat &detectCheck)
+template<class MatT>
+bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
@@ -450,6 +666,7 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat &d
     }
     return false;
 }
+
 
 // Explicitly instatiate classes used elsewhere
 template class NNDetect<Mat>;

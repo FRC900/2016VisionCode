@@ -5,10 +5,12 @@
 
 using namespace std;
 
-DetectState::DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, float hfov, bool gpu) :
+DetectState::DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu) :
     detector_(NULL),
 	d12IO_(d12IO),
 	d24IO_(d24IO),
+	c12IO_(c12IO),
+	c24IO_(c24IO),
 	hfov_(hfov),
 	gpu_(gpu),
 	reload_(true)
@@ -45,7 +47,29 @@ bool DetectState::update(void)
         cerr << "No Files to load classifier" << endl;
         return false;
     }
-	detector_ = new GPU_NNDetect(d12Files, d24Files, hfov_);
+
+    vector<string> c12Files = c12IO_.getClassifierFiles();
+    for (size_t i = 0; i < c12Files.size(); ++i)
+    {
+        cerr << "C12Files[" << i << "] = " << c12Files[i] << endl;
+    }
+    if (c12Files.size() != 4)
+    {
+        cerr << "No Files to load classifier" << endl;
+        return false;
+    }
+
+    vector<string> c24Files = c24IO_.getClassifierFiles();
+    for (size_t i = 0; i < c24Files.size(); ++i)
+    {
+        cerr << "C24Files[" << i << "] = " << c24Files[i] << endl;
+    }
+    if (c24Files.size() != 4)
+    {
+        cerr << "No Files to load classifier" << endl;
+        return false;
+    }
+	detector_ = new GPU_NNDetect(d12Files, d24Files, c12Files, c24Files, hfov_);
 
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )
@@ -87,7 +111,31 @@ void DetectState::changeD24Model(bool increment)
 	  reload_ = true;
 }
 
+void DetectState::changeC12SubModel(bool increment)
+{
+   if (c12IO_.findNextClassifierStage(increment))
+	  reload_ = true;
+}
+
+void DetectState::changeC12Model(bool increment)
+{
+   if (c12IO_.findNextClassifierDir(increment))
+	  reload_ = true;
+}
+
+void DetectState::changeC24SubModel(bool increment)
+{
+   if (c24IO_.findNextClassifierStage(increment))
+	  reload_ = true;
+}
+
+void DetectState::changeC24Model(bool increment)
+{
+   if (c24IO_.findNextClassifierDir(increment))
+	  reload_ = true;
+}
+
 std::string DetectState::print(void) const
 {
-   return d12IO_.print() + "," + d24IO_.print();
+   return d12IO_.print() + "," + d24IO_.print() + "," + c12IO_.print() + "," + c24IO_.print();
 }

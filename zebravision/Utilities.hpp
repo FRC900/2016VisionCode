@@ -10,6 +10,9 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/core/core.hpp"
 
+#ifndef UTILITIES
+#define UTILITIES
+
 namespace utils {
 
 std::pair<float, float> minOfDepthMat(const cv::Mat& img, const cv::Mat& mask, const cv::Rect& bound_rect, int range);
@@ -21,3 +24,4 @@ double normalCFD(const std::pair<double, double> &meanAndStdev, double value);
 
 }
 
+#endif

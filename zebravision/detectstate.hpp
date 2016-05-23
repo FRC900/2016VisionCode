@@ -9,7 +9,7 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, float hfov, bool gpu = false);
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false);
 		~DetectState()
 		{
 			if (detector_)
@@ -21,6 +21,10 @@ class DetectState
 		void changeD12SubModel(bool increment);
 		void changeD24Model(bool increment);
 		void changeD24SubModel(bool increment);
+		void changeC12Model(bool increment);
+		void changeC12SubModel(bool increment);
+		void changeC24Model(bool increment);
+		void changeC24SubModel(bool increment);
 		std::string print(void) const;
 		ObjDetect *detector(void)
 		{
@@ -30,6 +34,8 @@ class DetectState
 		ObjDetect    *detector_;
 		ClassifierIO  d12IO_;
 		ClassifierIO  d24IO_;
+		ClassifierIO  c12IO_;
+		ClassifierIO  c24IO_;
 		float         hfov_;
 		bool          gpu_;
 		bool          reload_;

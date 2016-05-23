@@ -59,6 +59,12 @@ Args::Args(void)
 	d24BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/d24";
 	d24DirNum          = -1;
 	d24StageNum        = 0;
+	c12BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c12";
+	c12DirNum          = -1;
+	c12StageNum        = 0;
+	c24BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c24";
+	c24DirNum          = -1;
+	c24StageNum        = 0;
 	frameStart         = 0.0;
 	groundTruth        = false;
 	xmlFilename        = "/home/ubuntu/2016VisionCode/zebravision/settings.xml";
@@ -85,6 +91,12 @@ bool Args::processArgs(int argc, const char **argv)
 	const string d24BaseOpt         = "--d24Base=";        // d24 base dir
 	const string d24DirOpt          = "--d24Dir=";         // pick d24 dir and stage number
 	const string d24StageOpt        = "--d24Stage=";       // from command line
+	const string c12BaseOpt         = "--c12Base=";        // d12 base dir
+	const string c12DirOpt          = "--c12Dir=";         // pick d12 dir and stage number
+	const string c12StageOpt        = "--c12Stage=";       // from command line
+	const string c24BaseOpt         = "--c24Base=";        // d24 base dir
+	const string c24DirOpt          = "--c24Dir=";         // pick d24 dir and stage number
+	const string c24StageOpt        = "--c24Stage=";       // from command line
 	const string groundTruthOpt     = "--groundTruth";     // only test frames which have ground truth data
 	const string xmlFileOpt         = "--xmlFile=";        // read camera settings from XML file
 	const string badOpt             = "--";
@@ -131,6 +143,18 @@ bool Args::processArgs(int argc, const char **argv)
 			d24DirNum = atoi(argv[fileArgc] + d24DirOpt.length());
 		else if (d24StageOpt.compare(0, d24StageOpt.length(), argv[fileArgc], d24StageOpt.length()) == 0)
 			d24StageNum = atoi(argv[fileArgc] + d24StageOpt.length());
+		else if (c12BaseOpt.compare(0, c12BaseOpt.length(), argv[fileArgc], c12BaseOpt.length()) == 0)
+			c12BaseDir = string(argv[fileArgc] + c12BaseOpt.length());
+		else if (c12DirOpt.compare(0, c12DirOpt.length(), argv[fileArgc], c12DirOpt.length()) == 0)
+			c12DirNum = atoi(argv[fileArgc] + c12DirOpt.length());
+		else if (c12StageOpt.compare(0, c12StageOpt.length(), argv[fileArgc], c12StageOpt.length()) == 0)
+			c12StageNum = atoi(argv[fileArgc] + c12StageOpt.length());
+		else if (c24BaseOpt.compare(0, c24BaseOpt.length(), argv[fileArgc], c24BaseOpt.length()) == 0)
+			c24BaseDir = string(argv[fileArgc] + c24BaseOpt.length());
+		else if (c24DirOpt.compare(0, c24DirOpt.length(), argv[fileArgc], c24DirOpt.length()) == 0)
+			c24DirNum = atoi(argv[fileArgc] + c24DirOpt.length());
+		else if (c24StageOpt.compare(0, c24StageOpt.length(), argv[fileArgc], c24StageOpt.length()) == 0)
+			c24StageNum = atoi(argv[fileArgc] + c24StageOpt.length());
 		else if (groundTruthOpt.compare(0, groundTruthOpt.length(), argv[fileArgc], groundTruthOpt.length()) == 0)
 			groundTruth = true;
 		else if (xmlFileOpt.compare(0, xmlFileOpt.length(), argv[fileArgc], xmlFileOpt.length()) == 0)

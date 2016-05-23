@@ -49,8 +49,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui, string xmlFilename);
-void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
+void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName);
 string getVideoOutName(bool raw, const char *suffix);
 
 static bool isRunning = true;
@@ -185,12 +184,13 @@ int main( int argc, const char** argv )
 	// cmd line parameters and input filename
 	Args args;
 
-	int64 stepTimer;
+	//int64 stepTimer;
 
 	if (!args.processArgs(argc, argv))
 		return -2;
 
 	bool pause = !args.batchMode && args.pause;
+	bool calibRects = false;
 
 	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
@@ -204,8 +204,7 @@ int main( int argc, const char** argv )
 	MediaIn* cap; //input object
 
 	shared_ptr<tinyxml2::XMLDocument> capSettings;
-	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode,
-            args.xmlFilename);
+	openMedia(args.inputName, !args.batchMode, args.xmlFilename, cap, capPath, windowName);
 
 	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
@@ -254,6 +253,8 @@ int main( int argc, const char** argv )
 		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()));
 		createTrackbar ("D12 Threshold", detectWindowName, &d12Threshold, 100);
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
+		createTrackbar ("C12 Threshold", detectWindowName, &c12Threshold, 15);
+		createTrackbar ("C24 Threshold", detectWindowName, &c24Threshold, 15);
 	}
 
 	// Create list of tracked objects
@@ -277,6 +278,8 @@ int main( int argc, const char** argv )
 		detectState = new DetectState(
 				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
+				ClassifierIO(args.c12BaseDir, args.c12DirNum, args.c12StageNum),
+				ClassifierIO(args.c24BaseDir, args.c24DirNum, args.c24StageNum),
 				camParams.fov.x, gpu::getCudaEnabledDeviceCount() > 0);
 
 	// Find the first frame number which has ground truth data
@@ -373,8 +376,9 @@ int main( int argc, const char** argv )
 		// Apply the classifier to the frame
 		// detectRects is a vector of rectangles, one for each detected object
 		vector<Rect> detectRects;
+		vector<Rect> uncalibDetectRects;
 		if (detectState)
-			detectState->detector()->Detect(frame, depth, detectRects);
+			detectState->detector()->Detect(frame, depth, detectRects, uncalibDetectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -472,7 +476,9 @@ int main( int argc, const char** argv )
 		// 3, 5 or whatever frames instead.
 		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
-			drawRects(frame,detectRects);
+			drawRects(frame, detectRects);
+			if (calibRects)
+				drawRects(frame, uncalibDetectRects, Scalar(0,255,255), false);
 
 			// Draw tracking info if it is enabled
 			if (args.tracking)
@@ -538,13 +544,17 @@ int main( int argc, const char** argv )
 
 			// Process user input for this frame
 			char c = waitKey(5);
-			if ((c == 'c') || (c == 'q') || (c == 27))
+			if ((c == 'q') || (c == 27))
 			{ // exit
 				break;
 			}
 			else if( c == ' ')  // Toggle pause
 			{
 				pause = !pause;
+			}
+			else if( c == 'c')
+			{
+				calibRects = !calibRects;
 			}
 			else if( c == 'f')  // advance to next frame
 			{
@@ -664,6 +674,46 @@ int main( int argc, const char** argv )
 			{
 				if (detectState)
 				detectState->changeD24Model(false);
+			}
+			else if (c == '\'') // higher classifier stage
+			{
+				if (detectState)
+				detectState->changeC12SubModel(true);
+			}
+			else if (c == ';') // lower classifier stage
+			{
+				if (detectState)
+				detectState->changeC12SubModel(false);
+			}
+			else if (c == '\"') // higher classifier dir num
+			{
+				if (detectState)
+				detectState->changeC12Model(true);
+			}
+			else if (c == ':') // lower classifier dir num
+			{
+				if (detectState)
+				detectState->changeC12Model(false);
+			}
+			else if (c == 'l') // higher classifier stage
+			{
+				if (detectState)
+				detectState->changeC24SubModel(true);
+			}
+			else if (c == 'k') // lower classifier stage
+			{
+				if (detectState)
+				detectState->changeC24SubModel(false);
+			}
+			else if (c == 'L') // higher classifier dir num
+			{
+				if (detectState)
+				detectState->changeC24Model(true);
+			}
+			else if (c == 'K') // lower classifier dir num
+			{
+				if (detectState)
+				detectState->changeC24Model(false);
 			}
 			else if (isdigit(c)) // save a single detected image
 			{
@@ -793,8 +843,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath,
-               string &windowName, bool gui, const string xmlFilename)
+void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName)
 {
   zvSettings = new ZvSettings(xmlFilename);
 

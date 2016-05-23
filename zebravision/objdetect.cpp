@@ -7,6 +7,8 @@ int minDetectSize = 44;
 int maxDetectSize = 450;
 int d12Threshold  = 75;
 int d24Threshold  = 85;
+int c12Threshold  = 4;
+int c24Threshold  = 4;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios
@@ -32,7 +34,7 @@ using namespace cv::gpu;
 	Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
 */
-void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects)
+void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects, vector<Rect> &uncalibImageRects)
 {
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it
@@ -44,6 +46,10 @@ void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rec
 	nmsThreshold.push_back(d12NmsThreshold/100.);
 	nmsThreshold.push_back(d24NmsThreshold/100.);
 
+	vector<double> calThreshold;
+	calThreshold.push_back(c12Threshold/100.);
+	calThreshold.push_back(c24Threshold/100.);
+
 	classifier_.detectMultiscale(frameInput,
 			depthIn,
 			Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
@@ -51,7 +57,9 @@ void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rec
 			1.01 + scale/100.,
 			nmsThreshold,
 			detectThreshold,
-			imageRects);
+			calThreshold,
+			imageRects,
+			uncalibImageRects);
 }
 
 //gpu version with wrapper to upload Mat to GpuMat
