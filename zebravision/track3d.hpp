@@ -19,7 +19,7 @@ class ObjectType {
 		//in this constructor there are contours prebuilt for game objects
 		//1 - ball (2016 Game)
 		//2 - bin (2015 Game)
-		ObjectType(int contour_type_id);
+		ObjectType(int contourtype__id);
 
 		//this constructor takes a custom contour
 		ObjectType(const std::vector< cv::Point2f > &contour_in);
@@ -87,8 +87,8 @@ class TrackedObject
 		// frame, but may be useful in other cases
 		void clearDetected(void);
 
-		// Return the percent of last _listLength frames
-		// the object was seen
+		// Return the percent of last N frames
+		// in which the object was seen
 		double getDetectedRatio(void) const;
 
 		bool tooManyMissedFrames(void) const;
@@ -111,7 +111,7 @@ class TrackedObject
 		//get position of a rect on the screen corresponding to the object size and location
 		//inverse of setPosition(Rect,depth)
 		cv::Rect getScreenPosition(const cv::Point2f &fov_size, const cv::Size &frame_size) const;
-		cv::Point3f getPosition(void) const { return _position; }
+		cv::Point3f getPosition(void) const { return position_; }
 
 		//void adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		void adjustKF(cv::Point3f delta_pos);
@@ -119,25 +119,25 @@ class TrackedObject
 		cv::Point3f predictKF(void);
 		cv::Point3f updateKF(cv::Point3f pt);
 
-		std::string getId(void) const { return _id; }
-		ObjectType getType(void) const { return _type; }
+		std::string getId(void) const { return id_; }
+		ObjectType getType(void) const { return type_; }
 
 	private :
-		ObjectType _type;
+		ObjectType type_;
 
-		cv::Point3f _position; // last position of tracked object
+		cv::Point3f position_; // last position of tracked object
 
 		// whether or not the object was seen in a given frame -
 		// used to flag entries in other history arrays as valid
 		// and to figure out which tracked objects are persistent
 		// enough to care about
-		boost::circular_buffer<bool> _detectHistory;
-		boost::circular_buffer<cv::Point3f> _positionHistory;
+		boost::circular_buffer<bool> detectHistory_;
+		boost::circular_buffer<cv::Point3f> positionHistory_;
 
 		// Kalman filter for tracking and noise filtering
-		TKalmanFilter _KF;
+		TKalmanFilter KF_;
 
-		std::string _id; //unique target ID - use a string rather than numbers so it isn't confused
+		std::string id_; //unique target ID - use a string rather than numbers so it isn't confused
 						 // with individual frame detect indexes
 		int missedFrameCount_;
 
@@ -177,12 +177,15 @@ class TrackedObjectList
 		// Create a tracked object list.  Set the object width in inches
 		// (feet, meters, parsecs, whatever) and imageWidth in pixels since
 		// those stay constant for the entire length of the run
-		TrackedObjectList(const cv::Size &imageSize, const cv::Point2f &fovSize, float cameraElevation = 0.0f);
+		TrackedObjectList(const cv::Size &imageSize, 
+						  const cv::Point2f &fovSize, 
+						  float cameraElevation = 0.0f);
 
 		// Adjust the angle of each tracked object based on
 		// the rotation of the robot straight from fovis
 		//void adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		void adjustLocation(const cv::Mat &transform_mat);
+
 		// Simple printout of list into
 		void print(void) const;
 
@@ -197,14 +200,13 @@ class TrackedObjectList
 						   const std::vector<ObjectType> &types);
 
 	private :
-		std::list<TrackedObject> _list; // list of currently valid detected objects
-		int _detectCount;               // ID of next object to be created
-		double _objectWidth;            // width of the object tracked
+		std::list<TrackedObject> list_; // list of currently valid detected objects
+		int detectCount_;               // ID of next object to be created
 
 		//values stay constant throughout the run but are needed for computing stuff
-		cv::Size    _imageSize;
-		cv::Point2f _fovSize;
-		float       _cameraElevation;
+		cv::Size    imageSize_;
+		cv::Point2f fovSize_;
+		float       cameraElevation_;
 };
 
 #endif

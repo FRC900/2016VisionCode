@@ -139,14 +139,11 @@ void AssignmentProblemSolver::assignmentoptimal(int *assignment, double *cost, d
 		{
 			for(col=0; col<nOfColumns; col++)
 			{
-				if(distMatrix[row + nOfRows*col] == 0)
+				if ((distMatrix[row + nOfRows*col] == 0) && !coveredColumns[col])
 				{
-					if(!coveredColumns[col])
-					{
-						starMatrix[row + nOfRows*col] = true;
-						coveredColumns[col]           = true;
-						break;
-					}
+					starMatrix[row + nOfRows*col] = true;
+					coveredColumns[col]           = true;
+					break;
 				}
 			}
 		}
@@ -180,15 +177,12 @@ void AssignmentProblemSolver::assignmentoptimal(int *assignment, double *cost, d
 		{
 			for(row=0; row<nOfRows; row++)
 			{
-				if(distMatrix[row + nOfRows*col] == 0)
+				if((distMatrix[row + nOfRows*col] == 0) && !coveredRows[row])
 				{
-					if(!coveredRows[row])
-					{
-						starMatrix[row + nOfRows*col] = true;
-						coveredColumns[col]           = true;
-						coveredRows[row]              = true;
-						break;
-					}
+					starMatrix[row + nOfRows*col] = true;
+					coveredColumns[col]           = true;
+					coveredRows[row]              = true;
+					break;
 				}
 			}
 		}
@@ -330,13 +324,10 @@ void AssignmentProblemSolver::step3(int *assignment, double *distMatrix, bool *s
 							step4(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, row, col);
 							return;
 						}
-						else
-						{
-							coveredRows[row]        = true;
-							coveredColumns[starCol] = false;
-							zerosFound              = true;
-							break;
-						}
+						coveredRows[row]        = true;
+						coveredColumns[starCol] = false;
+						zerosFound              = true;
+						break;
 					}
 				}
 			}

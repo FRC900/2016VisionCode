@@ -6,7 +6,7 @@
 
 #include "CaffeBatchPrediction.hpp"
 
-bool fileExists(const char *filename)
+static bool fileExists(const char *filename)
 {
 	struct stat statBuffer;
 	return stat(filename, &statBuffer) == 0;
@@ -135,7 +135,6 @@ std::vector< std::vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 	std::vector< std::vector<Prediction> > predictions;
 	size_t labels_size = labels_.size();
 	num_classes = std::min(num_classes, labels_size);
-
 	// For each image, find the top num_classes values
 	for(size_t j = 0; j < imgs.size(); j++)
 	{
@@ -239,10 +238,8 @@ std::vector<float> CaffeClassifier<MatT>::PredictBatch(
 	// expected by the net, then copy the images
 	// into the net's input buffers
 	PreprocessBatch(imgs);
-
 	// Run a forward pass with the data filled in from above
 	net_->ForwardPrefilled();
-
 	/* Copy the output layer to a flat std::vector */
 	caffe::Blob<float>* output_layer = net_->output_blobs()[0];
 	const float* begin = output_layer->cpu_data();
@@ -282,7 +279,6 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 template <class MatT>
 void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 {
-	std::cout<< "In slow path " << std::endl;
 	/* Convert the input image to the input image format of the network. */
 	MatT sample;
 	if (img.channels() == 3 && num_channels_ == 1)
@@ -303,7 +299,10 @@ void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 		sample_resized = sample;
 
 	MatT sample_float;
-	if (num_channels_ == 3)
+	if (((num_channels_ == 3) && (sample_resized.type() == CV_32FC3)) ||
+		((num_channels_ == 1) && (sample_resized.type() == CV_32FC1)) )
+		sample_float = sample_resized;
+	else if (num_channels_ == 3)
 		sample_resized.convertTo(sample_float, CV_32FC3);
 	else
 		sample_resized.convertTo(sample_float, CV_32FC1);

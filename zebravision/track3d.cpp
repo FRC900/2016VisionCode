@@ -68,6 +68,7 @@ ObjectType::ObjectType(const vector< Point > &contour_in)
 		contour_.push_back(p);
 	}
 	computeProperties();
+
 }
 
 void ObjectType::computeProperties()
@@ -162,7 +163,7 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
 
-	Point2f angular_size( 2.0 * atan2f(_type.width(), 2.0*r), 2.0 * atan2f(_type.height(), 2.0*r));
+	Point2f angular_size( 2.0 * atan2f(_type.width(), (2.0*r)), 2.0 * atan2f(_type.height(), (2.0*r)));
 	Point2f screen_size(
 			angular_size.x * (frame_size.width / fov_size.x),
 			angular_size.y * (frame_size.height / fov_size.y));
@@ -176,17 +177,17 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 TrackedObject::TrackedObject(int id,
 							 const ObjectType &type_in,
 							 const Rect   &screen_position,
-							 double        avg_depth,
+							 double            avg_depth,
 							 Point2f       fov_size,
 							 Size          frame_size,
-							 float         camera_elevation,
-							 float         dt,
-							 float         accel_noise_mag,
-							 size_t        historyLength) :
-		_type(type_in),
-		_detectHistory(historyLength),
-		_positionHistory(historyLength),
-		_KF(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation),
+							 float             camera_elevation,
+							 float             dt,
+							 float             accel_noise_mag,
+							 size_t            historyLength) :
+		type_(type_in),
+		detectHistory_(historyLength),
+		positionHistory_(historyLength),
+		KF_(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation),
 			dt, accel_noise_mag),
 		missedFrameCount_(0),
 		cameraElevation_(camera_elevation)
@@ -197,11 +198,11 @@ TrackedObject::TrackedObject(int id,
 	// Label with base-26 letter ID (A, B, C .. Z, AA, AB, AC, etc)
 	do
 	{
-		_id += (char)(id % 26 + 'A');
+		id_ += (char)(id % 26 + 'A');
 		id /= 26;
 	}
 	while (id != 0);
-	reverse(_id.begin(), _id.end());
+	reverse(id_.begin(), id_.end());
 }
 
 
@@ -213,8 +214,8 @@ TrackedObject::~TrackedObject()
 
 void TrackedObject::setPosition(const Point3f &new_position)
 {
-	_position = new_position;
-	addToPositionHistory(_position);
+	position_ = new_position;
+	addToPositionHistory(position_);
 }
 
 // Set the position based on a rect on the screen and depth info from the zed
@@ -232,9 +233,9 @@ void TrackedObject::adjustPosition(const Eigen::Transform<double, 3, Eigen::Isom
 	Eigen::Vector3d old_pos_vec(_position.x, _position.y, _position.z);
 	Eigen::Vector3d new_pos_vec = delta_robot * old_pos_vec;
 
-	_position = Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
+	position_ = Point3f(new_pos_vec[0], new_pos_vec[1], new_pos_vec[2]);
 
-	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it)
+	for (auto it = positionHistory_.begin(); it != positionHistory_.end(); ++it)
 	{
 		Eigen::Vector3d old_pos_vector(it->x, it->y, it->z);
 		Eigen::Vector3d new_pos_vector = delta_robot * old_pos_vector;
@@ -263,9 +264,9 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 	Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
 	setPosition(new_screen_rect,depth,fov_size,frame_size);
 	//update the history
-	for (auto it = _positionHistory.begin(); it != _positionHistory.end(); ++it)
+	for (auto it = positionHistory_.begin(); it != positionHistory_.end(); ++it)
 	{
-		screen_rect = worldToScreenCoords(*it,_type,fov_size,frame_size, cameraElevation_);
+		screen_rect = worldToScreenCoords(*it,type_,fov_size,frame_size, cameraElevation_);
 		screen_pos = Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
 		pos_mat.at<double>(0,0) = screen_pos.x;
 		pos_mat.at<double>(0,1) = screen_pos.y;
@@ -281,7 +282,7 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 // Mark the object as detected in this frame
 void TrackedObject::setDetected(void)
 {
-	_detectHistory.push_back(true);
+	detectHistory_.push_back(true);
 	missedFrameCount_ = 0;
 }
 
@@ -290,7 +291,7 @@ void TrackedObject::setDetected(void)
 // frame, but may be useful in other cases
 void TrackedObject::clearDetected(void)
 {
-	_detectHistory.push_back(false);
+	detectHistory_.push_back(false);
 	missedFrameCount_ += 1;
 }
 
@@ -303,7 +304,7 @@ bool TrackedObject::tooManyMissedFrames(void) const
 // of the object in question
 void TrackedObject::addToPositionHistory(const Point3f &pt)
 {
-	_positionHistory.push_back(pt);
+	positionHistory_.push_back(pt);
 }
 
 // Return the percent of last _detectHistory.size() frames
@@ -313,10 +314,10 @@ double TrackedObject::getDetectedRatio(void) const
 	int detectedCount = 0;
 
 	// TODO : what to do for new detections?
-	for (auto it = _detectHistory.begin();  it != _detectHistory.end(); ++it)
+	for (auto it = detectHistory_.begin();  it != detectHistory_.end(); ++it)
 		if (*it)
 			detectedCount += 1;
-	double detectRatio = (double)detectedCount / _detectHistory.capacity();
+	double detectRatio = (double)detectedCount / detectHistory_.capacity();
 	// Don't display stuff which hasn't been detected recently.
 	if (missedFrameCount_ >= 4)
 		detectRatio = min(0.01, detectRatio);
@@ -326,7 +327,7 @@ double TrackedObject::getDetectedRatio(void) const
 
 Rect TrackedObject::getScreenPosition(const Point2f &fov_size, const Size &frame_size) const
 {
-	return worldToScreenCoords(_position, _type, fov_size, frame_size, cameraElevation_);
+	return worldToScreenCoords(position_, type_, fov_size, frame_size, cameraElevation_);
 }
 
 
@@ -335,14 +336,14 @@ Rect TrackedObject::getScreenPosition(const Point2f &fov_size, const Size &frame
 double TrackedObject::contourArea(const Point2f &fov_size, const Size &frame_size) const
 {
 	Rect screen_position = getScreenPosition(fov_size, frame_size);
-	float scale_factor_x = (float)screen_position.width / _type.width();
-	float scale_factor_y = (float)screen_position.height / _type.height();
+	float scale_factor_x = (float)screen_position.width / type_.width();
+	float scale_factor_y = (float)screen_position.height / type_.height();
 	float scale_factor   = min(scale_factor_x, scale_factor_y);
 
 	vector<Point2f> scaled_contour;
-	for(size_t i = 0; i < _type.shape().size(); i++)
+	for(size_t i = 0; i < type_.shape().size(); i++)
 	{
-		scaled_contour.push_back(_type.shape()[i] * scale_factor);
+		scaled_contour.push_back(type_.shape()[i] * scale_factor);
 	}
 
 	return cv::contourArea(scaled_contour);
@@ -350,41 +351,41 @@ double TrackedObject::contourArea(const Point2f &fov_size, const Size &frame_siz
 
 Point3f TrackedObject::predictKF(void)
 {
-	return _KF.GetPrediction();
+	return KF_.GetPrediction();
 }
 
 
 Point3f TrackedObject::updateKF(Point3f pt)
 {
-	return _KF.Update(pt);
+	return KF_.Update(pt);
 }
 
 #if 0
 void TrackedObject::adjustKF(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
-	_KF.adjustPrediction(delta_robot);
+	KF_.adjustPrediction(delta_robot);
 }
 #endif
 void TrackedObject::adjustKF(Point3f delta_pos)
 {
-	_KF.adjustPrediction(delta_pos);
+	KF_.adjustPrediction(delta_pos);
 }
 
 
 //Create a tracked object list
 // those stay constant for the entire length of the run
 TrackedObjectList::TrackedObjectList(const Size &imageSize, const Point2f &fovSize, float cameraElevation) :
-	_detectCount(0),
-	_imageSize(imageSize),
-	_fovSize(fovSize),
-	_cameraElevation(cameraElevation)
+	detectCount_(0),
+	imageSize_(imageSize),
+	fovSize_(fovSize),
+	cameraElevation_(cameraElevation)
 {
 }
 #if 0
 // Adjust position for camera motion between frames using fovis
 void TrackedObjectList::adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot)
 {
-	for (auto it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = list_.begin(); it != list_.end(); ++it)
 	{
 		it->adjustPosition(delta_robot);
 		it->adjustKF(delta_robot);
@@ -394,13 +395,13 @@ void TrackedObjectList::adjustLocation(const Eigen::Transform<double, 3, Eigen::
 // Adjust position for camera motion between frames using optical flow
 void TrackedObjectList::adjustLocation(const Mat &transform_mat)
 {
-	for (auto it = _list.begin(); it != _list.end(); ++it)
+	for (auto it = list_.begin(); it != list_.end(); ++it)
 	{
 		//measure the amount that the position changed and apply the same change to the kalman filter
 		Point3f old_pos = it->getPosition();
 		//compute r and use it for depth (assume depth doesn't change)
 		float r = sqrt(it->getPosition().x * it->getPosition().x + it->getPosition().y * it->getPosition().y + it->getPosition().z * it->getPosition().z);
-		it->adjustPosition(transform_mat,r,_fovSize,_imageSize);
+		it->adjustPosition(transform_mat, r, fovSize_, imageSize_);
 		Point3f delta_pos = it->getPosition() - old_pos;
 
 		it->adjustKF(delta_pos);
@@ -410,7 +411,7 @@ void TrackedObjectList::adjustLocation(const Mat &transform_mat)
 // Simple printout of list into stdout
 void TrackedObjectList::print(void) const
 {
-	for (auto it = _list.cbegin(); it != _list.cend(); ++it)
+	for (auto it = list_.cbegin(); it != list_.cend(); ++it)
 	{
 		cout << it->getId() << " location ";
 		Point3f position = it->getPosition();
@@ -423,10 +424,10 @@ void TrackedObjectList::getDisplay(vector<TrackedObjectDisplay> &displayList) co
 {
 	displayList.clear();
 	TrackedObjectDisplay tod;
-	for (auto it = _list.cbegin(); it != _list.cend(); ++it)
+	for (auto it = list_.cbegin(); it != list_.cend(); ++it)
 	{
 		tod.position = it->getPosition();
-		tod.rect     = it->getScreenPosition(_fovSize, _imageSize);
+		tod.rect     = it->getScreenPosition(fovSize_, imageSize_);
 		tod.id       = it->getId();
 		tod.ratio    = it->getDetectedRatio();
 		displayList.push_back(tod);
@@ -442,7 +443,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 									  const vector<float> depths,
 									  const vector<ObjectType> &types)
 {
-	if (detectedRects.size() || _list.size())
+	if (detectedRects.size() || list_.size())
 		cout << "---------- Start of process detect --------------" << endl;
 	print();
 	vector<Point3f> detectedPositions;
@@ -451,7 +452,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
-				screenToWorldCoords(detectedRects[i], depths[i], _fovSize, _imageSize, _cameraElevation));
+				screenToWorldCoords(detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
 		cout << "Detected rect [" << i << "] = " << detectedRects[i] << " positions[" << detectedPositions.size() - 1 << "]:" << detectedPositions[detectedPositions.size()-1] << endl;
 	}
 	// TODO :: Combine overlapping detections into one?
@@ -459,9 +460,9 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	// Maps tracks to the closest new detected object.
 	// assignment[track] = index of closest detection
 	vector<int> assignment;
-	if (_list.size())
+	if (list_.size())
 	{
-		size_t tracks = _list.size();		          // Number of tracks
+		size_t tracks = list_.size();		          // Number of tracks
 		size_t detections = detectedPositions.size(); //  number of detections
 
 		vector< vector<double> > Cost(tracks,vector<double>(detections));
@@ -469,7 +470,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		// Calculate cost for each track->pair combo
 		// The cost here is just the distance between them
 		// Also check to see if the types are the same, if they are not then set the cost extremely high so that it's never matched
-		auto it = _list.cbegin();
+		auto it = list_.cbegin();
 		for(size_t t = 0; t < tracks;  ++t, ++it)
 		{
 			// Point3f prediction=tracks[t]->prediction;
@@ -497,7 +498,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		// clear assignment from pairs with large distance
 		for(size_t i = 0; i < assignment.size(); i++)
 			if ((assignment[i] != -1) && (Cost[i][assignment[i]] > dist_thresh_))
-				assignment[i] =- 1;
+				assignment[i] = -1;
 	}
 
 	// Search for unassigned detects and start new tracks for them.
@@ -508,13 +509,13 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		if (find(assignment.begin(), assignment.end(), i) == assignment.end())
 		{
 			cout << "New assignment created " << i << endl;
-			_list.push_back(TrackedObject(_detectCount++,types[i], detectedRects[i], depths[i], _fovSize, _imageSize));
+			list_.push_back(TrackedObject(detectCount_++, types[i], detectedRects[i], depths[i], fovSize_, imageSize_));
 		}
 	}
 
-	auto tr = _list.begin();
+	auto tr = list_.begin();
 	auto as = assignment.begin();
-	while ((tr != _list.end()) && (as != assignment.end()))
+	while ((tr != list_.end()) && (as != assignment.end()))
 	{
 		// If track updated less than one time, than filter state is not correct.
 		cout << "Predict: " << endl;
@@ -525,14 +526,14 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		{
 			cout << "Update match: " << endl;
 			tr->setPosition(tr->updateKF(detectedPositions[*as]));
-			cout << tr->getScreenPosition(_fovSize, _imageSize) << endl;
+			cout << tr->getScreenPosition(fovSize_, imageSize_) << endl;
 			tr->setDetected();
 		}
 		else          // if not continue using predictions
 		{
 			cout << "Update no match: " << endl;
 			tr->setPosition(tr->updateKF(prediction));
-			cout << tr->getScreenPosition(_fovSize, _imageSize) << endl;
+			cout << tr->getScreenPosition(fovSize_, imageSize_) << endl;
 			tr->clearDetected();
 		}
 
@@ -541,12 +542,12 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	}
 
 	// Remove tracks which haven't been seen in a while
-	for (auto it = _list.begin(); it != _list.end(); )
+	for (auto it = list_.begin(); it != list_.end(); )
 	{
 		if (it->tooManyMissedFrames()) // For now just remove ones for
 		{                              // which detectList is empty
 			//cout << "Dropping " << it->getId() << endl;
-			it = _list.erase(it);
+			it = list_.erase(it);
 		}
 		else
 		{
@@ -554,6 +555,6 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		}
 	}
 	print();
-	if (detectedRects.size() || _list.size())
+	if (detectedRects.size() || list_.size())
 		cout << "---------- End of process detect --------------" << endl;
 }
