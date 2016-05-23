@@ -321,7 +321,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const std::vector<MatT> &imgs)
 	CHECK(imgs.size() <= batch_size_) <<
 		"PreprocessBatch() : too many input images : batch size is " << batch_size_ << "imgs.size() = " << imgs.size(); 
 
-	for (int i = 0 ; i < imgs.size(); i++)
+	for (size_t i = 0 ; i < imgs.size(); i++)
 	{
 		// If image is already the correct format,
 		// don't both resizing/converting it again
