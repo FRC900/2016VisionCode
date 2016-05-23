@@ -48,8 +48,7 @@ string getDateTimeString(void);
 void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
 void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui);
-void openVideoCap(const string &fileName, VideoIn *&cap, string &capPath, string &windowName, bool gui);
+void openMedia(const string &readFileName, bool gui, MediaIn *&cap, string &capPath, string &windowName);
 string getVideoOutName(bool raw, const char *suffix);
 
 static bool isRunning = true;
@@ -183,7 +182,7 @@ int main( int argc, const char** argv )
 	// cmd line parameters and input filename
 	Args args;
 
-	int64 stepTimer;
+	//int64 stepTimer;
 
 	if (!args.processArgs(argc, argv))
 		return -2;
@@ -202,7 +201,7 @@ int main( int argc, const char** argv )
 	string capPath; // Output directory for captured images
 	MediaIn* cap; //input object
 
-	openMedia(cap, args.inputName ,capPath, windowName, !args.batchMode);
+	openMedia(args.inputName, !args.batchMode, cap, capPath, windowName);
 
 	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
@@ -233,8 +232,8 @@ int main( int argc, const char** argv )
 
 	//we need to detect from a maximum of 25 feet
 	//use trigonometry to predict how big in pixels the object will be and set minDetectSize to that
-	float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
-	float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
+	//float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
+	//float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
 	//minDetectSize = angular_size * (cap->width() / camParams.fov.x);
 	minDetectSize = 40;
 	cout << "Min Detect Size: " << minDetectSize << endl;
@@ -401,7 +400,7 @@ int main( int argc, const char** argv )
 
 		// Process detected rectangles - either match up with the nearest object
 		// add it as a new one
-		stepTimer = cv::getTickCount();
+		//stepTimer = cv::getTickCount();
 		vector<Rect>depthFilteredDetectRects;
 		vector<float> depths;
 		vector<ObjectType> objTypes;
@@ -841,7 +840,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(MediaIn *&cap, const string readFileName, string &capPath, string &windowName, bool gui)
+void openMedia(const string &readFileName, bool gui, MediaIn *&cap, string &capPath, string &windowName)
 {
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||

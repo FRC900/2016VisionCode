@@ -50,11 +50,11 @@ namespace utils {
 		}
 		float sum_min   = 0;
 		int num_pix_min = 0;
-		for (int j = (min_loc_y - range); j < (min_loc_y + range); j++)
+		for (int j = min_loc_y - range; j < (min_loc_y + range); j++)
 		{
 			const float *ptr_img  = img.ptr<float>(j);
 			const uchar *ptr_mask = mask.ptr<uchar>(j);
-		    for (int i = (min_loc_x - range); i < (min_loc_x + range); i++)
+		    for (int i = min_loc_x - range; i < (min_loc_x + range); i++)
 		    {
 		        if ((0 < i) && (i < img.cols) && (0 < j) && (j < img.rows) && (ptr_mask[i] == 255) && !(isnan(ptr_img[i]) || (ptr_img[i] <= 0)))
 		        {
@@ -65,11 +65,11 @@ namespace utils {
 		}
 		float sum_max = 0;
 		int num_pix_max = 0;
-		for (int j = (max_loc_y - range); j < (max_loc_y + range); j++)
+		for (int j = max_loc_y - range; j < (max_loc_y + range); j++)
 		{
 			const float *ptr_img  = img.ptr<float>(j);
 			const uchar *ptr_mask = mask.ptr<uchar>(j);
-		    for (int i = (max_loc_x - range); i < (max_loc_x + range); i++)
+		    for (int i = max_loc_x - range; i < (max_loc_x + range); i++)
 		    {
 		        if ((0 < i) && (i < img.cols) && (0 < j) && (j < img.rows) && (ptr_mask[i] == 255) && !(isnan(ptr_img[i]) || (ptr_img[i] <= 0)))
 		        {

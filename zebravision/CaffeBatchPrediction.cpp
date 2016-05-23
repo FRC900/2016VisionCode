@@ -6,7 +6,7 @@
 
 #include "CaffeBatchPrediction.hpp"
 
-bool fileExists(const char *filename)
+static bool fileExists(const char *filename)
 {
 	struct stat statBuffer;
 	return stat(filename, &statBuffer) == 0;
@@ -279,7 +279,6 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 template <class MatT>
 void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 {
-	std::cout<< "In slow path " << std::endl;
 	/* Convert the input image to the input image format of the network. */
 	MatT sample;
 	if (img.channels() == 3 && num_channels_ == 1)
@@ -300,7 +299,10 @@ void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 		sample_resized = sample;
 
 	MatT sample_float;
-	if (num_channels_ == 3)
+	if (((num_channels_ == 3) && (sample_resized.type() == CV_32FC3)) ||
+		((num_channels_ == 1) && (sample_resized.type() == CV_32FC1)) )
+		sample_float = sample_resized;
+	else if (num_channels_ == 3)
 		sample_resized.convertTo(sample_float, CV_32FC3);
 	else
 		sample_resized.convertTo(sample_float, CV_32FC1);

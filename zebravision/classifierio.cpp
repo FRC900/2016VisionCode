@@ -50,12 +50,8 @@ string ClassifierIO::getClassifierDir() const
     {
         return p.string();
     }
-    else
-    {
-        cerr << "ERROR: Invalid classifier directory: "
-             << fullDir << endl;
-        return string();
-    }
+	cerr << "ERROR: Invalid classifier directory: " << fullDir << endl;
+	return string();
 }
 
 bool ClassifierIO::createFullPath(const string &fileName, string &output) const

@@ -518,13 +518,14 @@ try_again: capture->V4L2RequestBuffers.count = buffer_number;
 			capture->Frame.imageData = (char *) cvAlloc(capture->Frame.imageSize);
 		}
 		// Decode image from MJPEG to RGB24
-		if (capture->Buffers[capture->BufferIndex].start) {
-			if (!this->MJPEG2RGB24(capture->V4L2Format.fmt.pix.width, capture->V4L2Format.fmt.pix.height,
-						(unsigned char*) (capture->Buffers[capture->BufferIndex].start), capture->Buffers[capture->BufferIndex].length,
-						(unsigned char*) capture->Frame.imageData)) {
-				fprintf(stdout, "C920Camera::RetrieveFrame ERROR: Unable to decode frame.\n");
-				return 0;
-			}
+		if ((capture->Buffers[capture->BufferIndex].start) &&
+			!this->MJPEG2RGB24(capture->V4L2Format.fmt.pix.width, 
+				               capture->V4L2Format.fmt.pix.height,
+					           (unsigned char*) capture->Buffers[capture->BufferIndex].start, 
+							   capture->Buffers[capture->BufferIndex].length,
+					           (unsigned char*) capture->Frame.imageData)) {
+			fprintf(stdout, "C920Camera::RetrieveFrame ERROR: Unable to decode frame.\n");
+			return 0;
 		}
 		return &capture->Frame;
 	}
