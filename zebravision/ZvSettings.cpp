@@ -106,7 +106,7 @@ ZvSettings::getElement(const std::string &sectionName,
             }
         }
     }
-    if (saveNeeded && (xmlDoc_.SaveFile(filename_.c_str()) != XML_SUCCESS))
+    if (saveNeeded && (xmlDoc_.SaveFile(filename_.c_str()) != XML_SUCCESS)) {
 		cerr << "Failed to save settings file: " << filename_ << endl;
     }
     return ret;
