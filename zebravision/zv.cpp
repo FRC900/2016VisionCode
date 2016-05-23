@@ -218,7 +218,6 @@ int main( int argc, const char** argv )
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
-	vector<Rect> groundTruthList;
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -447,7 +446,7 @@ int main( int argc, const char** argv )
 		// avoid printing too much stuff
 		if (frameTicker.valid() &&
 			( (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
-			  ( args.batchMode && (((cap->frameNumber() * (args.skip > 0) ? args.skip : 1) % 1) == 0))))
+			  ( args.batchMode && (((cap->frameNumber() * ((args.skip > 0) ? args.skip : 1)) % 1) == 0))))
 		{
 			int frames = cap->frameCount();
 			stringstream frameStr;

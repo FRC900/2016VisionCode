@@ -421,7 +421,7 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 			images.clear();
 		}
 	}
-	for (int i = 0; i < windowsIn.size(); i++)
+	for (size_t i = 0; i < windowsIn.size(); i++)
 	{
 		Rect rOut = windowsIn[i].first;
 		// These are the inverse of the values used
