@@ -66,16 +66,16 @@ class ObjectType {
 class TrackedObject
 {
 	public :
-		TrackedObject( int id,
-				const ObjectType &type_in,
-				const cv::Rect   &screen_position,
-				double            avg_depth,
-				cv::Point2f       fov_size,
-				cv::Size          frame_size,
-				float             camera_elevation = 0.0,
-				float             dt = 0.5,
-				float             accel_noise_mag = 0.25,
-				size_t            historyLength = TrackedObjectHistoryLength);
+		TrackedObject( int         id,
+				const ObjectType  &type_in,
+				const cv::Rect    &screen_position,
+				double             avg_depth,
+				const cv::Point2f &fov_size,
+				const cv::Size    &frame_size,
+				float              camera_elevation = 0.0,
+				float              dt = 0.5,
+				float              accel_noise_mag = 0.25,
+				size_t             historyLength = TrackedObjectHistoryLength);
 
 		~TrackedObject();
 

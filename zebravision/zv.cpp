@@ -208,7 +208,7 @@ int main( int argc, const char** argv )
 
 	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
-  Mat depth;
+	Mat depth;
 	//load an initial frame for stuff like optical flow which requires an initial
 	// frame to compute difference against
 	//also checks to make sure that the cap object works
@@ -272,7 +272,7 @@ int main( int argc, const char** argv )
 
 	//load up the neural networks.
 	//Loads the lowest epoch and lowest network by default
-	//TODO is that actually true? ^
+	//TODO is that actually true?
 	DetectState *detectState = NULL;
 	if (args.detection)
 		detectState = new DetectState(
@@ -418,6 +418,12 @@ int main( int argc, const char** argv )
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
 			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+			if (objectDepth < 0)
+			{
+				float percent_image = (float)it->width / frame.cols;
+				float size_fov = percent_image * camParams.fov.x; //TODO fov size
+				objectDepth = (9.75 * 2.54 / 100.) / (2.0 * tanf(size_fov / 2.0));
+			}
 			cout << " Depth: " << objectDepth << endl;
 			if(objectDepth > 0)
 			{
@@ -476,9 +482,12 @@ int main( int argc, const char** argv )
 		// 3, 5 or whatever frames instead.
 		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
 		{
-			drawRects(frame, detectRects);
-			if (calibRects)
-				drawRects(frame, uncalibDetectRects, Scalar(0,255,255), false);
+			if (args.rects)
+			{
+				drawRects(frame, detectRects);
+				if (calibRects)
+					drawRects(frame, uncalibDetectRects, Scalar(0,255,255), false);
+			}
 
 			// Draw tracking info if it is enabled
 			if (args.tracking)
@@ -515,15 +524,19 @@ int main( int argc, const char** argv )
 
 			// Draw ground truth info for this frame. Will be a no-op
             // if none is available for this particular video frame
-            drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(128, 0, 0), false);
-            drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
-            drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
-            drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
+			if (args.rects)
+			{
+				drawRects(frame, groundTruth.get(cap->frameNumber() - 1), Scalar(128, 0, 0), false);
+				drawRects(frame, groundTruthHitList, Scalar(128, 128, 128), false);
+				drawRects(frame, goalTruth.get(cap->frameNumber() - 1), Scalar(0, 0, 128), false);
+				drawRects(frame, goalTruthHitList, Scalar(128, 128, 128), false);
+			}
 
 			//draw the goal along with debugging info if that's enabled
 			if (gdDraw)
 				gd.drawOnFrame(frame);
-            rectangle(frame, gd.goal_rect(), Scalar(0, 255, 0));
+			if (args.rects)
+				rectangle(frame, gd.goal_rect(), Scalar(0, 255, 0));
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
@@ -830,7 +843,8 @@ string getDateTimeString(void)
     timeinfo = localtime(&rawtime);
 
     stringstream ss;
-    ss << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "_" << timeinfo->tm_hour << "_" << timeinfo->tm_min;
+	ss << setfill('0') << setw(4) << timeinfo->tm_year + 1900 << "-" << setw(2) << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "_";
+	ss << setfill('0') << setw(2) << timeinfo->tm_hour << "-" << setw(2) << timeinfo->tm_min << "-" << setw(2) << timeinfo->tm_sec;
     return ss.str();
 }
 
@@ -898,24 +912,18 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 	}
 }
 
-// Video-MM-DD-YY_hr-min-sec-##.avi
+// Video-YYYY-MM-DD_hr-min-sec-##.avi
 string getVideoOutName(bool raw, const char *suffix)
 {
     int          index = 0;
     int          rc;
-    struct stat  statbuf;
     stringstream ss;
-    time_t       rawtime;
-    struct tm    *timeinfo;
 
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
     do
     {
         ss.str(string(""));
         ss.clear();
-        ss << "Video-" << setfill('0') << setw(2) << timeinfo->tm_mon + 1 << "-" << timeinfo->tm_mday << "-" << setw(4) << timeinfo->tm_year + 1900 << "_";
-        ss << setfill('0') << setw(2) << timeinfo->tm_hour << "-" << timeinfo->tm_min << "-" << timeinfo->tm_sec << "-";
+        ss << "Video-" << getDateTimeString() << "-";
         ss << index++;
         if (raw == false)
         {
@@ -925,6 +933,7 @@ string getVideoOutName(bool raw, const char *suffix)
 		{
 			ss << suffix;
 		}
+		struct stat  statbuf;
         rc = stat(ss.str().c_str(), &statbuf);
     }
 	while (rc == 0);

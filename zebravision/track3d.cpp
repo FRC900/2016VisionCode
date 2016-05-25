@@ -151,11 +151,11 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 	// For example, goals will have 0 depth since we're just shooting at
 	// a plane. 3d objects will have depth, though, so we track the center of the
 	// rather than the front.
-	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) + (4.572 * 25.4)/1000.0;
+	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z); // - (4.572 * 25.4)/1000.0;
 	float azimuth = asinf(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asinf( _position.z / r ) + cameraElevation;
 
-	Point2f percent_fov = Point2f(azimuth / fov_size.x, inclination / fov_size.y);
+	Point2f percent_fov(azimuth / fov_size.x, inclination / fov_size.y);
 	Point2f dist_to_center(percent_fov.x * frame_size.width,
 			                   percent_fov.y * frame_size.height);
 
@@ -174,12 +174,12 @@ static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, cons
 			return Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
-TrackedObject::TrackedObject(int id,
+TrackedObject::TrackedObject(int               id,
 							 const ObjectType &type_in,
-							 const Rect   &screen_position,
+							 const Rect       &screen_position,
 							 double            avg_depth,
-							 Point2f       fov_size,
-							 Size          frame_size,
+							 const Point2f    &fov_size,
+							 const Size       &frame_size,
 							 float             camera_elevation,
 							 float             dt,
 							 float             accel_noise_mag,
@@ -247,7 +247,7 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 {
 	//get the position of the object on the screen
 	Rect screen_rect = getScreenPosition(fov_size,frame_size);
-	Point screen_pos = Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
+	Point screen_pos(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
 
 	//create a matrix to hold positon for matrix multiplication
 	Mat pos_mat(3,1,CV_64FC1);
@@ -258,7 +258,7 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 	//correct the position
 	Mat new_screen_pos_mat(3,1,CV_64FC1);
 	new_screen_pos_mat = transform_mat * pos_mat;
-	Point new_screen_pos = Point(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
+	Point new_screen_pos(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
 
 	//create a dummy bounding rect because setPosition requires a bounding rect as an input rather than a point
 	Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
@@ -272,11 +272,10 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 		pos_mat.at<double>(0,1) = screen_pos.y;
 		pos_mat.at<double>(0,2) = 1.0;
 		Mat new_screen_pos_mat = transform_mat * pos_mat;
-		Point new_screen_pos = Point(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
+		Point new_screen_pos(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
 		Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
 		*it = screenToWorldCoords(new_screen_rect, depth, fov_size, frame_size, cameraElevation_);
 	}
-
 }
 
 // Mark the object as detected in this frame
@@ -448,7 +447,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	print();
 	vector<Point3f> detectedPositions;
 	if (detectedRects.size() > 0)
-		cout << detectedRects.size() << " objects" << endl;
+		cout << detectedRects.size() << " detected objects" << endl;
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
@@ -462,9 +461,11 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	vector<int> assignment;
 	if (list_.size())
 	{
-		size_t tracks = list_.size();		          // Number of tracks
-		size_t detections = detectedPositions.size(); //  number of detections
+		size_t tracks = list_.size();		          // number of tracked objects from prev frames
+		size_t detections = detectedPositions.size(); // number of detections this frame
 
+		//Cost[t][d] is the distance between old tracked location t
+		//and newly detected object d's position 
 		vector< vector<double> > Cost(tracks,vector<double>(detections));
 
 		// Calculate cost for each track->pair combo
@@ -482,7 +483,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 					Point3f diff = it->getPosition() - detectedPositions[d];
 					Cost[t][d] = sqrtf(diff.x * diff.x + diff.y * diff.y + diff.z * diff.z);
 				} else {
-					Cost[t][d] = numeric_limits<float>::max();
+					Cost[t][d] = numeric_limits<double>::max();
 				}
 			}
 		}
@@ -493,6 +494,9 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		APS.Solve(Cost, assignment, AssignmentProblemSolver::optimal);
 
 		cout << "After APS : "<<endl;
+		// assignment[i] holds the index of the detection assigned
+		// to track i.  assignment[i] is -1 if no detection was
+		// matchedto that particular track
 		for(size_t i = 0; i < assignment.size(); i++)
 			cout << i << ":" << assignment[i] << endl;
 		// clear assignment from pairs with large distance
@@ -509,7 +513,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		if (find(assignment.begin(), assignment.end(), i) == assignment.end())
 		{
 			cout << "New assignment created " << i << endl;
-			list_.push_back(TrackedObject(detectCount_++, types[i], detectedRects[i], depths[i], fovSize_, imageSize_));
+			list_.push_back(TrackedObject(detectCount_++, types[i], detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
 		}
 	}
 
