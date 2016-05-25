@@ -29,7 +29,7 @@ void scalefactor(const MatT &inputimage, const Size &objectsize, const Size &min
 
 		// Resize will round / truncate to integer size, recalculate
 		// scale using actual results from the resize
-		double newscale = double(max(outputimage.rows, outputimage.cols)) / max(inputimage.rows, inputimage.cols);
+		double newscale = max((double)outputimage.rows / inputimage.rows, (double)outputimage.cols / inputimage.cols);
 		
 		scaleInfo.push_back(make_pair(outputimage, newscale));
 
@@ -54,7 +54,7 @@ void scalefactor(const MatT &inputimage, const vector<pair<MatT, double> > &scal
 		// calculate scale from actual size, which will
 		// includ rounding done to get to integral number
 		// of pixels in each dimension
-		double scale = double(max(outputimage.rows, outputimage.cols)) / max(inputimage.rows, inputimage.cols);
+		double scale = max((double)outputimage.rows / inputimage.rows, (double)outputimage.cols / inputimage.cols);
 		scaleInfoOut.push_back(make_pair(outputimage, scale));
 	}
 }
