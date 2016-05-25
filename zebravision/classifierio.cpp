@@ -110,7 +110,7 @@ bool ClassifierIO::findNextClassifierStage(bool increment)
 
     path dirPath(getClassifierDir());
 
-   while (num >= 0 && num <= 1000000)
+   while (num >= 0 && num <= 3000000)
    {
        path p(dirPath);
        p /= "snapshot_iter_" + to_string(num) + ".caffemodel";
