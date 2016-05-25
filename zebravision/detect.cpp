@@ -83,7 +83,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	// set of scaled images for the 24x24 net will allow the code to grab
 	// the images for those at greater detail rather than just resizing
 	// a 12x12 image up to 24x24
-    scalefactor(f32Img, Size(wsize * 2, wsize * 2), minSize, maxSize, scaleFactor, scaledImages24);
+    scalefactor(f32Img, scaledImages12, 2, scaledImages24);
     // not yet - scalefactor(f32Img, Size(wsize*4,wsize*4), minSize, maxSize, scaleFactor, scaledImages48);
 
     // Do 1st level of detection. This takes the initial list of windows
@@ -329,9 +329,9 @@ void NNDetect<MatT>::generateInitialWindows(
 		// the edges of the scaled image
 		// Throw out rects which would indicate an object that is totally the
 		// wrong size for the objects we're trying to detect
-        for (int r = 0; (r + wsize) < scaledImages[scale].first.rows; r += step)
+        for (int r = 0; (r + wsize) <= scaledImages[scale].first.rows; r += step)
         {
-            for (int c = 0; (c + wsize) < scaledImages[scale].first.cols; c += step)
+            for (int c = 0; (c + wsize) <= scaledImages[scale].first.cols; c += step)
             {
                 thisWindowsChecked += 1;
                 if (!depthIn.empty())
@@ -547,12 +547,12 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 		{
 			rOut -= Point(rOut.tl().x, 0);
 #ifdef VERBOSE
-			cout << " Shifted X to 0:" << rOut << " size="<< scaledImageSize
+			cout << " Shifted X to 0:" << rOut << " size="<< scaledImageSize;
 #endif
 		}
 		else if(rOut.br().x >= scaledImageSize.width)
 		{
-			rOut += Point(scaledImageSize.width - 1 - rOut.br().x, 0);
+			rOut += Point(scaledImageSize.width - rOut.br().x, 0);
 #ifdef VERBOSE
 			cout << " Shifted X to max:" << rOut << " size="<< scaledImageSize;
 #endif
@@ -566,9 +566,9 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 		}
 		else if(rOut.br().y >= scaledImageSize.height)
 		{
-			rOut += Point(0, scaledImageSize.height - 1 - rOut.br().y);
+			rOut += Point(0, scaledImageSize.height - rOut.br().y);
 #ifdef VERBOSE
-			cout << " Shifted Y to max:" << rOut << " size="<< scaledImageSize;
+			cout << " Shifted Y to max:" << rOut << " br=" << rOut.br() << " size="<< scaledImageSize;
 #endif
 		}
 		windowsOut.push_back(Window(rOut, windowsIn[i].second));
