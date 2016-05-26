@@ -119,7 +119,7 @@ int main(void)
 				cvPointTo32f( shear ));
 #endif
 
-		for (double size = 0.00; size <= 0.42; size += 0.07)
+		for (double size = 0.00; size <= 0.25; size += 0.07)
 		{
 			double dSize = rect.width * size;
 			Rect thisRect = rect;
@@ -137,7 +137,7 @@ int main(void)
 					cvRect32fFromRect( thisRect, rotation ), 
 					cvPointTo32f( shear ) );
 
-			for (int j = 0; j < 4; j++)
+			for (int j = 0; j < 6; j++)
 			{
 				Mat mat(crop, true);
 
