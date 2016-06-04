@@ -7,7 +7,6 @@ using namespace std;
 
 FlowLocalizer::FlowLocalizer(const cv::Mat &initial_frame)
 {
-	cout << "Channels: " <<initial_frame.channels() << endl;
 	cvtColor(initial_frame,_prevFrame, CV_BGR2GRAY);
 }
 
@@ -39,7 +38,10 @@ void FlowLocalizer::processFrame(const Mat &frame)
 	// points from prev to curr.
 	// T = [ cos(angle) sin(angle) translation-x ]
 	//     [-sin(angle) cos(angle) translation-y ] 
-	Mat T = estimateRigidTransform(prevCorner2, currCorner2, false);
+	Mat T;
+   
+	if (prevCorner2.size() && currCorner2.size())
+		T = estimateRigidTransform(prevCorner2, currCorner2, false);
 
 	// If a valid transformation is found, update predicted position
 	// using it
@@ -60,6 +62,11 @@ void FlowLocalizer::processFrame(const Mat &frame)
 
 		_transform_mat = T.clone();
 	}
+	else
+	{
+		_transform_mat = Mat::eye(3, 3, CV_64FC1);
+	}
+
 	//copy current frame to previous for next iteration
 	_prevFrame = currFrame.clone();
 }

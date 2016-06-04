@@ -93,7 +93,7 @@ void drawTrackingInfo(Mat& frame, vector<TrackedObjectDisplay>& displayList)
 {
     for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
     {
-        if (it->ratio >= 0.15)
+        if (it->ratio >= 0.25)
         {
             const int roundPosTo = 2;
             // Color moves from red to green (via brown, yuck)
@@ -359,7 +359,8 @@ int main( int argc, const char** argv )
 		// run Goaldetector
 		gd.processFrame(frame, depth);
 
-		cout << "Goal Position=" << gd.goal_pos() << endl;
+		if (gd.goal_pos() != Point3f())
+			cout << "Goal Position=" << gd.goal_pos() << endl;
 
 		//if we are using a goal_truth.txt file that has the actual locations of the goal mark that we detected correctly
         vector<Rect> goalTruthHitList;
@@ -392,14 +393,19 @@ int main( int argc, const char** argv )
 		//adjust object locations based on optical flow information
 		if (detectState)
 		{
+#if 0
 			cout << "Locations before adjustment: " << endl;
 			objectTrackingList.print();
+#endif
 
+			// TODO : switch this on and off based on depth info availability?
 			//objectTrackingList.adjustLocation(fvlc.transform_eigen());
 			objectTrackingList.adjustLocation(fllc.transform_mat());
 
+#if 0
 			cout << "Locations after adjustment: " << endl;
 			objectTrackingList.print();
+#endif
 		}
 
 		// Process detected rectangles - either match up with the nearest object

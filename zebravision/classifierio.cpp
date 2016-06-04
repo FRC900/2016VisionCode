@@ -60,6 +60,8 @@ ClassifierIO::ClassifierIO(string baseDir, int dirNum, int stageNum) :
 	}
 }
 
+// In the current dir, grab a list of the iteration numbers for
+// each snapshot file.  
 void ClassifierIO::setSnapshots(void)
 {
 	snapshots_.clear();

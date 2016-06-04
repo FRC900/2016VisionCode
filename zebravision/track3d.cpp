@@ -442,17 +442,21 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 									  const vector<float> depths,
 									  const vector<ObjectType> &types)
 {
+	vector<Point3f> detectedPositions;
+#ifdef VERBOSE_TRACK
 	if (detectedRects.size() || list_.size())
 		cout << "---------- Start of process detect --------------" << endl;
 	print();
-	vector<Point3f> detectedPositions;
 	if (detectedRects.size() > 0)
 		cout << detectedRects.size() << " detected objects" << endl;
+#endif
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
 				screenToWorldCoords(detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
+#ifdef VERBOSE_TRACK
 		cout << "Detected rect [" << i << "] = " << detectedRects[i] << " positions[" << detectedPositions.size() - 1 << "]:" << detectedPositions[detectedPositions.size()-1] << endl;
+#endif
 	}
 	// TODO :: Combine overlapping detections into one?
 
@@ -493,12 +497,14 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 		AssignmentProblemSolver APS;
 		APS.Solve(Cost, assignment, AssignmentProblemSolver::optimal);
 
-		cout << "After APS : "<<endl;
+#ifdef VERBOSE_TRACK
 		// assignment[i] holds the index of the detection assigned
 		// to track i.  assignment[i] is -1 if no detection was
 		// matchedto that particular track
+		cout << "After APS : "<<endl;
 		for(size_t i = 0; i < assignment.size(); i++)
 			cout << i << ":" << assignment[i] << endl;
+#endif
 		// clear assignment from pairs with large distance
 		for(size_t i = 0; i < assignment.size(); i++)
 			if ((assignment[i] != -1) && (Cost[i][assignment[i]] > dist_thresh_))
@@ -512,7 +518,9 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	{
 		if (find(assignment.begin(), assignment.end(), i) == assignment.end())
 		{
+#ifdef VERBOSE_TRACK
 			cout << "New assignment created " << i << endl;
+#endif
 			list_.push_back(TrackedObject(detectCount_++, types[i], detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
 		}
 	}
@@ -522,22 +530,34 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	while ((tr != list_.end()) && (as != assignment.end()))
 	{
 		// If track updated less than one time, than filter state is not correct.
+#ifdef VERBOSE_TRACK
 		cout << "Predict: " << endl;
+#endif
 		Point3f prediction = tr->predictKF();
+#ifdef VERBOSE_TRACK
 		cout << "prediction:" << prediction << endl;
+#endif
 
 		if(*as != -1) // If we have assigned detect, then update using its coordinates
 		{
+#ifdef VERBOSE_TRACK
 			cout << "Update match: " << endl;
+#endif
 			tr->setPosition(tr->updateKF(detectedPositions[*as]));
+#ifdef VERBOSE_TRACK
 			cout << tr->getScreenPosition(fovSize_, imageSize_) << endl;
+#endif
 			tr->setDetected();
 		}
 		else          // if not continue using predictions
 		{
+#ifdef VERBOSE_TRACK
 			cout << "Update no match: " << endl;
+#endif
 			tr->setPosition(tr->updateKF(prediction));
+#ifdef VERBOSE_TRACK
 			cout << tr->getScreenPosition(fovSize_, imageSize_) << endl;
+#endif
 			tr->clearDetected();
 		}
 
@@ -558,7 +578,9 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 			++it;
 		}
 	}
+#ifdef VERBOSE_TRACK
 	print();
 	if (detectedRects.size() || list_.size())
 		cout << "---------- End of process detect --------------" << endl;
+#endif
 }

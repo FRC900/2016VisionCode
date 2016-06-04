@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-#define VERBOSE
+//#define VERBOSE
 
 GoalDetector::GoalDetector(cv::Point2f fov_size, cv::Size frame_size, bool gui) :
 	_goal_shape(3),

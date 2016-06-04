@@ -100,7 +100,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	}
     runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], windowsOut);
     runLocalNMS(windowsOut, scores, nmsThreshold[0], windowsIn);
-    cout << "d12 nms windows out = " << windowsIn.size() << endl;
+    cout << "d12 nms windows out / d24 windows in = " << windowsIn.size() << endl;
 
     // Double the size of the rects to get from a 12x12 to 24x24
     // detection window.  Use scaledImages24 for the detection call
@@ -113,11 +113,11 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 
     if ((detectThreshold.size() > 1) && (detectThreshold[1] > 0.0))
     {
-        cout << "d24 windows in = " << windowsIn.size() << endl;
+        //cout << "d24 windows in = " << windowsIn.size() << endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsMid, scores);
-        cout << "d24 windows out = " << windowsOut.size() << endl;
+        cout << "d24 windows out = " << windowsMid.size() << endl;
 		// Save uncalibrated results for debugging
-		runGlobalNMS(windowsMid, scores, scaledImages12, nmsThreshold[1], uncalibWindowsOut);
+		runGlobalNMS(windowsMid, scores, scaledImages24, nmsThreshold[1], uncalibWindowsOut);
 		// Use calibration nets to try and better align the 
 		// detection rectangle
         runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], windowsOut);
@@ -320,7 +320,9 @@ void NNDetect<MatT>::generateInitialWindows(
 
         float depth_min = depth_avg - depth_avg * depth_multiplier;
         float depth_max = depth_avg + depth_avg * depth_multiplier;
+#if 0
         cout << fixed << "Target size:" << wsize / scaledImages[scale].second << " Mat Size :" << scaledImages[scale].first.size() << " Dist:" << depth_avg << " Min/max:" << depth_min << "/" << depth_max;
+#endif
         size_t thisWindowsChecked = 0;
         size_t thisWindowsPassed  = 0;
 
@@ -347,9 +349,11 @@ void NNDetect<MatT>::generateInitialWindows(
             }
         }
         windowsChecked += thisWindowsChecked;
+#if 0
         cout << " Windows Passed:" << thisWindowsPassed << "/" << thisWindowsChecked << endl;
+#endif
     }
-    cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << endl;
+    //cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << endl;
 }
 
 
@@ -381,7 +385,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 
     size_t batchSize = classifier.BatchSize(); // defined when classifer is constructed
     int    counter   = 0;
-    double start     = gtod_wrapper(); // grab start time
+    //double start     = gtod_wrapper(); // grab start time
 
     // For each input window, grab the correct image
     // subset from the correct scaled image.
@@ -419,8 +423,8 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
             counter++;
         }
     }
-    double end = gtod_wrapper();
-    cout << "runDetection time = " << (end - start) << endl;
+    //double end = gtod_wrapper();
+    //cout << "runDetection time = " << (end - start) << endl;
 }
 
 
