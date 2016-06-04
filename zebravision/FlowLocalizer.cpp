@@ -21,16 +21,19 @@ void FlowLocalizer::processFrame(const Mat &frame)
 	// Grab a set of features to track. Use optical flow to see
 	// how how they move between frames.
 	goodFeaturesToTrack(_prevFrame, prevCorner, 200, 0.01, 30);
-	calcOpticalFlowPyrLK(_prevFrame, currFrame, prevCorner, currCorner, status, err);
-
-	// Status is set to true for each point where a match was found.
-	// Use only these points for the rest of the calculations
-	for (size_t i = 0; i < status.size(); i++)
+	if (prevCorner.size())
 	{
-		if (status[i])
+		calcOpticalFlowPyrLK(_prevFrame, currFrame, prevCorner, currCorner, status, err);
+
+		// Status is set to true for each point where a match was found.
+		// Use only these points for the rest of the calculations
+		for (size_t i = 0; i < status.size(); i++)
 		{
-			prevCorner2.push_back(prevCorner[i]);
-			currCorner2.push_back(currCorner[i]);
+			if (status[i])
+			{
+				prevCorner2.push_back(prevCorner[i]);
+				currCorner2.push_back(currCorner[i]);
+			}
 		}
 	}
 
@@ -39,7 +42,7 @@ void FlowLocalizer::processFrame(const Mat &frame)
 	// T = [ cos(angle) sin(angle) translation-x ]
 	//     [-sin(angle) cos(angle) translation-y ] 
 	Mat T;
-   
+
 	if (prevCorner2.size() && currCorner2.size())
 		T = estimateRigidTransform(prevCorner2, currCorner2, false);
 
