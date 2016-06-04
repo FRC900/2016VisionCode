@@ -219,7 +219,7 @@ int main( int argc, const char** argv )
 	}
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
-	GroundTruth  goalTruth("goal_truth.txt", args.inputName);
+	GroundTruth goalTruth("goal_truth.txt", args.inputName);
 
 	// Seek to start frame if necessary
 	if (args.frameStart > 0)
@@ -271,8 +271,9 @@ int main( int argc, const char** argv )
 	FrameTicker frameTicker;
 
 	//load up the neural networks.
-	//Loads the lowest epoch and lowest network by default
-	//TODO is that actually true?
+	//Loads the highest epoch from the lowest numbered dir for each 
+	//of the four net types.  By default this will be d12, d24, c12 and c24.
+	//The code can switch to other nets if they're named like d12_1, d12_2, etc.
 	DetectState *detectState = NULL;
 	if (args.detection)
 		detectState = new DetectState(

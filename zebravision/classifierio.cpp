@@ -19,21 +19,77 @@ using namespace boost::filesystem;
 ClassifierIO::ClassifierIO(string baseDir, int dirNum, int stageNum) :
     baseDir_ (baseDir),
     dirNum_  (dirNum),
-    stageNum_(stageNum)
+    stageIdx_(0)
 {
-	// First try to load the full dir + stage info as is. 
+	// First try to find a directory starting with baseName
+	// which has a labels.txt file
+	// This starts with baseName, then baseName_0, up through
+	// baseName_99
 	string outputString;
-	if (!createFullPath("snapshot_iter_" + to_string(stageNum_) + ".caffemodel", outputString))
+	if (createFullPath("labels.txt", outputString) || findNextClassifierDir(true))
 	{
-		// See if at least the dir is valid. If so, grab the first stage in there
-		if (createFullPath("labels.txt", outputString) && findNextClassifierStage(true))
+		setSnapshots();
+		if (snapshots_.size() == 0)
 		{
+			string dirName(getClassifierDir());
+			cerr << "ERROR: No snapshot files in classifier directory " << dirName << endl;
 		}
-		// If not, search for any valid directory starting with baseDir
-		else if (!findNextClassifierDir(true))
-			cerr << "ERROR: Failed to find first classifier stage" << endl;
+		if (stageNum == -1)
+		{
+			// If stageNum == -1, load the highest numbered stage. This makes
+			// sense as a default since later stages have trained for longer
+			// and should be better?
+			stageIdx_ = snapshots_.size() - 1;
+		}
+		else
+		{
+			// If not using the default
+			// Find a close match to the requested snapshot number
+			for (stageIdx_ = 0; stageIdx_ < (snapshots_.size()-1); stageIdx_ += 1)
+			{
+				if (snapshots_[stageIdx_] >= stageNum)
+				{
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		cerr << "ERROR: Failed to find valid classifier directory" << endl;
 	}
 }
+
+void ClassifierIO::setSnapshots(void)
+{
+	snapshots_.clear();
+
+	string dir = getClassifierDir();
+	path p (dir);
+
+	directory_iterator end_itr;
+
+	// cycle through the directory
+	for (directory_iterator itr(p); itr != end_itr; ++itr)
+	{
+		// If it's not a directory, check it
+		if (is_regular_file(itr->path())) 
+		{
+			// Push caffemodel numbers onto snapshots_ list
+			string currentFile(itr->path().string());
+			if ((currentFile.compare(dir.size()+1, 14, "snapshot_iter_") == 0)	&& 
+			    (currentFile.compare(currentFile.size()-11, 11, ".caffemodel") == 0))
+			{
+				int num;
+				istringstream(currentFile.substr(dir.size()+15, currentFile.size()-11)) >> num;
+				snapshots_.push_back(num);
+			}
+		}
+	}
+	// sort ascending
+	sort(snapshots_.begin(), snapshots_.end());
+}
+
 
 // using the current directory number, generate a filename for that dir
 // if it exists - if it doesnt, return an empty string
@@ -53,6 +109,7 @@ string ClassifierIO::getClassifierDir() const
 	cerr << "ERROR: Invalid classifier directory: " << fullDir << endl;
 	return string();
 }
+
 
 bool ClassifierIO::createFullPath(const string &fileName, string &output) const
 {
@@ -81,7 +138,7 @@ vector<string> ClassifierIO::getClassifierFiles() const
 	{
 		output.push_back(outputString);
 
-		if (createFullPath("snapshot_iter_" + to_string(stageNum_) + ".caffemodel", outputString))
+		if (createFullPath("snapshot_iter_" + to_string(snapshots_[stageIdx_]) + ".caffemodel", outputString))
 		{
 			output.push_back(outputString);
 
@@ -100,90 +157,57 @@ vector<string> ClassifierIO::getClassifierFiles() const
     return output;
 }
 
-// Find the next valid classifier. Since some .xml input
-// files crash the GPU we've deleted them. Skip over missing
-// files in the sequence
+// Find the next valid classifier. 
 bool ClassifierIO::findNextClassifierStage(bool increment)
 {
-    int adder = increment ? 1 : -1;
-    int num = stageNum_ + adder;
+	int adder = increment ? 1 : -1;
+	int num = stageIdx_ + adder;
 
-    path dirPath(getClassifierDir());
+	if ((num < 0) || (num >= (int)snapshots_.size()))
+		return false;
 
-   while (num >= 0 && num <= 3000000)
-   {
-       path p(dirPath);
-       p /= "snapshot_iter_" + to_string(num) + ".caffemodel";
-       if (exists(p) && is_regular_file(p))
-       {
-           stageNum_ = num;
-           return true;
-       }
-       num += adder;
-   }
-
-   return false;
+	stageIdx_ = num;
+	return true;
 }
 
-// Find the next valid classifier dir. Start with current stage in that
-// directory and work down until a classifier is found
+// Find the next valid classifier dir. If one is found, switch
+// to the closest numbered iteration in the new directory
 bool ClassifierIO::findNextClassifierDir(bool increment)
 {
-   int adder = increment ? 1 : -1;
-   int dnum = dirNum_;
-   bool found = false;
+   int adder = increment ? 1 : -1; // count either up or down
 
-   while (dnum >= -1 && dnum <= 100 && !found)
+   // Save old dir and stage in case no other
+   // good ones are found
+   int oldDirNum = dirNum_;
+   int oldStageNum = snapshots_[stageIdx_];
+
+   // Iterate through possible stages
+   for (dirNum_ += adder; (dirNum_ >= -1) && (dirNum_ <= 100); dirNum_ += adder)
    {
-       dnum += adder;
-	   string fullDir = baseDir_;
-	   // Special-case -1 to mean no suffix after directory name.
-	   if (dnum != -1)
-	   {
-		   fullDir += "_" + to_string(dnum);
-	   }
-	   path p(fullDir);
-       if (exists(p) && is_directory(p))
+	   // If a directory is found ...
+	   if (getClassifierDir() != string())
        {
-           found = true;
+		   // see if there are snapshots in there
+		   setSnapshots();
+		   if (snapshots_.size() > 0)
+		   {
+			   // If so, pick a stagenum close to the one in the previous dir
+			   for (stageIdx_ = 0; stageIdx_ < (snapshots_.size()-1); stageIdx_ += 1)
+				   if (snapshots_[stageIdx_] >= oldStageNum)
+					   break;
+			   return true;
+		   }
        }
    }
 
-   if (found)
-   {
-	   found = false;
-	   int savedStage = stageNum_;
-	   // Try to find a valid classifier in this dir, starting
-	   // with the current stage from the old dir.  Check current
-	   // stage first, then count up, finally count down. If none
-	   // are found, restore stage to old setting
-	   stageNum_ -= 1;
-	   if (findNextClassifierStage(true))
-	   {
-		   found = true;
-	   }
-	   else
-	   {
-		   stageNum_ = savedStage;
-		   if (findNextClassifierStage(false))
-		   {
-			   found = true;
-		   }
-	   }
-	   // If no valid stages found, restore stageNum_
-	   // since we're not going to change anything
-	   if (!found)
-		   stageNum_ = savedStage;
-	   // Otherwise set the current dirNum_ to the 
-	   // one just found
-	   else
-           dirNum_ = dnum;
-   }
-
-   return found;
+   // If no other valid dir is found, reset back to the 
+   // original dir
+   dirNum_ = oldDirNum;
+   setSnapshots();
+   return false;
 }
 
 string ClassifierIO::print() const
 {
-   return path(getClassifierDir()).filename().string() +  "," + to_string(stageNum_);
+   return path(getClassifierDir()).filename().string() +  ":" + to_string(snapshots_[stageIdx_]);
 }
