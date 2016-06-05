@@ -191,6 +191,7 @@ int main( int argc, const char** argv )
 
 	bool pause = !args.batchMode && args.pause;
 	bool calibRects = false;
+	bool filterUsingDepth = true;
 
 	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
@@ -380,7 +381,7 @@ int main( int argc, const char** argv )
 		vector<Rect> detectRects;
 		vector<Rect> uncalibDetectRects;
 		if (detectState)
-			detectState->detector()->Detect(frame, depth, detectRects, uncalibDetectRects);
+			detectState->detector()->Detect(frame, filterUsingDepth ? depth : Mat(), detectRects, uncalibDetectRects);
 
 		// If args.captureAll is enabled, write each detected rectangle
 		// to their own output image file. Do it before anything else
@@ -597,6 +598,10 @@ int main( int argc, const char** argv )
 				// so bail out
 				if (!cap->update() || !cap->getFrame(frame, depth, false))
 					isRunning = false;
+			}
+			else if (c == 'd')
+			{
+				filterUsingDepth = !filterUsingDepth;
 			}
 			else if (c == 'A') // toggle capture-all
 			{
