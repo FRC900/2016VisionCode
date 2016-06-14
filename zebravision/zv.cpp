@@ -178,7 +178,9 @@ int main( int argc, const char** argv )
 	int frameDisplayFrequency = 1;
 
 	// Hopefully this turns off any logging
-	::google::InitGoogleLogging(argv[0]);
+	::google::InitGoogleLogging("");
+	::google::LogToStderr();
+	::google::SetStderrLogging(3);
 
 	// Read through command line args, extract
 	// cmd line parameters and input filename
