@@ -2,9 +2,12 @@
 #define INC__CAFFEBATCHPREDICTION_HPP_
 
 #include <memory>
+#include <queue>
 #include <string>
 #include <vector>
 #include <utility>
+
+#include <boost/thread.hpp>
 
 #include <caffe/caffe.hpp>
 
@@ -13,8 +16,18 @@
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<std::string, float> Prediction;
 
-// CPU and GPU code is basically the same, so make the matrix
-// type used a template parameter.
+// Data passed into and out of worker threads
+template <typename MatT> class InQData;
+class OutQData;
+
+// From https://www.quantnet.com/threads/c-multithreading-in-boost.10028/
+// Queue class that has thread synchronisation. Used
+// for thread-safe communication between main thread
+// and workers
+template <typename T> class SynchronizedQueue;
+
+// CPU and GPU code is basically the same, so make the input 
+// matrix type used a template parameter.
 // For a CPU classifier, use CaffeClassifer<cv::Mat> fooCPU, and
 // use CaffeClassifier<cv::gpu::GpuMat> fooGPU
 template <class MatT>
@@ -22,10 +35,11 @@ class CaffeClassifier
 {
 	public:
 		CaffeClassifier(const std::string& modelFile,
-					const std::string& trainedFile,
-					const std::string& meanFile,
-					const std::string& labelFile,
-					int batchSize);
+						const std::string& trainedFile,
+						const std::string& meanFile,
+						const std::string& labelFile,
+						int batchSize,
+						int numThreads = 4);
 
 		// Given X input images, return X vectors of predictions.
 		// Each prediction is a label, value pair, where the value is
@@ -41,61 +55,19 @@ class CaffeClassifier
 		// Get the batch size of the model
 		size_t BatchSize(void) const;
 
-		// Change the batch size of the model on the fly
-		void setBatchSize(size_t batchSize);
-
-		// Get an image with the mean value of all of the training images
-		const MatT getMean(void) const;
-
 	private:
-		// Load the mean image from a file, set mean_ member var
-		// with it.
-		void SetMean(const std::string& meanFile);
-
-		// Helper to resize the net
-		void reshapeNet(void);
-
-		// Get the output values for a set of images
-		// These values will be in the same order as the labels for each
-		// image, and each set of labels for an image next adjacent to the
-		// one for the next image.
-		// That is, [0] = value for label 0 for the first image up to 
-		// [n] = value for label n for the first image. It then starts again
-		// for the next image - [n+1] = label 0 for image #2.
-		std::vector<float> PredictBatch(const std::vector< MatT > &imgs);
-
-		// Wrap input layer of the net into separate Mat objects
-		// This sets them up to be written with actual data
-		// in PreprocessBatch()
-		void WrapBatchInputLayer(void);
-
-		// Take each image in Mat, convert it to the correct image type,
-		// color depth, size to match the net input. Convert to 
-		// F32 type, since that's what the net inputs are. 
-		// Subtract out the mean before passing to the net input
-		// Then actually write the images to the net input memory buffers
-		void PreprocessBatch(const std::vector< MatT > &imgs);
-		void SlowPreprocess(const MatT &img, MatT &output);
-
-		// Method which returns either mutable_cpu_data or mutable_gpu_data
-		// depending on whether we're using CPU or GPU Mats
-		// X will always be floats for our net, but C++ syntax
-		// makes us make it a generic prototype here?
-		template <class X>
-			float *GetBlobData(caffe::Blob<X> *blob);
-
 		// Method specialized to return either true or false depending
 		// on whether we're using GpuMats or Mats
 		bool IsGPU(void) const;
 
-		std::shared_ptr<caffe::Net<float> > net_; // the net itself
-		cv::Size inputGeometry_;         // size of one input image
-		int numChannels_;                // num color channels per input image
-		size_t batchSize_;               // number of images to process in one go
-		MatT mean_;                      // mean value of input images
-		MatT sampleNormalized_;          // average pixel value of training data - subtracted out from each input image before running through the net
+		size_t batchSize_;                // number of images to process in one go
+		cv::Size inputGeometry_;          // size of one input image
 		std::vector<std::string> labels_; // labels for each output value
-		std::vector< std::vector<MatT> > inputBatch_; // net input buffers wrapped in Mat's
+
+		std::shared_ptr<boost::thread_group> threads_;     // set of threads which process input data.  
+
+		std::shared_ptr<SynchronizedQueue<InQData<MatT>>> inQ_;  // queues for communicating with
+		std::shared_ptr<SynchronizedQueue<OutQData> >     outQ_; // worker threads
 };
 
 #endif
