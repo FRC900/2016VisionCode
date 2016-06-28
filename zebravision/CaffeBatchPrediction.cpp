@@ -18,37 +18,37 @@ class SynchronisedQueue
 		void Enqueue(const T& data)
 		{
 			// Acquire lock on the queue
-			boost::unique_lock<boost::mutex> lock(m_mutex);
+			boost::unique_lock<boost::mutex> lock(mutex_);
 
 			// Add the data to the queue
-			m_queue.push(data);
+			queue_.push(data);
 
 			// Notify others that data is ready
-			m_cond.notify_one();
+			cond_.notify_one();
 		} // Lock is automatically released here
 
 		// Get data from the queue. Wait for data if not available
 		T Dequeue(void)
 		{
 			// Acquire lock on the queue
-			boost::unique_lock<boost::mutex> lock(m_mutex);
+			boost::unique_lock<boost::mutex> lock(mutex_);
 
 			// When there is no data, wait till someone fills it.
 			// Lock is automatically released in the wait and obtained
 			// again after the wait
-			while (m_queue.size()==0)
-				m_cond.wait(lock);
+			while (queue_.size()==0)
+				cond_.wait(lock);
 
 			// Retrieve the data from the queue
-			T result=m_queue.front(); 
-			m_queue.pop();
+			T result=queue_.front(); 
+			queue_.pop();
 			return result;
 		} // Lock is automatically released here
 
 	private:
-		queue<T> m_queue; // Use STL queue to store data
-		boost::mutex m_mutex; // The mutex to synchronise on
-		boost::condition_variable m_cond; // The condition to wait for
+		queue<T> queue_; // Use STL queue to store data
+		boost::mutex mutex_; // The mutex to synchronise on
+		boost::condition_variable cond_; // The condition to wait for
 };
  
 
@@ -80,10 +80,10 @@ class CaffeClassifierThread
 				// Run a forward pass with the data filled in from above
 				net_->ForwardPrefilled();
 				/* Copy the output layer to a flat vector */
-				caffe::Blob<float>* output_layer = net_->output_blobs()[0];
-				const float* begin = output_layer->cpu_data();
-				const float* end = begin + output_layer->channels()*imgs.size();
-				outQ->Enqueue(make_pair<intput.first, vector<float>(begin, end) >);
+				caffe::Blob<float>* outputLayer = net_->output_blobs()[0];
+				const float* begin = outputLayer->cpu_data();
+				const float* end = begin + outputLayer->channels()*imgs.size();
+				outQ_->Enqueue(make_pair<intput.first, vector<float>(begin, end) >);
 				// Make sure we can be interrupted
 				boost::this_thread::interruption_point();
 			}
@@ -99,7 +99,7 @@ CaffeClassifier constructor creates a thread pool of these threads
 template <class MatT>
 vector< vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 		const vector< MatT > &imgs, 
-		size_t num_classes)
+		size_t numClasses)
 {
 	int batchCount = 0;
     pair<batch,vector<MatT>> imgBatch;
@@ -118,39 +118,39 @@ vector< vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 
 	vector< vector<Prediction> > predictions;
 	predictions.size(imgs.size());
-	size_t labels_size = labels_.size();
-	num_classes = min(num_classes, labels_size);
+	size_t labelsSize = labels_.size();
+	numClasses = min(numClasses, labelsSize);
 
 	while (--batchCount)
 	{
-	// output_batch will be a flat vector of N floating point values 
+	// outputBatch will be a flat vector of N floating point values 
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
-	pair<int, vector<float>> output_batch = outQ.Dequeue();
+	pair<int, vector<float>> outputBatch = outQ.Dequeue();
 
-	// For each image, find the top num_classes values
+	// For each image, find the top numClasses values
 	for(size_t j = 0; j < imgs.size(); j++)
 	{
 		// Create an output vector just for values for this image. Since
-		// each image has labels_size values, that's output_batch[j*labels_size]
-		// through output_batch[(j+1) * labels_size]
-		vector<float> output(output_batch.first.begin() + j*labels_size, output_batch.first.begin() + (j+1)*labels_size);
+		// each image has labelsSize values, that's outputBatch[j*labelsSize]
+		// through outputBatch[(j+1) * labelsSize]
+		vector<float> output(outputBatch.first.begin() + j*labelsSize, outputBatch.first.begin() + (j+1)*labelsSize);
 		// For the output specific to the jth image, grab the
-		// indexes of the top num_classes predictions
-		vector<int> maxN = Argmax(output, num_classes);
+		// indexes of the top numClasses predictions
+		vector<int> maxN = Argmax(output, numClasses);
 		// Using those top N indexes, create a set of labels/value predictions
 		// specific to this jth image
-		vector<Prediction> prediction_single;
-		for (size_t i = 0; i < num_classes; ++i) 
+		vector<Prediction> predictionSingle;
+		for (size_t i = 0; i < numClasses; ++i) 
 		{
 			int idx = maxN[i];
-			prediction_single.push_back(make_pair(labels_[idx], output[idx]));
+			predictionSingle.push_back(make_pair(labels_[idx], output[idx]));
 		}
 		// Add the predictions for this image to the list of
 		// predictions for all images. Put it in the correct location
 		// for the given batch and image
-		predictions[output_batch.first + batchSize_ + j] = vector<Prediction>(prediction_single);
+		predictions[outputBatch.first + batchSize_ + j] = vector<Prediction>(predictionSingle);
 	}
 	}
 	return predictions;
@@ -207,11 +207,11 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	CHECK_EQ(net_->num_inputs(), 1) << "Network should have exactly one input.";
 	CHECK_EQ(net_->num_outputs(), 1) << "Network should have exactly one output.";
 
-	caffe::Blob<float>* input_layer = net_->input_blobs()[0];
-	numChannels_ = input_layer->channels();
+	caffe::Blob<float>* inputLayer = net_->input_blobs()[0];
+	numChannels_ = inputLayer->channels();
 	CHECK(numChannels_ == 3 || numChannels_ == 1)
 		<< "Input layer should have 1 or 3 channels.";
-	inputGeometry_ = cv::Size(input_layer->width(), input_layer->height());
+	inputGeometry_ = cv::Size(inputLayer->width(), inputLayer->height());
 
 	/* Load the binaryproto mean file. */
 	SetMean(meanFile);
@@ -225,12 +225,12 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	while (getline(labels, line))
 		labels_.push_back(string(line));
 
-	caffe::Blob<float>* output_layer = net_->output_blobs()[0];
-	CHECK_EQ(labels_.size(), output_layer->channels())
+	caffe::Blob<float>* outputLayer = net_->output_blobs()[0];
+	CHECK_EQ(labels_.size(), outputLayer->channels())
 		<< "Number of labels is different from the output layer dimension.";
 
 	// Pre-process Mat wrapping
-	input_layer->Reshape(batchSize_, numChannels_,
+	inputLayer->Reshape(batchSize_, numChannels_,
 			inputGeometry_.height,
 			inputGeometry_.width);
 
@@ -276,37 +276,37 @@ static vector<int> Argmax(const vector<float>& v, size_t N)
 template <class MatT>
 vector< vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 		const vector< MatT > &imgs, 
-		size_t num_classes)
+		size_t numClasses)
 {
-	// output_batch will be a flat vector of N floating point values 
+	// outputBatch will be a flat vector of N floating point values 
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
-	vector<float> output_batch = PredictBatch(imgs);
+	vector<float> outputBatch = PredictBatch(imgs);
 	vector< vector<Prediction> > predictions;
-	size_t labels_size = labels_.size();
-	num_classes = min(num_classes, labels_size);
-	// For each image, find the top num_classes values
+	size_t labelsSize = labels_.size();
+	numClasses = min(numClasses, labelsSize);
+	// For each image, find the top numClasses values
 	for(size_t j = 0; j < imgs.size(); j++)
 	{
 		// Create an output vector just for values for this image. Since
-		// each image has labels_size values, that's output_batch[j*labels_size]
-		// through output_batch[(j+1) * labels_size]
-		vector<float> output(output_batch.begin() + j*labels_size, output_batch.begin() + (j+1)*labels_size);
+		// each image has labelsSize values, that's outputBatch[j*labelsSize]
+		// through outputBatch[(j+1) * labelsSize]
+		vector<float> output(outputBatch.begin() + j*labelsSize, outputBatch.begin() + (j+1)*labelsSize);
 		// For the output specific to the jth image, grab the
-		// indexes of the top num_classes predictions
-		vector<int> maxN = Argmax(output, num_classes);
+		// indexes of the top numClasses predictions
+		vector<int> maxN = Argmax(output, numClasses);
 		// Using those top N indexes, create a set of labels/value predictions
 		// specific to this jth image
-		vector<Prediction> prediction_single;
-		for (size_t i = 0; i < num_classes; ++i) 
+		vector<Prediction> predictionSingle;
+		for (size_t i = 0; i < numClasses; ++i) 
 		{
 			int idx = maxN[i];
-			prediction_single.push_back(make_pair(labels_[idx], output[idx]));
+			predictionSingle.push_back(make_pair(labels_[idx], output[idx]));
 		}
 		// Add the predictions for this image to the list of
 		// predictions for all images
-		predictions.push_back(vector<Prediction>(prediction_single));
+		predictions.push_back(vector<Prediction>(predictionSingle));
 	}
 	return predictions;
 }
@@ -315,24 +315,24 @@ vector< vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 template <class MatT>
 void CaffeClassifier<MatT>::SetMean(const string& meanFile) 
 {
-	caffe::BlobProto blob_proto;
-	ReadProtoFromBinaryFileOrDie(meanFile.c_str(), &blob_proto);
+	caffe::BlobProto blobProto;
+	ReadProtoFromBinaryFileOrDie(meanFile.c_str(), &blobProto);
 
 	/* Convert from BlobProto to Blob<float> */
-	caffe::Blob<float> mean_blob;
-	mean_blob.FromProto(blob_proto);
-	CHECK_EQ(mean_blob.channels(), numChannels_)
+	caffe::Blob<float> meanBlob;
+	meanBlob.FromProto(blobProto);
+	CHECK_EQ(meanBlob.channels(), numChannels_)
 		<< "Number of channels of mean file doesn't match input layer.";
 
 	/* The format of the mean file is planar 32-bit float BGR or grayscale. */
 	vector<cv::Mat> channels;
-	float* data = mean_blob.mutable_cpu_data();
+	float* data = meanBlob.mutable_cpu_data();
 	for (int i = 0; i < numChannels_; ++i) 
 	{
 		/* Extract an individual channel. */
-		cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
+		cv::Mat channel(meanBlob.height(), meanBlob.width(), CV_32FC1, data);
 		channels.push_back(channel);
-		data += mean_blob.height() * mean_blob.width();
+		data += meanBlob.height() * meanBlob.width();
 	}
 
 	/* Merge the separate channels into a single image. */
@@ -341,12 +341,12 @@ void CaffeClassifier<MatT>::SetMean(const string& meanFile)
 
 	/* Compute the global mean pixel value and create a mean image
 	 * filled with this value. */
-	cv::Scalar channel_mean = cv::mean(mean);
+	cv::Scalar channelMean = cv::mean(mean);
 
 	// Hack to possibly convert to GpuMat - if MatT is GpuMat,
 	// this will upload the Mat object to a GpuMat, otherwise
 	// it will just copy it to the member variable mean_
-	mean_ = MatT(inputGeometry_, mean.type(), channel_mean);
+	mean_ = MatT(inputGeometry_, mean.type(), channelMean);
 }
 
 // TODO : see if we can do this once at startup or if
@@ -366,8 +366,8 @@ template <class MatT>
 void CaffeClassifier<MatT>::reshapeNet() 
 {
 	CHECK(net_->input_blobs().size() == 1);
-	caffe::Blob<float>* input_layer = net_->input_blobs()[0];
-	input_layer->Reshape(batchSize_, numChannels_,
+	caffe::Blob<float>* inputLayer = net_->input_blobs()[0];
+	inputLayer->Reshape(batchSize_, numChannels_,
 						 inputGeometry_.height,
 						 inputGeometry_.width);
 	net_->Reshape();
@@ -392,9 +392,9 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(
 	// Run a forward pass with the data filled in from above
 	net_->ForwardPrefilled();
 	/* Copy the output layer to a flat vector */
-	caffe::Blob<float>* output_layer = net_->output_blobs()[0];
-	const float* begin = output_layer->cpu_data();
-	const float* end = begin + output_layer->channels()*imgs.size();
+	caffe::Blob<float>* outputLayer = net_->output_blobs()[0];
+	const float* begin = outputLayer->cpu_data();
+	const float* end = begin + outputLayer->channels()*imgs.size();
 	return vector<float>(begin, end);
 }
 
@@ -405,23 +405,23 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(
 template <class MatT>
 void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 {
-	caffe::Blob<float>* input_layer = net_->input_blobs()[0];
+	caffe::Blob<float>* inputLayer = net_->input_blobs()[0];
 
-	int width = input_layer->width();
-	int height = input_layer->height();
-	int num = input_layer->num();
-	float* input_data = GetBlobData(input_layer);
+	int width = inputLayer->width();
+	int height = inputLayer->height();
+	int num = inputLayer->num();
+	float* inputData = GetBlobData(inputLayer);
 	inputBatch_.clear();
 	for ( int j = 0; j < num; j++)
 	{
-		vector<MatT> input_channels;
-		for (int i = 0; i < input_layer->channels(); ++i)
+		vector<MatT> inputChannels;
+		for (int i = 0; i < inputLayer->channels(); ++i)
 		{
-			MatT channel(height, width, CV_32FC1, input_data);
-			input_channels.push_back(channel);
-			input_data += width * height;
+			MatT channel(height, width, CV_32FC1, inputData);
+			inputChannels.push_back(channel);
+			inputData += width * height;
 		}
-		inputBatch_.push_back(vector<MatT>(input_channels));
+		inputBatch_.push_back(vector<MatT>(inputChannels));
 	}
 }
 
@@ -443,22 +443,22 @@ void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
 	else
 		sample = img;
 
-	MatT sample_resized;
+	MatT sampleResized;
 	if (sample.size() != inputGeometry_)
-		resize(sample, sample_resized, inputGeometry_);
+		resize(sample, sampleResized, inputGeometry_);
 	else
-		sample_resized = sample;
+		sampleResized = sample;
 
-	MatT sample_float;
-	if (((numChannels_ == 3) && (sample_resized.type() == CV_32FC3)) ||
-		((numChannels_ == 1) && (sample_resized.type() == CV_32FC1)) )
-		sample_float = sample_resized;
+	MatT sampleFloat;
+	if (((numChannels_ == 3) && (sampleResized.type() == CV_32FC3)) ||
+		((numChannels_ == 1) && (sampleResized.type() == CV_32FC1)) )
+		sampleFloat = sampleResized;
 	else if (numChannels_ == 3)
-		sample_resized.convertTo(sample_float, CV_32FC3);
+		sampleResized.convertTo(sampleFloat, CV_32FC3);
 	else
-		sample_resized.convertTo(sample_float, CV_32FC1);
+		sampleResized.convertTo(sampleFloat, CV_32FC1);
 
-	subtract(sample_float, mean_, output);
+	subtract(sampleFloat, mean_, output);
 }
 
 // Take each image in Mat, convert it to the correct image type,
@@ -486,14 +486,14 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 
 		/* This operation will write the separate BGR planes directly to the
 		 * input layer of the network because it is wrapped by the MatT
-		 * objects in input_channels. */
-		vector<MatT> *input_channels = &inputBatch_.at(i);
-		split(sampleNormalized_, *input_channels);
+		 * objects in inputChannels. */
+		vector<MatT> *inputChannels = &inputBatch_.at(i);
+		split(sampleNormalized_, *inputChannels);
 
 #if 1
 		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
 		if (i == 0)
-			CHECK(reinterpret_cast<float*>(input_channels->at(0).data)
+			CHECK(reinterpret_cast<float*>(inputChannels->at(0).data)
 					== GetBlobData(net_->input_blobs()[0]))
 				<< "Input channels are not wrapping the input layer of the network.";
 #endif

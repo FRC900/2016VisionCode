@@ -33,7 +33,7 @@ class CaffeClassifier
 		// Each of the X vectors are themselves a vector which will have the 
 		// N predictions with the highest confidences for the corresponding
 		// input image
-		std::vector< std::vector<Prediction> > ClassifyBatch(const std::vector< MatT > &imgs, size_t num_classes);
+		std::vector< std::vector<Prediction> > ClassifyBatch(const std::vector< MatT > &imgs, size_t numClasses);
 
 		// Get the width and height of an input image to the net
 		cv::Size getInputGeometry(void) const;
