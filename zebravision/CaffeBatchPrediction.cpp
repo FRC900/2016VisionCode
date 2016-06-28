@@ -6,6 +6,147 @@
 
 #include "CaffeBatchPrediction.hpp"
 
+#if 0
+// Queue class that has thread synchronisation
+template <typename T>
+class SynchronisedQueue
+{
+    private:
+	std::queue<T> m_queue; // Use STL queue to store data
+	boost::mutex m_mutex; // The mutex to synchronise on
+	boost::condition_variable m_cond; // The condition to wait for
+
+    public:
+
+	// Add data to the queue and notify others
+	void Enqueue(const T& data)
+	{
+	    // Acquire lock on the queue
+	    boost::unique_lock<boost::mutex> lock(m_mutex);
+
+	    // Add the data to the queue
+	    m_queue.push(data);
+
+	    // Notify others that data is ready
+	    m_cond.notify_one();
+	} // Lock is automatically released here
+
+	// Get data from the queue. Wait for data if not available
+	T Dequeue(void)
+	{
+	    // Acquire lock on the queue
+	    boost::unique_lock<boost::mutex> lock(m_mutex);
+
+	    // When there is no data, wait till someone fills it.
+	    // Lock is automatically released in the wait and obtained
+	    // again after the wait
+	    while (m_queue.size()==0) m_cond.wait(lock);
+
+	    // Retrieve the data from the queue
+	    T result=m_queue.front(); m_queue.pop();
+	    return result;
+	} // Lock is automatically released here
+};
+ 
+
+create private CaffeClassiferThread(const std::string& model_file,
+const std::string& trained_file,
+const std::string& mean_file,
+const std::string& label_file,
+const int batch_size,
+SynchronizedQueue<pair<int,vector<MatT>> *inQ,
+SynchronizedQueue<pair<int,vector<float>> *outQ
+// The thread function reads data from the queue
+void operator () ()
+{
+while (true)
+{
+	// Get the data from the queue, blocking if none
+	// is available
+	pair<int, vector<MatT>> input = inQ_->Dequeue();
+	// Process each image so they match the format
+	// expected by the net, then copy the images
+	// into the net's input buffers
+	PreprocessBatch(input.second);
+	// Run a forward pass with the data filled in from above
+	net_->ForwardPrefilled();
+	/* Copy the output layer to a flat std::vector */
+	caffe::Blob<float>* output_layer = net_->output_blobs()[0];
+	const float* begin = output_layer->cpu_data();
+	const float* end = begin + output_layer->channels()*imgs.size();
+	outQ.Enqueue(make_pair<intput.first, std::vector<float>(begin, end) >);
+	// Make sure we can be interrupted
+	boost::this_thread::interruption_point();
+}
+}
+
+CaffeClassifier constructor creates a thread pool of these threads
+
+// Given X input images, return X vectors of predictions.
+// Each of the X vectors are themselves a vector which will have the 
+// N predictions with the highest confidences for the corresponding
+// input image
+template <class MatT>
+std::vector< std::vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
+		const std::vector< MatT > &imgs, 
+		size_t num_classes)
+{
+	int batchCount = 0;
+    pair<batch,vector<MatT>> imgBatch;
+    for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
+    {
+		imgBatch.second.push_back(*it);
+		if ((imgBatch.size() == batchSize_) || ((it + 1) == imgs.cend()))
+		{
+			// Enqueue this image batch. The call will kick
+			// off a worker thread if one is idle
+			imgBatch.first = batchCount++;
+			imgQ.Enqueue(imgBatch);
+			imgBatch.first.clear();
+		}
+    }
+
+	std::vector< std::vector<Prediction> > predictions;
+	predictions.size(imgs.size());
+	size_t labels_size = labels_.size();
+	num_classes = std::min(num_classes, labels_size);
+
+	while (--batchCount)
+	{
+	// output_batch will be a flat vector of N floating point values 
+	// per image (1 per N output labels), repeated
+	// times the number of input images batched per run
+	// Convert that into the output vector of vectors
+	pair<int, std::vector<float>> output_batch = outQ.Dequeue();
+
+	// For each image, find the top num_classes values
+	for(size_t j = 0; j < imgs.size(); j++)
+	{
+		// Create an output vector just for values for this image. Since
+		// each image has labels_size values, that's output_batch[j*labels_size]
+		// through output_batch[(j+1) * labels_size]
+		std::vector<float> output(output_batch.first.begin() + j*labels_size, output_batch.first.begin() + (j+1)*labels_size);
+		// For the output specific to the jth image, grab the
+		// indexes of the top num_classes predictions
+		std::vector<int> maxN = Argmax(output, num_classes);
+		// Using those top N indexes, create a set of labels/value predictions
+		// specific to this jth image
+		std::vector<Prediction> prediction_single;
+		for (size_t i = 0; i < num_classes; ++i) 
+		{
+			int idx = maxN[i];
+			prediction_single.push_back(std::make_pair(labels_[idx], output[idx]));
+		}
+		// Add the predictions for this image to the list of
+		// predictions for all images. Put it in the correct location
+		// for the given batch and image
+		predictions[output_batch.first + batchSize_ + j] = std::vector<Prediction>(prediction_single);
+	}
+	}
+	return predictions;
+}
+
+#endif
 static bool fileExists(const char *filename)
 {
 	struct stat statBuffer;
