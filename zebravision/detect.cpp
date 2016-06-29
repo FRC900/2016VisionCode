@@ -30,10 +30,10 @@ NNDetect<MatT>::NNDetect(const vector<string> &d12,
 				   		 const vector<string> &c12,
 				   		 const vector<string> &c24, 
 				   		 float hfov) :
-	d12_(CaffeClassifier<MatT>(d12[0], d12[1], d12[2], d12[3], 256, 4)),
-	d24_(CaffeClassifier<MatT>(d24[0], d24[1], d24[2], d24[3], 32, 1)),
-	c12_(CaffeClassifier<MatT>(c12[0], c12[1], c12[2], c12[3], 32, 2)),
-	c24_(CaffeClassifier<MatT>(c24[0], c24[1], c24[2], c24[3], 32, 1)),
+	d12_(CaffeClassifier<MatT>(d12[0], d12[1], d12[2], d12[3], 256, 2)),
+	d24_(CaffeClassifier<MatT>(d24[0], d24[1], d24[2], d24[3],  64, 1)),
+	c12_(CaffeClassifier<MatT>(c12[0], c12[1], c12[2], c12[3],  64, 2)),
+	c24_(CaffeClassifier<MatT>(c24[0], c24[1], c24[2], c24[3],  64, 1)),
 	hfov_(hfov)
 {
 }
