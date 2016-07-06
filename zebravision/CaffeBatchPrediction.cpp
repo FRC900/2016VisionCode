@@ -109,7 +109,7 @@ class CaffeClassifierThread
 			outQ_(outQ) // with the master thread
 		{
 			/* Load the network - this includes model geometry and trained weights */
-			net_.reset(new Net<float>(modelFile, caffe::TEST));
+			net_.reset(new Net<float>(modelFile, TEST));
 			net_->CopyTrainedLayersFrom(trainedFile);
 
 			CHECK_EQ(net_->num_inputs(), 1) << "Network should have exactly one input.";
@@ -153,8 +153,6 @@ class CaffeClassifierThread
 		void operator () ()
 		{
 			// Loop forever waiting for data to process
-			Caffe::SetDevice(0);
-			Caffe::set_mode(Caffe::GPU);
 			while (true)
 			{
 				// Get input images from the queue, blocking if none
@@ -173,7 +171,7 @@ class CaffeClassifierThread
 				// the score, the more likely the net thinks
 				// it is that the input image matches a given
 				// label.
-				net_->Forward();
+				net_->ForwardPrefilled();
 
 				// Copy the output layer to a flat vector
 				Blob<float>* outputLayer = net_->output_blobs()[0];
@@ -394,6 +392,11 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	}
 	cout << "Loading " << modelFile << " " << trainedFile << " "<< meanFile << " " << labelFile << endl;
 
+	if (IsGPU())
+		Caffe::set_mode(Caffe::GPU);
+	else
+		Caffe::set_mode(Caffe::CPU);
+
 	batchSize_ = batchSize;
 	inQ_  = make_shared<SynchronizedQueue<InQData<MatT>>>();
 	outQ_ = make_shared<SynchronizedQueue<OutQData>>();
@@ -543,6 +546,21 @@ template <class MatT>
 Size CaffeClassifier<MatT>::getInputGeometry(void) const
 {
 	return inputGeometry_;
+}
+
+// TODO : maybe don't specialize this one in case
+// we use something other than Mat or GpuMat in the
+// future?
+template <>
+bool CaffeClassifier<Mat>::IsGPU(void) const
+{
+	return true;
+}
+
+template <>
+bool CaffeClassifier<GpuMat>::IsGPU(void) const
+{
+	return true;
 }
 
 template class CaffeClassifierThread<Mat>;
