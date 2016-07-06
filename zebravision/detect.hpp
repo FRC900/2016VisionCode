@@ -27,14 +27,20 @@ template <class MatT>
 class NNDetect
 {
 	public:
-		NNDetect(const std::vector<std::string> &d12,
-				 const std::vector<std::string> &d24, 
-				 const std::vector<std::string> &c12,
-				 const std::vector<std::string> &c24, 
-				 float hfov);
-
+		NNDetect(const std::vector<std::string> &d12Info,
+			 const std::vector<std::string> &d24Info, 
+			const std::vector<std::string> &c12Info,
+			const std::vector<std::string> &c24Info, 
+			float hfov)  :
+			d12_(CaffeClassifier<MatT>(d12Info[0], d12Info[1], d12Info[2], d12Info[3], 64)),
+			d24_(CaffeClassifier<MatT>(d24Info[0], d24Info[1], d24Info[2], d24Info[3], 64)),
+			c12_(CaffeClassifier<MatT>(c12Info[0], c12Info[1], c12Info[2], c12Info[3], 64)),
+			c24_(CaffeClassifier<MatT>(c24Info[0], c24Info[1], c24Info[2], c24Info[3], 64)),
+			hfov_(hfov)
+		{
+		}
 		void detectMultiscale(const cv::Mat &inputImg,
-				const cv::Mat  &depthIn,
+				const cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				double scaleFactor,
@@ -51,6 +57,12 @@ class NNDetect
 		CaffeClassifier <MatT> c12_;
 		CaffeClassifier <MatT> c24_;
 		float hfov_;
+		void doBatchPrediction(CaffeClassifier<MatT> &classifier,
+				const std::vector<MatT> &imgs,
+				float threshold,
+				const std::string &label,
+				std::vector<size_t> &detected,
+				std::vector<float>  &scores);
 
 		void generateInitialWindows(
 				const MatT &input,

@@ -20,23 +20,6 @@ static double gtod_wrapper(void)
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
 }
 
-// Class constructor. Create several classifier nets
-// for different stages of the detection process.  Set
-// the batch size and number of threads highest for d12 and
-// (barely) c12 since they are the most important to performance
-template<class MatT>
-NNDetect<MatT>::NNDetect(const vector<string> &d12,
-				   		 const vector<string> &d24, 
-				   		 const vector<string> &c12,
-				   		 const vector<string> &c24, 
-				   		 float hfov) :
-	d12_(CaffeClassifier<MatT>(d12[0], d12[1], d12[2], d12[3], 256, 4)),
-	d24_(CaffeClassifier<MatT>(d24[0], d24[1], d24[2], d24[3], 32, 1)),
-	c12_(CaffeClassifier<MatT>(c12[0], c12[1], c12[2], c12[3], 32, 2)),
-	c24_(CaffeClassifier<MatT>(c24[0], c24[1], c24[2], c24[3], 32, 1)),
-	hfov_(hfov)
-{
-}
 
 // TODO :: Make a call for GPU Mat input?
 // Simple multi-scale detect.  Take a single image, scale it into a number
@@ -396,6 +379,12 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
     // the NN prediction as a batch
     vector<MatT> images;
 
+    // Return value from detection. This is a list of indexes from
+    // the input array above which have a high enough confidence score
+    vector<size_t> detected;
+
+    size_t batchSize = classifier.BatchSize(); // defined when classifer is constructed
+    int    counter   = 0;
     //double start     = gtod_wrapper(); // grab start time
 
     // For each input window, grab the correct image
@@ -412,14 +401,50 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 		// it->first is the rect describing the subset of that image 
 		// we need to process
         images.push_back(scaledImages[it->second].first(it->first));
-	}
+        if ((images.size() == batchSize) || ((it + 1) == windows.cend()))
+        {
+            doBatchPrediction(classifier, images, threshold, label, detected, scores);
 
+            // Clear out images array to start the next batch
+            // of processing fresh
+            images.clear();
+
+			// detected is a list of indexes of entries in the input
+			// which returned confidences higher than threshold. Keep
+			// those as valid detections and ignore the rest
+            for (size_t j = 0; j < detected.size(); j++)
+            {
+                // Indexes in detected array are relative to the start of the
+                // current batch just passed in to doBatchPrediction.
+                // Use counter to keep track of which batch we're in
+                windowsOut.push_back(windows[counter * batchSize + detected[j]]);
+            }
+            // Keep track of the batch number
+            counter++;
+        }
+    }
+    //double end = gtod_wrapper();
+    //cout << "runDetection time = " << (end - start) << endl;
+}
+
+
+// do 1 run of the classifier. This takes up batch_size predictions
+// and adds the index of anything found to the detected list
+template<class MatT>
+void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
+                                       const vector<MatT>&    imgs,
+                                       float                  threshold,
+                                       const string&          label,
+                                       vector<size_t>&        detected,
+                                       vector<float>&         scores)
+{
+    detected.clear();
     // Grab the top 2 detected classes.  Since we're doing an object /
     // not object split, that will get the scores for both categories
-    auto predictions = classifier.ClassifyBatch(images, 2);
+    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
 
     // Each outer loop is the predictions for one input image
-    for (size_t i = 0; i < images.size(); ++i)
+    for (size_t i = 0; i < imgs.size(); ++i)
     {
         // Each inner loop is the prediction for a particular label
         // for the given image, sorted by score.
@@ -428,23 +453,20 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 		// Higher confidences from the prediction mean that the net
 		// thinks it is more likely that the label correctly
 		// identifies the image passed in
-        for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
+        for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
         {
             if (it->first == label)
             {
                 if (it->second >= threshold)
                 {
-					windowsOut.push_back(windows[i]);
+                    detected.push_back(i);
                     scores.push_back(it->second);
                 }
                 break;
             }
         }
     }
-    //double end = gtod_wrapper();
-    //cout << "runDetection time = " << (end - start) << endl;
 }
-
 
 // Use a specially-traned net to adjust the position of a detection
 // rectangle to better match the actual position of the object we're
@@ -465,14 +487,20 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 {
 	windowsOut.clear();
 	vector<MatT>           images; // input images
+	vector<vector<float> > shift;  // shift list for this batch
 	vector<vector<float> > shifts; // complete list of all shifts
 	for (vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
 	{
 		// Grab the rect from the scaled image represented
 		// but each input window
 		images.push_back(scaledImages[it->second].first(it->first));
+		if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+		{
+			doBatchCalibration(classifier, images, threshold, shift);
+			shifts.insert(shifts.end(), shift.begin(), shift.end());
+			images.clear();
+		}
 	}
-	doBatchCalibration(classifier, images, threshold, shifts);
 	for (size_t i = 0; i < windowsIn.size(); i++)
 	{
 		Rect rOut = windowsIn[i].first;
