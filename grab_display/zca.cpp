@@ -52,8 +52,6 @@
 #include <string>
 #include "zca.hpp"
 
-#include "utilities_common.h"
-
 using namespace std;
 using namespace cv;
 
@@ -84,6 +82,7 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size, float epsilon) :
 		tmpImg.convertTo(tmpImg, CV_32FC3, 1.0/255.0);
 		workingMat.push_back(tmpImg.reshape(1, 1));
 	}
+	tmpImg.release();
 	// Transpose so each image is its own column 
 	// rather than its own row 
 	workingMat = workingMat.t();
@@ -97,11 +96,12 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size, float epsilon) :
 	// make the data from each image 0-mean
 	for (int i = 0; i < workingMat.cols; i++)
 		subtract(workingMat.col(i), colMean.at<float>(i), workingMat.col(i));
-	reduce(workingMat, colMean, 0, CV_REDUCE_AVG);
+	colMean.release();
 
 	// sigma is the covariance matrix of the 
 	// input data
 	Mat sigma = (workingMat * workingMat.t()) / (float)(workingMat.cols - 1.);
+	workingMat.release();
 
 	SVD svd;
 	Mat svdW; // eigenValues - magnitude of each principal component

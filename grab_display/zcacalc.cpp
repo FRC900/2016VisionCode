@@ -48,13 +48,13 @@ int main(void)
 			cout << nDone << " image patches extracted" << endl;
 	}
 
-	ZCA zca12(images, Size(12,12));
-	ZCA zca24(images, Size(24,24));
+	ZCA zca12(images, Size(12,12), .05);
+	ZCA zca24(images, Size(24,24), .05);
 
 	stringstream name;
-	name << "zcaWeights12_" << seed << "_" << nImgs << ".xml";
+	name << "zcaWeightsE05_12_" << seed << "_" << nImgs << ".xml";
 	zca12.Write(name.str().c_str());
 	name.str(string());
-	name << "zcaWeights24_" << seed << "_" << nImgs << ".xml";
+	name << "zcaWeightsE05_24_" << seed << "_" << nImgs << ".xml";
 	zca24.Write(name.str().c_str());
 }

@@ -5,7 +5,7 @@
 class ZCA
 {
 	public:
-		ZCA(const std::vector<cv::Mat> &images, const cv::Size &size, float epsilon = 0.01);
+		ZCA(const std::vector<cv::Mat> &images, const cv::Size &size, float epsilon = 0.00001);
 		ZCA(const char *xmlFilename);
 
 		cv::Mat Transform(const cv::Mat &input) const;
@@ -13,6 +13,6 @@ class ZCA
 
 	private:
 		cv::Size size_;
-		cv::Mat weights_;
-		float epsilon_;
+		cv::Mat  weights_;
+		float    epsilon_;
 };

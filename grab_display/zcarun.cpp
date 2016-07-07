@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	const int seed = 54321;
 	RNG rng(seed);
 	vector<Mat> images;
-	const int nImgs = 15000;
+	const int nImgs = 1500;
 	Mat img; // full image data
 	Mat patch; // randomly selected image patch from full image
 
