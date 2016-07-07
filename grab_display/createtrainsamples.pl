@@ -63,8 +63,8 @@ if($stage1 eq "true")
     for( my $k = 0; $k <= $#videos; $k++)
     {
         my $video = @videos[$k];
-        print "./display -o $outputdir/images/$now_string -f $numframespervideo $inputdir/$video" . "\n";
-        system("./display -o $outputdir/images/$now_string -f $numframespervideo $inputdir/$video");
+        print "./grab_chroma -o $outputdir/images/$now_string -f $numframespervideo $inputdir/$video" . "\n";
+        system("./grab_chroma -o $outputdir/images/$now_string -f $numframespervideo $inputdir/$video");
     }
     $inputdir = "$outputdir/$now_string";
 }

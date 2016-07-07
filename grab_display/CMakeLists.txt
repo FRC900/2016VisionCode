@@ -9,9 +9,18 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
 
 find_package( OpenCV REQUIRED )
+find_package( Boost COMPONENTS filesystem system thread program_options REQUIRED )
+
+include_directories(../framegrabber)
+include_directories( ${Boost_INCLUDE_DIR} )
+
 add_executable( display display.cpp)
 target_link_libraries( display ${OpenCV_LIBS} )
 add_executable( ColorSharpen ColorSharpen.cpp)
 target_link_libraries( ColorSharpen ${OpenCV_LIBS} )
 add_executable( imageShift imageShift.cpp )
 target_link_libraries( imageShift ${OpenCV_LIBS} )
+add_executable( zcacalc zcacalc.cpp zca.cpp ../framegrabber/utilities_common.cpp )
+target_link_libraries( zcacalc ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+add_executable( zcarun zcarun.cpp zca.cpp ../framegrabber/utilities_common.cpp )
+target_link_libraries( zcarun ${OpenCV_LIBS} ${Boost_LIBRARIES} )
