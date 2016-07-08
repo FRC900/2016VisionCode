@@ -1,3 +1,8 @@
+// Code to re-grab images grabbed by imageclipper
+// Make sure the re-grabbed image is exactly the aspect
+// ratio wanted.
+// Apply different random noise to several copies of the output
+// Optionally created resized versions of the output as well
 #include <sys/types.h>
 #include <dirent.h>
 #include "opencv2/objdetect/objdetect.hpp"
@@ -119,7 +124,7 @@ int main(void)
 				cvPointTo32f( shear ));
 #endif
 
-		for (double size = 0.00; size <= 0.25; size += 0.07)
+		for (double size = 0.00; size <= 0.01; size += 0.07)
 		{
 			double dSize = rect.width * size;
 			Rect thisRect = rect;
@@ -137,7 +142,7 @@ int main(void)
 					cvRect32fFromRect( thisRect, rotation ), 
 					cvPointTo32f( shear ) );
 
-			for (int j = 0; j < 6; j++)
+			for (int j = 0; j < 2; j++)
 			{
 				Mat mat(crop, true);
 
