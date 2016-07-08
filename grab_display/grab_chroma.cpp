@@ -67,6 +67,30 @@ string Behead(string my_string)
     return my_string.substr(found + 1);
 }
 
+// Given an input frame, look for an object surrounded by
+// the chroma key color. If found, return a vector of 
+// points describing the contour of that object.
+// If not found, return empty vector.
+vector<Point> FindObjPoints(const Mat &frame)
+{
+    Mat objMask;
+
+    inRange(frame, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), objMask);
+#ifdef DEBUG
+    imshow("objMask in FindRect", objMask);
+#endif
+    vector<vector<Point> > contours;
+    vector<Vec4i>          hierarchy;
+    findContours(objMask, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    for (size_t i = 0; i < hierarchy.size(); i++)
+    {
+        if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
+        {
+            return contours[i];
+        }
+    }
+	return vector<Point>();
+}
 
 bool FindRect(const Mat& frame, Rect& output)
 {
@@ -75,24 +99,7 @@ bool FindRect(const Mat& frame, Rect& output)
      *  takes the frame image, filters to only find values in the range we want, finds
      *  the counters of the object and bounds it with a rectangle
      */
-    Mat btrack;
-
-    inRange(frame, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), btrack);
-#ifdef DEBUG
-    imshow("BtrackR", btrack);
-#endif
-    vector<vector<Point> > contours;
-    vector<Vec4i>          hierarchy;
-    vector<Point>          points;
-    findContours(btrack, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-    for (size_t i = 0; i < hierarchy.size(); i++)
-    {
-        if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
-        {
-            points = contours[i];
-            break;
-        }
-    }
+    vector<Point> points = FindObjPoints(frame);
     if (points.empty())
     {
         return false;
@@ -315,6 +322,95 @@ vector<string> Arguments(int argc, char *argv[])
     return vid_names;
 }
 
+// Return a mask image. It will be the same
+// size as the input. It looks for a solid area of color
+// in the h,s,v range specified with an object in the
+// middle. Pixels corresponding to the object location
+// will be set to 255 in the mask, all others will be 0
+// Also return the bounding rect for the object since
+// we have everything we need to calculate it
+bool getMask(const Mat &frame, Mat &objMask, Rect &boundRect)
+{
+    vector<Point> points = FindObjPoints(frame);
+    if (points.empty())
+    {
+        return false;
+    }
+    boundRect = boundingRect(points);
+	objMask = Mat::zeros(frame.size(), CV_8UC1);
+#ifdef DEBUG
+	imshow("getMask initial objMask", objMask);
+#endif
+    vector<vector<Point> > contours;
+	contours.push_back(points);
+	drawContours(objMask, contours, 0, Scalar(255), CV_FILLED);
+#ifdef DEBUG
+	imshow("getMask drawContours objMask", objMask);
+#endif
+	int dilation_type = MORPH_ELLIPSE;
+	int dilation_size = 1;
+	Mat element       = getStructuringElement(dilation_type,
+			Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+			Point(dilation_size, dilation_size));
+	dilate(objMask, objMask, element);
+#ifdef DEBUG
+	imshow("dilate objMask", objMask);
+#endif
+	int erosion_size = 5;
+	element = getStructuringElement(dilation_type,
+			Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+			Point(erosion_size, erosion_size));
+	erode(objMask, objMask, element);
+#ifdef DEBUG
+	imshow("erode objMask", objMask);
+#endif
+	return true;
+}
+
+typedef pair<float, int> Blur_Entry;
+void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry> &lblur)
+{
+	VideoCapture frameVideo(vidName);
+
+	lblur.clear();
+	frameCounter = 0;
+	if (!frameVideo.isOpened())
+	{
+		return;
+	}
+
+	Mat frame;
+	Mat hsvInput;
+
+	Mat temp;
+	Mat tempm;
+	Mat gframe;
+	Mat variancem;
+
+#ifndef DEBUG
+	// Grab a list of frames which have an identifiable
+	// object in them.  For each frame, compute a
+	// blur score indicating how clear each frame is
+	for (frameCounter = 0; frameVideo.read(frame); frameCounter += 1)
+	{
+		cvtColor(frame, hsvInput, CV_BGR2HSV);
+		Rect bounding_rect;
+		if (FindRect(hsvInput, bounding_rect))
+		{
+			cvtColor(frame, gframe, CV_BGR2GRAY);
+			Laplacian(gframe, temp, CV_8UC1);
+			meanStdDev(temp, tempm, variancem);
+			float variance = pow(variancem.at<Scalar>(0, 0)[0], 2);
+			lblur.push_back(Blur_Entry(variance, frameCounter));
+		}
+	}
+#else
+	frameCounter = 1;
+	lblur.push_back(Blur_Entry(1,137));
+#endif
+	sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
+	cout << "Read " << lblur.size() << " valid frames from video of " << frameCounter << " total" << endl;
+}
 
 int main(int argc, char *argv[])
 {
@@ -341,53 +437,29 @@ int main(int argc, char *argv[])
 
 	RNG rng(time(NULL));
 
-    String vid_name = "";
-    Mat    mid      = Mat_<Vec3b>(1, 1) << Vec3b((g_h_min + g_h_max) / 2, (g_s_min + g_s_max) / 2, (g_v_min + g_v_max) / 2);
-    cvtColor(mid, mid, CV_HSV2BGR);
-    for (int i = 0; i < vid_names.size(); i++)
-    {
-        vid_name = vid_names[i];
-        cout << vid_name << endl;
-        VideoCapture frame_video(vid_name);
+	// Middle of chroma-key range
+    Vec3b mid((g_h_min + g_h_max) / 2, (g_s_min + g_s_max) / 2, (g_v_min + g_v_max) / 2);
 
-        if (!frame_video.isOpened())
+    for (auto vidName = vid_names.cbegin(); vidName != vid_names.cend(); ++vidName)
+    {
+        cout << *vidName << endl;
+
+        Mat frame;
+        Mat hsvframe;
+		Mat objMask;
+		Rect bounding_rect;
+
+        int   frame_counter;
+
+        vector<Blur_Entry> lblur;
+		readVideoFrames(*vidName, frame_counter, lblur);
+		if (lblur.empty())
         {
             cout << "Capture not open; invalid video" << endl;
             continue;
         }
 
-        Mat frame;
-        Mat hsv_input;
-
-        Mat   temp;
-        Mat   tempm;
-        Mat   gframe;
-        Mat   variancem;
-        int   frame_counter;
-
-        typedef pair<float, int>   Blur_Entry;
-        vector<Blur_Entry> lblur;
-
-#ifndef DEBUG
-        for (frame_counter = 0; frame_video.read(frame); frame_counter += 1)
-        {
-            Rect bounding_rect;
-            cvtColor(frame, hsv_input, CV_BGR2HSV);
-            if (FindRect(hsv_input, bounding_rect))
-            {
-                cvtColor(frame, gframe, CV_BGR2GRAY);
-                Laplacian(gframe, temp, CV_8UC1);
-                meanStdDev(temp, tempm, variancem);
-                float variance = pow(variancem.at<Scalar>(0, 0)[0], 2);
-                lblur.push_back(Blur_Entry(variance, frame_counter));
-            }
-        }
-#else
-		lblur.push_back(Blur_Entry(1,137));
-#endif
-        sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
-        cout << "Read " << lblur.size() << " valid frames from video of " << frame_counter << " total" << endl;
-
+        VideoCapture frame_video(*vidName);
         int          frame_count = 0;
         vector<bool> frame_used(frame_counter);
         const int    frame_range = 10;      // Try to space frames out by this many unused frames
@@ -415,87 +487,39 @@ int main(int argc, char *argv[])
 
             frame_video.set(CV_CAP_PROP_POS_FRAMES, this_frame);
             frame_video >> frame;
+            cvtColor(frame, hsvframe, CV_BGR2HSV);
 #ifdef DEBUG
 			imshow("Frame at read", frame);
+			imshow("HSV Frame at read", hsvframe);
 #endif
-            cvtColor(frame, hsv_input, CV_BGR2HSV);
 
-			// This should never fail since it worked when
-			// initially scanning the frames.
-            Rect bounding_rect;
-			if (!FindRect(hsv_input, bounding_rect))
+			// Get a mask image. Pixels for the object in question
+			// will be set to 255, others to 0
+			if (!getMask(hsvframe, objMask, bounding_rect))
+			{
 				continue;
+			}
+            bounding_rect = AdjustRect(bounding_rect, 1.0);
 
-            Mat btrack;
-            inRange(hsv_input, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), btrack);
-#ifdef DEBUG
-			imshow("Initial btrack", btrack);
-#endif
-            vector<vector<Point> > contours;
-            vector<Vec4i>          hierarchy;
-            int contour_index = contours.size(); // init to out of bounds in case there's no matches
-			Mat btrackCopy = btrack.clone(); // findContours modifies input Mat
-            findContours(btrackCopy, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-            for (size_t i = 0; i < hierarchy.size(); i++)
+			// Fill non-mask pixels with midpoint
+			// of chroma-key color
+            for (int k = 0; k < objMask.rows; k++)
             {
-                if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
+                for (int l = 0; l < objMask.cols; l++)
                 {
-                    contour_index = i;
-                    break;
-                }
-            }
-            if ((contours.size() == 0) || (contour_index >= contours.size()))
-            {
-                continue;
-            }
-			btrack = Scalar(0);
-            drawContours(btrack, contours, contour_index, Scalar(255), CV_FILLED);
-#ifdef DEBUG
-			imshow("drawContours btrack", btrack);
-#endif
-            int dilation_type = MORPH_ELLIPSE;
-            int dilation_size = 1;
-            Mat element       = getStructuringElement(dilation_type,
-                                                      Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-                                                      Point(dilation_size, dilation_size));
-            dilate(btrack, btrack, element);
-#ifdef DEBUG
-			imshow("dilate btrack", btrack);
-#endif
-            int erosion_size = 5;
-            element = getStructuringElement(dilation_type,
-                                            Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-                                            Point(erosion_size, erosion_size));
-            erode(btrack, btrack, element);
-#ifdef DEBUG
-			imshow("erode btrack", btrack);
-#endif
-            for (int k = 0; k < btrack.rows; k++)
-            {
-                for (int l = 0; l < btrack.cols; l++)
-                {
-                    uchar point = btrack.at<uchar>(k, l);
+                    uchar point = objMask.at<uchar>(k, l);
                     if (point == 0)
                     {
-                        frame.at<Vec3b>(k, l) = mid.at<Vec3b>(0, 0);
+                        hsvframe.at<Vec3b>(k, l) = mid;
                     }
                 }
             }
 #ifdef DEBUG
-			imshow("Frame after set with mid", frame);
-#endif
-            threshold(btrack, btrack, 128, 255, THRESH_BINARY);
-            bounding_rect = AdjustRect(bounding_rect, 1.0);
-#ifdef DEBUG
-            imshow("Btrack", btrack);
-#endif
-            Mat hsvframe;
-            cvtColor(frame, hsvframe, CV_BGR2HSV);
-#ifdef DEBUG
-            imshow("HSV", hsvframe);
+            imshow("objMask returned from getMask", objMask);
+            imshow("HSV frame after fill with mid", hsvframe);
 #endif
             /*hsvframe.convertTo(hsvframe, CV_16UC3);
-             *add(hsvframe, Scalar(hueAdjust, 0, 0), hsvframe, btrack);
+             *add(hsvframe, Scalar(hueAdjust, 0, 0), hsvframe, objMask);
              * for (int l = 0; l < hsvframe.rows; l++)
              * {
              *  for (int m = 0; m < hsvframe.cols; m++)
@@ -508,12 +532,12 @@ int main(int argc, char *argv[])
             /*Possible alt method of adjusting hue
             split(hsvframe, splitMat);
             double min, max;
-            minMaxLoc(splitMat[0], &min, &max, NULL, NULL, btrack);
+            minMaxLoc(splitMat[0], &min, &max, NULL, NULL, objMask);
             int step = (179 - max + min) / 8.;*/
             for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 30)
             {
 				int rndHueAdjust = max(hueAdjust + rng.uniform(-10,10), 0);
-                add(hsvframe, Scalar(rndHueAdjust, 0, 0), hsvframe, btrack);
+                add(hsvframe, Scalar(rndHueAdjust, 0, 0), hsvframe, objMask);
                 for (int l = 0; l < hsvframe.rows; l++)
                 {
                     for (int m = 0; m < hsvframe.cols; m++)
@@ -523,26 +547,24 @@ int main(int argc, char *argv[])
 							hsvframe.at<Vec3f>(l, m)[0] = val - 180.0;
                     }
                 }
-                Mat noise = Mat(hsvframe.size(), CV_32F);
+                Mat noise = Mat::zeros(hsvframe.size(), CV_32F);
                 randn(noise, 0.0, g_noise);
                 split(hsvframe, splitMat);
-                //subtract(splitMat[0], Scalar(min - hueAdjust), splitMat[0], btrack);
+                //subtract(splitMat[0], Scalar(min - hueAdjust), splitMat[0], objMask);
                 for (int i = 1; i <= 2; i++)
                 {
                     double min, max;
-                    minMaxLoc(splitMat[i], &min, &max, NULL, NULL, btrack);
-                    add(splitMat[i], noise, splitMat[i], btrack);
-                    normalize(splitMat[i], splitMat[i], min, max, NORM_MINMAX, -1, btrack);
+                    minMaxLoc(splitMat[i], &min, &max, NULL, NULL, objMask);
+                    add(splitMat[i], noise, splitMat[i], objMask);
+                    normalize(splitMat[i], splitMat[i], min, max, NORM_MINMAX, -1, objMask);
                 }
                 Mat hsv_final;
                 merge(splitMat, 3, hsv_final);
                 hsv_final.convertTo(hsv_final, CV_8UC3);
-#ifdef DEBUG
-                imshow("HSV mod", hsv_final);
-#endif
                 cvtColor(hsv_final, frame, CV_HSV2BGR);
 #ifdef DEBUG
-                imshow("Modified", frame);
+                imshow("Final HSV", hsv_final);
+                imshow("Final RGB", frame);
                 waitKey(0);
 #endif
 
@@ -551,10 +573,10 @@ int main(int argc, char *argv[])
                 {
 					double scale_up = rng.uniform((double)g_min_resize, g_max_resize+1.0);
 					Rect final_rect;
-                    if (RescaleRect(bounding_rect, final_rect, hsv_input, scale_up))
+                    if (RescaleRect(bounding_rect, final_rect, frame, scale_up))
                     {
                         stringstream write_name;
-                        write_name << g_outputdir << "/" + Behead(vid_name) << "_" << setw(5) << setfill('0') << this_frame;
+                        write_name << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;
                         write_name << "_" << setw(4) << final_rect.x;
                         write_name << "_" << setw(4) << final_rect.y;
                         write_name << "_" << setw(4) << final_rect.width;
