@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace cv;
+//#define DEBUG
 
 #if 1
 //Values for purple screen:
@@ -31,10 +32,10 @@ int g_s_min = 220;
 int g_v_max = 150;
 int g_v_min = 50;
 #endif
-int    g_files_per  = 9;
+int    g_files_per  = 1;
 int    g_num_frames = 50;
 int    g_min_resize = 0;
-int    g_max_resize = 40;
+int    g_max_resize = 0;
 float  g_noise      = 5.0;
 string g_outputdir  = ".";
 
@@ -447,6 +448,7 @@ int main(int argc, char *argv[])
             {
                 continue;
             }
+			btrack = Scalar(0);
             drawContours(btrack, contours, contour_index, Scalar(255), CV_FILLED);
 #ifdef DEBUG
 			imshow("drawContours btrack", btrack);
@@ -480,7 +482,7 @@ int main(int argc, char *argv[])
                 }
             }
 #ifdef DEBUG
-			imshow("Frame a after set with mid", frame);
+			imshow("Frame after set with mid", frame);
 #endif
             threshold(btrack, btrack, 128, 255, THRESH_BINARY);
             bounding_rect = AdjustRect(bounding_rect, 1.0);
