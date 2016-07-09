@@ -34,10 +34,10 @@ static int g_s_min = 220;
 static int g_v_max = 150;
 static int g_v_min = 50;
 #endif
-static int    g_files_per  = 1;
+static int    g_files_per  = 1; // no resizing for now
 static int    g_num_frames = 50;
 static int    g_min_resize = 0;
-static int    g_max_resize = 0;
+static int    g_max_resize = 0; //no resizing for now
 static float  g_noise      = 5.0;
 static string g_outputdir  = ".";
 
