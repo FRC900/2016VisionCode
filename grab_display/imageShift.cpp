@@ -9,7 +9,8 @@
 #include <time.h>
 #include <math.h>
 
-#include "chroma_util.hpp"
+#include "chroma_key.hpp"
+#include "image_warp.hpp"
 
 using namespace std;
 using namespace cv;
@@ -50,20 +51,22 @@ int main(int argc, char *argv[])
 	// onto
 	ifstream bgfile(argv[2]);
 	string bgfilename;
-	vector<string> bgfilelist;
+	vector<string> bgFileList;
 	while (getline(bgfile, bgfilename))
 	{
-		bgfilelist.push_back(bgfilename);
+		bgFileList.push_back(bgfilename);
 	}
 	bgfile.close();
 
 	string output_dir = argv[3];
 
-	// Grab next filename from list in input, 
-	Mat original;
-	Mat bgImg;
-	Mat chromaImg;
-	Mat final;
+	Mat original; // input image
+	Mat objMask;  // binary mask for chroma-keyin
+	Mat bgImg;    // random background image to superimpose the input onto 
+	Mat chromaImg; // combined input plus bg
+	Mat rotImg;  // randomly rotated input
+	Mat rotMask; // and mask
+	Mat final;   // final output
 
 	// x, y and size shift values
 	const float dx = .17;
@@ -92,6 +95,7 @@ int main(int argc, char *argv[])
 
 	ifstream filelist(argv[1]);
 	string filename;
+	// Grab next filename from list in input, 
 	while (getline(filelist, filename))
 	{
 		original = imread(filename, CV_LOAD_IMAGE_COLOR);
@@ -121,7 +125,6 @@ int main(int argc, char *argv[])
 		copyMakeBorder(original, original, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(fillColor));
 		Mat hsvframe;
 		cvtColor(original, hsvframe, CV_BGR2HSV);
-		Mat objMask;
 		Rect boundingRect; // notused
 		if (!getMask(hsvframe, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), objMask, boundingRect))
 		{
@@ -139,19 +142,27 @@ int main(int argc, char *argv[])
 				{
 					for (int bg = 0; bg < bgCount; bg++)
 					{
-						bgImg = randomSubImage(rng, bgfilelist, (double)original.cols / original.rows, 0.05);
-						chromaImg = doChromaKey(original, bgImg, objMask);
+						bgImg = randomSubImage(rng, bgFileList, (double)original.cols / original.rows, 0.05);
+						const Scalar bgColor(fillColor);
+						rotateImageAndMask(original, objMask, bgColor, 
+								      Point3f(0,0,M_PI*2.), rng, rotImg, rotMask);
+
+						chromaImg = doChromaKey(rotImg, bgImg, rotMask);
 
 						Rect ROI = shiftRect(origROI, ds[is], (ix-1)*dx, (iy-1)*dy);
 						chromaImg(ROI).copyTo(final);
 #if 0
+						imshow("original", original);
 						imshow("bgImg", bgImg);
+						imshow("rotImg", rotImg);
+						imshow("rotMask", rotMask);
 						imshow("chromaImg", chromaImg);
+						resize (final, final, Size(240,240));
 						imshow("Final", final);
 						waitKey(0);
-#endif
-
+#else
 						resize (final, final, Size(24,24));
+#endif
 
 						string dir_name = to_string(is*9 + ix*3 + iy);
 						string write_file = output_dir + "/" + dir_name + "/" + filename + "_" + to_string(bg) +".png";

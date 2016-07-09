@@ -11,7 +11,7 @@
 #include <time.h>
 #include <string>
 
-#include "chroma_util.hpp"
+#include "chroma_key.hpp"
 
 using namespace std;
 using namespace cv;
