@@ -14,12 +14,13 @@ find_package( Boost COMPONENTS filesystem system thread program_options REQUIRED
 include_directories(../framegrabber)
 include_directories( ${Boost_INCLUDE_DIR} )
 
-add_executable( grab_chroma grab_chroma.cpp)
-target_link_libraries( grab_chroma ${OpenCV_LIBS} )
 add_executable( ColorSharpen ColorSharpen.cpp)
 target_link_libraries( ColorSharpen ${OpenCV_LIBS} )
-add_executable( imageShift imageShift.cpp )
+add_executable( grab_chroma grab_chroma.cpp chroma_util.cpp)
+target_link_libraries( grab_chroma ${OpenCV_LIBS} )
+add_executable( imageShift imageShift.cpp  chroma_util.cpp)
 target_link_libraries( imageShift ${OpenCV_LIBS} )
+
 add_executable( zcacalc zcacalc.cpp zca.cpp ../framegrabber/utilities_common.cpp )
 target_link_libraries( zcacalc ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 add_executable( zcarun zcarun.cpp zca.cpp ../framegrabber/utilities_common.cpp )
