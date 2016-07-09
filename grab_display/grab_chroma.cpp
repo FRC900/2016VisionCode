@@ -524,7 +524,7 @@ int main(int argc, char *argv[])
              * {
              *  for (int m = 0; m < hsvframe.cols; m++)
              *  {
-             *      hsvframe.at<Vec3b>(l, m)[0] = hsvframe.at<Vec3b>(l, m)[0] % 180;
+             *      hsvframe.at<Vec<short,3>>(l, m)[0] = hsvframe.at<Vec<short,3>>(l, m)[0] % 180;
              *  }
              * }*/
             hsvframe.convertTo(hsvframe, CV_32FC3);
