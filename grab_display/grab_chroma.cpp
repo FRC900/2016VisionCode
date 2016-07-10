@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 
+#include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <functional>
@@ -12,6 +13,8 @@
 #include <string>
 
 #include "chroma_key.hpp"
+#include "image_warp.hpp"
+#include "imageShift.hpp"
 
 using namespace std;
 using namespace cv;
@@ -22,7 +25,7 @@ using namespace cv;
 static int g_h_max = 170;
 static int g_h_min = 130;
 static int g_s_max = 255;
-static int g_s_min = 147;
+static int g_s_min = 130;
 static int g_v_max = 255;
 static int g_v_min = 48;
 #else
@@ -38,8 +41,10 @@ static int    g_files_per  = 1; // no resizing for now
 static int    g_num_frames = 50;
 static int    g_min_resize = 0;
 static int    g_max_resize = 0; //no resizing for now
-static float  g_noise      = 5.0;
+static float  g_noise      = 3.0;
 static string g_outputdir  = ".";
+static string g_bgfile     = "";
+static Point3f g_maxrot(0,0,0);
 
 #ifdef __CYGWIN__
 inline int
@@ -130,7 +135,11 @@ void usage(char *argv[])
     cout << "-i         files is the number of output image files per frame" << endl;
     cout << "--min      min is the minimum percentage (as a decimal) for resizing for detection" << endl;
     cout << "--max      max is the max percentage (as a decimal) for resizing for detection" << endl;
+	cout << "--maxxrot  max random rotation in x direction" << endl;
+	cout << "--maxyrot  max random rotation in y direction" << endl;
+	cout << "--maxzrot  max random rotation in z direction" << endl;
     cout << "-o         change output directory from cwd/images to [option]/images" << endl;
+	cout << "--bg       specify file with list of backround images to superimpose extracted images onto" << endl;
 }
 
 
@@ -225,6 +234,48 @@ vector<string> Arguments(int argc, char *argv[])
                 g_min_resize = stoi(argv[i + 1]);
                 i++;
             }
+            else if (strncmp(argv[i], "--maxxrot", 9) == 0)
+            {
+                try
+                {
+                    stoi(argv[i + 1]);
+                }
+                catch (...)
+                {
+                    usage(argv);
+                    break;
+                }
+                g_maxrot.x = stod(argv[i + 1]);
+                i++;
+            }
+            else if (strncmp(argv[i], "--maxyrot", 9) == 0)
+            {
+                try
+                {
+                    stoi(argv[i + 1]);
+                }
+                catch (...)
+                {
+                    usage(argv);
+                    break;
+                }
+                g_maxrot.y = stod(argv[i + 1]);
+                i++;
+            }
+            else if (strncmp(argv[i], "--maxzrot", 9) == 0)
+            {
+                try
+                {
+                    stoi(argv[i + 1]);
+                }
+                catch (...)
+                {
+                    usage(argv);
+                    break;
+                }
+                g_maxrot.z = stod(argv[i + 1]);
+                i++;
+            }
             else if (strncmp(argv[i], "--max", 4) == 0)
             {
                 try
@@ -260,6 +311,11 @@ vector<string> Arguments(int argc, char *argv[])
             else if (strncmp(argv[i], "-o", 2) == 0)
             {
                 g_outputdir = argv[i + 1];
+                i++;
+            }
+            else if (strncmp(argv[i], "--bg", 4) == 0)
+            {
+                g_bgfile = argv[i + 1];
                 i++;
             }
             else if (argv[i] != argv[0])
@@ -321,7 +377,7 @@ void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry
 	}
 #else
 	frameCounter = 1;
-	lblur.push_back(Blur_Entry(1,137));
+	lblur.push_back(Blur_Entry(1,2432));
 #endif
 	sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
 	cout << "Read " << lblur.size() << " valid frames from video of " << frameCounter << " total" << endl;
@@ -337,9 +393,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 #ifdef DEBUG
-    namedWindow("Original", WINDOW_AUTOSIZE);
     namedWindow("RangeControl", WINDOW_AUTOSIZE);
-    namedWindow("Tracking", WINDOW_AUTOSIZE);
 
     createTrackbar("HueMin", "RangeControl", &g_h_min, 255);
     createTrackbar("HueMax", "RangeControl", &g_h_max, 255);
@@ -356,6 +410,25 @@ int main(int argc, char *argv[])
 	// Middle of chroma-key range
     Vec3b mid((g_h_min + g_h_max) / 2, (g_s_min + g_s_max) / 2, (g_v_min + g_v_max) / 2);
 
+	// Load in a list of images to use as backgrounds for
+	// chroma-keying 
+	// If none are present, RandomSubImage returns an
+	// image filled with random pixel values
+	vector<string> bgFileList;
+	if (g_bgfile.length())
+	{
+		ifstream bgfile(g_bgfile);
+		string bgfilename;
+		while (getline(bgfile, bgfilename))
+		{
+			bgFileList.push_back(bgfilename);
+		}
+		bgfile.close();
+	}
+	RandomSubImage rsi(rng, bgFileList);
+
+	createShiftDirs(g_outputdir + "/shifts");
+
     for (auto vidName = vid_names.cbegin(); vidName != vid_names.cend(); ++vidName)
     {
         cout << *vidName << endl;
@@ -363,10 +436,16 @@ int main(int argc, char *argv[])
         Mat frame;
         Mat hsvframe;
 		Mat objMask;
+		Mat bgImg;    // random background image to superimpose each input onto 
+		Mat chromaImg; // combined input plus bg
+		Mat rotImg;  // randomly rotated input
+		Mat rotMask; // and mask
 		Rect bounding_rect;
 
         int   frame_counter;
 
+		// Grab an array of frames sorted by how clear they
+		// are.
         vector<Blur_Entry> lblur;
 		readVideoFrames(*vidName, frame_counter, lblur);
 		if (lblur.empty())
@@ -461,6 +540,9 @@ int main(int argc, char *argv[])
 						float val = hsvframe.at<Vec3f>(l, m)[0];
 						if (val >= 180.)
 							hsvframe.at<Vec3f>(l, m)[0] = val - 180.0;
+						else if (val < 0.)
+							hsvframe.at<Vec3f>(l, m)[0] = val + 180.0;
+
                     }
                 }
                 Mat noise = Mat::zeros(hsvframe.size(), CV_32F);
@@ -483,6 +565,15 @@ int main(int argc, char *argv[])
                 imshow("Final RGB", frame);
                 waitKey(0);
 #endif
+				stringstream shift_fn;
+				shift_fn << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;
+				shift_fn << "_" << setw(4) << bounding_rect.x;
+				shift_fn << "_" << setw(4) << bounding_rect.y;
+				shift_fn << "_" << setw(4) << bounding_rect.width;
+				shift_fn << "_" << setw(4) << bounding_rect.height;
+				shift_fn << "_" << setw(3) << rndHueAdjust;
+				shift_fn << ".png";
+				doShifts(frame(bounding_rect), objMask(bounding_rect), rng, rsi, g_maxrot, 5, g_outputdir + "/shifts", shift_fn.str());
 
 				int fail_count = 0;
                 for (int i = 0; (i < g_files_per) && (fail_count < 100); )
@@ -498,8 +589,17 @@ int main(int argc, char *argv[])
                         write_name << "_" << setw(4) << final_rect.width;
                         write_name << "_" << setw(4) << final_rect.height;
                         write_name << "_" << setw(3) << rndHueAdjust;
+                        write_name << "_" << setw(3) << i;
                         write_name << ".png";
-                        imwrite(write_name.str().c_str(), frame(final_rect));
+						rotateImageAndMask(frame(final_rect), objMask(final_rect), Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rotImg, rotMask);
+
+						bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
+						chromaImg = doChromaKey(rotImg, bgImg, rotMask);
+						resize(chromaImg, chromaImg, Size(24,24));
+                        if (imwrite(write_name.str().c_str(), chromaImg) == false)
+						{
+							cout << "Error! Could not write file "<<  write_name.str() << endl;
+						}
 						i++;
 						fail_count = 0;
                     }
