@@ -11,35 +11,35 @@
 #include <time.h>
 #include <string>
 
+#include "chroma_key.hpp"
+
 using namespace std;
 using namespace cv;
 //#define DEBUG
 
 #if 1
 //Values for purple screen:
-int g_h_max = 170;
-int g_h_min = 130;
-int g_s_max = 255;
-int g_s_min = 147;
-int g_v_max = 255;
-int g_v_min = 48;
+static int g_h_max = 170;
+static int g_h_min = 130;
+static int g_s_max = 255;
+static int g_s_min = 147;
+static int g_v_max = 255;
+static int g_v_min = 48;
 #else
 //Values for blue screen:
-int g_h_max = 120;
-int g_h_min = 110;
-int g_s_max = 255;
-int g_s_min = 220;
-int g_v_max = 150;
-int g_v_min = 50;
+static int g_h_max = 120;
+static int g_h_min = 110;
+static int g_s_max = 255;
+static int g_s_min = 220;
+static int g_v_max = 150;
+static int g_v_min = 50;
 #endif
-int    g_files_per  = 1;
-int    g_num_frames = 50;
-int    g_min_resize = 0;
-int    g_max_resize = 0;
-float  g_noise      = 5.0;
-string g_outputdir  = ".";
-
-const int min_area = 7000;
+static int    g_files_per  = 1; // no resizing for now
+static int    g_num_frames = 50;
+static int    g_min_resize = 0;
+static int    g_max_resize = 0; //no resizing for now
+static float  g_noise      = 5.0;
+static string g_outputdir  = ".";
 
 #ifdef __CYGWIN__
 inline int
@@ -65,47 +65,6 @@ string Behead(string my_string)
     size_t found = my_string.rfind("/");
 
     return my_string.substr(found + 1);
-}
-
-// Given an input frame, look for an object surrounded by
-// the chroma key color. If found, return a vector of 
-// points describing the contour of that object.
-// If not found, return empty vector.
-vector<Point> FindObjPoints(const Mat &frame)
-{
-    Mat objMask;
-
-    inRange(frame, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), objMask);
-#ifdef DEBUG
-    imshow("objMask in FindRect", objMask);
-#endif
-    vector<vector<Point> > contours;
-    vector<Vec4i>          hierarchy;
-    findContours(objMask, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-    for (size_t i = 0; i < hierarchy.size(); i++)
-    {
-        if ((hierarchy[i][3] >= 0) && (boundingRect(contours[i]).area() > min_area))
-        {
-            return contours[i];
-        }
-    }
-	return vector<Point>();
-}
-
-bool FindRect(const Mat& frame, Rect& output)
-{
-    /* prec: frame image &frame, integers 0-255 for each min and max HSV value
-     *  postc: a rectangle bounding the image we want
-     *  takes the frame image, filters to only find values in the range we want, finds
-     *  the counters of the object and bounds it with a rectangle
-     */
-    vector<Point> points = FindObjPoints(frame);
-    if (points.empty())
-    {
-        return false;
-    }
-    output = boundingRect(points);
-    return true;
 }
 
 
@@ -322,50 +281,6 @@ vector<string> Arguments(int argc, char *argv[])
     return vid_names;
 }
 
-// Return a mask image. It will be the same
-// size as the input. It looks for a solid area of color
-// in the h,s,v range specified with an object in the
-// middle. Pixels corresponding to the object location
-// will be set to 255 in the mask, all others will be 0
-// Also return the bounding rect for the object since
-// we have everything we need to calculate it
-bool getMask(const Mat &frame, Mat &objMask, Rect &boundRect)
-{
-    vector<Point> points = FindObjPoints(frame);
-    if (points.empty())
-    {
-        return false;
-    }
-    boundRect = boundingRect(points);
-	objMask = Mat::zeros(frame.size(), CV_8UC1);
-#ifdef DEBUG
-	imshow("getMask initial objMask", objMask);
-#endif
-    vector<vector<Point> > contours;
-	contours.push_back(points);
-	drawContours(objMask, contours, 0, Scalar(255), CV_FILLED);
-#ifdef DEBUG
-	imshow("getMask drawContours objMask", objMask);
-#endif
-	int dilation_type = MORPH_ELLIPSE;
-	int dilation_size = 1;
-	Mat element       = getStructuringElement(dilation_type,
-			Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-			Point(dilation_size, dilation_size));
-	dilate(objMask, objMask, element);
-#ifdef DEBUG
-	imshow("dilate objMask", objMask);
-#endif
-	int erosion_size = 5;
-	element = getStructuringElement(dilation_type,
-			Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-			Point(erosion_size, erosion_size));
-	erode(objMask, objMask, element);
-#ifdef DEBUG
-	imshow("erode objMask", objMask);
-#endif
-	return true;
-}
 
 typedef pair<float, int> Blur_Entry;
 void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry> &lblur)
@@ -395,7 +310,7 @@ void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry
 	{
 		cvtColor(frame, hsvInput, CV_BGR2HSV);
 		Rect bounding_rect;
-		if (FindRect(hsvInput, bounding_rect))
+		if (FindRect(hsvInput, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), bounding_rect))
 		{
 			cvtColor(frame, gframe, CV_BGR2GRAY);
 			Laplacian(gframe, temp, CV_8UC1);
@@ -411,6 +326,7 @@ void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry
 	sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
 	cout << "Read " << lblur.size() << " valid frames from video of " << frameCounter << " total" << endl;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -495,7 +411,7 @@ int main(int argc, char *argv[])
 
 			// Get a mask image. Pixels for the object in question
 			// will be set to 255, others to 0
-			if (!getMask(hsvframe, objMask, bounding_rect))
+			if (!getMask(hsvframe, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), objMask, bounding_rect))
 			{
 				continue;
 			}

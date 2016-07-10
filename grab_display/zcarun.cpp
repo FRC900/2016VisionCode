@@ -1,4 +1,6 @@
+#include <fstream>
 #include <string>
+#include <sys/stat.h>
 #include "zca.hpp"
 
 #include "utilities_common.h"
@@ -6,6 +8,42 @@
 using namespace std;
 using namespace cv;
 
+int main(int argc, char **argv)
+{
+	if (argc <= 3)
+	{
+		cout << "Usage : " << argv[0] << "xml_saved_weights_12 xml_saved_weights_24 filelist" << endl;
+		return 1;
+	}
+	ZCA zca12(argv[1]);
+	ZCA zca24(argv[2]);
+
+	Mat img; // full image data
+	Mat out12;
+	Mat out24;
+	ifstream infile(argv[3]);
+
+	string filename;
+
+		mkdir("/home/kjaget/CNN_ZCA_D12/ball", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		mkdir("/home/kjaget/CNN_ZCA_D24/ball", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		mkdir("/home/kjaget/CNN_ZCA_D12/negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		mkdir("/home/kjaget/CNN_ZCA_D24/negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	while (getline(infile, filename))
+	{
+		cout << filename << endl;
+		img = imread(filename);
+		out12 = zca12.Transform(img);
+		out24 = zca24.Transform(img);
+		size_t found = filename.find_last_of("/\\");
+		mkdir(("/home/kjaget/CNN_ZCA_D12/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		mkdir(("/home/kjaget/CNN_ZCA_D24/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		imwrite("/home/kjaget/CNN_ZCA_D12/"+filename, out12);
+		imwrite("/home/kjaget/CNN_ZCA_D24/"+filename, out24);
+	}
+}
+
+#if 0
 int main(int argc, char **argv)
 {
 	if (argc <= 1)
@@ -135,3 +173,4 @@ int main(int argc, char **argv)
 		waitKey(0);
 	}
 }
+#endif

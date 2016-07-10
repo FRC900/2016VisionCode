@@ -51,7 +51,7 @@ void GetFilePaths(const string folderPath, const vector<string>& exts, vector<st
 			}
 			string ext = it->path().extension().string();
 			bool isEffective = false;
-			for (int i = 0; i < exts.size(); i++) {
+			for (size_t i = 0; i < exts.size(); i++) {
 				if (ext == exts[i]) {
 					isEffective = true;
 					break;
