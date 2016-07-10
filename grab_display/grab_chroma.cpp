@@ -20,7 +20,7 @@ using namespace std;
 using namespace cv;
 //#define DEBUG
 
-#if 1
+#if 0
 //Values for purple screen:
 static int g_h_max = 170;
 static int g_h_min = 130;
@@ -377,7 +377,7 @@ void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry
 	}
 #else
 	frameCounter = 1;
-	lblur.push_back(Blur_Entry(1,2432));
+	lblur.push_back(Blur_Entry(1,187));
 #endif
 	sort(lblur.begin(), lblur.end(), greater<Blur_Entry>());
 	cout << "Read " << lblur.size() << " valid frames from video of " << frameCounter << " total" << endl;
@@ -495,6 +495,12 @@ int main(int argc, char *argv[])
 				continue;
 			}
             bounding_rect = AdjustRect(bounding_rect, 1.0);
+			Rect frame_rect(Point(0,0), frame.size());
+			if ((bounding_rect & frame_rect) != bounding_rect)
+			{
+				cout << "Rectangle out of bounds" << endl;
+				continue;
+			}
 
 			// Fill non-mask pixels with midpoint
 			// of chroma-key color

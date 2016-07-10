@@ -57,6 +57,103 @@ void createShiftDirs(const string &outputDir)
 }
 
 
+void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName)
+{
+	Mat objMask;
+	Mat bgImg;    // random background image to superimpose each input onto 
+	Mat chromaImg; // combined input plus bg
+	Mat rotImg;  // randomly rotated input
+	Mat rotMask; // and mask
+	Mat final;   // final output
+
+	// x, y and size shift values
+	const float dx = .17;
+	const float dy = .17;
+	const float ds[5] = {.83, .91, 1.0, 1.10, 1.21};
+
+	if (src.empty())
+	{
+		return;
+	}
+
+	// strip off directory and .png suffix
+	string fn(fileName);
+	auto pos = fn.rfind('/');
+	if (pos != std::string::npos)
+	{
+		fn.erase(0, pos + 1);
+	}
+	pos = fn.rfind('.');
+	if (pos != std::string::npos)
+	{
+		fn.erase(pos);
+	}
+	cout << fn << endl;
+
+	// Double the size of the ROI so we can pass in some border to 
+	// work with during rotation
+	Rect twiceObjROI(objROI.x - objROI.width/2, objROI.y - objROI.height/2 , objROI.width * 2, objROI.height * 2);
+	Rect srcROI(Point(0,0), src.size());
+	if ((twiceObjROI & srcROI) != twiceObjROI)
+	{
+		cerr << "Rectangle out of bounds" << endl;
+		return;
+	}
+
+	// The object should be centered in the above
+	// ROI using this Rect
+	Rect newObjROI(objROI.width / 2, objROI.width / 2, objROI.width, objROI.height);
+
+	// Generate copiesPerShift images per shift/scale permutation
+	// So each call will end up with 5 * 3 * 3 * copiesPerShift
+	// images writen
+	for (int is = 0; is < 5; is++)
+	{
+		for (int ix = 0; ix <= 2; ix++)
+		{
+			for (int iy = 0; iy <= 2; iy++)
+			{
+				for (int c = 0; c < copiesPerShift; c++)
+				{
+					// Rotate the image a random amount.  Mask isn't used
+					// since there's no chroma-keying going on.
+					rotateImageAndMask(src(twiceObjROI), Mat(), Scalar(), maxRot, rng, rotImg, rotMask);
+
+					// Shift/rescale the region of interest based on
+					// which permuation of the shifts/rescales we're at
+					Rect thisROI = shiftRect(newObjROI, ds[is], (ix-1)*dx, (iy-1)*dy);
+					rotImg(thisROI).copyTo(final);
+#if 0
+					imshow("src", src);
+					imshow("src(objROI)", src(objROI));
+					imshow("src twice ROI", src(twiceObjROI));
+					imshow("src(twice ROI)(newObjROI)", src(twiceObjROI)(newObjROI));
+					imshow("rotImg", rotImg);
+					imshow("rotImg(newObjROI)", rotImg(newObjROI));
+					//resize (final, final, Size(240,240));
+					imshow("Final", final);
+					waitKey(0);
+#else
+					// 24x24 is the largest size we'll need from here on out,
+					// so resize to that to save disk space
+					resize (final, final, Size(24,24));
+#endif
+
+					// Dir name is a number from 0 - 44.
+					// 1 per permutation of x,y shift plus resize
+					string dir_name = to_string(is*9 + ix*3 + iy);
+					string write_file = outputDir + "/" + dir_name + "/" + fn + "_" + to_string(c) + ".png";
+					if (imwrite(write_file, final) == false)
+					{
+						cout << "Error! Could not write file "<<  write_file << endl;
+					}
+				}
+			}
+		}
+	}
+}
+
+
 void doShifts(const Mat &src, const Mat &mask, RNG &rng, RandomSubImage &rsi, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName)
 {
 	Mat original;

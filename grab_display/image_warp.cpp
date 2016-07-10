@@ -109,7 +109,8 @@ void rotateImageAndMask(const Mat &srcImg, const Mat &srcMask,
 	Mat maskTmp(dbl, srcMask.type());  // should always be CV_8UC1
 
 	warpPerspective(srcImg, imgTmp, quad, bgColor);
-	warpPerspective(srcMask, maskTmp, quad, Scalar(0));
+	if (!srcMask.empty())
+		warpPerspective(srcMask, maskTmp, quad, Scalar(0));
 
 	// Maybe, maybe not?
 	//cv::GaussianBlur( *data->maskimg, *data->maskimg, cv::Size(3, 3), 1.0 );

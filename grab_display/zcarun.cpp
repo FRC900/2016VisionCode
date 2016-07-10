@@ -25,10 +25,8 @@ int main(int argc, char **argv)
 
 	string filename;
 
-		mkdir("/home/kjaget/CNN_ZCA_D12/ball", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		mkdir("/home/kjaget/CNN_ZCA_D24/ball", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		mkdir("/home/kjaget/CNN_ZCA_D12/negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		mkdir("/home/kjaget/CNN_ZCA_D24/negative", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	mkdir("/home/kjaget/CNN_ZCA_C12", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	mkdir("/home/kjaget/CNN_ZCA_C24", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	while (getline(infile, filename))
 	{
 		cout << filename << endl;
@@ -36,10 +34,10 @@ int main(int argc, char **argv)
 		out12 = zca12.Transform(img);
 		out24 = zca24.Transform(img);
 		size_t found = filename.find_last_of("/\\");
-		mkdir(("/home/kjaget/CNN_ZCA_D12/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		mkdir(("/home/kjaget/CNN_ZCA_D24/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		imwrite("/home/kjaget/CNN_ZCA_D12/"+filename, out12);
-		imwrite("/home/kjaget/CNN_ZCA_D24/"+filename, out24);
+		mkdir(("/home/kjaget/CNN_ZCA_C12/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		mkdir(("/home/kjaget/CNN_ZCA_C24/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		imwrite("/home/kjaget/CNN_ZCA_C12/"+filename, out12);
+		imwrite("/home/kjaget/CNN_ZCA_C24/"+filename, out24);
 	}
 }
 
