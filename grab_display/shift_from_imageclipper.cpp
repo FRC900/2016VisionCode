@@ -1,3 +1,9 @@
+// Take a dir full of output images grabbed by
+// hand using imageclipper
+// Decode the bounding rect from the fileame
+// Go back to the original video and generated
+// shifted versions of the rects for training
+// calibration nets
 #include <sys/types.h>
 #include <dirent.h>
 

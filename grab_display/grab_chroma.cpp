@@ -29,6 +29,7 @@ static int g_s_min = 130;
 static int g_v_max = 255;
 static int g_v_min = 48;
 #else
+#if 0
 //Values for blue screen:
 static int g_h_max = 120;
 static int g_h_min = 110;
@@ -36,6 +37,15 @@ static int g_s_max = 255;
 static int g_s_min = 220;
 static int g_v_max = 150;
 static int g_v_min = 50;
+#else
+//Values for blue2 videos
+static int g_h_max = 135;
+static int g_h_min = 100;
+static int g_s_max = 254;
+static int g_s_min = 100;
+static int g_v_max = 240;
+static int g_v_min = 20;
+#endif
 #endif
 static int    g_files_per  = 1; // no resizing for now
 static int    g_num_frames = 50;
@@ -457,7 +467,7 @@ int main(int argc, char *argv[])
         VideoCapture frame_video(*vidName);
         int          frame_count = 0;
         vector<bool> frame_used(frame_counter);
-        const int    frame_range = 10;      // Try to space frames out by this many unused frames
+        const int    frame_range = lblur.size()/100;      // Try to space frames out by this many unused frames
         for (auto it = lblur.begin(); (frame_count < g_num_frames) && (it != lblur.end()); ++it)
         {
             // Check to see that we haven't used a frame close to this one
@@ -537,20 +547,28 @@ int main(int argc, char *argv[])
             int step = (179 - max + min) / 8.;*/
             for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 30)
             {
-				int rndHueAdjust = max(hueAdjust + rng.uniform(-10,10), 0);
-                add(hsvframe, Scalar(rndHueAdjust, 0, 0), hsvframe, objMask);
+				int rndHueAdjust = hueAdjust + rng.uniform(-10,10);
+                //add(hsvframe, Scalar(rndHueAdjust, 0, 0), hsvframe, objMask);
                 for (int l = 0; l < hsvframe.rows; l++)
                 {
+					const uchar *mask = objMask.ptr<uchar>(l);
+					Vec3f *pt = hsvframe.ptr<Vec3f>(l);
                     for (int m = 0; m < hsvframe.cols; m++)
                     {
-						float val = hsvframe.at<Vec3f>(l, m)[0];
-						if (val >= 180.)
-							hsvframe.at<Vec3f>(l, m)[0] = val - 180.0;
-						else if (val < 0.)
-							hsvframe.at<Vec3f>(l, m)[0] = val + 180.0;
-
+						if (mask[m])
+						{
+							float val = pt[m][0];
+							val += rndHueAdjust;
+							if (val >= 180.)
+								val = val - 180.0;
+							else if (val < 0.)
+								val = val + 180.0;
+							pt[m][0] = val;
+						}
                     }
                 }
+				if (rndHueAdjust < 0)
+					rndHueAdjust += 180;
                 Mat noise = Mat::zeros(hsvframe.size(), CV_32F);
                 randn(noise, 0.0, g_noise);
                 split(hsvframe, splitMat);
@@ -579,12 +597,12 @@ int main(int argc, char *argv[])
 				shift_fn << "_" << setw(4) << bounding_rect.height;
 				shift_fn << "_" << setw(3) << rndHueAdjust;
 				shift_fn << ".png";
-				doShifts(frame(bounding_rect), objMask(bounding_rect), rng, rsi, g_maxrot, 5, g_outputdir + "/shifts", shift_fn.str());
+				doShifts(frame(bounding_rect), objMask(bounding_rect), rng, rsi, g_maxrot, 4, g_outputdir + "/shifts", shift_fn.str());
 
 				int fail_count = 0;
                 for (int i = 0; (i < g_files_per) && (fail_count < 100); )
                 {
-					double scale_up = rng.uniform((double)g_min_resize, g_max_resize+1.0);
+					double scale_up = rng.uniform((double)g_min_resize, (double)g_max_resize);
 					Rect final_rect;
                     if (RescaleRect(bounding_rect, final_rect, frame, scale_up))
                     {
