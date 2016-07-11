@@ -1,6 +1,6 @@
 ColorSharpen
-imageShift
 grab_chroma
+shift_from_imageclipper
 images
 zcacalc
 zcarun
