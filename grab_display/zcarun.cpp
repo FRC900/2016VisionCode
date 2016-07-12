@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 		if ((++count % 10000) == 0)
 			cout << count << endl;
 		img = imread(filename);
-		outd24 = zcad24.Transform(img);
+		outd24 = zcad24.TransformTo8UC3(img);
 		size_t found = filename.find_last_of("/\\");
 		mkdir((outdir+"/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 		try
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 		resize(img(rect), resizedImg, Size(24,24));
 		resize(resizedImg, resizedImg, Size(256,256));
 
-		Mat whitenedImg = zca.Transform(img(rect));
+		Mat whitenedImg = zca.TransformTo8UC3(img(rect));
 		resize(whitenedImg, whitenedImg, Size(256,256));
 
 		imshow("Before", fullRes);

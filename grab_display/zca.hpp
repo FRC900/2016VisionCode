@@ -8,7 +8,8 @@ class ZCA
 		ZCA(const std::vector<cv::Mat> &images, const cv::Size &size, float epsilon = 0.00001);
 		ZCA(const char *xmlFilename);
 
-		cv::Mat Transform(const cv::Mat &input) const;
+		cv::Mat TransformTo8UC3(const cv::Mat &input) const;
+		cv::Mat TransformTo32FC3(const cv::Mat &input) const;
 		void Write(const char *xmlFilename) const;
 
 	private:
