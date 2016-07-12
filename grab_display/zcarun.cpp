@@ -12,32 +12,37 @@ int main(int argc, char **argv)
 {
 	if (argc <= 3)
 	{
-		cout << "Usage : " << argv[0] << "xml_saved_weights_12 xml_saved_weights_24 filelist" << endl;
+		cout << "Usage : " << argv[0] << " xml_saved_weights_24 filelist outdir" << endl;
 		return 1;
 	}
-	ZCA zca12(argv[1]);
-	ZCA zca24(argv[2]);
+	ZCA zcad24(argv[1]);
 
 	Mat img; // full image data
-	Mat out12;
-	Mat out24;
-	ifstream infile(argv[3]);
+	Mat outd24;
+	ifstream infile(argv[2]);
+	string outdir = argv[3];
 
 	string filename;
+	int count = 0;
 
-	mkdir("/home/kjaget/CNN_ZCA_C12", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	mkdir("/home/kjaget/CNN_ZCA_C24", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	mkdir(outdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	while (getline(infile, filename))
 	{
-		cout << filename << endl;
+		//cout << filename << endl;
+		if ((++count % 10000) == 0)
+			cout << count << endl;
 		img = imread(filename);
-		out12 = zca12.Transform(img);
-		out24 = zca24.Transform(img);
+		outd24 = zcad24.Transform(img);
 		size_t found = filename.find_last_of("/\\");
-		mkdir(("/home/kjaget/CNN_ZCA_C12/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		mkdir(("/home/kjaget/CNN_ZCA_C24/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		imwrite("/home/kjaget/CNN_ZCA_C12/"+filename, out12);
-		imwrite("/home/kjaget/CNN_ZCA_C24/"+filename, out24);
+		mkdir((outdir+"/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		try
+		{
+			imwrite(outdir+"/"+filename, outd24);
+		}
+		catch (runtime_error& ex) 
+		{
+			cerr << "Exception converting image to PNG format: " << ex.what() << endl;
+		}
 	}
 }
 
