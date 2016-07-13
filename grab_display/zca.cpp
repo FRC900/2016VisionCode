@@ -150,7 +150,7 @@ Mat ZCA::Transform32FC3(const Mat &input) const
 		output = input;
 
 	// Convert to flat 1-dimensional 1-channel vector
-	output.reshape(1, size_.area() * input.channels());
+	output = output.reshape(1, size_.area() * output.channels());
 		
 	// Convert to 0-mean
 	output -= cv::mean(output)[0];
