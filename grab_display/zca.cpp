@@ -122,28 +122,36 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size, float epsilon) :
 	weights_ = svdU * svdS * svdU.t();
 }
 
-Mat ZCA::TransformTo8UC3(const Mat &input) const
+// Transform a typical 8 bit image as read from file
+// Return the same 8UC3 type
+Mat ZCA::Transform8UC3(const Mat &input) const
 {
+	Mat ret;
+	Mat tmp;
+	input.convertTo(tmp, CV_32FC3, 1/255.0);
 	// Convert back to uchar array with correct 0 - 255 range
 	// This turns it into a "normal" image file which
 	// can be processed and visualized using typical
 	// tools
-	Mat ret;
-	TransformTo32FC3(input).convertTo(ret, CV_8UC3, 255.0, 127.0);
+	Transform32FC3(tmp).convertTo(ret, CV_8UC3, 255.0, 127.0);
 
 	return ret;
 }
 
-Mat ZCA::TransformTo32FC3(const Mat &input) const
+// Expects a 32FC3 mat as input
+// Pixels should be scaled between 0.0 and 1.0
+Mat ZCA::Transform32FC3(const Mat &input) const
 {
 	// Resize input
 	Mat output;
-	resize(input, output, size_);
+	if (input.size() != size_)
+		resize(input, output, size_);
+	else 
+		output = input;
 
 	// Convert to flat 1-dimensional 1-channel vector
-	// Scale values between 0.0 and 1.0
-	output.reshape(1, size_.area() * output.channels()).convertTo(output, CV_32FC1, 1/255.0);
-
+	output.reshape(1, size_.area() * input.channels());
+		
 	// Convert to 0-mean
 	output -= cv::mean(output)[0];
 
@@ -152,9 +160,9 @@ Mat ZCA::TransformTo32FC3(const Mat &input) const
 		output = weights_ * output;
 
 	// Turn back into a 2-d mat with 3 float color channels
+	// Range is same as input : 0.0 to 1.0
 	output.reshape(input.channels(), size_.height);
 	return output;
-
 }
 
 // Load a previously calcuated set of weights from file
