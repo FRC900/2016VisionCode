@@ -161,8 +161,7 @@ Mat ZCA::Transform32FC3(const Mat &input) const
 
 	// Turn back into a 2-d mat with 3 float color channels
 	// Range is same as input : 0.0 to 1.0
-	output.reshape(input.channels(), size_.height);
-	return output;
+	return output.reshape(input.channels(), size_.height);
 }
 
 // Load a previously calcuated set of weights from file
