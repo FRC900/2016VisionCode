@@ -10,6 +10,8 @@
 
 #include <opencv2/core/core.hpp>
 
+#include "zca.hpp"
+
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<std::string, float> Prediction;
 
@@ -23,7 +25,7 @@ class CaffeClassifier
 	public:
 		CaffeClassifier(const std::string& modelFile,
 					const std::string& trainedFile,
-					const std::string& meanFile,
+					const std::string& zcaWeightFile,
 					const std::string& labelFile,
 					int batchSize);
 
@@ -44,14 +46,7 @@ class CaffeClassifier
 		// Change the batch size of the model on the fly
 		void setBatchSize(size_t batchSize);
 
-		// Get an image with the mean value of all of the training images
-		const MatT getMean(void) const;
-
 	private:
-		// Load the mean image from a file, set mean_ member var
-		// with it.
-		void SetMean(const std::string& meanFile);
-
 		// Helper to resize the net
 		void reshapeNet(void);
 
@@ -75,7 +70,6 @@ class CaffeClassifier
 		// Subtract out the mean before passing to the net input
 		// Then actually write the images to the net input memory buffers
 		void PreprocessBatch(const std::vector< MatT > &imgs);
-		void SlowPreprocess(const MatT &img, MatT &output);
 
 		// Method which returns either mutable_cpu_data or mutable_gpu_data
 		// depending on whether we're using CPU or GPU Mats
@@ -92,7 +86,7 @@ class CaffeClassifier
 		cv::Size inputGeometry_;         // size of one input image
 		int numChannels_;                // num color channels per input image
 		size_t batchSize_;               // number of images to process in one go
-		MatT mean_;                      // mean value of input images
+		ZCA  zca_;                       // weights used to normalize input data
 		MatT sampleNormalized_;          // average pixel value of training data - subtracted out from each input image before running through the net
 		std::vector<std::string> labels_; // labels for each output value
 		std::vector< std::vector<MatT> > inputBatch_; // net input buffers wrapped in Mat's

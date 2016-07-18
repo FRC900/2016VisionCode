@@ -7,6 +7,9 @@
 #include "CaffeBatchPrediction.hpp"
 
 using namespace std;
+using namespace caffe;
+using namespace cv;
+using namespace cv::gpu;
 
 static bool fileExists(const char *filename)
 {
@@ -17,9 +20,10 @@ static bool fileExists(const char *filename)
 template <class MatT>
 CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
       const string& trainedFile,
-      const string& meanFile,
+      const string& zcaWeightFile,
       const string& labelFile,
-      const int batchSize) 
+      const int batchSize) :
+	zca_(zcaWeightFile.c_str())
 {
 	if (!fileExists(modelFile.c_str()))
 	{
@@ -31,9 +35,9 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
 	}
-	if (!fileExists(meanFile.c_str()))
+	if (!fileExists(zcaWeightFile.c_str()))
 	{
-		cerr << "Could not find mean image file " << meanFile << endl;
+		cerr << "Could not find ZCA weight file " << zcaWeightFile << endl;
 		return;
 	}
 	if (!fileExists(labelFile.c_str()))
@@ -41,31 +45,28 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		cerr << "Could not find label file " << labelFile << endl;
 		return;
 	}
-	cout << "Loading " << modelFile << " " << trainedFile << " "<< meanFile << " " << labelFile << endl;
+	cout << "Loading " << modelFile << " " << trainedFile << " "<< zcaWeightFile << " " << labelFile << endl;
 
 	if (IsGPU())
-		caffe::Caffe::set_mode(caffe::Caffe::GPU);
+		Caffe::set_mode(Caffe::GPU);
 	else
-		caffe::Caffe::set_mode(caffe::Caffe::CPU);
+		Caffe::set_mode(Caffe::CPU);
 
 	/* Set batchsize */
 	batchSize_ = batchSize;
 
 	/* Load the network - this includes model geometry and trained weights */
-	net_.reset(new caffe::Net<float>(modelFile, caffe::TEST));
+	net_.reset(new Net<float>(modelFile, TEST));
 	net_->CopyTrainedLayersFrom(trainedFile);
 
 	CHECK_EQ(net_->num_inputs(), 1) << "Network should have exactly one input.";
 	CHECK_EQ(net_->num_outputs(), 1) << "Network should have exactly one output.";
 
-	caffe::Blob<float>* inputLayer = net_->input_blobs()[0];
+	Blob<float>* inputLayer = net_->input_blobs()[0];
 	numChannels_ = inputLayer->channels();
 	CHECK(numChannels_ == 3 || numChannels_ == 1)
 		<< "Input layer should have 1 or 3 channels.";
-	inputGeometry_ = cv::Size(inputLayer->width(), inputLayer->height());
-
-	/* Load the binaryproto mean file. */
-	SetMean(meanFile);
+	inputGeometry_ = Size(inputLayer->width(), inputLayer->height());
 
 	/* Load labels. */
 	// This will be used to give each index of the output
@@ -76,7 +77,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	while (getline(labels, line))
 		labels_.push_back(string(line));
 
-	caffe::Blob<float>* outputLayer = net_->output_blobs()[0];
+	Blob<float>* outputLayer = net_->output_blobs()[0];
 	CHECK_EQ(labels_.size(), outputLayer->channels())
 		<< "Number of labels is different from the output layer dimension.";
 
@@ -126,8 +127,7 @@ static vector<int> Argmax(const vector<float>& v, size_t N)
 // input image
 template <class MatT>
 vector< vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
-		const vector< MatT > &imgs, 
-		size_t numClasses)
+		const vector<MatT> &imgs, size_t numClasses)
 {
 	// outputBatch will be a flat vector of N floating point values 
 	// per image (1 per N output labels), repeated
@@ -162,44 +162,6 @@ vector< vector<Prediction> > CaffeClassifier<MatT>::ClassifyBatch(
 	return predictions;
 }
 
-/* Load the mean file in binaryproto format. */
-template <class MatT>
-void CaffeClassifier<MatT>::SetMean(const string& meanFile) 
-{
-	caffe::BlobProto blobProto;
-	ReadProtoFromBinaryFileOrDie(meanFile.c_str(), &blobProto);
-
-	/* Convert from BlobProto to Blob<float> */
-	caffe::Blob<float> meanBlob;
-	meanBlob.FromProto(blobProto);
-	CHECK_EQ(meanBlob.channels(), numChannels_)
-		<< "Number of channels of mean file doesn't match input layer.";
-
-	/* The format of the mean file is planar 32-bit float BGR or grayscale. */
-	vector<cv::Mat> channels;
-	float* data = meanBlob.mutable_cpu_data();
-	for (int i = 0; i < numChannels_; ++i) 
-	{
-		/* Extract an individual channel. */
-		cv::Mat channel(meanBlob.height(), meanBlob.width(), CV_32FC1, data);
-		channels.push_back(channel);
-		data += meanBlob.height() * meanBlob.width();
-	}
-
-	/* Merge the separate channels into a single image. */
-	cv::Mat mean;
-	merge(channels, mean);
-
-	/* Compute the global mean pixel value and create a mean image
-	 * filled with this value. */
-	cv::Scalar channelMean = cv::mean(mean);
-
-	// Hack to possibly convert to GpuMat - if MatT is GpuMat,
-	// this will upload the Mat object to a GpuMat, otherwise
-	// it will just copy it to the member variable mean_
-	mean_ = MatT(inputGeometry_, mean.type(), channelMean);
-}
-
 // TODO : see if we can do this once at startup or if
 // it has to be done each pass.  If it can be done once,
 // we can wrap the nets in Mat arrays in the constructor 
@@ -217,7 +179,7 @@ template <class MatT>
 void CaffeClassifier<MatT>::reshapeNet() 
 {
 	CHECK(net_->input_blobs().size() == 1);
-	caffe::Blob<float>* inputLayer = net_->input_blobs()[0];
+	Blob<float>* inputLayer = net_->input_blobs()[0];
 	inputLayer->Reshape(batchSize_, numChannels_,
 						 inputGeometry_.height,
 						 inputGeometry_.width);
@@ -233,17 +195,16 @@ void CaffeClassifier<MatT>::reshapeNet()
 // [n] = value for label n for the first image. It then starts again
 // for the next image - [n+1] = label 0 for image #2.
 template <class MatT>
-vector<float> CaffeClassifier<MatT>::PredictBatch(
-		const vector<MatT> &imgs) 
+vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs) 
 {
 	// Process each image so they match the format
 	// expected by the net, then copy the images
 	// into the net's input buffers
 	PreprocessBatch(imgs);
 	// Run a forward pass with the data filled in from above
-	net_->ForwardPrefilled();
+	net_->Forward();
 	/* Copy the output layer to a flat vector */
-	caffe::Blob<float>* outputLayer = net_->output_blobs()[0];
+	Blob<float>* outputLayer = net_->output_blobs()[0];
 	const float* begin = outputLayer->cpu_data();
 	const float* end = begin + outputLayer->channels()*imgs.size();
 	return vector<float>(begin, end);
@@ -256,7 +217,7 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(
 template <class MatT>
 void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 {
-	caffe::Blob<float>* inputLayer = net_->input_blobs()[0];
+	Blob<float>* inputLayer = net_->input_blobs()[0];
 
 	int width = inputLayer->width();
 	int height = inputLayer->height();
@@ -276,46 +237,7 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 	}
 }
 
-// Slow path for Preprocess - used if the image has to be
-// color converted, resized, or resampled to float
-template <class MatT>
-void CaffeClassifier<MatT>::SlowPreprocess(const MatT &img, MatT &output)
-{
-	/* Convert the input image to the input image format of the network. */
-	MatT sample;
-	if (img.channels() == 3 && numChannels_ == 1)
-		cvtColor(img, sample, CV_BGR2GRAY);
-	else if (img.channels() == 4 && numChannels_ == 1)
-		cvtColor(img, sample, CV_BGRA2GRAY);
-	else if (img.channels() == 4 && numChannels_ == 3)
-		cvtColor(img, sample, CV_BGRA2BGR);
-	else if (img.channels() == 1 && numChannels_ == 3)
-		cvtColor(img, sample, CV_GRAY2BGR);
-	else
-		sample = img;
-
-	MatT sampleResized;
-	if (sample.size() != inputGeometry_)
-		resize(sample, sampleResized, inputGeometry_);
-	else
-		sampleResized = sample;
-
-	MatT sampleFloat;
-	if (((numChannels_ == 3) && (sampleResized.type() == CV_32FC3)) ||
-		((numChannels_ == 1) && (sampleResized.type() == CV_32FC1)) )
-		sampleFloat = sampleResized;
-	else if (numChannels_ == 3)
-		sampleResized.convertTo(sampleFloat, CV_32FC3);
-	else
-		sampleResized.convertTo(sampleFloat, CV_32FC1);
-
-	subtract(sampleFloat, mean_, output);
-}
-
 // Take each image in Mat, convert it to the correct image type,
-// color depth, size to match the net input. Convert to 
-// F32 type, since that's what the net inputs are. 
-// Subtract out the mean before passing to the net input
 // Then actually write the images to the net input memory buffers
 template <class MatT>
 void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
@@ -325,21 +247,30 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 
 	for (size_t i = 0 ; i < imgs.size(); i++)
 	{
-		// If image is already the correct format,
-		// don't both resizing/converting it again
-		if ((imgs[i].channels() != numChannels_) ||
-			(imgs[i].size()     != inputGeometry_) ||
-			((numChannels_ == 3) && (imgs[i].type() != CV_32FC3)) ||
-			((numChannels_ == 1) && (imgs[i].type() != CV_32FC1)) )
-			SlowPreprocess(imgs[i], sampleNormalized_);
-		else
-			subtract(imgs[i], mean_, sampleNormalized_);
-
+		Mat img = imgs[i].clone();
+		Mat wr;
+		img.convertTo(wr, CV_8UC3, 255);
+		stringstream s;
+		s << "debug_ppb_before_" << i << ".png";
+		imwrite(s.str(), wr);
+	}
+	vector<MatT> zcaImgs = zca_.Transform32FC3(imgs);
+	for (size_t i = 0 ; i < zcaImgs.size(); i++)
+	{
+		Mat img = zcaImgs[i].clone();
+		Mat wr;
+		img.convertTo(wr, CV_8UC3, 255, 127);
+		stringstream s;
+		s << "debug_ppb_after_" << i << ".png";
+		imwrite(s.str(), wr);
+	}
+	for (size_t i = 0 ; i < zcaImgs.size(); i++)
+	{
 		/* This operation will write the separate BGR planes directly to the
 		 * input layer of the network because it is wrapped by the MatT
 		 * objects in inputChannels. */
 		vector<MatT> *inputChannels = &inputBatch_.at(i);
-		split(sampleNormalized_, *inputChannels);
+		split(zcaImgs[i], *inputChannels);
 
 #if 1
 		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
@@ -359,28 +290,22 @@ size_t CaffeClassifier<MatT>::BatchSize(void) const
 }
 
 template <class MatT>
-cv::Size CaffeClassifier<MatT>::getInputGeometry(void) const
+Size CaffeClassifier<MatT>::getInputGeometry(void) const
 {
 	return inputGeometry_;
-}
-
-template <class MatT>
-const MatT CaffeClassifier<MatT>::getMean(void) const
-{
-	return mean_;
 }
 
 // TODO : maybe don't specialize this one in case
 // we use something other than Mat or GpuMat in the
 // future?
 template <> template <>
-float *CaffeClassifier<cv::Mat>::GetBlobData(caffe::Blob<float> *blob)
+float *CaffeClassifier<Mat>::GetBlobData(Blob<float> *blob)
 {
 	return blob->mutable_cpu_data();
 }
 
 template <> template <>
-float *CaffeClassifier<cv::gpu::GpuMat>::GetBlobData(caffe::Blob<float> *blob)
+float *CaffeClassifier<GpuMat>::GetBlobData(Blob<float> *blob)
 {
 	return blob->mutable_gpu_data();
 }
@@ -389,16 +314,16 @@ float *CaffeClassifier<cv::gpu::GpuMat>::GetBlobData(caffe::Blob<float> *blob)
 // we use something other than Mat or GpuMat in the
 // future?
 template <>
-bool CaffeClassifier<cv::Mat>::IsGPU(void) const
+bool CaffeClassifier<Mat>::IsGPU(void) const
 {
 	return true;
 }
 
 template <>
-bool CaffeClassifier<cv::gpu::GpuMat>::IsGPU(void) const
+bool CaffeClassifier<GpuMat>::IsGPU(void) const
 {
 	return true;
 }
 
-template class CaffeClassifier<cv::Mat>;
-template class CaffeClassifier<cv::gpu::GpuMat>;
+template class CaffeClassifier<Mat>;
+//template class CaffeClassifier<GpuMat>;

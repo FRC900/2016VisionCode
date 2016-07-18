@@ -144,7 +144,7 @@ vector<string> ClassifierIO::getClassifierFiles() const
 		{
 			output.push_back(outputString);
 
-			if (createFullPath("mean.binaryproto", outputString))
+			if (createFullPath("zcaWeights.xml", outputString))
 			{
 				output.push_back(outputString);
 
@@ -181,11 +181,17 @@ bool ClassifierIO::findNextClassifierDir(bool increment)
    // Save old dir and stage in case no other
    // good ones are found
    int oldDirNum = dirNum_;
-   int oldStageNum = snapshots_[stageIdx_];
+   int oldStageNum;
+  
+   if (snapshots_.size())
+	   oldStageNum = snapshots_[stageIdx_];
+   else
+	   oldStageNum = numeric_limits<int>::max();
 
    // Iterate through possible stages
    for (dirNum_ += adder; (dirNum_ >= -1) && (dirNum_ <= 100); dirNum_ += adder)
    {
+	   cout << "Trying dirNum " << dirNum_ << endl;
 	   // If a directory is found ...
 	   if (getClassifierDir() != string())
        {
