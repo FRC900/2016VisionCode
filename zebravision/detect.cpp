@@ -76,7 +76,8 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	// variable sized objects using a fixed-width detector
     MatT f32Img;
 
-    MatT(inputImg).convertTo(f32Img, CV_32FC3);     // classifier runs on float pixel data
+	// classifier runs on float pixel data with values in the range of 0.0 to 1.0.
+    MatT(inputImg).convertTo(f32Img, CV_32FC3, 1/255.);
     generateInitialWindows(f32Img, depthMat, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
     // Generate scaled images for the larger net sizes as well.  Using a separate
@@ -92,13 +93,13 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     cout << "d12 windows in = " << windowsIn.size() << endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
     cout << "d12 windows out = " << windowsMid.size() << endl;
-	// If not running d24/c24, use the d12 output as the
-	// uncalibrated results
     if ((detectThreshold.size() == 1) || (detectThreshold[1] <= 0.0))
 	{
-		runGlobalNMS(windowsMid, scores, scaledImages12, nmsThreshold[0], uncalibWindowsOut);
+		runLocalNMS(windowsMid, scores, nmsThreshold[0], uncalibWindowsOut);
 	}
     runCalibration(windowsMid, scaledImages12, c12_, calibrationThreshold[0], windowsOut);
+	// If not running d24/c24, use the d12 output as the
+	// uncalibrated results
     runLocalNMS(windowsOut, scores, nmsThreshold[0], windowsIn);
     cout << "d12 nms windows out / d24 windows in = " << windowsIn.size() << endl;
 
@@ -453,8 +454,22 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
 		// Higher confidences from the prediction mean that the net
 		// thinks it is more likely that the label correctly
 		// identifies the image passed in
-        for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
+        for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
         {
+			if (imgs[0].rows > 12)
+			{
+				cout << it->first << " " << it->second << " ";
+#if 0
+				Mat img = imgs[i].clone();
+				Mat wr;
+				img.convertTo(wr, CV_8UC3, 255);
+				stringstream s;
+				s << "debug_" << i << ".png";
+				imwrite(s.str(), wr);
+#endif
+			}
+
+
             if (it->first == label)
             {
                 if (it->second >= threshold)
@@ -462,6 +477,8 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
                     detected.push_back(i);
                     scores.push_back(it->second);
                 }
+				if (imgs[0].rows > 12)
+					cout << endl;
                 break;
             }
         }
@@ -674,4 +691,4 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& d
 
 // Explicitly instatiate classes used elsewhere
 template class NNDetect<Mat>;
-template class NNDetect<gpu::GpuMat>;
+//template class NNDetect<gpu::GpuMat>;

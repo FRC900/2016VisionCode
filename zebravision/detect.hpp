@@ -32,7 +32,7 @@ class NNDetect
 			const std::vector<std::string> &c12Info,
 			const std::vector<std::string> &c24Info, 
 			float hfov)  :
-			d12_(CaffeClassifier<MatT>(d12Info[0], d12Info[1], d12Info[2], d12Info[3], 64)),
+			d12_(CaffeClassifier<MatT>(d12Info[0], d12Info[1], d12Info[2], d12Info[3], 256)),
 			d24_(CaffeClassifier<MatT>(d24Info[0], d24Info[1], d24Info[2], d24Info[3], 64)),
 			c12_(CaffeClassifier<MatT>(c12Info[0], c12Info[1], c12Info[2], c12Info[3], 64)),
 			c24_(CaffeClassifier<MatT>(c24Info[0], c24Info[1], c24Info[2], c24Info[3], 64)),
