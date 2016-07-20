@@ -191,7 +191,6 @@ bool ClassifierIO::findNextClassifierDir(bool increment)
    // Iterate through possible stages
    for (dirNum_ += adder; (dirNum_ >= -1) && (dirNum_ <= 100); dirNum_ += adder)
    {
-	   cout << "Trying dirNum " << dirNum_ << endl;
 	   // If a directory is found ...
 	   if (getClassifierDir() != string())
        {

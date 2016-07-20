@@ -222,6 +222,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	}
 	work=work.t();
 	// Find the mean value of each column (i.e. each input image)
+#if 1
 	Mat colMean;
 	reduce(work, colMean, 0, CV_REDUCE_AVG);
 
@@ -242,15 +243,20 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	}
 	else if (!weights_.empty())
 		gemm(weights_, work, 1.0, Mat(), 0.0, output);
+#else
+	output = work;
+#endif
 
 	output = output.t();
 
 	vector<Mat> ret;
 	// Each row is a different input image
 	for (int i = 0; i < output.rows; i++)
+	{
 		// Turn each row back into a 2-d mat with 3 float color channels
 		// Range is same as input : 0.0 to 1.0
 		ret.push_back(output.row(i).reshape(input[i].channels(), size_.height));
+	}
 
 	return ret;
 }
