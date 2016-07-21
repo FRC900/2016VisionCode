@@ -41,7 +41,7 @@ static void randomQuad(const Size &size, const Point3d &maxAngle,
     rotVectData[2] = maxAngle.z * rng.uniform(-1.0, 1.0);
     d = (distfactor + distfactor2 * rng.uniform(-1.0, 1.0)) * size.width;
 
-#if 0
+#if 0 // Debugging - set angles to max
     rotVectData[0] = maxAngle.x;
     rotVectData[1] = maxAngle.y;
     rotVectData[2] = maxAngle.z;
@@ -83,7 +83,7 @@ static void randomQuad(const Size &size, const Point3d &maxAngle,
 
 
 // Given an inputimage and chroma-key mask, rotate both
-// by up to the angles (in radians) givem in maxAngle.
+// by up to the angles (in radians) given in maxAngle.
 // Fill in space created due to the rotation with bgColor
 void rotateImageAndMask(const Mat &srcImg, const Mat &srcMask,
 						const Scalar &bgColor, const Point3f &maxAngle,
