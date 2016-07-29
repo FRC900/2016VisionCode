@@ -306,6 +306,20 @@ void TrackedObject::addToPositionHistory(const Point3f &pt)
 	positionHistory_.push_back(pt);
 }
 
+// Return a vector of points of the position history
+// of the object (hopefully) relative to current screen location
+vector <Point> TrackedObject::getScreenPositionHistory(const Point2f &fov_size, const Size &frame_size) const
+{
+	vector <Point> ret;
+
+	for (auto it = positionHistory_.begin(); it != positionHistory_.end(); ++it)
+	{
+		Rect screen_rect(worldToScreenCoords(*it,type_,fov_size,frame_size, cameraElevation_));
+		ret.push_back(Point(cvRound(screen_rect.x + screen_rect.width / 2.),cvRound( screen_rect.y + screen_rect.height / 2.)));
+	}
+	return ret;
+}
+
 // Return the percent of last _detectHistory.size() frames
 // the object was seen
 double TrackedObject::getDetectedRatio(void) const
@@ -405,6 +419,15 @@ void TrackedObjectList::adjustLocation(const Mat &transform_mat)
 
 		it->adjustKF(delta_pos);
 	}
+}
+
+// Get position history for each tracked object
+vector<vector<Point>> TrackedObjectList::getScreenPositionHistories(void) const
+{
+	vector<vector<Point>> ret;
+	for (auto it = list_.begin(); it != list_.end(); ++it)
+		ret.push_back(it->getScreenPositionHistory(fovSize_, imageSize_));
+	return ret;
 }
 
 // Simple printout of list into stdout
