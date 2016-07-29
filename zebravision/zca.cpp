@@ -61,47 +61,62 @@ using namespace cv;
 // are variable sized).  epsilon is a small positive value added
 // to the magnitude of principal components before taking the
 // square root of them - since many of these values are quite
-// small the square root of them becomes numerically instable.
-ZCA::ZCA(const vector<Mat> &images, const Size &size, float epsilon) :
+// small the square root of them becomes numerically unstable.
+ZCA::ZCA(const vector<Mat> &images, const Size &size, 
+		 float epsilon, bool globalContrastNorm) :
 	size_(size),
-	epsilon_(epsilon)
+	epsilon_(epsilon),
+	overallMin_(numeric_limits<double>::max()),
+	overallMax_(numeric_limits<double>::min()),
+	globalContrastNorm_(globalContrastNorm)
 {
 	if (images.size() == 0)
 		return;
 
-	Mat workingMat;
+	// Build the transposed mat since that's the more
+	// natural way opencv works - it is easier to add
+	// new images as a new row but the math requires
+	// them to columns. Since the later steps require 
+	// both the normal and transposed versions of the
+	// data, generate the transpose and then "untranspose"
+	// it to get the correct one
+	Mat workingMatT;
+
 	// For each input image, resize to constant size
 	// convert to a floating point mat
 	// flatten to a single channel, 1 row matrix
-	// Normalize data to (0,1) range
-	// Push that new row onto tmpMat
+	// set to 0-mean and divide by stddev if GCN is set
+	Mat resizeImg;
 	Mat tmpImg;
+	Scalar mean;
+	Scalar stddev;
 	for (auto it = images.cbegin(); it != images.cend(); ++it)
 	{
-		resize(*it, tmpImg, size_);
-		tmpImg.convertTo(tmpImg, CV_32FC3, 1.0/255.0);
-		workingMat.push_back(tmpImg.reshape(1, 1));
+		resize(*it, resizeImg, size_);
+		resizeImg.convertTo(tmpImg, CV_32FC3);
+		tmpImg = tmpImg.reshape(1, 1);
+		meanStdDev(tmpImg, mean, stddev);
+		subtract(tmpImg, mean(0), tmpImg);
+		if (globalContrastNorm_)
+			divide(tmpImg, stddev(0), tmpImg);
+		else
+			divide(tmpImg, 255.0, tmpImg); // TODO :: remove this?
+		workingMatT.push_back(tmpImg);
 	}
+	resizeImg.release();
 	tmpImg.release();
 	// Transpose so each image is its own column 
 	// rather than its own row 
-	workingMat = workingMat.t();
-
-	// Find the mean value of each column (i.e. each input image)
-	Mat colMean;
-	reduce(workingMat, colMean, 0, CV_REDUCE_AVG);
-
-	// Subtract mean value for a given image from
-	// each of the pixels in that image to
-	// make the data from each image 0-mean
-	for (int i = 0; i < workingMat.cols; i++)
-		subtract(workingMat.col(i), colMean.at<float>(i), workingMat.col(i));
-	colMean.release();
+	Mat workingMat = workingMatT.t();
 
 	// sigma is the covariance matrix of the 
 	// input data
-	Mat sigma = (workingMat * workingMat.t()) / (float)(workingMat.cols - 1.);
-	workingMat.release();
+	// Literature disagrees on dividing by cols or cols-1
+	// Since we're using a large number of input
+	// images it really doesn't matter that much
+	Mat sigma = (workingMat * workingMatT) / (float)(workingMat.cols - 1.);
+
+	workingMatT.release();
 
 	SVD svd;
 	Mat svdW; // eigenValues - magnitude of each principal component
@@ -110,7 +125,8 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size, float epsilon) :
 	svd.compute(sigma, svdW, svdU, svdVT, SVD::FULL_UV);
 	
 	// Add small epsilon to prevent sqrt(small number)
-	// numerical instability
+	// numerical instability. Larger epsilons have a
+	// bigger smoothing effect
 	// Take square root of each element, convert
 	// from vector into diagonal array
 	svdW += epsilon;
@@ -121,22 +137,42 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size, float epsilon) :
 	// Weights are U * S * U'
 	weights_ = svdU * svdS * svdU.t();
 	weightsGPU_.upload(weights_);
+
+	// Transform the input images. Grab
+	// a range of pixel values and use this
+	// to convert back from floating point to
+	// something in the range of 0-255
+	// Don't want to use the full range of the
+	// pixels since outliers will squash the range
+	// most pixels end up in to just a few numbers.
+	// Instead use the mean +/- 2.5 std deviations
+	// TODO :: generate a histogram of pixel values
+	// to see what sort of distribution we're really
+	// dealing with
+	Mat transformedImgs = weights_ * workingMat;
+	meanStdDev(transformedImgs, mean, stddev);
+	overallMax_ = mean(0) + 2.5*stddev(0);
+	overallMin_ = mean(0) - 2.5*stddev(0);
+
+	// Formula to convert is uchar_val = alpha * float_val + beta
+	// This will convert the majority of floating
+	// point values into a 0-255 range that fits
+	// into a normal 8UC3 mat without saturating
+	cout << "Alpha / beta " << alpha() << " "<< beta() << endl;
 }
 
 // Transform a typical 8 bit image as read from file
 // Return the same 8UC3 type
+// Just a wrapper around the faster version
+// which does a batch at a time. Why aren't
+// you using that one instead?
 Mat ZCA::Transform8UC3(const Mat &input)
 {
-	Mat ret;
-	Mat tmp;
-	input.convertTo(tmp, CV_32FC3, 1/255.0);
-	// Convert back to uchar array with correct 0 - 255 range
-	// This turns it into a "normal" image file which
-	// can be processed and visualized using typical
-	// tools
-	Transform32FC3(tmp).convertTo(ret, CV_8UC3, 255.0, 127.0);
-
-	return ret;
+	vector<Mat> inputs;
+	inputs.push_back(input);
+	vector<Mat> outputs = Transform8UC3(inputs);
+	Mat output = outputs[0].clone();
+	return output;
 }
 
 // Transform a typical 8 bit image as read from file
@@ -151,8 +187,8 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 	// are between 0 and 1 as the 32FC3 transform expects
 	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
-		it->convertTo(tmp, CV_32FC3, 1/255.0);
-		f32List.push_back(tmp);
+		it->convertTo(tmp, CV_32FC3);
+		f32List.push_back(tmp.clone());
 	}
 
 	// Do the transform 
@@ -163,52 +199,47 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 	// can be processed and visualized using typical
 	// tools
 	vector <Mat> ret;
-	for (auto it = input.cbegin(); it != input.cend(); ++it)
+	for (auto it = f32Ret.cbegin(); it != f32Ret.cend(); ++it)
 	{
-		it->convertTo(tmp, CV_8UC3, 255.0, 127.0);
-		ret.push_back(tmp);
+		it->convertTo(tmp, CV_8UC3, alpha(), beta());
+		ret.push_back(tmp.clone());
 	}
 
 	return ret;
 }
 
 // Expects a 32FC3 mat as input
-// Pixels should be scaled between 0.0 and 1.0
+// Just a wrapper around the faster version
+// which does a batch at a time. Why aren't
+// you using that one instead?
 Mat ZCA::Transform32FC3(const Mat &input)
 {
-	// Resize input
-	Mat output;
-	Mat final;
-	if (input.size() != size_)
-		resize(input, output, size_);
-	else 
-		output = input;
-
-	// Convert to flat 1-dimensional 1-channel vector
-	output = output.reshape(1, size_.area() * output.channels());
-		
-	// Convert to 0-mean
-	output -= cv::mean(output)[0];
-
-	// Apply ZCA transform matrix
-	if (!weightsGPU_.empty())
-	{
-		gm_.upload(output);
-		cv::gpu::gemm(weightsGPU_, gm_, 1.0, buf_, 0.0, gmOut_);
-		gmOut_.download(final);
-	}
-	else if (!weights_.empty())
-		gemm(weights_, output, 1.0, Mat(), 0.0, final);
-
-	// Turn back into a 2-d mat with 3 float color channels
-	// Range is same as input : 0.0 to 1.0
-	return final.reshape(input.channels(), size_.height);
+	vector<Mat> inputs;
+	inputs.push_back(input);
+	vector<Mat> outputs = Transform32FC3(inputs);
+	Mat output = outputs[0].clone();
+	return output;
 }
 
+// Transform a vector of input images in floating
+// point format using the weights loaded
+// when this object was initialized
 vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 {
 	Mat output;
 	Mat work;
+	Scalar mean;
+	Scalar stddev;
+	// Create a large mat holding all of the pixels
+	// from all of the input images.
+	// Each column is data from one image. Each image
+	// is flattened to 1 channel of interlaved B,G,R
+	// values.  
+	// Global contrast normalization is applied to
+	// each image - subtract the mean and divide
+	// by the standard deviation. That way
+	// each image is normalized to 0-mean and a
+	// standard deviation of 1.
 	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
 		if (it->size() != size_)
@@ -216,45 +247,48 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		else 
 			// need clone so mat is contiguous - 
 			// reshape won't work otherwise
-			output = it->clone(); 
-		
-		work.push_back(output.reshape(1, 1));
-	}
-	work=work.t();
-	// Find the mean value of each column (i.e. each input image)
-#if 1
-	Mat colMean;
-	reduce(work, colMean, 0, CV_REDUCE_AVG);
+			output = it->clone();
 
-	// Subtract mean value for a given image from
-	// each of the pixels in that image to
-	// make the data from each image 0-mean
-	for (int i = 0; i < work.cols; i++)
-		subtract(work.col(i), colMean.at<float>(i), work.col(i));
-	colMean.release();
+		output = output.reshape(1, 1);
+		meanStdDev(output, mean, stddev);
+		subtract(output, mean(0), output);
+		if (globalContrastNorm_)
+			divide(output, stddev(0), output);
+		else
+			divide(output, 255.0, output);
+		
+		work.push_back(output);
+	}
+	// Each image is a new row above, but we
+	// really need each image in its own column
+	work=work.t();
 
 	// Apply ZCA transform matrix
+	// This is just a matrix multiply of
+	// weights * the input images
+	// GPU is faster so use it if it exists.
 	if (!weightsGPU_.empty())
 	{
 		gm_.upload(work);
+		// gmOut_ = 1.0 * weightsGPU_ * gm_
 		gpu::gemm(weightsGPU_, gm_, 1.0, buf_, 0.0, gmOut_);
 
 		gmOut_.download(output);
 	}
 	else if (!weights_.empty())
 		gemm(weights_, work, 1.0, Mat(), 0.0, output);
-#else
-	output = work;
-#endif
 
+	// Shift back to 1 image per row
+	// to make it easier to split back into
+	// individual images
 	output = output.t();
 
 	vector<Mat> ret;
-	// Each row is a different input image
+	// Each row is a different input image,
+	// put them each into their own Mat
 	for (int i = 0; i < output.rows; i++)
 	{
 		// Turn each row back into a 2-d mat with 3 float color channels
-		// Range is same as input : 0.0 to 1.0
 		ret.push_back(output.row(i).reshape(input[i].channels(), size_.height));
 	}
 
@@ -274,6 +308,14 @@ ZCA::ZCA(const char *xmlFilename)
 			if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
 				weightsGPU_.upload(weights_);
 			fs["ZCAEpsilon"] >> epsilon_;
+			fs["OverallMin"] >> overallMin_;
+			fs["OverallMax"] >> overallMax_;
+			fs["GlobalContrastNorm"] >> globalContrastNorm_;
+			if (!globalContrastNorm_)
+			{
+				overallMin_ = -0.5;
+				overallMax_ = 0.5;
+			}
 		}
 		fs.release();
 	}
@@ -290,5 +332,21 @@ void ZCA::Write(const char *xmlFilename) const
 	fs << "ZCASize" << size_;
 	fs << "ZCAWeights" << weights_;
 	fs << "ZCAEpsilon" << epsilon_;
+	fs << "OverallMin" << overallMin_;
+	fs << "OverallMax" << overallMax_;
+	fs << "GlobalContrastNorm" << globalContrastNorm_;
 	fs.release();
+}
+
+// Generate constants to convert from float
+// mat back to 8UC3 one.  
+double ZCA::alpha(int maxPixelValue) const
+{
+	double range = overallMax_ - overallMin_;
+
+	return maxPixelValue / range;
+}
+double ZCA::beta(void) const
+{
+	return -overallMin_ * alpha();
 }
