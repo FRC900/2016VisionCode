@@ -20,7 +20,7 @@ using namespace std;
 using namespace cv;
 //#define DEBUG
 
-#if 0
+#if 1
 //Values for purple screen:
 static int g_h_max = 170;
 static int g_h_min = 130;
@@ -29,7 +29,7 @@ static int g_s_min = 130;
 static int g_v_max = 255;
 static int g_v_min = 48;
 #else
-#if 0
+#if 1
 //Values for blue screen:
 static int g_h_max = 120;
 static int g_h_min = 110;
@@ -47,14 +47,15 @@ static int g_v_max = 240;
 static int g_v_min = 20;
 #endif
 #endif
-static int    g_files_per  = 1; // no resizing for now
-static int    g_num_frames = 50;
+static int    g_files_per  = 10;
+static int    g_num_frames = 75;
 static int    g_min_resize = 0;
 static int    g_max_resize = 0; //no resizing for now
 static float  g_noise      = 3.0;
 static string g_outputdir  = ".";
 static string g_bgfile     = "";
 static Point3f g_maxrot(0,0,0);
+static bool   g_do_shifts = true;
 
 #ifdef __CYGWIN__
 inline int
@@ -83,73 +84,20 @@ string Behead(string my_string)
 }
 
 
-// Resizes a rectangle to a new size, keeping
-// it centered on the same point
-Rect ResizeRect(const Rect& rect, const Size& size)
-{
-    Point tl = rect.tl();
-
-    tl.x = tl.x - ((double)size.width - rect.width) / 2;
-    tl.y = tl.y - ((double)size.height - rect.height) / 2;
-    Point br = rect.br();
-    br.x = br.x + ((double)size.width - rect.width) / 2;
-    br.y = br.y + ((double)size.height - rect.height) / 2;
-
-    return Rect(tl, br);
-}
-
-
-Rect AdjustRect(const Rect& frame, float ratio)
-{
-    // adjusts the size of the rectangle to a fixed aspect ratio
-    int width  = frame.width;
-    int height = frame.height;
-
-    if (width / ratio > height)
-    {
-        height = width / ratio;
-    }
-    else if (width / ratio < height)
-    {
-        width = height * ratio;
-    }
-
-    return ResizeRect(frame, Size(width, height));
-}
-
-
-bool RescaleRect(const Rect& the_rect, Rect& output_rect, const Mat& image_cool, double scale_up)
-{
-    // takes the rect the_rect and resizes it larger by 1+scale_up percent
-    // outputs resized rect in output_rect
-    int width  = the_rect.width * (1.0 + scale_up / 100.0);
-    int height = the_rect.height * (1.0 + scale_up / 100.0);
-
-    output_rect = ResizeRect(the_rect, Size(width, height));
-
-    if ((output_rect.x < 0) || (output_rect.y < 0) ||
-        (output_rect.br().x > image_cool.cols) || (output_rect.br().y > image_cool.rows))
-    {
-        cout << "Rectangle out of bounds!" << endl;
-        return false;
-    }
-    return true;
-}
-
-
 void usage(char *argv[])
 {
     cout << "usage: " << argv[0] << " [-r RGBM RGBT] [-f frames] [-i files] [--min min] [--max max] filename1 [filename2...]" << endl << endl;
-    cout << "-r         RGBM and RGBT are hex colors RRGGBB; M is the median value and T is the threshold above or below the median" << endl;
-    cout << "-f         frames is the number of frames grabbed from a video" << endl;
-    cout << "-i         files is the number of output image files per frame" << endl;
-    cout << "--min      min is the minimum percentage (as a decimal) for resizing for detection" << endl;
-    cout << "--max      max is the max percentage (as a decimal) for resizing for detection" << endl;
-	cout << "--maxxrot  max random rotation in x direction" << endl;
-	cout << "--maxyrot  max random rotation in y direction" << endl;
-	cout << "--maxzrot  max random rotation in z direction" << endl;
-    cout << "-o         change output directory from cwd/images to [option]/images" << endl;
-	cout << "--bg       specify file with list of backround images to superimpose extracted images onto" << endl;
+    cout << "-r          RGBM and RGBT are hex colors RRGGBB; M is the median value and T is the threshold above or below the median" << endl;
+    cout << "-f          frames is the number of frames grabbed from a video" << endl;
+    cout << "-i          files is the number of output image files per frame" << endl;
+    cout << "-o          change output directory from cwd/images to [option]/images" << endl;
+    cout << "--min       min is the minimum percentage (as a decimal) for resizing for detection" << endl;
+    cout << "--max       max is the max percentage (as a decimal) for resizing for detection" << endl;
+	cout << "--maxxrot   max random rotation in x axis (radians)" << endl;
+	cout << "--maxyrot   max random rotation in y axis (radians)" << endl;
+	cout << "--maxzrot   max random rotation in z axis (radians)" << endl;
+	cout << "--bg        specify file with list of backround images to superimpose extracted images onto" << endl;
+	cout << "--no-shifts don't generate shifted calibration outputs" << endl;
 }
 
 
@@ -212,7 +160,8 @@ vector<string> Arguments(int argc, char *argv[])
             {
                 try
                 {
-                    if (stoi(argv[i + 1]) < 1)
+					g_num_frames = stoi(argv[i + 1]);
+                    if (g_num_frames < 1)
                     {
                         cout << "Must get at least one frame per file!" << endl;
                         break;
@@ -223,14 +172,14 @@ vector<string> Arguments(int argc, char *argv[])
                     usage(argv);
                     break;
                 }
-                g_num_frames = stoi(argv[i + 1]);
                 i           += 1;
             }
             else if (strncmp(argv[i], "--min", 4) == 0)
             {
                 try
                 {
-                    if (stoi(argv[i + 1]) < 0)
+					g_min_resize = stoi(argv[i + 1]);
+                    if (g_min_resize < 0)
                     {
                         cout << "Cannot resize below 0%!" << endl;
                         break;
@@ -241,70 +190,70 @@ vector<string> Arguments(int argc, char *argv[])
                     usage(argv);
                     break;
                 }
-                g_min_resize = stoi(argv[i + 1]);
                 i++;
             }
             else if (strncmp(argv[i], "--maxxrot", 9) == 0)
             {
                 try
                 {
-                    stoi(argv[i + 1]);
+					g_maxrot.x = stod(argv[i + 1]);
                 }
                 catch (...)
                 {
                     usage(argv);
                     break;
                 }
-                g_maxrot.x = stod(argv[i + 1]);
                 i++;
             }
             else if (strncmp(argv[i], "--maxyrot", 9) == 0)
             {
                 try
                 {
-                    stoi(argv[i + 1]);
+                    g_maxrot.y = stod(argv[i + 1]);
                 }
                 catch (...)
                 {
                     usage(argv);
                     break;
                 }
-                g_maxrot.y = stod(argv[i + 1]);
                 i++;
             }
             else if (strncmp(argv[i], "--maxzrot", 9) == 0)
             {
                 try
                 {
-                    stoi(argv[i + 1]);
+                    g_maxrot.z = stod(argv[i + 1]);
                 }
                 catch (...)
                 {
                     usage(argv);
                     break;
                 }
-                g_maxrot.z = stod(argv[i + 1]);
                 i++;
             }
             else if (strncmp(argv[i], "--max", 4) == 0)
             {
                 try
                 {
-                    stoi(argv[i + 1]);
+					g_max_resize = stoi(argv[i + 1]);
                 }
                 catch (...)
                 {
                     usage(argv);
                     break;
                 }
-                g_max_resize = stoi(argv[i + 1]);
                 i++;
+            }
+            else if (strncmp(argv[i], "--no-shifts", 11) == 0)
+            {
+                g_do_shifts = false;
             }
             else if (strncmp(argv[i], "-i", 2) == 0)
             {
                 try
                 {
-                    if (stoi(argv[i + 1]) < 1)
+					g_files_per = stoi(argv[i + 1]);
+                    if (g_files_per < 1)
                     {
                         cout << "Must output at least 1 file per frame!" << endl;
                         break;
@@ -315,7 +264,6 @@ vector<string> Arguments(int argc, char *argv[])
                     usage(argv);
                     break;
                 }
-                g_files_per = stoi(argv[i + 1]);
                 i++;
             }
             else if (strncmp(argv[i], "-o", 2) == 0)
@@ -437,7 +385,8 @@ int main(int argc, char *argv[])
 	}
 	RandomSubImage rsi(rng, bgFileList);
 
-	createShiftDirs(g_outputdir + "/shifts");
+	if (g_do_shifts)
+		createShiftDirs(g_outputdir + "/shifts");
 
     for (auto vidName = vid_names.cbegin(); vidName != vid_names.cend(); ++vidName)
     {
@@ -548,7 +497,6 @@ int main(int argc, char *argv[])
             for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 30)
             {
 				int rndHueAdjust = hueAdjust + rng.uniform(-10,10);
-                //add(hsvframe, Scalar(rndHueAdjust, 0, 0), hsvframe, objMask);
                 for (int l = 0; l < hsvframe.rows; l++)
                 {
 					const uchar *mask = objMask.ptr<uchar>(l);
@@ -589,23 +537,40 @@ int main(int argc, char *argv[])
                 imshow("Final RGB", frame);
                 waitKey(0);
 #endif
-				stringstream shift_fn;
-				shift_fn << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;
-				shift_fn << "_" << setw(4) << bounding_rect.x;
-				shift_fn << "_" << setw(4) << bounding_rect.y;
-				shift_fn << "_" << setw(4) << bounding_rect.width;
-				shift_fn << "_" << setw(4) << bounding_rect.height;
-				shift_fn << "_" << setw(3) << rndHueAdjust;
-				shift_fn << ".png";
-				doShifts(frame(bounding_rect), objMask(bounding_rect), rng, rsi, g_maxrot, 4, g_outputdir + "/shifts", shift_fn.str());
+				if (g_do_shifts)
+				{
+					stringstream shift_fn;
+					shift_fn << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;
+					shift_fn << "_" << setw(4) << bounding_rect.x;
+					shift_fn << "_" << setw(4) << bounding_rect.y;
+					shift_fn << "_" << setw(4) << bounding_rect.width;
+					shift_fn << "_" << setw(4) << bounding_rect.height;
+					shift_fn << "_" << setw(3) << rndHueAdjust;
+					shift_fn << ".png";
+					doShifts(frame(bounding_rect), objMask(bounding_rect), rng, rsi, g_maxrot, 4, g_outputdir + "/shifts", shift_fn.str());
+				}
 
 				int fail_count = 0;
                 for (int i = 0; (i < g_files_per) && (fail_count < 100); )
                 {
 					double scale_up = rng.uniform((double)g_min_resize, (double)g_max_resize);
 					Rect final_rect;
-                    if (RescaleRect(bounding_rect, final_rect, frame, scale_up))
+                    if (RescaleRect(bounding_rect, final_rect, frame.size(), scale_up))
                     {
+						rotateImageAndMask(frame(final_rect), objMask(final_rect), Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rotImg, rotMask);
+
+#ifdef DEBUG
+						imshow("frame", frame);
+						imshow("frame(final_rect)", frame(final_rect));
+						imshow("objMask(final_rect)", objMask(final_rect));
+						imshow("rotImg", rotImg);
+						imshow("rotMask", rotMask);
+						waitKey(0);
+#endif
+						bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
+						chromaImg = doChromaKey(rotImg, bgImg, rotMask);
+						resize(chromaImg, chromaImg, Size(24,24));
+
                         stringstream write_name;
                         write_name << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;
                         write_name << "_" << setw(4) << final_rect.x;
@@ -615,17 +580,16 @@ int main(int argc, char *argv[])
                         write_name << "_" << setw(3) << rndHueAdjust;
                         write_name << "_" << setw(3) << i;
                         write_name << ".png";
-						rotateImageAndMask(frame(final_rect), objMask(final_rect), Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rotImg, rotMask);
-
-						bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
-						chromaImg = doChromaKey(rotImg, bgImg, rotMask);
-						resize(chromaImg, chromaImg, Size(24,24));
                         if (imwrite(write_name.str().c_str(), chromaImg) == false)
 						{
 							cout << "Error! Could not write file "<<  write_name.str() << endl;
+							fail_count += 1;
 						}
-						i++;
-						fail_count = 0;
+						else
+						{
+							i++;
+							fail_count = 0;
+						}
                     }
 					else
 						fail_count += 1;

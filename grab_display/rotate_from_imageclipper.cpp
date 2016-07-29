@@ -20,12 +20,14 @@
 using namespace std;
 using namespace cv;
 
-string srcPath = "/home/kjaget/ball_videos/palmetto_images/";
-string outPath = "rotates";
-const int rotateCount = 35;
 int main(void)
 {
+	const string srcPath = "/home/kjaget/ball_videos/white_floor/";
+	const string outPath = "rotates_resize";
+	const int rotateCount = 15;
 	const double targetAR = 1.0;
+	const int minResize = 0;
+	const int maxResize = 25;
 	DIR *dirp = opendir(".");
 	struct dirent *dp;
 	vector<string> image_names;
@@ -60,8 +62,10 @@ int main(void)
 			write_name << "_" << setw(4) << rect.width;
 			write_name << "_" << setw(4) << rect.height;
 
-			// create another rect expanded to the limits of the input frame
-			// with the object still in the center.
+			// create another rect expanded to the limits of the input 
+			// image size with the object still in the center.
+			// This will allow us to get the pixels from a corner as
+			// the image is rotated
 #if 0
 			cout << mat.size() << endl;
 			cout << rect << endl;
@@ -81,13 +85,25 @@ int main(void)
 			imshow("largeRect", mat(largeRect));
 			imshow("newOrigRect",mat(largeRect)(newOrigRect));
 #endif
-			for (int i = 0; i < rotateCount; i++)
+			int failCount = 0;
+			for (int i = 0; (i < rotateCount) && (failCount < 100); )
 			{
-				rotateImageAndMask(mat(largeRect), Mat(), Scalar(mat(largeRect).at<Vec3b>(0,0)), Point3f(0,0,M_PI*2.0), rng, rotImg, rotMask);
-				stringstream s;
-				s << outPath << "/" << write_name.str() << "_" << setw(2) << setfill('0') << i << ".png";
-	//			cout << s.str() << endl;
-				imwrite(s.str(), rotImg(newOrigRect));
+				Rect finalRect;
+				if (RescaleRect(newOrigRect, finalRect, Size(largeRect.width, largeRect.height), rng.uniform(minResize, maxResize)))
+				{
+
+					rotateImageAndMask(mat(largeRect), Mat(), Scalar(mat(largeRect).at<Vec3b>(0,0)), Point3f(0,0,M_PI*2.0), rng, rotImg, rotMask);
+					stringstream s;
+					s << outPath << "/" << write_name.str() << "_" << setw(2) << setfill('0') << i << ".png";
+					//			cout << s.str() << endl;
+					imwrite(s.str(), rotImg(finalRect));
+					i++;
+					failCount = 0;
+				}
+				else
+				{
+					failCount++;
+				}
 			}
 			//waitKey(0);
 		}

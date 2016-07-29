@@ -3,6 +3,54 @@
 using namespace std;
 using namespace cv;
 
+// Resizes a rectangle to a new size, keeping
+// it centered on the same point
+Rect ResizeRect(const Rect& rect, const Size& size)
+{
+    Point tl = rect.tl();
+    tl.x = cvRound(tl.x - ((double)size.width - rect.width) / 2);
+    tl.y = cvRound(tl.y - ((double)size.height - rect.height) / 2);
+
+    return Rect(tl, size);
+}
+
+
+Rect AdjustRect(const Rect& rect, const double ratio)
+{
+    // adjusts the size of the rectangle to a fixed aspect ratio
+    int width  = rect.width;
+    int height = rect.height;
+
+    if (width / ratio > height)
+    {
+        height = width / ratio;
+    }
+    else if (width / ratio < height)
+    {
+        width = height * ratio;
+    }
+
+    return ResizeRect(rect, Size(width, height));
+}
+
+
+bool RescaleRect(const Rect& inRect, Rect& outRect, const Size& imageSize, const double scaleUp)
+{
+    // takes the rect inRect and resizes it larger by 1+scale_up percent
+    // outputs resized rect in outRect
+    int width  = inRect.width * (1.0 + scaleUp / 100.0);
+    int height = inRect.height * (1.0 + scaleUp / 100.0);
+
+    outRect = ResizeRect(inRect, Size(width, height));
+
+    if ((outRect.x < 0) || (outRect.y < 0) ||
+        (outRect.br().x > imageSize.width) || (outRect.br().y > imageSize.height))
+    {
+        cout << "Rectangle out of bounds!" << endl;
+        return false;
+    }
+    return true;
+}
 // Warps source into destination by a perspective transform
 static void warpPerspective(const Mat &src, Mat &dst, const Point2f outputQuad[4], const Scalar &bgColor)
 {
