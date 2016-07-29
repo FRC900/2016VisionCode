@@ -46664,4 +46664,5 @@
     -5.01516834e-02 -7.45271221e-02 -8.21377411e-02 -9.61219072e-02
     -1.23842321e-01 -1.60353929e-01 -1.78676769e-01 2.95279860e+00</data></ZCAWeights>
 <ZCAEpsilon>1.0000000149011612e-01</ZCAEpsilon>
+<GlobalContrastNorm>0</GlobalContrastNorm>
 </opencv_storage>
