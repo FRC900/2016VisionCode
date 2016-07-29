@@ -77,7 +77,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     MatT f32Img;
 
 	// classifier runs on float pixel data with values in the range of 0.0 to 1.0.
-    MatT(inputImg).convertTo(f32Img, CV_32FC3, 1/255.);
+    MatT(inputImg).convertTo(f32Img, CV_32FC3);
     generateInitialWindows(f32Img, depthMat, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
     // Generate scaled images for the larger net sizes as well.  Using a separate
@@ -456,9 +456,10 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
 		// identifies the image passed in
         for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
         {
-			if (imgs[0].rows > 12)
+			if (imgs[i].rows > 12)
 			{
 				cout << it->first << " " << it->second << " ";
+
 #if 0
 				Mat img = imgs[i].clone();
 				Mat wr;
