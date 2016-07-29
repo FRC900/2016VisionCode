@@ -12,7 +12,7 @@ layer {
     mean_value: 127.0
   }
   data_param {
-    source: "/home/kjaget/DIGITS/digits/jobs/20160712-072513-c2c3/train_db"
+    source: "/home/kjaget/DIGITS/digits/jobs/20160720-213414-a9cd/train_db"
     batch_size: 128
     backend: LMDB
   }
@@ -31,7 +31,7 @@ layer {
     mean_value: 127.0
   }
   data_param {
-    source: "/home/kjaget/DIGITS/digits/jobs/20160712-072513-c2c3/val_db"
+    source: "/home/kjaget/DIGITS/digits/jobs/20160720-213414-a9cd/val_db"
     batch_size: 128
     backend: LMDB
   }
@@ -50,7 +50,7 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 6
+    num_output: 4
     kernel_size: 3
     stride: 1
     weight_filler {
@@ -75,7 +75,7 @@ layer {
     decay_mult: 0.0
   }
   convolution_param {
-    num_output: 6
+    num_output: 4
     kernel_size: 3
     stride: 1
     weight_filler {
@@ -117,7 +117,7 @@ layer {
     decay_mult: 0.0
   }
   inner_product_param {
-    num_output: 16
+    num_output: 5
     weight_filler {
       type: "xavier"
     }
