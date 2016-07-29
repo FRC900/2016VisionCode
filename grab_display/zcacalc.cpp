@@ -1,60 +1,83 @@
 #include <string>
 #include "zca.hpp"
 
+#include "random_subimage.hpp"
 #include "utilities_common.h"
 
 using namespace std;
 using namespace cv;
 
+static void doZCA(const vector<Mat> &images, const Size &size, const float epsilon, const bool gcn, const string &id, int seed)
+{
+	ZCA zca(images, size, epsilon, gcn);
+
+	stringstream name;
+	name << "zcaWeights" <<(gcn ? "GCN" : "") << id << "_" << size.width << "_" << seed << "_" << images.size() << ".xml";
+	zca.Write(name.str().c_str());
+}
+
+// returns true if the given 3 channel image is B = G = R
+bool isGrayImage(const Mat &img) 
+{
+    Mat dst;
+    Mat bgr[3];
+    split( img, bgr );
+    absdiff( bgr[0], bgr[1], dst );
+
+    if(countNonZero( dst ))
+        return false;
+
+    absdiff( bgr[0], bgr[2], dst );
+    return !countNonZero( dst );
+}
+
 int main(void)
 {
     vector<string> filePaths;
-    GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/framegrabber", ".png", filePaths);
-    GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/Framegrabber2", ".png", filePaths, true);
-    GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/generic", ".png", filePaths, true);
+    GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/framegrabber", ".png", filePaths);
+    GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/Framegrabber2", ".png", filePaths, true);
+    GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/generic", ".png", filePaths, true);
+    GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/20160210", ".png", filePaths, true);
+    GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/white_bg", ".png", filePaths, true);
     cout << filePaths.size() << " images!" << endl;
 	const int seed = 12345;
-	RNG rng(seed);
-	vector<Mat> images;
-
-	const int nImgs = 100000;
+	RandomSubImage rsi(RNG(seed), filePaths);
 	Mat img; // full image data
 	Mat patch; // randomly selected image patch from full image
-
+	vector<Mat> images;
+	const int nImgs = 200000;
     for (int nDone = 0; nDone < nImgs; ) 
 	{
-		// Grab a random image from the list
-		size_t idx = rng.uniform(0, filePaths.size());
-		img = imread(filePaths[idx]);
-
-		// Pick a random row and column from the image
-		int r = rng.uniform(0, img.rows);
-		int c = rng.uniform(0, img.cols);
-
-		// Pick a random size as well. Make sure it
-		// doesn't extend past the edge of the input
-		int s = rng.uniform(0, 2*MIN(MIN(r, img.rows-r), MIN(c, img.cols-c)) + 1 );
-
-		if (s < 28)
+		img = rsi.get(1.0, 0.05);
+		resize(img, patch, Size(24,24));
+		// There are grayscale images in the 
+		// negatives, but we'll never see one
+		// in real life. Exclude those for now
+		if (isGrayImage(img))
 			continue;
-
-		Rect rect = Rect(c-s/2, r-s/2, s, s);
-		//cout << "Using " << filePaths[idx] << rect << endl;
-		// Resize patches to 24x24 to save memory
-		resize(img(rect), patch, Size(24,24));
 		images.push_back(patch.clone());
 		nDone++;
 		if (!(nDone % 1000))
 			cout << nDone << " image patches extracted" << endl;
 	}
-
-	ZCA zca12(images, Size(12,12), .05);
-	ZCA zca24(images, Size(24,24), .05);
-
-	stringstream name;
-	name << "zcaWeightsE05_12_" << seed << "_" << nImgs << ".xml";
-	zca12.Write(name.str().c_str());
-	name.str(string());
-	name << "zcaWeightsE05_24_" << seed << "_" << nImgs << ".xml";
-	zca24.Write(name.str().c_str());
+	doZCA(images, Size(12,12), 0.1, true, "nograyE1", seed);
+	doZCA(images, Size(24,24), 0.1, true, "nograyE1", seed);
+	doZCA(images, Size(12,12), 0.01, true, "nograyE01", seed);
+	doZCA(images, Size(24,24), 0.01, true, "nograyE01", seed);
+	doZCA(images, Size(12,12), 0.001, true, "nograyE001", seed);
+	doZCA(images, Size(24,24), 0.001, true, "nograyE001", seed);
+	doZCA(images, Size(12,12), 0.0001, true, "nograyE0001", seed);
+	doZCA(images, Size(24,24), 0.0001, true, "nograyE0001", seed);
+	doZCA(images, Size(12,12), 0.00001, true, "nograyE00001", seed);
+	doZCA(images, Size(24,24), 0.00001, true, "nograyE00001", seed);
+	doZCA(images, Size(12,12), 0.1, false, "nograyE1", seed);
+	doZCA(images, Size(24,24), 0.1, false, "nograyE1", seed);
+	doZCA(images, Size(12,12), 0.01, false, "nograyE01", seed);
+	doZCA(images, Size(24,24), 0.01, false, "nograyE01", seed);
+	doZCA(images, Size(12,12), 0.001, false, "nograyE001", seed);
+	doZCA(images, Size(24,24), 0.001, false, "nograyE001", seed);
+	doZCA(images, Size(12,12), 0.0001, false, "nograyE0001", seed);
+	doZCA(images, Size(24,24), 0.0001, false, "nograyE0001", seed);
+	doZCA(images, Size(12,12), 0.00001, false, "nograyE00001", seed);
+	doZCA(images, Size(24,24), 0.00001, false, "nograyE00001", seed);
 }
