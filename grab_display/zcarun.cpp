@@ -10,15 +10,15 @@ using namespace cv;
 
 int main(int argc, char **argv)
 {
+	const int batchSize = 256;
 	if (argc <= 3)
 	{
 		cout << "Usage : " << argv[0] << " xml_saved_weights_24 filelist outdir" << endl;
 		return 1;
 	}
-	ZCA zcad24(argv[1]);
+	ZCA zca(argv[1]);
 
 	Mat img; // full image data
-	Mat outd24;
 	ifstream infile(argv[2]);
 	string outdir = argv[3];
 
@@ -26,24 +26,53 @@ int main(int argc, char **argv)
 	int count = 0;
 
 	mkdir(outdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	vector <Mat> imgs;
+	vector <string> filenames;
 	while (getline(infile, filename))
 	{
 		//cout << filename << endl;
 		if ((++count % 10000) == 0)
 			cout << count << endl;
-		img = imread(filename);
-		outd24 = zcad24.Transform8UC3(img);
-		size_t found = filename.find_last_of("/\\");
-		mkdir((outdir+"/"+filename.substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		try
+		filenames.push_back(filename);
+		imgs.push_back(imread(filename));
+		if ((imgs.size() == batchSize))
 		{
-			imwrite(outdir+"/"+filename, outd24);
-		}
-		catch (runtime_error& ex) 
-		{
-			cerr << "Exception converting image to PNG format: " << ex.what() << endl;
+			auto outImgs = zca.Transform8UC3(imgs);
+			for (size_t i = 0; i < outImgs.size(); i++)
+			{
+				size_t found = filenames[i].find_last_of("/\\");
+				mkdir((outdir+"/"+filenames[i].substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+				try
+				{
+					imwrite(outdir+"/"+filenames[i], outImgs[i]);
+				}
+				catch (runtime_error& ex) 
+				{
+					cerr << "Exception converting image to PNG format: " << ex.what() << endl;
+				}
+			}
+			imgs.clear();
+			filenames.clear();
 		}
 	}
+	if (imgs.size())
+	{
+		auto outImgs = zca.Transform8UC3(imgs);
+		for (size_t i = 0; i < outImgs.size(); i++)
+		{
+			size_t found = filenames[i].find_last_of("/\\");
+			mkdir((outdir+"/"+filenames[i].substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+			try
+			{
+				imwrite(outdir+"/"+filenames[i], outImgs[i]);
+			}
+			catch (runtime_error& ex) 
+			{
+				cerr << "Exception converting image to PNG format: " << ex.what() << endl;
+			}
+		}
+	}
+	cout << zca.alpha() << " " << zca.beta() << endl;
 }
 
 #if 0
