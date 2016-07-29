@@ -118,6 +118,7 @@ class TrackedObject
 
 		cv::Point3f predictKF(void);
 		cv::Point3f updateKF(cv::Point3f pt);
+		std::vector<cv::Point> getScreenPositionHistory(const cv::Point2f &fov_size, const cv::Size &frame_size) const;
 
 		std::string getId(void) const { return id_; }
 		ObjectType getType(void) const { return type_; }
@@ -186,6 +187,8 @@ class TrackedObjectList
 		//void adjustLocation(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
 		void adjustLocation(const cv::Mat &transform_mat);
 
+		// Get position history for each tracked object
+		std::vector<std::vector<cv::Point>> getScreenPositionHistories(void) const;
 		// Simple printout of list into
 		void print(void) const;
 

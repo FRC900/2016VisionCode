@@ -46,9 +46,9 @@ using namespace utils;
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp);
 void writeImage(const Mat& frame, const vector<Rect>& rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
-void drawRects(Mat image ,vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
-void drawTrackingInfo(Mat &frame, vector<TrackedObjectDisplay> &displayList);
-void drawTrackingTopDown(Mat &frame, vector<TrackedObjectDisplay> &displayList);
+void drawRects(Mat image ,const vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
+void drawTrackingInfo(Mat &frame, const vector<TrackedObjectDisplay> &displayList, const vector<vector<Point>> &posHist);
+void drawTrackingTopDown(Mat &frame, const vector<TrackedObjectDisplay> &displayList);
 void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName);
 string getVideoOutName(bool raw, const char *suffix);
 
@@ -63,7 +63,7 @@ void my_handler(int s)
     }
 }
 
-void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
+void drawRects(Mat image, const vector<Rect> detectRects, Scalar rectColor, bool text)
 {
     for (auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
     {
@@ -89,16 +89,16 @@ void drawRects(Mat image, vector<Rect> detectRects, Scalar rectColor, bool text)
 }
 
 
-void drawTrackingInfo(Mat& frame, vector<TrackedObjectDisplay>& displayList)
+void drawTrackingInfo(Mat& frame, const vector<TrackedObjectDisplay>& displayList, const vector<vector<Point>> &posHist)
 {
     for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
     {
-        if (it->ratio >= 0.25)
+        if (it->ratio >= 0.20)
         {
             const int roundPosTo = 2;
             // Color moves from red to green (via brown, yuck)
             // as the detected ratio goes up
-            Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
+            const Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
             // Highlight detected target
             rectangle(frame, it->rect, rectColor, 3);
             // Write detect ID, distance and angle data
@@ -107,12 +107,27 @@ void drawTrackingInfo(Mat& frame, vector<TrackedObjectDisplay>& displayList)
             label << fixed << setprecision(roundPosTo);
             label << "(" << it->position.x << "," << it->position.y << "," << it->position.z << ")";
             putText(frame, label.str(), Point(it->rect.x + 10, it->rect.y - 10), FONT_HERSHEY_PLAIN, 1.2, rectColor);
-        }
-    }
+
+			if (posHist.size() > 0)
+			{
+				auto p = posHist.cbegin() + (it - displayList.cbegin());
+				for (size_t i = 0; i < p->size(); i++)
+				{
+					const Point pt = (*p)[i];
+					circle(frame, pt, 5, Scalar(0,192,192), -1);
+					if (i > 0)
+					{
+						const Point prevPt = (*p)[i-1];
+						line(frame, pt, prevPt, Scalar(0,192,192), 2);
+					}
+				}
+			}
+		}
+	}
 }
 
 
-void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, const Point3f& goalPos)
+void drawTrackingTopDown(Mat& frame, const vector<TrackedObjectDisplay>& displayList, const Point3f& goalPos)
 {
     //create a top view image of the robot and all detected objects
     Range xRange = Range(-4, 4);
@@ -127,11 +142,14 @@ void drawTrackingTopDown(Mat& frame, vector<TrackedObjectDisplay>& displayList, 
     line(frame, imageCenter, imageCenter - Point(0, imageSize.x / 2), Scalar(0, 0, 255), 3);
     for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
     {
+        if (it->ratio >= 0.20)
+        {
         Point2f realPos = Point2f(it->position.x, it->position.y);
         Point2f imagePos;
         imagePos.x = cvRound(realPos.x * (imageSize.x / (float)xRange.size()) + (imageSize.x / 2.0));
         imagePos.y = cvRound(-(realPos.y * (imageSize.y / (float)yRange.size())) + (imageSize.y / 2.0));
         circle(frame, imagePos, rectSize, Scalar(255, 0, 0), 5);
+		}
     }
     if (goalPos != Point3f())
     {
@@ -194,6 +212,7 @@ int main( int argc, const char** argv )
 	bool pause = !args.batchMode && args.pause;
 	bool calibRects = false;
 	bool filterUsingDepth = true;
+	bool showTrackingHistory = false;
 
 	//stuff to handle ctrl+c and escape gracefully
 	struct sigaction sigIntHandler;
@@ -448,6 +467,9 @@ int main( int argc, const char** argv )
 		// Grab info from trackedobjects. Display it and update zmq subscribers
 		vector<TrackedObjectDisplay> displayList;
         objectTrackingList.getDisplay(displayList);
+		vector<vector<Point>> posHist;
+		if (showTrackingHistory)
+			posHist = objectTrackingList.getScreenPositionHistories();
 
         sendZMQData(netTableArraySize, publisher, displayList, gd, cap->timeStamp());
 
@@ -501,7 +523,7 @@ int main( int argc, const char** argv )
 
 			// Draw tracking info if it is enabled
 			if (args.tracking)
-				drawTrackingInfo(frame, displayList);
+				drawTrackingInfo(frame, displayList, posHist);
 			vector<TrackedObjectDisplay> emptyDisplayList;
 			drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
 			imshow("Top view", top_frame);
@@ -661,6 +683,10 @@ int main( int argc, const char** argv )
 			{
 				if (detectState)
 					detectState->toggleGPU();
+			}
+			else if (c == 'h') // toggle tracking histories
+			{
+				showTrackingHistory = !showTrackingHistory;
 			}
 			else if (c == '.') // higher classifier stage
 			{
