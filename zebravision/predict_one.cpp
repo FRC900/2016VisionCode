@@ -37,21 +37,19 @@ int main(int argc, char **argv)
 
 	while (clio.findNextClassifierStage(false))
 	{
-
-
-	vector<string> files = clio.getClassifierFiles();
-	CaffeClassifier<Mat> c(files[0], files[1], files[2], files[3], 256); 
-	vector<vector<Prediction>> p = c.ClassifyBatch(imgs,2);
-	for (auto v = p.cbegin(); v != p.cend(); ++v)
-	{
-		for (auto it = v->cbegin(); it != v->cend(); ++it)
-			cout << it->first << " " << it->second << " ";
-		cout << endl;
-	}
-	cout <<"---------------------"<< endl;
+		vector<string> files = clio.getClassifierFiles();
+		CaffeClassifier<Mat> c(files[0], files[1], files[2], files[3], 256); 
+		vector<vector<Prediction>> p = c.ClassifyBatch(imgs,2);
+		for (auto v = p.cbegin(); v != p.cend(); ++v)
+		{
+			for (auto it = v->cbegin(); it != v->cend(); ++it)
+				cout << it->first << " " << it->second << " ";
+			cout << endl;
+		}
+		cout <<"---------------------"<< endl;
 	}
 
-	
+
 	return 0;
 
 }
