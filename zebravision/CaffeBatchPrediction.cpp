@@ -245,6 +245,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 	CHECK(imgs.size() <= batchSize_) <<
 		"PreprocessBatch() : too many input images : batch size is " << batchSize_ << "imgs.size() = " << imgs.size(); 
 
+#if 0
 	for (size_t i = 0 ; i < imgs.size(); i++)
 	{
 		Mat img = imgs[i].clone();
@@ -254,7 +255,9 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 		s << "debug_ppb_before_" << i << ".png";
 		imwrite(s.str(), wr);
 	}
+#endif
 	vector<MatT> zcaImgs = zca_.Transform32FC3(imgs);
+#if 0
 	for (size_t i = 0 ; i < zcaImgs.size(); i++)
 	{
 		Mat img = zcaImgs[i].clone();
@@ -264,6 +267,15 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 		s << "debug_ppb_after_" << i << ".png";
 		imwrite(s.str(), wr);
 	}
+#endif
+
+#if 0
+	for (size_t i = 0 ; i < zcaImgs.size(); i++)
+	{
+		zcaImgs[i] *= 255.;
+		zcaImgs[i] += 127.;
+	}
+#endif
 	for (size_t i = 0 ; i < zcaImgs.size(); i++)
 	{
 		/* This operation will write the separate BGR planes directly to the

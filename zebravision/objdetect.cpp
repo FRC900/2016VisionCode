@@ -2,13 +2,13 @@
 
 int scale         =  7;
 int d12NmsThreshold = 40;
-int d24NmsThreshold = 95;
+int d24NmsThreshold = 98;
 int minDetectSize = 44;
-int maxDetectSize = 450;
+int maxDetectSize = 250;
 int d12Threshold  = 45;
-int d24Threshold  = 55;
-int c12Threshold  = 6;
-int c24Threshold  = 6;
+int d24Threshold  = 85;
+int c12Threshold  = 0;
+int c24Threshold  = 0;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios

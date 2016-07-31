@@ -82,29 +82,33 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	// it to get the correct one
 	Mat workingMatT;
 
-	// For each input image, resize to constant size
-	// convert to a floating point mat
+	// For each input image, convert to a floating point mat
+	//  and resize to constant size
+	// Find the mean and stddev of each color channel. Subtract
+	// out the mean and divide by stddev to get a 0-mean
+	// 1-stddev image - this helps normalize contrast between
+	// images in different lighting conditions 
 	// flatten to a single channel, 1 row matrix
-	// set to 0-mean and divide by stddev if GCN is set
 	Mat resizeImg;
 	Mat tmpImg;
 	Scalar mean;
 	Scalar stddev;
 	for (auto it = images.cbegin(); it != images.cend(); ++it)
 	{
-		resize(*it, resizeImg, size_);
-		resizeImg.convertTo(tmpImg, CV_32FC3);
-		tmpImg = tmpImg.reshape(1, 1);
+		it->convertTo(resizeImg, CV_32FC3);
+		resize(resizeImg, tmpImg, size_);
 		meanStdDev(tmpImg, mean, stddev);
-		subtract(tmpImg, mean(0), tmpImg);
+		subtract(tmpImg, mean, tmpImg);
 		if (globalContrastNorm_)
-			divide(tmpImg, stddev(0), tmpImg);
+			divide(tmpImg, stddev, tmpImg);
 		else
-			divide(tmpImg, 255.0, tmpImg); // TODO :: remove this?
-		workingMatT.push_back(tmpImg);
+			divide(tmpImg, Scalar(255., 255., 255.), tmpImg); // TODO : remove this, or use uniform scaling for everything?
+		tmpImg = tmpImg.reshape(1, 1);
+		workingMatT.push_back(tmpImg.clone());
 	}
 	resizeImg.release();
 	tmpImg.release();
+
 	// Transpose so each image is its own column 
 	// rather than its own row 
 	Mat workingMat = workingMatT.t();
@@ -114,7 +118,7 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	// Literature disagrees on dividing by cols or cols-1
 	// Since we're using a large number of input
 	// images it really doesn't matter that much
-	Mat sigma = (workingMat * workingMatT) / (float)(workingMat.cols - 1.);
+	Mat sigma = (workingMat * workingMatT) / (float)workingMat.cols;
 
 	workingMatT.release();
 
@@ -124,6 +128,7 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	Mat svdVT;
 	svd.compute(sigma, svdW, svdU, svdVT, SVD::FULL_UV);
 	
+	//cout << "svdW" << endl << svdW << endl;
 	// Add small epsilon to prevent sqrt(small number)
 	// numerical instability. Larger epsilons have a
 	// bigger smoothing effect
@@ -145,14 +150,14 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	// Don't want to use the full range of the
 	// pixels since outliers will squash the range
 	// most pixels end up in to just a few numbers.
-	// Instead use the mean +/- 2.5 std deviations
-	// TODO :: generate a histogram of pixel values
-	// to see what sort of distribution we're really
-	// dealing with
+	// Instead use the mean +/- 2.25 std deviations
+	// This should allow full range representation of
+	// > 96% of the pixels
 	Mat transformedImgs = weights_ * workingMat;
 	meanStdDev(transformedImgs, mean, stddev);
-	overallMax_ = mean(0) + 2.5*stddev(0);
-	overallMin_ = mean(0) - 2.5*stddev(0);
+	cout << "transformedImgs mean/stddev " << mean(0) << " " << stddev(0) << endl;
+	overallMax_ = mean(0) + 2.25*stddev(0);
+	overallMin_ = mean(0) - 2.25*stddev(0);
 
 	// Formula to convert is uchar_val = alpha * float_val + beta
 	// This will convert the majority of floating
@@ -237,9 +242,10 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	// values.  
 	// Global contrast normalization is applied to
 	// each image - subtract the mean and divide
-	// by the standard deviation. That way
-	// each image is normalized to 0-mean and a
-	// standard deviation of 1.
+	// by the standard deviation separately for each
+	// channel. That way each image is normalized to 0-mean 
+	// and a standard deviation of 1 before running it
+	// through ZCA weights.
 	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
 		if (it->size() != size_)
@@ -249,14 +255,14 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 			// reshape won't work otherwise
 			output = it->clone();
 
-		output = output.reshape(1, 1);
 		meanStdDev(output, mean, stddev);
-		subtract(output, mean(0), output);
+		subtract(output, mean, output);
 		if (globalContrastNorm_)
-			divide(output, stddev(0), output);
+			divide(output, stddev, output);
 		else
-			divide(output, 255.0, output);
+			divide(output, Scalar(255.0,255.0,255.0), output);
 		
+		output = output.reshape(1, 1);
 		work.push_back(output);
 	}
 	// Each image is a new row above, but we
@@ -311,11 +317,13 @@ ZCA::ZCA(const char *xmlFilename)
 			fs["OverallMin"] >> overallMin_;
 			fs["OverallMax"] >> overallMax_;
 			fs["GlobalContrastNorm"] >> globalContrastNorm_;
+#if 0
 			if (!globalContrastNorm_)
 			{
 				overallMin_ = -0.5;
 				overallMax_ = 0.5;
 			}
+#endif
 		}
 		fs.release();
 	}

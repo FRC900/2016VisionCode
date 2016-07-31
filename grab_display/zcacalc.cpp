@@ -9,6 +9,7 @@ using namespace cv;
 
 static void doZCA(const vector<Mat> &images, const Size &size, const float epsilon, const bool gcn, const string &id, int seed)
 {
+	cout << "epsilon " << epsilon << endl;
 	ZCA zca(images, size, epsilon, gcn);
 
 	stringstream name;
@@ -60,24 +61,28 @@ int main(void)
 		if (!(nDone % 1000))
 			cout << nDone << " image patches extracted" << endl;
 	}
-	doZCA(images, Size(12,12), 0.1, true, "nograyE1", seed);
-	doZCA(images, Size(24,24), 0.1, true, "nograyE1", seed);
-	doZCA(images, Size(12,12), 0.01, true, "nograyE01", seed);
-	doZCA(images, Size(24,24), 0.01, true, "nograyE01", seed);
-	doZCA(images, Size(12,12), 0.001, true, "nograyE001", seed);
-	doZCA(images, Size(24,24), 0.001, true, "nograyE001", seed);
-	doZCA(images, Size(12,12), 0.0001, true, "nograyE0001", seed);
-	doZCA(images, Size(24,24), 0.0001, true, "nograyE0001", seed);
-	doZCA(images, Size(12,12), 0.00001, true, "nograyE00001", seed);
-	doZCA(images, Size(24,24), 0.00001, true, "nograyE00001", seed);
-	doZCA(images, Size(12,12), 0.1, false, "nograyE1", seed);
-	doZCA(images, Size(24,24), 0.1, false, "nograyE1", seed);
-	doZCA(images, Size(12,12), 0.01, false, "nograyE01", seed);
-	doZCA(images, Size(24,24), 0.01, false, "nograyE01", seed);
-	doZCA(images, Size(12,12), 0.001, false, "nograyE001", seed);
-	doZCA(images, Size(24,24), 0.001, false, "nograyE001", seed);
-	doZCA(images, Size(12,12), 0.0001, false, "nograyE0001", seed);
-	doZCA(images, Size(24,24), 0.0001, false, "nograyE0001", seed);
-	doZCA(images, Size(12,12), 0.00001, false, "nograyE00001", seed);
-	doZCA(images, Size(24,24), 0.00001, false, "nograyE00001", seed);
+	doZCA(images, Size(12,12), 1, true, "nograysepchannelsE10", seed);
+	doZCA(images, Size(24,24), 1, true, "nograysepchannelsE10", seed);
+	doZCA(images, Size(12,12), 0.1, true, "nograysepchannelsE1", seed);
+	doZCA(images, Size(24,24), 0.1, true, "nograysepchannelsE1", seed);
+	doZCA(images, Size(12,12), 0.01, true, "nograysepchannelsE01", seed);
+	doZCA(images, Size(24,24), 0.01, true, "nograysepchannelsE01", seed);
+	doZCA(images, Size(12,12), 0.001, true, "nograysepchannelsE001", seed);
+	doZCA(images, Size(24,24), 0.001, true, "nograysepchannelsE001", seed);
+	doZCA(images, Size(12,12), 0.0001, true, "nograysepchannelsE0001", seed);
+	doZCA(images, Size(24,24), 0.0001, true, "nograysepchannelsE0001", seed);
+	doZCA(images, Size(12,12), 0.00001, true, "nograysepchannelsE00001", seed);
+	doZCA(images, Size(24,24), 0.00001, true, "nograysepchannelsE00001", seed);
+	doZCA(images, Size(12,12), 1, false, "nograysepchannelsE10", seed);
+	doZCA(images, Size(24,24), 1, false, "nograysepchannelsE10", seed);
+	doZCA(images, Size(12,12), 0.1, false, "nograysepchannelsE1", seed);
+	doZCA(images, Size(24,24), 0.1, false, "nograysepchannelsE1", seed);
+	doZCA(images, Size(12,12), 0.01, false, "nograysepchannelsE01", seed);
+	doZCA(images, Size(24,24), 0.01, false, "nograysepchannelsE01", seed);
+	doZCA(images, Size(12,12), 0.001, false, "nograysepchannelsE001", seed);
+	doZCA(images, Size(24,24), 0.001, false, "nograysepchannelsE001", seed);
+	doZCA(images, Size(12,12), 0.0001, false, "nograysepchannelsE0001", seed);
+	doZCA(images, Size(24,24), 0.0001, false, "nograysepchannelsE0001", seed);
+	doZCA(images, Size(12,12), 0.00001, false, "nograysepchannelsE00001", seed);
+	doZCA(images, Size(24,24), 0.00001, false, "nograysepchannelsE00001", seed);
 }

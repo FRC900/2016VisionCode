@@ -44,7 +44,8 @@ int main(int argc, char **argv)
 				mkdir((outdir+"/"+filenames[i].substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 				try
 				{
-					imwrite(outdir+"/"+filenames[i], outImgs[i]);
+					if (!imwrite(outdir+"/"+filenames[i], outImgs[i]))
+						cerr << "Failure converting image to PNG format: " << outdir << "/" << filenames[i]<< endl;
 				}
 				catch (runtime_error& ex) 
 				{
@@ -64,7 +65,9 @@ int main(int argc, char **argv)
 			mkdir((outdir+"/"+filenames[i].substr(0,found)).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 			try
 			{
-				imwrite(outdir+"/"+filenames[i], outImgs[i]);
+				if (!imwrite(outdir+"/"+filenames[i], outImgs[i]))
+					cerr << "Failure converting image to PNG format: " << outdir << "/" << filenames[i]<< endl;
+					
 			}
 			catch (runtime_error& ex) 
 			{
