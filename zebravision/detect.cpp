@@ -76,7 +76,9 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	// variable sized objects using a fixed-width detector
     MatT f32Img;
 
-	// classifier runs on float pixel data with values in the range of 0.0 to 1.0.
+	// classifier runs on float pixel data. Convert it once here
+	// rather than every time we pass a sub-window into the detection
+	// code to save some time
     MatT(inputImg).convertTo(f32Img, CV_32FC3);
     generateInitialWindows(f32Img, depthMat, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
@@ -507,7 +509,7 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 	vector<MatT>           images; // input images
 	vector<vector<float> > shift;  // shift list for this batch
 	vector<vector<float> > shifts; // complete list of all shifts
-	for (vector<Window>::const_iterator it = windowsIn.begin(); it != windowsIn.end(); ++it)
+	for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
 	{
 		// Grab the rect from the scaled image represented
 		// but each input window
@@ -623,7 +625,7 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
 		float dxc     = 0;
 		float dyc     = 0;
 		int   counter = 0;
-		for (vector<Prediction>::const_iterator it = predictions[i].begin(); it != predictions[i].end(); ++it)
+		for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
 		{
 			if (it->second >= threshold)
 			{

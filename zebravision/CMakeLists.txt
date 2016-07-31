@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -105,5 +105,7 @@ add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.c
 target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 add_executable(predict_one predict_one.cpp CaffeBatchPrediction.cpp zca.cpp classifierio.cpp)
 target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
+add_executable(rank_positives rank_positives.cpp CaffeBatchPrediction.cpp zca.cpp classifierio.cpp)
+target_link_libraries( rank_positives ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )

@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 		cout << "Usage : " << argv[0] << " filelist_of_imgs.txt" << endl;
 		return 1;
 	}
-	ClassifierIO clio("d24", 5, -1);
+	ClassifierIO clio("d24", 21, -1);
 	vector<string> files = clio.getClassifierFiles();
 	for (auto it = files.cbegin(); it != files.cend(); ++it)
 		cout << *it << endl;
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 		cout << "Read " << filename << endl;
 		img = imread(filename);
 		resize(img, rsz, c.getInputGeometry()); 
-		rsz.convertTo(f32, CV_32FC3, 1/255.);
+		rsz.convertTo(f32, CV_32FC3);
 		imgs.push_back(f32.clone());
 	}
 
