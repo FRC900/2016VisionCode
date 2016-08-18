@@ -10,11 +10,12 @@ find_package(Eigen3 REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams REQUIRED)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../bindetection/cmake")
 find_package(ZMQ REQUIRED)
+find_library (LibTinyXML2 tinyxml2)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} ${ZMQ_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ../zebravision )
 
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 
-add_executable( goal_detect goal_detect.cpp ../zebravision/GoalDetector.cpp ../zebravision/mediain.cpp ../zebravision/zedin.cpp ../zebravision/Utilities.cpp ../zebravision/track3d.cpp ../zebravision/kalman.cpp ../zebravision/hungarian.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
-target_link_libraries( goal_detect ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} ${Boost_LIBRARIES} ${ZMQ_LIBRARIES})
+add_executable( goal_detect goal_detect.cpp ../zebravision/GoalDetector.cpp ../zebravision/mediain.cpp ../zebravision/zedin.cpp ../zebravision/Utilities.cpp ../zebravision/track3d.cpp ../zebravision/kalman.cpp ../zebravision/hungarian.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp ../zebravision/ZvSettings.cpp)
+target_link_libraries( goal_detect ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} ${Boost_LIBRARIES} ${ZMQ_LIBRARIES} ${LibTinyXML2})
