@@ -24,6 +24,8 @@ static Rect shiftRect(const Rect rectIn, float ds, float dx, float dy)
 			cvRound(rectIn.height/ds));
 }
 
+// Create the various output dirs - the base shift
+// directory and directories numbered 0 - 44.
 void createShiftDirs(const string &outputDir)
 {
 	if (mkdir((outputDir).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
@@ -57,11 +59,11 @@ void createShiftDirs(const string &outputDir)
 }
 
 
+// Given a src image and an object ROI within that image,
+// generate shifted versions of the object
+// maxRot is in radians.
 void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName)
 {
-	Mat objMask;
-	Mat bgImg;    // random background image to superimpose each input onto 
-	Mat chromaImg; // combined input plus bg
 	Mat rotImg;  // randomly rotated input
 	Mat rotMask; // and mask
 	Mat final;   // final output
@@ -90,20 +92,22 @@ void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRo
 	}
 	cout << fn << endl;
 
-	// Double the size of the ROI so we can pass in some border to 
-	// work with during rotation
-	Rect twiceObjROI(objROI.x - objROI.width/2, objROI.y - objROI.height/2 , objROI.width * 2, objROI.height * 2);
-	Rect srcROI(Point(0,0), src.size());
-	if ((twiceObjROI & srcROI) != twiceObjROI)
-	{
-		cerr << "Rectangle out of bounds" << endl;
-		return;
-	}
+	const Scalar fillColor = Scalar(src(objROI).at<Vec3b>(0,0));
+	// create another rect expanded to the limits of the input
+	// image size with the object still in the center.
+	// This will allow us to save the pixels from a corner as
+	// the image is rotated
+	const double targetAR = (double) objROI.width / objROI.height;
+	const int added_x = min(objROI.tl().x, src.cols - 1 - objROI.br().x);
+	const int added_y = min(objROI.tl().y, src.rows - 1 - objROI.br().y);
+	const int added_size = min(added_x, int(added_y * targetAR));
+	const Rect largeRect(objROI.tl() - Point(added_size, added_size/targetAR),
+				   objROI.size() + Size(2*added_size, 2*int(added_size/targetAR)));
 
-	// The object should be centered in the above
-	// ROI using this Rect
-	Rect newObjROI(objROI.width / 2, objROI.width / 2, objROI.width, objROI.height);
-
+	const Rect largeRectBounds(0,0,largeRect.width, largeRect.height);
+	// This is a rect which will be the input objROI but
+	// in coorindates relative to the largeRect created above
+	const Rect newObjROI(added_size, added_size/targetAR, objROI.width, objROI.height);
 	// Generate copiesPerShift images per shift/scale permutation
 	// So each call will end up with 5 * 3 * 3 * copiesPerShift
 	// images writen
@@ -115,13 +119,21 @@ void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRo
 			{
 				for (int c = 0; c < copiesPerShift; c++)
 				{
-					// Rotate the image a random amount.  Mask isn't used
-					// since there's no chroma-keying going on.
-					rotateImageAndMask(src(twiceObjROI), Mat(), Scalar(), maxRot, rng, rotImg, rotMask);
-
 					// Shift/rescale the region of interest based on
 					// which permuation of the shifts/rescales we're at
-					Rect thisROI = shiftRect(newObjROI, ds[is], (ix-1)*dx, (iy-1)*dy);
+					const Rect thisROI = shiftRect(newObjROI, ds[is], (ix-1)*dx, (iy-1)*dy);
+					if ((largeRectBounds & thisROI) != thisROI)
+					{
+						cerr << "Rectangle out of bounds for " << is 
+							<< " " << ix << " " << iy << " " << 
+							largeRectBounds.size() << " vs " << thisROI << endl;
+						break;
+					}
+
+					// Rotate the image a random amount.  Mask isn't used
+					// since there's no chroma-keying going on.
+					rotateImageAndMask(src(largeRect), Mat(), fillColor, maxRot, rng, rotImg, rotMask);
+
 					rotImg(thisROI).copyTo(final);
 #if 0
 					imshow("src", src);
@@ -130,7 +142,7 @@ void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRo
 					imshow("src(twice ROI)(newObjROI)", src(twiceObjROI)(newObjROI));
 					imshow("rotImg", rotImg);
 					imshow("rotImg(newObjROI)", rotImg(newObjROI));
-					//resize (final, final, Size(240,240));
+					resize (final, final, Size(240,240));
 					imshow("Final", final);
 					waitKey(0);
 #else
@@ -194,13 +206,13 @@ void doShifts(const Mat &src, const Mat &mask, RNG &rng, RandomSubImage &rsi, co
 	// where we're working from a list of files captured from live
 	// video rather than video shot against a fixed background - can't
 	// guarantee the border color there is safe to use
-	Scalar fillColor = Scalar(src.at<Vec3b>(0,0)); 
+	const Scalar fillColor = Scalar(src.at<Vec3b>(0,0));
 
 	// Enlarge the original image.  Since we're shifting the region
 	// of interest need to do this to make sure we don't end up 
 	// outside the mat boundries
-	int expand = max(src.rows, src.cols) / 2;
-	Rect origROI(expand, expand, src.cols, src.rows);
+	const int expand = max(src.rows, src.cols) / 2;
+	const Rect origROI(expand, expand, src.cols, src.rows);
 	copyMakeBorder(src, original, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(fillColor));
 	copyMakeBorder(mask, objMask, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0));
 	
@@ -226,7 +238,7 @@ void doShifts(const Mat &src, const Mat &mask, RNG &rng, RandomSubImage &rsi, co
 
 					// Shift/rescale the region of interest based on
 					// which permuation of the shifts/rescales we're at
-					Rect ROI = shiftRect(origROI, ds[is], (ix-1)*dx, (iy-1)*dy);
+					const Rect ROI = shiftRect(origROI, ds[is], (ix-1)*dx, (iy-1)*dy);
 					chromaImg(ROI).copyTo(final);
 #if 0
 					imshow("original", original);
