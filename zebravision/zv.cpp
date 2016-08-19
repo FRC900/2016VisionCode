@@ -231,6 +231,11 @@ int main( int argc, const char** argv )
 	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
 	Mat depth;
+
+	// Seek to start frame if necessary
+	if (args.frameStart > 0)
+		cap->frameNumber(args.frameStart);
+
 	//load an initial frame for stuff like optical flow which requires an initial
 	// frame to compute difference against
 	//also checks to make sure that the cap object works
@@ -242,10 +247,6 @@ int main( int argc, const char** argv )
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth goalTruth("goal_truth.txt", args.inputName);
-
-	// Seek to start frame if necessary
-	if (args.frameStart > 0)
-		cap->frameNumber(args.frameStart);
 
 	//only start up the window if batch mode is disabled
 	if (!args.batchMode)
@@ -495,7 +496,7 @@ int main( int argc, const char** argv )
 				frameStr << '/' << frames;
 
 			stringstream fpsStr;
-			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "FPS";
+			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << " FPS";
 			if (!args.batchMode)
 			{
 				if (printFrames)
@@ -505,7 +506,7 @@ int main( int argc, const char** argv )
 				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			}
 			else
-				cerr << frameStr.str() << " : " << fpsStr.str() << endl;
+				cerr << args.inputName << " : " << frameStr.str() << " : " << fpsStr.str() << endl;
 		}
 
 		// Various random display updates. Only do them every frameDisplayFrequency
