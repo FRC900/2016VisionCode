@@ -133,9 +133,9 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
     rectsOut.clear();
     for (auto it = windowsIn.cbegin(); it != windowsIn.cend(); ++it)
     {
-        double scale = scaledImages24[it->second].second;
-        Rect rect(it->first);
-        Rect scaledRect(Rect(cvRound(rect.x / scale), cvRound(rect.y / scale), cvRound(rect.width / scale), cvRound(rect.height / scale)));
+        const double scale = scaledImages24[it->second].second;
+        const Rect rect(it->first);
+        const Rect scaledRect(Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         rectsOut.push_back(scaledRect);
     }
 
@@ -148,8 +148,8 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 			scale = scaledImages12[it->second].second;
 		else
 			scale = scaledImages24[it->second].second;
-        Rect rect(it->first);
-        Rect scaledRect(Rect(cvRound(rect.x / scale), cvRound(rect.y / scale), cvRound(rect.width / scale), cvRound(rect.height / scale)));
+        const Rect rect(it->first);
+        const Rect scaledRect(Rect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale));
         uncalibRectsOut.push_back(scaledRect);
     }
 }
@@ -181,9 +181,9 @@ void NNDetect<MatT>::runGlobalNMS(const vector<Window>& windows,
         // scales might overlap
         for (size_t i = 0; i < windows.size(); i++)
         {
-            double scale = scaledImages[windows[i].second].second;
-            Rect   rect(windows[i].first);
-            Rect   scaledRect(Rect(cvRound(rect.x / scale), cvRound(rect.y / scale), cvRound(rect.width / scale), cvRound(rect.height / scale)));
+            const double scale = scaledImages[windows[i].second].second;
+            const Rect   rect(windows[i].first);
+            const Rect   scaledRect(rect.x / scale, rect.y / scale, rect.width / scale, rect.height / scale);
             detected.push_back(Detected(scaledRect, scores[i]));
         }
 
@@ -458,19 +458,19 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
 		// identifies the image passed in
         for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
         {
+
+#if 0
 			if (imgs[i].rows > 12)
 			{
 				cout << it->first << " " << it->second << " ";
-
-#if 0
 				Mat img = imgs[i].clone();
 				Mat wr;
 				img.convertTo(wr, CV_8UC3, 255);
 				stringstream s;
 				s << "debug_" << i << ".png";
 				imwrite(s.str(), wr);
-#endif
 			}
+#endif
 
 
             if (it->first == label)
@@ -480,8 +480,10 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
                     detected.push_back(i);
                     scores.push_back(it->second);
                 }
+#if 0
 				if (imgs[0].rows > 12)
 					cout << endl;
+#endif
                 break;
             }
         }
@@ -538,10 +540,10 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 		cout << " dy=" << dy;
 #endif
 		// Actually apply the shift/scale
-		rOut = Rect(cvRound(rOut.tl().x - dx*rOut.width/ds), 
-				    cvRound(rOut.tl().y - dy*rOut.height/ds), 
-					cvRound(rOut.width/ds), 
-					cvRound(rOut.height/ds));
+		rOut = Rect(rOut.tl().x - dx*rOut.width/ds, 
+				    rOut.tl().y - dy*rOut.height/ds, 
+					rOut.width/ds, 
+					rOut.height/ds);
 #ifdef VERBOSE
 		cout << " Out=" << rOut;
 #endif
