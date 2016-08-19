@@ -35,7 +35,11 @@ int main(int argc, char **argv)
 			cout << count << endl;
 		filenames.push_back(filename);
 		imgs.push_back(imread(filename));
-		if ((imgs.size() == batchSize))
+		if (imgs[imgs.size()-1].empty())
+		{
+			cout << "\"" << filename <<  "\"" << endl;
+		}
+		if (imgs.size() == batchSize)
 		{
 			auto outImgs = zca.Transform8UC3(imgs);
 			for (size_t i = 0; i < outImgs.size(); i++)
