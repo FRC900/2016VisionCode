@@ -262,12 +262,19 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		else
 			divide(output, Scalar(255.0,255.0,255.0), output);
 		
-		output = output.reshape(1, 1);
-		work.push_back(output);
+		// Reshape flattens the image to 1 channel, 1 row.
+		// Push that row into the bottom of work
+		work.push_back(output.reshape(1,1));
 	}
-	// Each image is a new row above, but we
-	// really need each image in its own column
-	work=work.t();
+
+	// Math here is weights * images = output
+	// This works if each image is a row of data
+	// The natural way to add data above using push_back
+	//  creates a transpose of that instead.  Take advantage
+	//  of the identiy (AB)^T = B^T A^T.  A=weights, B=images
+	// Since we want to pull images apart in the same transposed
+	// order, this saves a few transposes and gives a
+	// slight performance bump.
 
 	// Apply ZCA transform matrix
 	// This is just a matrix multiply of
@@ -277,21 +284,23 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	{
 		gm_.upload(work);
 		// gmOut_ = 1.0 * weightsGPU_ * gm_
-		gpu::gemm(weightsGPU_, gm_, 1.0, buf_, 0.0, gmOut_);
+		gpu::gemm(gm_, weightsGPU_, 1.0, buf_, 0.0, gmOut_);
 
 		gmOut_.download(output);
 	}
 	else if (!weights_.empty())
 		gemm(weights_, work, 1.0, Mat(), 0.0, output);
 
-	// Shift back to 1 image per row
-	// to make it easier to split back into
-	// individual images
-	output = output.t();
 
-	vector<Mat> ret;
+	// Matrix comes out transposed - instead
+	// of an image per column it is an image per row.
+	// That's a natural fit for taking them apart
+	// back into images, though, so it save some time
+	// not having to transpose the output
+
 	// Each row is a different input image,
 	// put them each into their own Mat
+	vector<Mat> ret;
 	for (int i = 0; i < output.rows; i++)
 	{
 		// Turn each row back into a 2-d mat with 3 float color channels
@@ -311,19 +320,17 @@ ZCA::ZCA(const char *xmlFilename)
 		{
 			fs["ZCASize"] >> size_;
 			fs["ZCAWeights"] >> weights_;
+	
+			// Transpose these once here to save doing
+			// it every time in the calcuation step
+			weights_ = weights_.t();
 			if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
 				weightsGPU_.upload(weights_);
+
 			fs["ZCAEpsilon"] >> epsilon_;
 			fs["OverallMin"] >> overallMin_;
 			fs["OverallMax"] >> overallMax_;
 			fs["GlobalContrastNorm"] >> globalContrastNorm_;
-#if 0
-			if (!globalContrastNorm_)
-			{
-				overallMin_ = -0.5;
-				overallMax_ = 0.5;
-			}
-#endif
 		}
 		fs.release();
 	}
