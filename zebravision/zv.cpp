@@ -517,7 +517,8 @@ int main( int argc, const char** argv )
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
 		// 3, 5 or whatever frames instead.
-		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
+		if ((!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
+			(args.saveVideo && processedOut))
 		{
 			if (args.rects)
 			{
@@ -529,9 +530,17 @@ int main( int argc, const char** argv )
 			// Draw tracking info if it is enabled
 			if (args.tracking)
 				drawTrackingInfo(frame, displayList, posHist);
-			vector<TrackedObjectDisplay> emptyDisplayList;
-			drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
-			imshow("Top view", top_frame);
+
+			// Actually display window if we're not in batch mode
+			// Check is needed in case we're saving in batch mode
+			// which means generate all the GUI data to write to 
+			// disk but don't actually display on screen
+			if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) 
+			{
+				vector<TrackedObjectDisplay> emptyDisplayList;
+				drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
+				imshow("Top view", top_frame);
+			}
 
 			// Put an A on the screen if capture-all is enabled so
 			// users can keep track of that toggle's mode
@@ -577,7 +586,8 @@ int main( int argc, const char** argv )
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
-			imshow(windowName, frame);
+			if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) 
+				imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a file
 			if (args.saveVideo && processedOut)
@@ -588,7 +598,9 @@ int main( int argc, const char** argv )
 		 		{
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
-				}
+				} 
+				// Make sure last frame is written, then write this one
+				processedOut->sync();
 				processedOut->saveFrame(frame, depth);
 			}
 
