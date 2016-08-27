@@ -20,7 +20,7 @@ static void Usage(void)
    cout << "\t--capture            save raw camera video to output file" << endl;
    cout << "\t--captureSkip=       only save one of every N frames" << endl;
    cout << "\t--save               write processed video to output file" << endl;
-   cout << "\t--saveSkip-          only save one of every N processed frames" << endl;
+   cout << "\t--saveSkip=          only save one of every N processed frames" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
    cout << "\t--no-tracking        start with tracking rectangles disabled" << endl;
    cout << "\t--no-detection       disable object detection" << endl;
