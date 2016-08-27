@@ -34,6 +34,7 @@ class ZCA
 		double beta(void) const;
 
 	private:
+		std::vector<cv::Mat> Transform32FC3GPU(const std::vector<cv::Mat> &input);
 		cv::Size         size_;
 
 		// The weights, stored in both
