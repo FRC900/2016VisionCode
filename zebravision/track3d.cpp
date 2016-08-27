@@ -7,6 +7,8 @@
 using namespace std;
 using namespace cv;
 
+// How many consecutive frames a track must be missing before
+// it is erased 
 const int missedFrameCountMax = 10;
 
 ObjectType::ObjectType(int contour_type_id=1) {
@@ -296,7 +298,24 @@ void TrackedObject::clearDetected(void)
 
 bool TrackedObject::tooManyMissedFrames(void) const
 {
-	return missedFrameCount_ > missedFrameCountMax;
+	// Hard limit on the number of consecutive missed
+	// frames before dropping a track
+	if (missedFrameCount_ > missedFrameCountMax)
+		return true;
+
+	// Be more aggressive about dropping tracks which
+	// haven't been around long - kill them off if 
+	// they are seen in less than 33% of frames
+	if (detectHistory_.size() <= 10)
+	{
+		size_t detectCount = 0;
+		for (auto it = detectHistory_.begin();  it != detectHistory_.end(); ++it)
+			if (*it)
+				detectCount += 1;
+		if (((double)detectCount / detectHistory_.size()) <= 0.34)
+			return true;
+	}
+	return false;
 }
 
 // Keep a history of the most recent positions
@@ -320,20 +339,49 @@ vector <Point> TrackedObject::getScreenPositionHistory(const Point2f &fov_size, 
 	return ret;
 }
 
-// Return the percent of last _detectHistory.size() frames
+const double minDisplayRatio = 0.3;
+
+// Return the percent of last detectHistory_.capacity() frames
 // the object was seen
 double TrackedObject::getDetectedRatio(void) const
 {
-	int detectedCount = 0;
+	// Need at least 2 frames to believe there's something real
+	if (detectHistory_.size() <= 1)
+		return 0.01;
 
-	// TODO : what to do for new detections?
+	// Don't display stuff which hasn't been detected recently.
+	if (missedFrameCount_ >= 3)
+		return 0.01;
+
+	size_t detectCount = 0;
 	for (auto it = detectHistory_.begin();  it != detectHistory_.end(); ++it)
 		if (*it)
-			detectedCount += 1;
-	double detectRatio = (double)detectedCount / detectHistory_.capacity();
-	// Don't display stuff which hasn't been detected recently.
-	if (missedFrameCount_ >= 4)
-		detectRatio = min(0.01, detectRatio);
+			detectCount += 1;
+
+	// For newly added tracks make sure only 1 frame is missed at most
+	// while the first quarter of the buffer is filled and at most
+	// two are missed while filling up to half the size of the buffer
+	if (detectHistory_.size() < (detectHistory_.capacity()/2))
+	{
+		if (detectCount < (detectHistory_.size() - 2))
+			return 0.01;
+		if ((detectHistory_.size() <= (detectHistory_.capacity()/4)) && (detectCount < (detectHistory_.size() - 1)))
+			return 0.01;
+
+		// Ramp up from minDisplayRatio so that at 10 hits it will
+		// end up at endRatio = 10/20 = 50% or 9/20 = 45%
+		// 2:2 = 32.5%
+		// 3:3 = 35%
+		// 4:4 = 37.5%
+		// 5:5 = 40%
+		// 6:6 = 42.5%
+		// 7:7 = 45%
+		// 8:8 = 47.5%
+		// 9:9 = 50%
+		double endRatio =  (detectHistory_.capacity() / 2.0 - (detectHistory_.size() - detectCount)) / detectHistory_.capacity();
+		return minDisplayRatio + (detectHistory_.size() - 2.0) * (endRatio - minDisplayRatio) / (detectHistory_.capacity() / 2.0 - 2.0);
+	}
+	double detectRatio = (double)detectCount / detectHistory_.capacity();
 	return detectRatio;
 }
 
