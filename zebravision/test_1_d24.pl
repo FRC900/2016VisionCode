@@ -3,19 +3,20 @@
 use Cwd 'abs_path';
 my $cwd = abs_path(".");
 
-#my $videodir = "/home/kjaget/ball_videos/test";
-my $videodir = "/home/kjaget/ball_videos/20160210";
-my $level = "d12";
-
 opendir(my $dh, ".") || die "Can not open $basedir : $!";
 @zv_dirs = grep {-d } readdir($dh);
 closedir $dh;
 my @d12_model_dirs = grep { /d12_/  } @zv_dirs;
 my @d24_model_dirs = ("d24_1");
 
-opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
-my @videos = grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
-closedir $dh;
+my @videodirs = ("/home/kjaget/ball_videos/test", "/home/kjaget/ball_videos/20160210");
+my @videos = ();
+for $videodir (@videodirs)
+{
+	opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
+	push @videos, grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
+	closedir $dh;
+}
 
 for $video (sort @videos)
 {
