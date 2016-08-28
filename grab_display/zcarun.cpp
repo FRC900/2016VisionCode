@@ -10,7 +10,7 @@ using namespace cv;
 
 int main(int argc, char **argv)
 {
-	const int batchSize = 256;
+	const int batchSize = 1024;
 	if (argc <= 3)
 	{
 		cout << "Usage : " << argv[0] << " xml_saved_weights_24 filelist outdir" << endl;
@@ -41,7 +41,15 @@ int main(int argc, char **argv)
 		}
 		if (imgs.size() == batchSize)
 		{
+#if 0
+			double start = gtod_wrapper();
+#endif
 			auto outImgs = zca.Transform8UC3(imgs);
+#if 0
+			double end = gtod_wrapper();
+			cout << "Elapsed time " << end - start << endl;
+			return 0;
+#endif
 			for (size_t i = 0; i < outImgs.size(); i++)
 			{
 				size_t found = filenames[i].find_last_of("/\\");
