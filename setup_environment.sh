@@ -1,6 +1,6 @@
 jetson=false
 version=tx
-cuda=false
+gpu=false
 
 #process args
 while [ $# -gt 0 ]
@@ -8,9 +8,9 @@ do
     case "$1" in
         -jx) jetson=true;;
 	-jk) jetson=true; version=tk;;
-	-c) cuda=true;;
+	-g) gpu=true;;
 	-h) echo >&2 \
-	    "usage: $0 [-j]"
+	    "usage: $0 [-jx or -jk] [-g] [-h]"
 	    exit 1;;
 	*)  break;;	# terminate while loop
     esac
@@ -37,16 +37,15 @@ sudo apt-get install -y git wget linux-image-generic build-essential unzip
 # Cuda 7.0
 # instead we install the nvidia driver 352 from the cuda repo
 # which makes it easier than stopping lightdm and installing in terminal
-if [ "$cuda" = true ] ; then
-	cd /tmp
-	wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.0-28_amd64.deb
-	sudo dpkg -i cuda-repo-ubuntu1404_7.0-28_amd64.deb
 
-	echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
-	echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
+cd /tmp
+wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.0-28_amd64.deb
+sudo dpkg -i cuda-repo-ubuntu1404_7.0-28_amd64.deb
+sudo apt-get update && sudo apt-get install cuda-toolkit-7-0
 
-	echo "CUDA installation complete: please reboot your machine and continue with script #2"
-fi
+echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
+echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
+
 
 #install caffe
 cd
@@ -56,7 +55,7 @@ mkdir build
 cd build
 cmake ..
 
-if [ "$cuda" == "false" ] ; then
+if [ "$gpu" == "false" ] ; then
 	cmake -DCPU_ONLY ..
 else
 	cmake ..
@@ -102,10 +101,10 @@ sudo make install
 
 
 #install zed sdk
-if [ "$cuda" = true ] ; then
+if [ "$gpu" = true ] ; then
 	if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
 		ext = "ZED_SDK_Linux_JTK1_v1.0.0c.run"
-	else if [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
+	elif [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
 		ext = "ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run"
 	else
 		ext = "ZED_SDK_Linux_x86_64_v1.0.0c.run" 
