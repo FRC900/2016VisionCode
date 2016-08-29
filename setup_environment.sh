@@ -1,3 +1,21 @@
+
+jetson=false
+cuda=false
+
+#process args
+while [ $# -gt 0 ]
+do
+    case "$1" in
+        -j) jetson=true;;
+	-c) cuda=true;;
+	-h) echo >&2 \
+	    "usage: $0 [-j]"
+	    exit 1;;
+	*)  break;;	# terminate while loop
+    esac
+    shift
+done
+
 #install basic dependencies
 sudo apt-get update
 
@@ -7,6 +25,28 @@ sudo apt-get install --no-install-recommends libboost-all-dev
 sudo apt-get install v4l-conf v4l-utils 
 sudo apt-get install exfat-fuse exfat-utils
 
+# Installation script for Cuda and drivers on Ubuntu 14.04, by Roelof Pieters (@graphific)
+# BSD License
+
+export DEBIAN_FRONTEND=noninteractive
+
+sudo apt-get update -y
+sudo apt-get install -y git wget linux-image-generic build-essential unzip
+
+# Cuda 7.0
+# instead we install the nvidia driver 352 from the cuda repo
+# which makes it easier than stopping lightdm and installing in terminal
+if [ "$cuda" = true ] ; then
+	cd /tmp
+	wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.0-28_amd64.deb
+	sudo dpkg -i cuda-repo-ubuntu1404_7.0-28_amd64.deb
+
+	echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
+	echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
+
+	echo "CUDA installation complete: please reboot your machine and continue with script #2"
+fi
+
 #install caffe
 cd
 git clone https://github.com/BVLC/caffe.git
@@ -14,6 +54,13 @@ cd caffe
 mkdir build
 cd build
 cmake ..
+
+if [ "$cuda" == "false" ] ; then
+	cmake -DCPU_ONLY ..
+else
+	cmake ..
+fi
+
 
 make -j4 all
 make test
@@ -53,16 +100,19 @@ cmake ..
 sudo make install
 
 
+#install zed sdk
 cd
 wget https://www.stereolabs.com/download_327af3/ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
 chmod 755 ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
 ./ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
 rm ./ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
 
+#clone repo
 cd
 git clone https://github.com/FRC900/2016VisionCode.git
 cd 2016VisionCode
 
+#build stuff
 cd libfovis
 mkdir build
 cd build
@@ -73,7 +123,10 @@ cd bindetection
 cmake .
 make -j4
 
-sudo mkdir /mnt/900_2
-sudo cp ~/2016VisionCode/zv.conf /etc/init
-sudo chmod 755 /usr/local/zed/settings
-sudo cp ~/2016VisionCode/
+#mount and setup autostart script
+if [ "$jetson" = true ] ; then
+	sudo mkdir /mnt/900_2
+	sudo cp ~/2016VisionCode/zv.conf /etc/init
+	sudo chmod 755 /usr/local/zed/settings
+	sudo cp ~/2016VisionCode/
+fi
