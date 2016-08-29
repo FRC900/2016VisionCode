@@ -1,12 +1,13 @@
-
 jetson=false
+version=tx
 cuda=false
 
 #process args
 while [ $# -gt 0 ]
 do
     case "$1" in
-        -j) jetson=true;;
+        -jx) jetson=true;;
+	-jk) jetson=true; version=tk;;
 	-c) cuda=true;;
 	-h) echo >&2 \
 	    "usage: $0 [-j]"
@@ -101,11 +102,19 @@ sudo make install
 
 
 #install zed sdk
-cd
-wget https://www.stereolabs.com/download_327af3/ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
-chmod 755 ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
-./ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
-rm ./ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run
+if [ "$cuda" = true ] ; then
+	if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
+		ext = "ZED_SDK_Linux_JTK1_v1.0.0c.run"
+	else if [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
+		ext = "ZED_SDK_Linux_JTX1_v0.9.2b_alpha.run"
+	else
+		ext = "ZED_SDK_Linux_x86_64_v1.0.0c.run" 
+	fi
+	wget https://www.stereolabs.com/download_327af3/$ext
+	chmod 755 $ext
+	./$ext
+	rm ./$ext
+fi
 
 #clone repo
 cd
