@@ -16,10 +16,10 @@ use strict;
 # Create a positives.dat file containing names of all of the input images
 # Create a similar negatives.dat file holding names of the negatives
 #
-# white : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x511efc -bgthresh 0x511e03 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
-# blue : 
-my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73ee64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
-# purple : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x143667 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 48 -h 48 -hsv';
+# white :  my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x511efc -bgthresh 0x511e03 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 24 -h 24 -hsv';
+# blue : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x73ee64 -bgthresh 0x061433 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 24 -h 24 -hsv';
+# purple : my $cmd = '../opencv_createsamples_color/opencv_createsamples_color -bgcolor 0x96c997 -bgthresh 0x143667 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 24 -h 24 -hsv';
+my $cmd = '/home/ubuntu/2016VisionCode/opencv_createsamples_color/opencv_createsamples_color -bgcolor 0 -bgthresh 0 -maxxangle .2 -maxyangle .2 -maxzangle 6.283 -maxidev 40 -w 24 -h 24 -hsv';
 my $totalnum = 7000;
 my $tmpfile  = 'tmp';
 

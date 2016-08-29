@@ -88,17 +88,21 @@ void drawRects(Mat image, const vector<Rect> detectRects, Scalar rectColor, bool
     }
 }
 
+const static double minRatio = 0.30;
 
 void drawTrackingInfo(Mat& frame, const vector<TrackedObjectDisplay>& displayList, const vector<vector<Point>> &posHist)
 {
     for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
     {
-        if (it->ratio >= 0.20)
+        if (it->ratio >= minRatio)
         {
             const int roundPosTo = 2;
             // Color moves from red to green (via brown, yuck)
             // as the detected ratio goes up
-            const Scalar rectColor(0, 255 * it->ratio, 255 * (1.0 - it->ratio));
+			// Scaled ratio changes from [minRatio,1.0] -> [0,1] so we see the full
+			// range of colors 
+			const double scaledRatio = (it->ratio - minRatio) / (1.0 - minRatio);
+            const Scalar rectColor(0, 255 * scaledRatio, 255 * (1.0 - scaledRatio));
             // Highlight detected target
             rectangle(frame, it->rect, rectColor, 3);
             // Write detect ID, distance and angle data
@@ -142,7 +146,7 @@ void drawTrackingTopDown(Mat& frame, const vector<TrackedObjectDisplay>& display
     line(frame, imageCenter, imageCenter - Point(0, imageSize.x / 2), Scalar(0, 0, 255), 3);
     for (auto it = displayList.cbegin(); it != displayList.cend(); ++it)
     {
-        if (it->ratio >= 0.20)
+        if (it->ratio >= minRatio)
         {
         Point2f realPos = Point2f(it->position.x, it->position.y);
         Point2f imagePos;
@@ -261,7 +265,7 @@ int main( int argc, const char** argv )
 	//float maxDistance = 25.0 * 12.0 * .0254; //ft * to_in * to_m
 	//float angular_size = 2.0 * atan2(ObjectType(1).width(), (2.0*maxDistance));
 	//minDetectSize = angular_size * (cap->width() / camParams.fov.x);
-	minDetectSize = 40;
+	minDetectSize = 60;
 	cout << "Min Detect Size: " << minDetectSize << endl;
 
 	// If UI is up, pop up the parameters window
@@ -513,7 +517,8 @@ int main( int argc, const char** argv )
 		// frames. Normally this value is 1 so we display every frame. When exporting
 		// X over a network, though, we can speed up processing by only displaying every
 		// 3, 5 or whatever frames instead.
-		if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0))
+		if ((!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) ||
+			(args.saveVideo && processedOut))
 		{
 			if (args.rects)
 			{
@@ -525,9 +530,17 @@ int main( int argc, const char** argv )
 			// Draw tracking info if it is enabled
 			if (args.tracking)
 				drawTrackingInfo(frame, displayList, posHist);
-			vector<TrackedObjectDisplay> emptyDisplayList;
-			drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
-			imshow("Top view", top_frame);
+
+			// Actually display window if we're not in batch mode
+			// Check is needed in case we're saving in batch mode
+			// which means generate all the GUI data to write to 
+			// disk but don't actually display on screen
+			if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) 
+			{
+				vector<TrackedObjectDisplay> emptyDisplayList;
+				drawTrackingTopDown(top_frame, args.tracking ? displayList : emptyDisplayList, gd.goal_pos());
+				imshow("Top view", top_frame);
+			}
 
 			// Put an A on the screen if capture-all is enabled so
 			// users can keep track of that toggle's mode
@@ -573,7 +586,8 @@ int main( int argc, const char** argv )
 
 			// Main call to display output for this frame after all
 			// info has been written on it.
-			imshow(windowName, frame);
+			if (!args.batchMode && ((cap->frameNumber() % frameDisplayFrequency) == 0)) 
+				imshow(windowName, frame);
 
 			// If saveVideo is set, write the marked-up frame to a file
 			if (args.saveVideo && processedOut)
@@ -584,7 +598,9 @@ int main( int argc, const char** argv )
 		 		{
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
-				}
+				} 
+				// Make sure last frame is written, then write this one
+				processedOut->sync();
 				processedOut->saveFrame(frame, depth);
 			}
 

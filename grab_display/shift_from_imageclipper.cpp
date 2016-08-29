@@ -20,7 +20,7 @@
 using namespace std;
 using namespace cv;
 
-string srcPath = "/home/kjaget/ball_videos/test/";
+string srcPath = "/home/kjaget/ball_videos/white_floor/";
 string outPath = "shifts";
 int main(void)
 {
@@ -59,7 +59,7 @@ int main(void)
 			write_name << "_" << setw(4) << rect.height;
 			write_name << ".png";
 
-			doShifts(mat, rect, rng, Point3f(0,0,2.0*M_PI), 10, outPath, write_name.str());
+			doShifts(mat, rect, rng, Point3f(0,0,2.0*M_PI), 4, outPath, write_name.str());
 		}
 	}
 	return 0;
