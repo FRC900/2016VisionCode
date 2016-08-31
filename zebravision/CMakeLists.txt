@@ -52,7 +52,8 @@ add_executable(zv
 	objdetect.cpp
 	GoalDetector.cpp
 	detect.cpp
-	CaffeBatchPrediction.cpp
+	Classifier.cpp
+	CaffeClassifier.cpp
 	fast_nms.cpp
 	scalefactor.cpp
 	detectstate.cpp
@@ -71,7 +72,7 @@ add_executable(zv
 	classifierio.cpp
 	Args.cpp
 	WriteOnFrame.cpp
-	#zedin.cpp
+	zedin.cpp
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp
@@ -93,7 +94,7 @@ target_link_libraries( zv
 	${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
-#	${ZED_LIBRARIES}
+	${ZED_LIBRARIES}
 	${CUDA_LIBRARIES}
 	${CUDA_nppi_LIBRARY}
 	${CUDA_npps_LIBRARY}
@@ -107,9 +108,9 @@ target_link_libraries( zv
 #target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 #add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 #target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-add_executable(predict_one predict_one.cpp CaffeBatchPrediction.cpp zca.cpp classifierio.cpp)
+add_executable(predict_one predict_one.cpp CaffeClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
 target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
-add_executable(rank_imagelist rank_imagelist.cpp CaffeBatchPrediction.cpp zca.cpp classifierio.cpp)
+add_executable(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
 target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
