@@ -1,5 +1,4 @@
 #include <iostream>
-#include "CaffeBatchPrediction.hpp"
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
 #include "detect.hpp"

@@ -1,4 +1,4 @@
-#include "CaffeBatchPrediction.hpp"
+#include "CaffeClassifier.hpp"
 #include "classifierio.hpp"
 
 using namespace std;

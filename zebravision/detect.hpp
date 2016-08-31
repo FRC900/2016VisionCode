@@ -1,7 +1,7 @@
 #ifndef INC_DETECT_HPP__
 #define INC_DETECT_HPP__
 
-#include "CaffeBatchPrediction.hpp"
+#include "CaffeClassifier.hpp"
 
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?

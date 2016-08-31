@@ -33,6 +33,8 @@ class ZCA
 		double alpha(int maxPixelVal = 255) const;
 		double beta(void) const;
 
+		cv::Size size(void) const;
+
 	private:
 		std::vector<cv::Mat> Transform32FC3GPU(const std::vector<cv::Mat> &input);
 		cv::Size         size_;

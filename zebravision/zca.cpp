@@ -572,3 +572,8 @@ double ZCA::beta(void) const
 {
 	return -overallMin_ * alpha();
 }
+
+Size ZCA::size(void) const
+{
+	return size_;
+}
