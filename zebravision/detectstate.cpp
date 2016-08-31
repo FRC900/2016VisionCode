@@ -89,10 +89,10 @@ bool DetectState::update(void)
 	// TODO : only reload individual nets if files change?
 	if (!gie_)
 	{
-		d12_ = new CaffeClassifier<Mat>(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 256);
-		d24_ = new CaffeClassifier<Mat>(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64);
-		c12_ = new CaffeClassifier<Mat>(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64);
-		c24_ = new CaffeClassifier<Mat>(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64);
+		d12_ = new CaffeClassifier<gpu::GpuMat>(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 256);
+		d24_ = new CaffeClassifier<gpu::GpuMat>(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64);
+		c12_ = new CaffeClassifier<gpu::GpuMat>(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64);
+		c24_ = new CaffeClassifier<gpu::GpuMat>(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64);
 	}
 	else
 	{

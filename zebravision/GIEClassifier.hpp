@@ -3,7 +3,7 @@
 #include "Infer.h"
 #include "Classifier.hpp"
 
-class GIEClassifier : public Classifier
+class GIEClassifier : public Classifier<cv::Mat>
 {
 	public:
 		GIEClassifier(const std::string& modelFile,

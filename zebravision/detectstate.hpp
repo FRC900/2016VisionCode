@@ -36,10 +36,10 @@ class DetectState
 		ClassifierIO  d24IO_;
 		ClassifierIO  c12IO_;
 		ClassifierIO  c24IO_;
-		Classifier   *d12_;
-		Classifier   *d24_;
-		Classifier   *c12_;
-		Classifier   *c24_;
+		Classifier<cv::Mat>   *d12_;
+		Classifier<cv::Mat>   *d24_;
+		Classifier<cv::Mat>   *c12_;
+		Classifier<cv::Mat>   *c24_;
 		float         hfov_;
 		bool          gie_;
 		bool          reload_;

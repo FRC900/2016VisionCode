@@ -11,6 +11,7 @@
 /* Pair (label, confidence) representing a prediction. */
 typedef std::pair<std::string, float> Prediction;
 
+template<class MatT>
 class Classifier 
 {
 	public:
@@ -27,7 +28,7 @@ class Classifier
 		// Each of the X vectors are themselves a vector which will have the 
 		// N predictions with the highest confidences for the corresponding
 		// input image
-		std::vector< std::vector<Prediction> > ClassifyBatch(const std::vector< cv::Mat > &imgs, size_t numClasses);
+		std::vector< std::vector<Prediction> > ClassifyBatch(const std::vector<MatT> &imgs, size_t numClasses);
 
 		// Get the width and height of an input image to the net
 		cv::Size getInputGeometry(void) const;
@@ -50,6 +51,6 @@ class Classifier
 		// That is, [0] = value for label 0 for the first image up to 
 		// [n] = value for label n for the first image. It then starts again
 		// for the next image - [n+1] = label 0 for image #2.
-		virtual std::vector<float> PredictBatch(const std::vector<cv::Mat> &imgs);
+		virtual std::vector<float> PredictBatch(const std::vector<MatT> &imgs) = 0;
 
 };

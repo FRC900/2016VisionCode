@@ -17,15 +17,14 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
       const string& zcaWeightFile,
       const string& labelFile,
       const size_t  batchSize) :
-	Classifier(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
+	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
 {
-(void)batchSize;
-	if (!fileExists(modelFile))
+	if (!this->fileExists(modelFile))
 	{
 		cerr << "Could not find Caffe model " << modelFile << endl;
 		return;
 	}
-	if (!fileExists(trainedFile))
+	if (!this->fileExists(trainedFile))
 	{
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
@@ -52,15 +51,15 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	Blob<float>* inputLayer = net_->input_blobs()[0];
 	const int numChannels = inputLayer->channels();
 	CHECK(numChannels == 3 || numChannels == 1) << "Input layer should have 1 or 3 channels.";
-	if (inputGeometry_ != Size(inputLayer->width(), inputLayer->height()))
+	if (this->inputGeometry_ != Size(inputLayer->width(), inputLayer->height()))
 		cerr << "Net size != ZCA size" << endl;
 
 	Blob<float>* outputLayer = net_->output_blobs()[0];
-	CHECK_EQ(labels_.size(), outputLayer->channels())
+	CHECK_EQ(this->labels_.size(), outputLayer->channels())
 		<< "Number of labels is different from the output layer dimension.";
 
 	// Pre-process Mat wrapping
-	inputLayer->Reshape(batchSize_, numChannels,
+	inputLayer->Reshape(batchSize, numChannels,
 			inputLayer->height(),
 			inputLayer->width());
 
@@ -140,8 +139,8 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 template <class MatT>
 void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 {
-	CHECK(imgs.size() <= batchSize_) <<
-		"PreprocessBatch() : too many input images : batch size is " << batchSize_ << "imgs.size() = " << imgs.size(); 
+	CHECK(imgs.size() <= this->batchSize_) <<
+		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
 
 #if 0
 	for (size_t i = 0 ; i < imgs.size(); i++)
@@ -154,7 +153,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 		imwrite(s.str(), wr);
 	}
 #endif
-	vector<MatT> zcaImgs = zca_.Transform32FC3(imgs);
+	vector<MatT> zcaImgs = this->zca_.Transform32FC3(imgs);
 #if 0
 	for (size_t i = 0 ; i < zcaImgs.size(); i++)
 	{

@@ -34,7 +34,7 @@ using namespace cv::gpu;
 	Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
 */
-void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects, vector<Rect> &uncalibImageRects)
+void GPU_NNDetect::Detect(const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects, vector<Rect> &uncalibImageRects)
 {
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it

@@ -58,16 +58,25 @@ class ObjDetect
       cv::CascadeClassifier classifier_;
 };
 */
+//TODO :: Need list of derived classes, each with a different instantiation
+// of classifier_:
+//
+		//NNDetect<cv::Mat, CaffeClassifier<>> classifier_;
+		//NNDetect<cv::gpu::GpuMat, CaffeClassifier<>> classifier_;
+
+		//NNDetect<cv::Mat, GIEClassifier<>> classifier_;
+		//NNDetect<cv::gpu::GpuMat, GIEClassifier<>> classifier_;
+//
 // GPU version of cascade classifier. Pretty much the same interface
 // as the CPU version, but with an added method to handle data
 // which is already moved to a GpuMat
 class GPU_NNDetect : public ObjDetect
 {
 	public :
-		GPU_NNDetect(Classifier *d12,
-					 Classifier *d24,
-					 Classifier *c12,
-					 Classifier *c24,
+		GPU_NNDetect(Classifier<cv::Mat> *d12,
+					 Classifier<cv::Mat> *d24,
+					 Classifier<cv::Mat> *c12,
+					 Classifier<cv::Mat> *c24,
 					 float hfov) :
 						ObjDetect(),
 						classifier_(d12, d24, c12, c24, hfov)

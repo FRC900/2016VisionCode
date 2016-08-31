@@ -371,7 +371,7 @@ void NNDetect<MatT>::generateInitialWindows(
 // we're looking for.
 // For each detected window, also return a score 
 template<class MatT>
-void NNDetect<MatT>::runDetection(Classifier *&classifier,
+void NNDetect<MatT>::runDetection(Classifier<MatT> *&classifier,
                                   const vector<pair<MatT, double> >& scaledImages,
                                   const vector<Window>& windows,
                                   float threshold,
@@ -437,7 +437,7 @@ void NNDetect<MatT>::runDetection(Classifier *&classifier,
 // do 1 run of the classifier. This takes up batch_size predictions
 // and adds the index of anything found to the detected list
 template<class MatT>
-void NNDetect<MatT>::doBatchPrediction(Classifier         *&classifier,
+void NNDetect<MatT>::doBatchPrediction(Classifier<MatT>    *&classifier,
                                        const vector<MatT>&  imgs,
                                        float                threshold,
                                        const string&        label,
@@ -506,7 +506,7 @@ void NNDetect<MatT>::doBatchPrediction(Classifier         *&classifier,
 template<class MatT>
 void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
                                     const vector<pair<MatT, double> >& scaledImages,
-                                    Classifier *&classifier,
+                                    Classifier<MatT> *&classifier,
                                     float threshold,
                                     vector<Window>& windowsOut)
 {
@@ -609,7 +609,7 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 
 
 template<class MatT>
-void NNDetect<MatT>::doBatchCalibration(Classifier            *&classifier,
+void NNDetect<MatT>::doBatchCalibration(Classifier<MatT>      *&classifier,
                                         const vector<MatT>&     imgs,
                                         float                   threshold,
                                         vector<vector<float> >& shift)
@@ -727,4 +727,4 @@ bool NNDetect<GpuMat>::depthInRange(float depth_min, float depth_max, const GpuM
 
 // Explicitly instatiate classes used elsewhere
 template class NNDetect<Mat>;
-//template class NNDetect<GpuMat>;
+template class NNDetect<GpuMat>;

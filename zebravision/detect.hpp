@@ -27,10 +27,10 @@ template <class MatT>
 class NNDetect
 {
 	public:
-		NNDetect(Classifier *d12,
-			     Classifier *d24, 
-	   		     Classifier *c12,
-			     Classifier *c24, 
+		NNDetect(Classifier<MatT> *d12,
+			     Classifier<MatT> *d24, 
+	   		     Classifier<MatT> *c12,
+			     Classifier<MatT> *c24, 
 			     float hfov)  :
 			d12_(d12),
 			d24_(d24),
@@ -52,12 +52,12 @@ class NNDetect
 
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
-		Classifier *d12_;
-		Classifier *d24_;
-		Classifier *c12_;
-		Classifier *c24_;
+		Classifier<MatT> *d12_;
+		Classifier<MatT> *d24_;
+		Classifier<MatT> *c12_;
+		Classifier<MatT> *c24_;
 		float hfov_;
-		void doBatchPrediction(Classifier *&classifier,
+		void doBatchPrediction(Classifier<MatT> *&classifier,
 				const std::vector<MatT> &imgs,
 				float threshold,
 				const std::string &label,
@@ -74,7 +74,7 @@ class NNDetect
 				std::vector<std::pair<MatT, double> > &scaledimages,
 				std::vector<Window> &windows);
 
-		void runDetection(Classifier *&classifier,
+		void runDetection(Classifier<MatT> *&classifier,
 				const std::vector<std::pair<MatT, double> > &scaledimages,
 				const std::vector<Window> &windows,
 				float threshold,
@@ -93,10 +93,10 @@ class NNDetect
 				std::vector<Window> &windowsOut);
 		void runCalibration(const std::vector<Window>& windowsIn,
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
-				    Classifier *&classifier,
+				    Classifier<MatT> *&classifier,
 				    float threshold,
 				    std::vector<Window>& windowsOut);
-		void doBatchCalibration(Classifier *&classifier,
+		void doBatchCalibration(Classifier<MatT> *&classifier,
 					const std::vector<MatT>& imags,
 					float threshold,
 					std::vector<std::vector<float> >& shift);

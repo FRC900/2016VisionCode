@@ -7,7 +7,7 @@
 // For a CPU classifier, use CaffeClassifer<cv::Mat> fooCPU, and
 // use CaffeClassifier<cv::gpu::GpuMat> fooGPU
 template <class MatT>
-class CaffeClassifier : public Classifier
+class CaffeClassifier : public Classifier<MatT>
 {
 	public:
 		CaffeClassifier(const std::string& modelFile,
