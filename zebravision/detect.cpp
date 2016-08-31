@@ -12,6 +12,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace cv::gpu;
 
 static double gtod_wrapper(void)
 {
@@ -81,7 +82,10 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	// rather than every time we pass a sub-window into the detection
 	// code to save some time
     MatT(inputImg).convertTo(f32Img, CV_32FC3);
-    generateInitialWindows(f32Img, depthMat, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
+
+	// For GPU Mat, upload input CPU depth mat to GPU mat
+	MatT depth(depthMat);
+    generateInitialWindows(f32Img, depth, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
     // Generate scaled images for the larger net sizes as well.  Using a separate
 	// set of scaled images for the 24x24 net will allow the code to grab
@@ -287,7 +291,7 @@ void NNDetect<MatT>::runLocalNMS(const vector<Window>& windows,
 template<class MatT>
 void NNDetect<MatT>::generateInitialWindows(
     const MatT& input,
-    const Mat& depthIn,
+    const MatT& depthIn,
     const Size& minSize,
     const Size& maxSize,
     int wsize,
@@ -305,14 +309,14 @@ void NNDetect<MatT>::generateInitialWindows(
     // pixels we step over.
     const int step = 4;
 
-    // Create array of scaled images
+    // Create array of scaled images for RGB 
+	// and depth data
+    scalefactor(input, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
     vector<pair<MatT, double> > scaledDepth;
     if (!depthIn.empty())
     {
-        MatT depthGpu = MatT(depthIn);
-        scalefactor(depthGpu, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
+        scalefactor(depthIn, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
     }
-    scalefactor(input, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
@@ -333,23 +337,21 @@ void NNDetect<MatT>::generateInitialWindows(
         // Start at the upper left corner.  Loop through the rows and cols adding
 		// each position to the list to check until the detection window falls off 
 		// the edges of the scaled image
-		// Throw out rects which would indicate an object that is totally the
-		// wrong size for the objects we're trying to detect
         for (int r = 0; (r + wsize) <= scaledImages[scale].first.rows; r += step)
         {
             for (int c = 0; (c + wsize) <= scaledImages[scale].first.cols; c += step)
             {
                 thisWindowsChecked += 1;
-                if (!depthIn.empty())
-                {
-                    Mat detectCheck = Mat(scaledDepth[scale].first(Rect(c, r, wsize, wsize)));
-                    if (!depthInRange(depth_min, depth_max, detectCheck))
-                    {
-                        continue;
-                    }
-                }
-                windows.push_back(Window(Rect(c, r, wsize, wsize), scale));
-                thisWindowsPassed += 1;
+				const Rect rect(c, r, wsize, wsize);
+				// If there is depth data, filter using it :
+				// Throw out rects which would indicate an object that is at the
+				// wrong depth given the size of the window being searched
+                if (depthIn.empty() ||
+                    depthInRange(depth_min, depth_max, scaledDepth[scale].first(rect)))
+				{
+					windows.push_back(Window(rect, scale));
+					thisWindowsPassed += 1;
+				}
             }
         }
         windowsChecked += thisWindowsChecked;
@@ -677,8 +679,8 @@ void NNDetect<MatT>::doBatchCalibration(Classifier            *&classifier,
 // are in the expected range, consider the rect in range.  Also
 // say that it is in range if any of the depth values are negative (i.e. no
 // depth info for those pixels)
-template<class MatT>
-bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& detectCheck)
+template<>
+bool NNDetect<Mat>::depthInRange(float depth_min, float depth_max, const Mat& detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
@@ -693,23 +695,27 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& d
     }
     return false;
 }
-#if 0
-// Possible GPU implementation
+
+// Possible GPU specialization
+template<>
+bool NNDetect<GpuMat>::depthInRange(float depth_min, float depth_max, const GpuMat& detectCheck)
 {
-	MatT dstNet;
-	MatT dstLtMax;
-	MatT dstGtMin;
-	MatT dstInRange;
-	MatT dstFinal;
+	GpuMat dstNeg;
+	GpuMat dstLtMax;
+	GpuMat dstGtMin;
+	GpuMat dstInRange;
+	GpuMat dstFinal;
 
 	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
-	threshold (src, dstNeg, 0, 1, THRESH_BINARY_INV);
+	threshold (detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
+	if (countNonZero(dstNeg))
+		return true;
 
-	// Set dstLtMax to 1 if src < depth_max, otherwise set dst to 0
-	threshold (src, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
+	// Set dstLtMax to 1 if detectCheck < depth_max, otherwise set dst to 0
+	threshold (detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
 
-	// Set dstGtMin to 1 if src > depth_min, otherwise set dst to 0
-	threshold (src, dstGtMin, depth_min, 1, THRESH_BINARY);
+	// Set dstGtMin to 1 if detectCheck > depth_min, otherwise set dst to 0
+	threshold (detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
 
 	// dstInRange == 1 iff both LtMax and GtMin
 	multiply (dstLtMax, dstGtMin, dstInRange);
@@ -718,10 +724,7 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& d
 	add (dstNeg, dstInRange, dstFinal);
 	return (countNonZero(dstFinal) != 0);
 }
-#endif
-
-
 
 // Explicitly instatiate classes used elsewhere
 template class NNDetect<Mat>;
-//template class NNDetect<gpu::GpuMat>;
+//template class NNDetect<GpuMat>;

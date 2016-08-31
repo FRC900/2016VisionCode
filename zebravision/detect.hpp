@@ -66,7 +66,7 @@ class NNDetect
 
 		void generateInitialWindows(
 				const MatT &input,
-				const cv::Mat &depthIn,
+				const MatT &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
 				int wsize,
@@ -100,7 +100,7 @@ class NNDetect
 					const std::vector<MatT>& imags,
 					float threshold,
 					std::vector<std::vector<float> >& shift);
-		bool depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck);
+		bool depthInRange(float depth_min, float depth_max, const MatT &detectCheck);
 };
 
 #endif
