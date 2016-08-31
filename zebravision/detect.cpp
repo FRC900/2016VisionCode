@@ -693,6 +693,33 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& d
     }
     return false;
 }
+#if 0
+// Possible GPU implementation
+{
+	MatT dstNet;
+	MatT dstLtMax;
+	MatT dstGtMin;
+	MatT dstInRange;
+	MatT dstFinal;
+
+	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
+	threshold (src, dstNeg, 0, 1, THRESH_BINARY_INV);
+
+	// Set dstLtMax to 1 if src < depth_max, otherwise set dst to 0
+	threshold (src, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
+
+	// Set dstGtMin to 1 if src > depth_min, otherwise set dst to 0
+	threshold (src, dstGtMin, depth_min, 1, THRESH_BINARY);
+
+	// dstInRange == 1 iff both LtMax and GtMin
+	multiply (dstLtMax, dstGtMin, dstInRange);
+
+	// dstFinal == 1 iff either InRange or Neg
+	add (dstNeg, dstInRange, dstFinal);
+	return (countNonZero(dstFinal) != 0);
+}
+#endif
+
 
 
 // Explicitly instatiate classes used elsewhere
