@@ -199,11 +199,6 @@ int main( int argc, const char** argv )
 	bool gdDraw = false;      // draw goal detect details
 	int frameDisplayFrequency = 1;
 
-	// Hopefully this turns off any logging
-	::google::InitGoogleLogging("");
-	::google::LogToStderr();
-	::google::SetStderrLogging(3);
-
 	// Read through command line args, extract
 	// cmd line parameters and input filename
 	Args args;

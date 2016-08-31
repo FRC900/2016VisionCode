@@ -41,7 +41,8 @@ include_directories(/home/ubuntu/opencv-2.4.13/build/include
    	${EIGEN3_INCLUDE_DIR}
 	.
 	../fovis
-	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
+	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
+	../../GIE/include)
 
 link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
 link_directories(${ZED_LIBRARY_DIR})
@@ -54,6 +55,7 @@ add_executable(zv
 	detect.cpp
 	Classifier.cpp
 	CaffeClassifier.cpp
+	GIEClassifier.cpp
 	fast_nms.cpp
 	scalefactor.cpp
 	detectstate.cpp
@@ -108,9 +110,9 @@ target_link_libraries( zv
 #target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 #add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 #target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-add_executable(predict_one predict_one.cpp CaffeClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
-target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
-add_executable(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
-target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
+add_executable(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
+target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES})
+add_executable(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
+target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )

@@ -37,6 +37,11 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	else
 		Caffe::set_mode(Caffe::CPU);
 
+	// Hopefully this turns off any logging
+	::google::InitGoogleLogging("");
+	::google::LogToStderr();
+	::google::SetStderrLogging(3);
+
 	/* Load the network - this includes model geometry and trained weights */
 	net_.reset(new Net<float>(modelFile, TEST));
 	net_->CopyTrainedLayersFrom(trainedFile);
@@ -87,11 +92,13 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 {
 	Blob<float>* inputLayer = net_->input_blobs()[0];
 
-	const int width = inputLayer->width();
+	const int width  = inputLayer->width();
 	const int height = inputLayer->height();
-	const int num = inputLayer->num();
+	const int num    = inputLayer->num();
 	float* inputData = GetBlobData(inputLayer);
+
 	inputBatch_.clear();
+
 	for (int j = 0; j < num; j++)
 	{
 		vector<MatT> inputChannels;

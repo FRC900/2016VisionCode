@@ -58,19 +58,19 @@ class ObjDetect
       cv::CascadeClassifier classifier_;
 };
 */
-// CPU version of cascade classifier. Pretty much the same interface
+// GPU version of cascade classifier. Pretty much the same interface
 // as the CPU version, but with an added method to handle data
 // which is already moved to a GpuMat
 class GPU_NNDetect : public ObjDetect
 {
 	public :
-		GPU_NNDetect(const std::vector<std::string> &d12Info,
-					 const std::vector<std::string> &d24Info,
-					 const std::vector<std::string> &c12Info,
-					 const std::vector<std::string> &c24Info,
+		GPU_NNDetect(Classifier *d12,
+					 Classifier *d24,
+					 Classifier *c12,
+					 Classifier *c24,
 					 float hfov) :
 						ObjDetect(),
-						classifier_(d12Info, d24Info, c12Info, c24Info, hfov)
+						classifier_(d12, d24, c12, c24, hfov)
 		{
 			/* struct stat statbuf;		
 			   if (stat(cascadeName, &statbuf) != 0)
@@ -95,13 +95,6 @@ class GPU_NNDetect : public ObjDetect
 
 	private :
 		NNDetect<cv::Mat> classifier_;
-
-		// Declare GPU Mat elements once here instead of every single
-		// call to the functions which use them
-		//cv::gpu::GpuMat frameEq;
-		//cv::gpu::GpuMat frameGray;
-		//cv::gpu::GpuMat detectResultsGPU;
-		//cv::gpu::GpuMat uploadFrame;
 };
 
 extern int scale;

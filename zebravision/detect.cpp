@@ -1,10 +1,12 @@
 #include <iostream>
+#include <sys/time.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/gpu/gpu.hpp>
+
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
 #include "detect.hpp"
 #include "Utilities.hpp"
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
 
 //#define VERBOSE
 
@@ -44,7 +46,7 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 {
     // Size of the first level classifier. Others are an integer multiple
     // of this initial size (2x and maybe 4x if we need it)
-    int wsize = d12_.getInputGeometry().width;
+    int wsize = d12_->getInputGeometry().width;
 
 	// The neural nets take a fixed size input.  To detect various
 	// different object sizes, pass in several different resizings
@@ -367,7 +369,7 @@ void NNDetect<MatT>::generateInitialWindows(
 // we're looking for.
 // For each detected window, also return a score 
 template<class MatT>
-void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
+void NNDetect<MatT>::runDetection(Classifier *&classifier,
                                   const vector<pair<MatT, double> >& scaledImages,
                                   const vector<Window>& windows,
                                   float threshold,
@@ -385,7 +387,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
     // the input array above which have a high enough confidence score
     vector<size_t> detected;
 
-    size_t batchSize = classifier.BatchSize(); // defined when classifer is constructed
+    size_t batchSize = classifier->BatchSize(); // defined when classifer is constructed
     int    counter   = 0;
     //double start     = gtod_wrapper(); // grab start time
 
@@ -433,17 +435,17 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 // do 1 run of the classifier. This takes up batch_size predictions
 // and adds the index of anything found to the detected list
 template<class MatT>
-void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
-                                       const vector<MatT>&    imgs,
-                                       float                  threshold,
-                                       const string&          label,
-                                       vector<size_t>&        detected,
-                                       vector<float>&         scores)
+void NNDetect<MatT>::doBatchPrediction(Classifier         *&classifier,
+                                       const vector<MatT>&  imgs,
+                                       float                threshold,
+                                       const string&        label,
+                                       vector<size_t>&      detected,
+                                       vector<float>&       scores)
 {
     detected.clear();
     // Grab the top 2 detected classes.  Since we're doing an object /
     // not object split, that will get the scores for both categories
-    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
+    vector<vector<Prediction> > predictions = classifier->ClassifyBatch(imgs, 2);
 
     // Each outer loop is the predictions for one input image
     for (size_t i = 0; i < imgs.size(); ++i)
@@ -502,7 +504,7 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
 template<class MatT>
 void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
                                     const vector<pair<MatT, double> >& scaledImages,
-                                    CaffeClassifier<MatT>& classifier,
+                                    Classifier *&classifier,
                                     float threshold,
                                     vector<Window>& windowsOut)
 {
@@ -515,7 +517,7 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 		// Grab the rect from the scaled image represented
 		// but each input window
 		images.push_back(scaledImages[it->second].first(it->first));
-		if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+		if ((images.size() == classifier->BatchSize()) || ((it + 1) == windowsIn.cend()))
 		{
 			doBatchCalibration(classifier, images, threshold, shift);
 			shifts.insert(shifts.end(), shift.begin(), shift.end());
@@ -605,13 +607,13 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 
 
 template<class MatT>
-void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
+void NNDetect<MatT>::doBatchCalibration(Classifier            *&classifier,
                                         const vector<MatT>&     imgs,
                                         float                   threshold,
                                         vector<vector<float> >& shift)
 {
 	shift.clear();
-	vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
+	vector<vector<Prediction> > predictions = classifier->ClassifyBatch(imgs, 45);
 	float ds[] = { .81, .93, 1, 1.10, 1.21 };
 	float dx   = .17;
 	float dy   = .17;

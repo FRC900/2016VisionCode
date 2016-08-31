@@ -19,6 +19,7 @@ class Classifier
 					const std::string& zcaWeightFile,
 					const std::string& labelFile,
 					const size_t batchSize);
+		virtual ~Classifier();
 
 		// Given X input images, return X vectors of predictions.
 		// Each prediction is a label, value pair, where the value is

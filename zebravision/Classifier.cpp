@@ -51,6 +51,10 @@ Classifier::Classifier(const string& modelFile,
 	inputGeometry_ = zca_.size();
 }
 
+Classifier::~Classifier()
+{
+}
+
 // Helper function for compare - used to sort values by pair.first keys
 // TODO : redo as lambda
 static bool PairCompare(const pair<float, int>& lhs, 

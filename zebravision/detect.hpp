@@ -1,7 +1,7 @@
 #ifndef INC_DETECT_HPP__
 #define INC_DETECT_HPP__
 
-#include "CaffeClassifier.hpp"
+#include "Classifier.hpp"
 
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?
@@ -27,15 +27,15 @@ template <class MatT>
 class NNDetect
 {
 	public:
-		NNDetect(const std::vector<std::string> &d12Info,
-			 const std::vector<std::string> &d24Info, 
-			const std::vector<std::string> &c12Info,
-			const std::vector<std::string> &c24Info, 
-			float hfov)  :
-			d12_(CaffeClassifier<MatT>(d12Info[0], d12Info[1], d12Info[2], d12Info[3], 256)),
-			d24_(CaffeClassifier<MatT>(d24Info[0], d24Info[1], d24Info[2], d24Info[3], 64)),
-			c12_(CaffeClassifier<MatT>(c12Info[0], c12Info[1], c12Info[2], c12Info[3], 64)),
-			c24_(CaffeClassifier<MatT>(c24Info[0], c24Info[1], c24Info[2], c24Info[3], 64)),
+		NNDetect(Classifier *d12,
+			     Classifier *d24, 
+	   		     Classifier *c12,
+			     Classifier *c24, 
+			     float hfov)  :
+			d12_(d12),
+			d24_(d24),
+			c12_(c12),
+			c24_(c24),
 			hfov_(hfov)
 		{
 		}
@@ -52,12 +52,12 @@ class NNDetect
 
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
-		CaffeClassifier <MatT> d12_;
-		CaffeClassifier <MatT> d24_;
-		CaffeClassifier <MatT> c12_;
-		CaffeClassifier <MatT> c24_;
+		Classifier *d12_;
+		Classifier *d24_;
+		Classifier *c12_;
+		Classifier *c24_;
 		float hfov_;
-		void doBatchPrediction(CaffeClassifier<MatT> &classifier,
+		void doBatchPrediction(Classifier *&classifier,
 				const std::vector<MatT> &imgs,
 				float threshold,
 				const std::string &label,
@@ -74,7 +74,7 @@ class NNDetect
 				std::vector<std::pair<MatT, double> > &scaledimages,
 				std::vector<Window> &windows);
 
-		void runDetection(CaffeClassifier<MatT> &classifier,
+		void runDetection(Classifier *&classifier,
 				const std::vector<std::pair<MatT, double> > &scaledimages,
 				const std::vector<Window> &windows,
 				float threshold,
@@ -93,10 +93,10 @@ class NNDetect
 				std::vector<Window> &windowsOut);
 		void runCalibration(const std::vector<Window>& windowsIn,
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
-				    CaffeClassifier<MatT>& classifier,
+				    Classifier *&classifier,
 				    float threshold,
 				    std::vector<Window>& windowsOut);
-		void doBatchCalibration(CaffeClassifier<MatT>& classifier,
+		void doBatchCalibration(Classifier *&classifier,
 					const std::vector<MatT>& imags,
 					float threshold,
 					std::vector<std::vector<float> >& shift);
