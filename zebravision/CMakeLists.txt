@@ -71,7 +71,7 @@ add_executable(zv
 	classifierio.cpp
 	Args.cpp
 	WriteOnFrame.cpp
-	#zedin.cpp
+	zedin.cpp
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp
@@ -93,7 +93,7 @@ target_link_libraries( zv
 	${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
-#	${ZED_LIBRARIES}
+	${ZED_LIBRARIES}
 	${CUDA_LIBRARIES}
 	${CUDA_nppi_LIBRARY}
 	${CUDA_npps_LIBRARY}
