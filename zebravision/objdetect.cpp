@@ -68,8 +68,3 @@ void ObjDetectNNet<MatT, ClassifierT>::Detect(const Mat &frameInput, const Mat &
 			uncalibImageRects);
 }
 
-// Instatiate various combinations of template parameters
-template class ObjDetectNNet<Mat, CaffeClassifier<Mat>>;
-template class ObjDetectNNet<GpuMat, CaffeClassifier<Mat>>;
-template class ObjDetectNNet<Mat, CaffeClassifier<GpuMat>>;
-template class ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>;

@@ -15,6 +15,7 @@ using namespace nvinfer1;
 using namespace nvcaffeparser1;
 using namespace std;
 using namespace cv;
+using namespace cv::gpu;
 
 #define CHECK_CUDA(status)								\
 {														\
@@ -208,7 +209,6 @@ vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
 
 	return vector<float>(output, output + sizeof(output)/sizeof(output[0]));
 }
-
 
 #if 0
 int main(int argc, char** argv)

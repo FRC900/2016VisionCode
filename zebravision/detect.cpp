@@ -676,6 +676,7 @@ void NNDetect<MatT, ClassifierT>::doBatchCalibration(ClassifierT            &cla
 	}
 }
 
+// Can't do partial specialization of member functions?
 
 // Be conservative here - if any of the depth values in the target rect
 // are in the expected range, consider the rect in range.  Also
@@ -699,6 +700,22 @@ bool NNDetect<Mat, CaffeClassifier<Mat>>::depthInRange(const float depth_min, co
 }
 template<>
 bool NNDetect<Mat, CaffeClassifier<GpuMat>>::depthInRange(const float depth_min, const float depth_max, const Mat& detectCheck)
+{
+    for (int py = 0; py < detectCheck.rows; py++)
+    {
+        const float *p = detectCheck.ptr<float>(py);
+        for (int px = 0; px < detectCheck.cols; px++)
+        {
+            if ((p[px] <= 0.0) || ((p[px] < depth_max) && (p[px] > depth_min)))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+template<>
+bool NNDetect<Mat, GIEClassifier>::depthInRange(const float depth_min, const float depth_max, const Mat& detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
@@ -770,8 +787,39 @@ bool NNDetect<GpuMat, CaffeClassifier<GpuMat>>::depthInRange(const float depth_m
 	add (dstNeg, dstInRange, dstFinal);
 	return (countNonZero(dstFinal) != 0);
 }
+
+template<>
+bool NNDetect<GpuMat, GIEClassifier>::depthInRange(const float depth_min, const float depth_max, const GpuMat& detectCheck)
+{
+	GpuMat dstNeg;
+	GpuMat dstLtMax;
+	GpuMat dstGtMin;
+	GpuMat dstInRange;
+	GpuMat dstFinal;
+
+	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
+	threshold (detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
+	if (countNonZero(dstNeg))
+		return true;
+
+	// Set dstLtMax to 1 if detectCheck < depth_max, otherwise set dst to 0
+	threshold (detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
+
+	// Set dstGtMin to 1 if detectCheck > depth_min, otherwise set dst to 0
+	threshold (detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
+
+	// dstInRange == 1 iff both LtMax and GtMin
+	multiply (dstLtMax, dstGtMin, dstInRange);
+
+	// dstFinal == 1 iff either InRange or Neg
+	add (dstNeg, dstInRange, dstFinal);
+	return (countNonZero(dstFinal) != 0);
+}
+
 // Explicitly instatiate classes used elsewhere
 template class NNDetect<Mat, CaffeClassifier<Mat>>;
 template class NNDetect<Mat, CaffeClassifier<GpuMat>>;
 template class NNDetect<GpuMat, CaffeClassifier<Mat>>;
 template class NNDetect<GpuMat, CaffeClassifier<GpuMat>>;
+template class NNDetect<Mat, GIEClassifier>;
+template class NNDetect<GpuMat, GIEClassifier>;
