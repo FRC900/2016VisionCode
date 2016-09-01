@@ -177,7 +177,7 @@ class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifi
 
 // Detector does resizing, sliding windows and so on
 // in CPU.  GIE run on GPU
-class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier>
+class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat>>
 {
 	public :
 		ObjDetectCPUGIEGPU(std::vector<std::string> &d12Files,
@@ -196,7 +196,7 @@ class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier>
 };
 
 // Both detector and GIE run on the GPU
-class ObjDetectGPUGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, GIEClassifier>
+class ObjDetectGPUGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, GIEClassifier<cv::gpu::GpuMat>>
 {
 	public :
 		ObjDetectGPUGIEGPU(std::vector<std::string> &d12Files,

@@ -743,5 +743,5 @@ template class NNDetect<Mat, CaffeClassifier<Mat>>;
 template class NNDetect<Mat, CaffeClassifier<GpuMat>>;
 template class NNDetect<GpuMat, CaffeClassifier<Mat>>;
 template class NNDetect<GpuMat, CaffeClassifier<GpuMat>>;
-template class NNDetect<Mat, GIEClassifier>;
-template class NNDetect<GpuMat, GIEClassifier>;
+template class NNDetect<Mat, GIEClassifier<Mat>>;
+template class NNDetect<GpuMat, GIEClassifier<GpuMat>>;

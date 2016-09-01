@@ -175,7 +175,7 @@ void DetectState::toggleGPUClassifier(void)
 }
 void DetectState::toggleGIE(void)
 {
-	//if (getCudaEnabledDeviceCount() > 0)
+	if (getCudaEnabledDeviceCount() > 0)
 	{
 		gie_ = !gie_;
 		reload_ = true;

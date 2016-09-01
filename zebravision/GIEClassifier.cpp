@@ -80,7 +80,10 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	builder->destroy();
 
 }
-GIEClassifier::GIEClassifier(const string& modelFile,
+
+
+template <class MatT>
+GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
       const string& trainedFile,
       const string& zcaWeightFile,
       const string& labelFile,
@@ -140,7 +143,8 @@ GIEClassifier::GIEClassifier(const string& modelFile,
 	initialized_ = true;
 }
 
-GIEClassifier::~GIEClassifier()
+template <class MatT>
+GIEClassifier<MatT>::~GIEClassifier()
 {
 	delete [] inputCPU_;
 	// release the stream and the buffers
@@ -152,7 +156,8 @@ GIEClassifier::~GIEClassifier()
 	runtime_->destroy();
 }
 
-GIEClassifier::initialized(void) const
+template <class MatT>
+GIEClassifier<MatT>::initialized(void) const
 {
 	if (!Classifier<Mat>::initialized())
 		return false;
@@ -163,7 +168,8 @@ GIEClassifier::initialized(void) const
 // Wrap input layer of the net into separate Mat objects
 // This sets them up to be written with actual data
 // in PreprocessBatch()
-void GIEClassifier::WrapBatchInputLayer(void)
+template <class MatT>
+void GIEClassifier<MatT>::WrapBatchInputLayer(void)
 {
 	if (inputCPU_)
 		delete [] inputCPU_;
@@ -187,7 +193,8 @@ void GIEClassifier::WrapBatchInputLayer(void)
 
 // Take each image in Mat, convert it to the correct image type,
 // Then actually write the images to the net input memory buffers
-void GIEClassifier::PreprocessBatch(const vector<Mat> &imgs)
+template <class MatT>
+void GIEClassifier<MatT>::PreprocessBatch(const vector<Mat> &imgs)
 {
 	if (imgs.size() > batchSize_) 
 		cerr <<
@@ -212,7 +219,8 @@ void GIEClassifier::PreprocessBatch(const vector<Mat> &imgs)
 	}
 }
 
-vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
+template <class MatT>
+vector<float> GIEClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 {
 	PreprocessBatch(imgs);
 	float output[labels_.size()];
@@ -230,30 +238,35 @@ vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
 
 using namespace std;
 using namespace cv;
+using namespace cv::gpu;
 
-GIEClassifier::GIEClassifier(const string& modelFile,
+template <class MatT>
+GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
       const string& trainedFile,
       const string& zcaWeightFile,
       const string& labelFile,
       const size_t  batchSize) :
-	Classifier(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
+	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
 {
 	cerr << "GIE support not available" << endl;
 }
 
-GIEClassifier::~GIEClassifier()
+template <class MatT>
+GIEClassifier<MatT>::~GIEClassifier()
 {
 }
 
-bool GIEClassifier::initialized(void) const
+template <class MatT>
+bool GIEClassifier<MatT>::initialized(void) const
 {
 	return true;
 }
 
-vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
+template <class MatT>
+vector<float> GIEClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 {
 	cerr << "GIE support not available" << endl;
-	return vector<float>(imgs.size() * labels_.size(), 0.0);
+	return vector<float>(imgs.size() * this->labels_.size(), 0.0);
 }
 #endif
 
@@ -309,3 +322,6 @@ int main(int argc, char** argv)
 	return 0;
 }
 #endif
+
+template class GIEClassifier<Mat>;
+template class GIEClassifier<GpuMat>;

@@ -3,7 +3,8 @@
 #include "Infer.h"
 #include "Classifier.hpp"
 
-class GIEClassifier : public Classifier<cv::Mat> // or maybe GpuMat?
+template <class MatT>
+class GIEClassifier : public Classifier<MatT>
 {
 	public:
 		GIEClassifier(const std::string& modelFile,
@@ -37,7 +38,7 @@ class GIEClassifier : public Classifier<cv::Mat> // or maybe GpuMat?
 		// That is, [0] = value for label 0 for the first image up to 
 		// [n] = value for label n for the first image. It then starts again
 		// for the next image - [n+1] = label 0 for image #2.
-		std::vector<float> PredictBatch(const std::vector<cv::Mat> &imgs);
+		std::vector<float> PredictBatch(const std::vector<MatT> &imgs);
 
 	private:
 #ifdef USE_GIE
