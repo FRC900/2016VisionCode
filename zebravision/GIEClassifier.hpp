@@ -14,6 +14,7 @@ class GIEClassifier : public Classifier<cv::Mat>
 		~GIEClassifier();
 
 	private:
+#ifdef USE_GIE
 		// Wrap input layer of the net into separate Mat objects
 		// This sets them up to be written with actual data
 		// in PreprocessBatch()
@@ -25,6 +26,7 @@ class GIEClassifier : public Classifier<cv::Mat>
 		// Subtract out the mean before passing to the net input
 		// Then actually write the images to the net input memory buffers
 		void PreprocessBatch(const std::vector< cv::Mat > &imgs);
+#endif
 
 		// Get the output values for a set of images
 		// These values will be in the same order as the labels for each
@@ -36,11 +38,13 @@ class GIEClassifier : public Classifier<cv::Mat>
 		std::vector<float> PredictBatch(const std::vector< cv::Mat > &imgs);
 
 	private:
+#ifdef USE_GIE
 		// TODO : try shared pointers
 		nvinfer1::IRuntime* runtime_;          // network runtime
 		nvinfer1::ICudaEngine* engine_;        // network engine
 		nvinfer1::IExecutionContext *context_; // netowrk context to run on engine
 		cudaStream_t stream_;
+#endif
 		void* buffers_[2];           // input and output GPU buffers
 		int inputIndex_;
 		int outputIndex_;

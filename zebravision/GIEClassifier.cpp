@@ -1,3 +1,4 @@
+#ifdef USE_GIE
 #include <assert.h>
 #include <fstream>
 #include <sstream>
@@ -209,6 +210,33 @@ vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
 
 	return vector<float>(output, output + sizeof(output)/sizeof(output[0]));
 }
+#else
+#include <vector>
+#include "GIEClassifier.hpp"
+
+using namespace std;
+using namespace cv;
+
+GIEClassifier::GIEClassifier(const string& modelFile,
+      const string& trainedFile,
+      const string& zcaWeightFile,
+      const string& labelFile,
+      const size_t  batchSize) :
+	Classifier(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
+{
+	cerr << "GIE support not available" << endl;
+}
+
+GIEClassifier::~GIEClassifier()
+{
+}
+
+vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
+{
+	cerr << "GIE support not available" << endl;
+	return vector<float>(imgs.size(), 0.0);
+}
+#endif
 
 #if 0
 int main(int argc, char** argv)
