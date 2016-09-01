@@ -90,15 +90,18 @@ class NNDetect
 				const std::vector<float> &scores,  
 				const double nmsThreshold,
 				std::vector<Window> &windowsOut);
+
 		void runCalibration(const std::vector<Window>& windowsIn,
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
 				    ClassifierT &classifier,
 				    float threshold,
 				    std::vector<Window>& windowsOut);
+
 		void doBatchCalibration(ClassifierT &classifier,
 					const std::vector<MatT>& imags,
 					const float threshold,
 					std::vector<std::vector<float> >& shift);
+
 		bool depthInRange(const float depth_min, const float depth_max, 
 				const cv::Mat &detectCheck);
 		bool depthInRange(const float depth_min, const float depth_max, 
