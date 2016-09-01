@@ -12,6 +12,9 @@ using namespace cv;
 using namespace cv::gpu;
 
 template <class MatT>
+bool CaffeClassifier<MatT>::glogInit_ = false;
+
+template <class MatT>
 CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
       const string& trainedFile,
       const string& zcaWeightFile,
@@ -37,9 +40,13 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		Caffe::set_mode(Caffe::CPU);
 
 	// Hopefully this turns off any logging
-	::google::InitGoogleLogging("");
-	::google::LogToStderr();
-	::google::SetStderrLogging(3);
+	if (!glogInit_)
+	{
+		::google::InitGoogleLogging("");
+		::google::LogToStderr();
+		::google::SetStderrLogging(3);
+		glogInit_ = true;
+	}
 
 	/* Load the network - this includes model geometry and trained weights */
 	net_.reset(new Net<float>(modelFile, TEST));
