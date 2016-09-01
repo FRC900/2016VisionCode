@@ -99,7 +99,10 @@ class NNDetect
 					const std::vector<MatT>& imags,
 					const float threshold,
 					std::vector<std::vector<float> >& shift);
-		bool depthInRange(const float depth_min, const float depth_max, const MatT &detectCheck);
+		bool depthInRange(const float depth_min, const float depth_max, 
+				const cv::Mat &detectCheck);
+		bool depthInRange(const float depth_min, const float depth_max, 
+				const cv::gpu::GpuMat &detectCheck);
 };
 
 #endif
