@@ -328,7 +328,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		gmOut_.download(output);
 	}
 	else if (!weights_.empty())
-		gemm(weights_, work, 1.0, Mat(), 0.0, output);
+		gemm(work, weights_, 1.0, Mat(), 0.0, output);
 
 #ifdef DEBUG_TIME
 	end = gtod_wrapper();
