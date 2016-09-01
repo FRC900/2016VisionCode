@@ -11,7 +11,8 @@ using namespace std;
 using namespace cv;
 using namespace cv::gpu;
 
-// Move to base class method?
+// Simple test to see if a file exists and
+// is accessable
 template <class MatT>
 bool Classifier<MatT>::fileExists(const string &fileName) const
 {
@@ -46,7 +47,10 @@ Classifier<MatT>::Classifier(const string& modelFile,
 	// a human-readable name
 	ifstream labels(labelFile.c_str());
 	if (!labels) 
+	{
 		cerr << "Unable to open labels file " << labelFile << endl;
+		return;
+	}
 	string line;
 	while (getline(labels, line))
 		labels_.push_back(string(line));
@@ -179,7 +183,7 @@ vector<vector<Prediction>> Classifier<MatT>::floatsToPredictions(const vector<fl
 
 // Assorted helper functions
 template <class MatT>
-size_t Classifier<MatT>::BatchSize(void) const
+size_t Classifier<MatT>::batchSize(void) const
 {
 	return batchSize_;
 }
@@ -188,6 +192,16 @@ template <class MatT>
 Size Classifier<MatT>::getInputGeometry(void) const
 {
 	return inputGeometry_;
+}
+
+template <class MatT>
+bool Classifier<MatT>::initialized(void) const
+{
+	if (labels_.size() == 0)
+		return false;
+	if (inputGeometry_ == Size())
+		return false;
+	return true;
 }
 
 template class Classifier<Mat>;

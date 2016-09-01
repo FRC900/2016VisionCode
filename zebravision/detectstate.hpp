@@ -29,6 +29,9 @@ class DetectState
 			return detector_;
 		}
 	private:
+		bool checkNNetFiles(const ClassifierIO &inCLIO,
+							const std::string &name,
+							std::vector<std::string> &outFiles);
 		ObjDetect    *detector_;
 		ClassifierIO  d12IO_;
 		ClassifierIO  d24IO_;
@@ -38,6 +41,12 @@ class DetectState
 		bool          gpuDetect_;
 		bool          gpuClassifier_;
 		bool          gie_;
+		// Settings from previous frame - used
+		// to undo changes if the selected state
+		// doesn't work
+		bool          oldGpuDetect_;
+		bool          oldGpuClassifier_;
+		bool          oldGie_;
 		bool          reload_;
 };
 

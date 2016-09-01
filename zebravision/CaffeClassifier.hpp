@@ -17,6 +17,8 @@ class CaffeClassifier : public Classifier<MatT>
 					const size_t batchSize);
 		~CaffeClassifier();
 
+		bool initialized(void) const;
+
 	private:
 		// Wrap input layer of the net into separate Mat objects
 		// This sets them up to be written with actual data
@@ -28,7 +30,7 @@ class CaffeClassifier : public Classifier<MatT>
 		// F32 type, since that's what the net inputs are. 
 		// Subtract out the mean before passing to the net input
 		// Then actually write the images to the net input memory buffers
-		void PreprocessBatch(const std::vector< MatT > &imgs);
+		void PreprocessBatch(const std::vector<MatT> &imgs);
 
 		// Get the output values for a set of images
 		// These values will be in the same order as the labels for each
@@ -50,7 +52,8 @@ class CaffeClassifier : public Classifier<MatT>
 		// on whether we're using GpuMats or Mats
 		bool IsGPU(void) const;
 
-		std::shared_ptr<caffe::Net<float> > net_; // the net itself
-		std::vector< std::vector<MatT> > inputBatch_; // net input buffers wrapped in Mats
+		std::shared_ptr<caffe::Net<float>> net_; // the net itself
+		std::vector< std::vector<MatT>> inputBatch_; // net input buffers wrapped in Mats
+		bool initialized_;
 		static bool glogInit_;
 };

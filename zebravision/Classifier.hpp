@@ -35,7 +35,10 @@ class Classifier
 		cv::Size getInputGeometry(void) const;
 
 		// Get the batch size of the model
-		size_t BatchSize(void) const;
+		size_t batchSize(void) const;
+
+		// See if the classifier loaded correctly
+		bool initialized(void) const;
 
 	protected:
 		bool fileExists(const std::string &fileName) const;

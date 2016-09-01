@@ -49,6 +49,8 @@ class NNDetect
 				std::vector<cv::Rect> &rectsOut,
 				std::vector<cv::Rect> &uncalibRectsOut);
 
+		bool initialized(void) const;
+
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
 		ClassifierT d12_;
@@ -107,5 +109,4 @@ class NNDetect
 		bool depthInRange(const float depth_min, const float depth_max, 
 				const cv::gpu::GpuMat &detectCheck);
 };
-
 #endif

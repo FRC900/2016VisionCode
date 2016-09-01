@@ -20,8 +20,11 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
       const string& zcaWeightFile,
       const string& labelFile,
       const size_t  batchSize) :
-	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
+	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
+	initialized_(false)
 {
+	if (!Classifier<MatT>::initialized())
+		return;
 	if (!this->fileExists(modelFile))
 	{
 		cerr << "Could not find Caffe model " << modelFile << endl;
@@ -59,7 +62,10 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	const int numChannels = inputLayer->channels();
 	CHECK(numChannels == 3 || numChannels == 1) << "Input layer should have 1 or 3 channels.";
 	if (this->inputGeometry_ != Size(inputLayer->width(), inputLayer->height()))
+	{
 		cerr << "Net size != ZCA size" << endl;
+		return;
+	}
 
 	Blob<float>* outputLayer = net_->output_blobs()[0];
 	CHECK_EQ(this->labels_.size(), outputLayer->channels())
@@ -82,6 +88,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	// This allows an easy copy from the input images
 	// into the input buffers for the net
 	WrapBatchInputLayer();
+	initialized_ = true;
 }
 
 
@@ -227,6 +234,16 @@ bool CaffeClassifier<GpuMat>::IsGPU(void) const
 {
 	return true;
 }
+
+template <class MatT>
+bool CaffeClassifier<MatT>::initialized(void) const
+{
+	if (!Classifier<MatT>::initialized())
+		return false;
+	
+	return initialized_;
+}
+
 
 template class CaffeClassifier<Mat>;
 template class CaffeClassifier<GpuMat>;

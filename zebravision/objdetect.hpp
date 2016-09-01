@@ -11,8 +11,8 @@
 
 #include <vector>
 
-// Base class for detector. Doesn't really do much - all of the heavy lifting is
-// in the derived classes
+// Base class for detector. Doesn't really do much - all 
+// of the heavy lifting is in the derived classes
 class ObjDetect
 {
 	public :
@@ -82,7 +82,7 @@ class ObjDetectNNet : public ObjDetect
 			ObjDetect(),
 			classifier_(d12Files, d24Files, c12Files, c24Files, hfov)
 		{
-			init_ = true;
+			init_ = classifier_.initialized();
 		}
 		virtual ~ObjDetectNNet()
 		{

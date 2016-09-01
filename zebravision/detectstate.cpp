@@ -1,3 +1,13 @@
+// This class controls which detector is created
+// and used.  It holds the current config files
+// for the detector as well as various flags 
+// controlling detector state (GPU vs CPU, etc)
+//
+// Methods are provided to change these settings
+// Each frame the code runs update(). If any settings
+// have changed since the last frame, the old
+// detector is deleted and a new one is created
+// with the updated settings.
 #include <iostream>
 #include <string>
 
@@ -7,7 +17,17 @@
 
 using namespace std;
 using namespace cv;
+using namespace cv::gpu;
 
+// Classifier IO holds the directory which has
+// net description, weights, labels, etc.
+// It also stores the index of the weight file
+// to use - each epoch is saved and we can switch
+// between them if needed
+// hfov should be removed once the detect call takes
+// a tracked object as input
+// the flags control which parts of the detector
+// use GPU vs CPU code
 DetectState::DetectState(const ClassifierIO &d12IO, 
 		const ClassifierIO &d24IO,
 	   	const ClassifierIO &c12IO, 
@@ -25,6 +45,9 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	gpuDetect_(gpuDetect),
 	gpuClassifier_(gpuClassifier),
 	gie_(gie),
+	oldGpuDetect_(gpuDetect),
+	oldGpuClassifier_(gpuClassifier),
+	oldGie_(gie),
 	reload_(true)
 {
    update();
@@ -36,59 +59,51 @@ DetectState::~DetectState()
 		delete detector_;
 }
 
+// Grab file names needed to load a given classifier
+// Check that the results make sense and return
+// them to the caller. 
+bool DetectState::checkNNetFiles(const ClassifierIO &inCLIO,
+								 const string &name,
+								 vector<string> &outFiles)
+{
+    outFiles = inCLIO.getClassifierFiles();
+    for (size_t i = 0; i < outFiles.size(); ++i)
+    {
+        cerr << name << "[" << i << "] = " << outFiles[i] << endl;
+    }
+    if (outFiles.size() != 4)
+    {
+        cerr << "Wrong number of " << name << " to load classifier" << endl;
+        return false;
+    }
+	return true;
+}
+
+// Called each frame. Reloads the detector if
+// any settings have changed
 bool DetectState::update(void)
 {
-   if (reload_ == false)
-	  return true;
+	if (reload_ == false)
+		return true;
 
-	if (detector_)
-	   delete detector_;
+	vector<string> d12Files;
+	vector<string> d24Files;
+	vector<string> c12Files;
+	vector<string> c24Files;
 
-    vector<string> d12Files = d12IO_.getClassifierFiles();
-    for (size_t i = 0; i < d12Files.size(); ++i)
-    {
-        cerr << "D12Files[" << i << "] = " << d12Files[i] << endl;
-    }
-    if (d12Files.size() != 4)
-    {
-        cerr << "No Files to load classifier" << endl;
-        return false;
-    }
+	if (!checkNNetFiles(d12IO_, "D12Files", d12Files) ||
+		!checkNNetFiles(d24IO_, "C24Files", d24Files) ||
+		!checkNNetFiles(c12IO_, "D12Files", c12Files) ||
+		!checkNNetFiles(c24IO_, "C24Files", c24Files))
+		return false;
 
-    vector<string> d24Files = d24IO_.getClassifierFiles();
-    for (size_t i = 0; i < d24Files.size(); ++i)
-    {
-        cerr << "D24Files[" << i << "] = " << d24Files[i] << endl;
-    }
-    if (d24Files.size() != 4)
-    {
-        cerr << "No Files to load classifier" << endl;
-        return false;
-    }
+	// Save old detector state in case a problem
+	// occurs
+	ObjDetect *oldDetector = detector_;
 
-    vector<string> c12Files = c12IO_.getClassifierFiles();
-    for (size_t i = 0; i < c12Files.size(); ++i)
-    {
-        cerr << "C12Files[" << i << "] = " << c12Files[i] << endl;
-    }
-    if (c12Files.size() != 4)
-    {
-        cerr << "No Files to load classifier" << endl;
-        return false;
-    }
-
-    vector<string> c24Files = c24IO_.getClassifierFiles();
-    for (size_t i = 0; i < c24Files.size(); ++i)
-    {
-        cerr << "C24Files[" << i << "] = " << c24Files[i] << endl;
-    }
-    if (c24Files.size() != 4)
-    {
-        cerr << "No Files to load classifier" << endl;
-        return false;
-    }
-
-	// TODO : only reload individual nets if files change?
+	// Decision tree on which detector and classifier
+	// to run.  Some of these combinations might not make
+	// sense to maybe prune them down after some testing?
 	if (!gie_)
 	{
 		if (!gpuClassifier_)
@@ -119,31 +134,52 @@ bool DetectState::update(void)
 		}
 	}
 
+	reload_ = false;
+
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )
 	{
-		cerr << "Error loading GPU_NNDetect" << endl;
-		return false;
+		cerr << "Error loading detector" << endl;
+		detector_ = oldDetector;
+		gpuDetect_ = oldGpuDetect_;
+		gpuClassifier_ = oldGpuClassifier_;
+		gie_ = oldGie_;
+		return (oldDetector != NULL);
 	}
-	reload_ = false;
+
+	if (oldDetector)
+		delete oldDetector;
+	oldGpuDetect_ = gpuDetect_;
+	oldGpuClassifier_ = gpuClassifier_;
+	oldGie_ = gie_;
+
 	return true;
 }
 
 void DetectState::toggleGPUDetect(void)
 {
-   gpuDetect_ = !gpuDetect_;
-   reload_ = true;
+	if (getCudaEnabledDeviceCount() > 0)
+	{
+		gpuDetect_ = !gpuDetect_;
+		reload_ = true;
+	}
 }
 
 void DetectState::toggleGPUClassifier(void)
 {
-   gpuClassifier_ = !gpuClassifier_;
-   reload_ = true;
+	if (getCudaEnabledDeviceCount() > 0)
+	{
+		gpuClassifier_ = !gpuClassifier_;
+		reload_ = true;
+	}
 }
 void DetectState::toggleGIE(void)
 {
-   gie_ = !gie_;
-   reload_ = true;
+	//if (getCudaEnabledDeviceCount() > 0)
+	{
+		gie_ = !gie_;
+		reload_ = true;
+	}
 }
 
 void DetectState::changeD12SubModel(bool increment)
@@ -206,9 +242,9 @@ std::string DetectState::print(void) const
 	else
 		ret += "C_";
 	if (gie_)
-		ret += "_GIE";
+		ret += "GIE";
 	else
-		ret += "_Caffe";
+		ret += "Caffe";
 	ret += " " + d12IO_.print() + "," + d24IO_.print() + "," + c12IO_.print() + "," + c24IO_.print();
 	return ret;
 }

@@ -3,7 +3,7 @@
 #include "Infer.h"
 #include "Classifier.hpp"
 
-class GIEClassifier : public Classifier<cv::Mat>
+class GIEClassifier : public Classifier<cv::Mat> // or maybe GpuMat?
 {
 	public:
 		GIEClassifier(const std::string& modelFile,
@@ -12,6 +12,8 @@ class GIEClassifier : public Classifier<cv::Mat>
 					const std::string& labelFile,
 					const size_t batchSize);
 		~GIEClassifier();
+
+		bool initialized(void) const;
 
 	private:
 #ifdef USE_GIE
@@ -25,7 +27,7 @@ class GIEClassifier : public Classifier<cv::Mat>
 		// F32 type, since that's what the net inputs are. 
 		// Subtract out the mean before passing to the net input
 		// Then actually write the images to the net input memory buffers
-		void PreprocessBatch(const std::vector< cv::Mat > &imgs);
+		void PreprocessBatch(const std::vector<cv::Mat> &imgs);
 #endif
 
 		// Get the output values for a set of images
@@ -35,7 +37,7 @@ class GIEClassifier : public Classifier<cv::Mat>
 		// That is, [0] = value for label 0 for the first image up to 
 		// [n] = value for label n for the first image. It then starts again
 		// for the next image - [n+1] = label 0 for image #2.
-		std::vector<float> PredictBatch(const std::vector< cv::Mat > &imgs);
+		std::vector<float> PredictBatch(const std::vector<cv::Mat> &imgs);
 
 	private:
 #ifdef USE_GIE
@@ -51,5 +53,7 @@ class GIEClassifier : public Classifier<cv::Mat>
 		int numChannels_;
 
 		float *inputCPU_;            // input CPU buffer
-		std::vector< std::vector<cv::Mat> > inputBatch_; // net input buffers wrapped in Mats
+		std::vector<std::vector<cv::Mat>> inputBatch_; // net input buffers wrapped in Mats
+
+		bool initialized_;
 };

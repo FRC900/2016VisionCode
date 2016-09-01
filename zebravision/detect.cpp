@@ -391,7 +391,7 @@ void NNDetect<MatT, ClassifierT>::runDetection(ClassifierT &classifier,
     // the input array above which have a high enough confidence score
     vector<size_t> detected;
 
-    size_t batchSize = classifier.BatchSize(); // defined when classifer is constructed
+    size_t batchSize = classifier.batchSize(); // defined when classifer is constructed
     int    counter   = 0;
     //double start     = gtod_wrapper(); // grab start time
 
@@ -521,7 +521,7 @@ void NNDetect<MatT, ClassifierT>::runCalibration(const vector<Window>& windowsIn
 		// Grab the rect from the scaled image represented
 		// but each input window
 		images.push_back(scaledImages[it->second].first(it->first));
-		if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+		if ((images.size() == classifier.batchSize()) || ((it + 1) == windowsIn.cend()))
 		{
 			doBatchCalibration(classifier, images, threshold, shift);
 			shifts.insert(shifts.end(), shift.begin(), shift.end());
@@ -726,6 +726,15 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
 	// dstFinal == 1 iff either InRange or Neg
 	add (dstNeg, dstInRange, dstFinal);
 	return (countNonZero(dstFinal) != 0);
+}
+
+template<class MatT, class ClassifierT>
+bool NNDetect<MatT, ClassifierT>::initialized(void) const
+{
+	if (d12_.initialized() && d24_.initialized() &&
+	    c12_.initialized() && c24_.initialized())
+		return true;
+	return false;
 }
 
 

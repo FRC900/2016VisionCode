@@ -87,8 +87,12 @@ GIEClassifier::GIEClassifier(const string& modelFile,
       const size_t  batchSize) :
 	Classifier(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
 	numChannels_(3),
-	inputCPU_(NULL)
+	inputCPU_(NULL),
+	initialized_(false)
 {
+	if (!Classifier<Mat>::initialized())
+		return;
+
 	if (!fileExists(modelFile))
 	{
 		cerr << "Could not find Caffe model " << modelFile << endl;
@@ -132,6 +136,8 @@ GIEClassifier::GIEClassifier(const string& modelFile,
 
 	// Set up input buffers for net
 	WrapBatchInputLayer();
+
+	initialized_ = true;
 }
 
 GIEClassifier::~GIEClassifier()
@@ -144,6 +150,14 @@ GIEClassifier::~GIEClassifier()
 	context_->destroy();
 	engine_->destroy();
 	runtime_->destroy();
+}
+
+GIEClassifier::initialized(void) const
+{
+	if (!Classifier<Mat>::initialized())
+		return false;
+	
+	return initialized_;
 }
 
 // Wrap input layer of the net into separate Mat objects
@@ -231,10 +245,15 @@ GIEClassifier::~GIEClassifier()
 {
 }
 
+bool GIEClassifier::initialized(void) const
+{
+	return true;
+}
+
 vector<float> GIEClassifier::PredictBatch(const vector<Mat> &imgs)
 {
 	cerr << "GIE support not available" << endl;
-	return vector<float>(imgs.size(), 0.0);
+	return vector<float>(imgs.size() * labels_.size(), 0.0);
 }
 #endif
 
