@@ -8,21 +8,32 @@
 using namespace std;
 using namespace cv;
 
-DetectState::DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gie) :
+DetectState::DetectState(const ClassifierIO &d12IO, 
+		const ClassifierIO &d24IO,
+	   	const ClassifierIO &c12IO, 
+		const ClassifierIO &c24IO, 
+		float hfov, 
+		bool gpuDetect, 
+		bool gpuClassifier,
+	   	bool gie) :
     detector_(NULL),
 	d12IO_(d12IO),
 	d24IO_(d24IO),
 	c12IO_(c12IO),
 	c24IO_(c24IO),
-	d12_(NULL),
-	d24_(NULL),
-	c12_(NULL),
-	c24_(NULL),
 	hfov_(hfov),
+	gpuDetect_(gpuDetect),
+	gpuClassifier_(gpuClassifier),
 	gie_(gie),
 	reload_(true)
 {
    update();
+}
+
+DetectState::~DetectState()
+{
+	if (detector_)
+		delete detector_;
 }
 
 bool DetectState::update(void)
@@ -32,15 +43,6 @@ bool DetectState::update(void)
 
 	if (detector_)
 	   delete detector_;
-
-	if (d12_)
-		delete (d12_);
-	if (d24_)
-		delete (d24_);
-	if (c12_)
-		delete (c12_);
-	if (c24_)
-		delete (c24_);
 
     vector<string> d12Files = d12IO_.getClassifierFiles();
     for (size_t i = 0; i < d12Files.size(); ++i)
@@ -89,19 +91,33 @@ bool DetectState::update(void)
 	// TODO : only reload individual nets if files change?
 	if (!gie_)
 	{
-		d12_ = new CaffeClassifier<gpu::GpuMat>(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 256);
-		d24_ = new CaffeClassifier<gpu::GpuMat>(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64);
-		c12_ = new CaffeClassifier<gpu::GpuMat>(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64);
-		c24_ = new CaffeClassifier<gpu::GpuMat>(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64);
+		if (!gpuClassifier_)
+		{
+			if (!gpuDetect_)
+				detector_ = new ObjDetectCPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+			else
+				detector_ = new ObjDetectCPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+		}
+		else
+		{
+			if (!gpuDetect_)
+				detector_ = new ObjDetectGPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+			else
+				detector_ = new ObjDetectGPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+		}
 	}
 	else
 	{
-		d12_ = new GIEClassifier(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 256);
-		d24_ = new GIEClassifier(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64);
-		c12_ = new GIEClassifier(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64);
-		c24_ = new GIEClassifier(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64);
+		// GIE implies GPU detection - CPU doesn't make sense there
+		if (!gpuClassifier_)
+		{
+			detector_ = new ObjDetectCPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+		}
+		else
+		{
+			detector_ = new ObjDetectGPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+		}
 	}
-	detector_ = new GPU_NNDetect(d12_, d24_, c12_, c24_, hfov_);
 
 	// Verfiy the load
 	if( !detector_ || !detector_->initialized() )
@@ -113,7 +129,18 @@ bool DetectState::update(void)
 	return true;
 }
 
-void DetectState::toggleGPU(void)
+void DetectState::toggleGPUDetect(void)
+{
+   gpuDetect_ = !gpuDetect_;
+   reload_ = true;
+}
+
+void DetectState::toggleGPUClassifier(void)
+{
+   gpuClassifier_ = !gpuClassifier_;
+   reload_ = true;
+}
+void DetectState::toggleGIE(void)
 {
    gie_ = !gie_;
    reload_ = true;
@@ -163,11 +190,25 @@ void DetectState::changeC24SubModel(bool increment)
 
 void DetectState::changeC24Model(bool increment)
 {
-   if (c24IO_.findNextClassifierDir(increment))
-	  reload_ = true;
+	if (c24IO_.findNextClassifierDir(increment))
+		reload_ = true;
 }
 
 std::string DetectState::print(void) const
 {
-   return d12IO_.print() + "," + d24IO_.print() + "," + c12IO_.print() + "," + c24IO_.print();
+	string ret;
+	if (gpuClassifier_)
+		ret += "G_";
+	else
+		ret += "C_";
+	if (gpuDetect_)
+		ret += "G_";
+	else
+		ret += "C_";
+	if (gie_)
+		ret += "_GIE";
+	else
+		ret += "_Caffe";
+	ret += " " + d12IO_.print() + "," + d24IO_.print() + "," + c12IO_.print() + "," + c24IO_.print();
+	return ret;
 }

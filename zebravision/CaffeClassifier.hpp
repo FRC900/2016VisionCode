@@ -37,7 +37,7 @@ class CaffeClassifier : public Classifier<MatT>
 		// That is, [0] = value for label 0 for the first image up to 
 		// [n] = value for label n for the first image. It then starts again
 		// for the next image - [n+1] = label 0 for image #2.
-		std::vector<float> PredictBatch(const std::vector< MatT > &imgs);
+		std::vector<float> PredictBatch(const std::vector<MatT> &imgs);
 
 		// Method which returns either mutable_cpu_data or mutable_gpu_data
 		// depending on whether we're using CPU or GPU Mats

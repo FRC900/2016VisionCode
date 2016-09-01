@@ -85,32 +85,87 @@ static vector<int> Argmax(const vector<float>& v, size_t N)
 // Each of the X vectors are themselves a vector which will have the 
 // N predictions with the highest confidences for the corresponding
 // input image
-template <class MatT>
-vector< vector<Prediction> > Classifier<MatT>::ClassifyBatch(
-		const vector<MatT> &imgs, size_t numClasses)
+template <>
+vector< vector<Prediction> > Classifier<Mat>::ClassifyBatch(
+		const vector<Mat> &imgs, const size_t numClasses)
 {
 	// outputBatch will be a flat vector of N floating point values 
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
 	vector<float> outputBatch = PredictBatch(imgs);
+	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
+}
+
+template <>
+vector< vector<Prediction> > Classifier<GpuMat>::ClassifyBatch(
+		const vector<GpuMat> &imgs, const size_t numClasses)
+{
+	// outputBatch will be a flat vector of N floating point values 
+	// per image (1 per N output labels), repeated
+	// times the number of input images batched per run
+	// Convert that into the output vector of vectors
+	vector<float> outputBatch = PredictBatch(imgs);
+	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
+}
+
+template<>
+vector< vector<Prediction> > Classifier<Mat>::ClassifyBatch(
+		const vector<GpuMat> &imgs, const size_t numClasses)
+{
+	// outputBatch will be a flat vector of N floating point values 
+	// per image (1 per N output labels), repeated
+	// times the number of input images batched per run
+	// Convert that into the output vector of vectors
+	vector<Mat> cpuImgs;
+	for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
+	{
+		Mat cpuImg;
+		it->download(cpuImg);
+		cpuImgs.push_back(cpuImg);
+	}
+	vector<float> outputBatch = PredictBatch(cpuImgs);
+	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
+}
+
+template<>
+vector< vector<Prediction> > Classifier<GpuMat>::ClassifyBatch(
+		const vector<Mat> &imgs, const size_t numClasses)
+{
+	// outputBatch will be a flat vector of N floating point values 
+	// per image (1 per N output labels), repeated
+	// times the number of input images batched per run
+	// Convert that into the output vector of vectors
+	vector<GpuMat> gpuImgs;
+	for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
+	{
+		GpuMat gpuImg(*it);
+		gpuImgs.push_back(gpuImg);
+	}
+	vector<float> outputBatch = PredictBatch(gpuImgs);
+	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
+}
+
+template <class MatT>
+vector<vector<Prediction>> Classifier<MatT>::floatsToPredictions(const vector<float> &floats, const size_t imgSize, const size_t numClasses)
+{
 	vector< vector<Prediction> > predictions;
-	size_t labelsSize = labels_.size();
-	numClasses = min(numClasses, labelsSize);
+	const size_t labelsSize = labels_.size();
+	const size_t classes = min(numClasses, labelsSize);
 	// For each image, find the top numClasses values
-	for(size_t j = 0; j < imgs.size(); j++)
+	for(size_t j = 0; j < imgSize; j++)
 	{
 		// Create an output vector just for values for this image. Since
-		// each image has labelsSize values, that's outputBatch[j*labelsSize]
-		// through outputBatch[(j+1) * labelsSize]
-		vector<float> output(outputBatch.begin() + j*labelsSize, outputBatch.begin() + (j+1)*labelsSize);
+		// each image has labelsSize values, that's floats[j*labelsSize]
+		// through floats[(j+1) * labelsSize]
+		vector<float> output(floats.begin() + j*labelsSize, floats.begin() + (j+1)*labelsSize);
 		// For the output specific to the jth image, grab the
-		// indexes of the top numClasses predictions
-		vector<int> maxN = Argmax(output, numClasses);
+		// indexes of the top classes predictions
+		vector<int> maxN = Argmax(output, classes);
 		// Using those top N indexes, create a set of labels/value predictions
 		// specific to this jth image
 		vector<Prediction> predictionSingle;
-		for (size_t i = 0; i < numClasses; ++i) 
+		for (size_t i = 0; i < classes; ++i) 
 		{
 			int idx = maxN[i];
 			predictionSingle.push_back(make_pair(labels_[idx], output[idx]));

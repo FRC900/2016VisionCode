@@ -222,4 +222,4 @@ bool CaffeClassifier<GpuMat>::IsGPU(void) const
 }
 
 template class CaffeClassifier<Mat>;
-//template class CaffeClassifier<GpuMat>;
+template class CaffeClassifier<GpuMat>;

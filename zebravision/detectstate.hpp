@@ -9,14 +9,12 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gie = false);
-		~DetectState()
-		{
-			if (detector_)
-				delete detector_;
-		}
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpuClassifier = false, bool gpuDetect = false, bool gie = false);
+		~DetectState();
 		bool update(void);
-		void toggleGPU(void);
+		void toggleGIE(void);
+		void toggleGPUDetect(void);
+		void toggleGPUClassifier(void);
 		void changeD12Model(bool increment);
 		void changeD12SubModel(bool increment);
 		void changeD24Model(bool increment);
@@ -36,11 +34,9 @@ class DetectState
 		ClassifierIO  d24IO_;
 		ClassifierIO  c12IO_;
 		ClassifierIO  c24IO_;
-		Classifier<cv::Mat>   *d12_;
-		Classifier<cv::Mat>   *d24_;
-		Classifier<cv::Mat>   *c12_;
-		Classifier<cv::Mat>   *c24_;
 		float         hfov_;
+		bool          gpuDetect_;
+		bool          gpuClassifier_;
 		bool          gie_;
 		bool          reload_;
 };

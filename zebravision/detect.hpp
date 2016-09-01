@@ -1,8 +1,6 @@
 #ifndef INC_DETECT_HPP__
 #define INC_DETECT_HPP__
 
-#include "Classifier.hpp"
-
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?
 //   Constructor takes Rect, size_t index
@@ -23,27 +21,28 @@
 //        See the top of the loop in runDetection for an example
 //
 
-template <class MatT>
+template <class MatT, class ClassifierT>
 class NNDetect
 {
 	public:
-		NNDetect(Classifier<MatT> *d12,
-			     Classifier<MatT> *d24, 
-	   		     Classifier<MatT> *c12,
-			     Classifier<MatT> *c24, 
-			     float hfov)  :
-			d12_(d12),
-			d24_(d24),
-			c12_(c12),
-			c24_(c24),
+		NNDetect(const std::vector<std::string> &d12Files,
+			     const std::vector<std::string> &d24Files, 
+	   		     const std::vector<std::string> &c12Files,
+			     const std::vector<std::string> &c24Files, 
+			     float hfov) :
+			d12_(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 256),
+			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64),
+			c12_(c12Files[0], d12Files[1], c12Files[2], c12Files[3], 64),
+			c24_(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64),
 			hfov_(hfov)
 		{
 		}
+
 		void detectMultiscale(const cv::Mat &inputImg,
 				const cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
-				double scaleFactor,
+				const double scaleFactor,
 				const std::vector<double> &nmsThreshold,
 				const std::vector<double> &detectThreshold,
 				const std::vector<double> &calThreshold,
@@ -52,14 +51,14 @@ class NNDetect
 
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
-		Classifier<MatT> *d12_;
-		Classifier<MatT> *d24_;
-		Classifier<MatT> *c12_;
-		Classifier<MatT> *c24_;
+		ClassifierT d12_;
+		ClassifierT d24_;
+		ClassifierT c12_;
+		ClassifierT c24_;
 		float hfov_;
-		void doBatchPrediction(Classifier<MatT> *&classifier,
+		void doBatchPrediction(ClassifierT &classifier,
 				const std::vector<MatT> &imgs,
-				float threshold,
+				const float threshold,
 				const std::string &label,
 				std::vector<size_t> &detected,
 				std::vector<float>  &scores);
@@ -69,38 +68,38 @@ class NNDetect
 				const MatT &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
-				int wsize,
+				const int wsize,
 				double scaleFactor,
 				std::vector<std::pair<MatT, double> > &scaledimages,
 				std::vector<Window> &windows);
 
-		void runDetection(Classifier<MatT> *&classifier,
+		void runDetection(ClassifierT &classifier,
 				const std::vector<std::pair<MatT, double> > &scaledimages,
 				const std::vector<Window> &windows,
-				float threshold,
-				std::string label,
+				const float threshold,
+				const std::string &label,
 				std::vector<Window> &windowsOut,
 				std::vector<float> &scores);
 
 		void runGlobalNMS(const std::vector<Window> &windows, 
 				const std::vector<float> &scores,  
 				const std::vector<std::pair<MatT, double> > &scaledImages,
-				double nmsThreshold,
+				const double nmsThreshold,
 				std::vector<Window> &windowsOut);
 		void runLocalNMS(const std::vector<Window> &windows, 
 				const std::vector<float> &scores,  
-				double nmsThreshold,
+				const double nmsThreshold,
 				std::vector<Window> &windowsOut);
 		void runCalibration(const std::vector<Window>& windowsIn,
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
-				    Classifier<MatT> *&classifier,
+				    ClassifierT &classifier,
 				    float threshold,
 				    std::vector<Window>& windowsOut);
-		void doBatchCalibration(Classifier<MatT> *&classifier,
+		void doBatchCalibration(ClassifierT &classifier,
 					const std::vector<MatT>& imags,
-					float threshold,
+					const float threshold,
 					std::vector<std::vector<float> >& shift);
-		bool depthInRange(float depth_min, float depth_max, const MatT &detectCheck);
+		bool depthInRange(const float depth_min, const float depth_max, const MatT &detectCheck);
 };
 
 #endif

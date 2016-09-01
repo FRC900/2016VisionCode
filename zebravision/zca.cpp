@@ -358,6 +358,31 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 // Transform a vector of input images in floating
 // point format using the weights loaded
 // when this object was initialized
+vector<GpuMat> ZCA::Transform32FC3(const vector<GpuMat> &input)
+{
+	// Download then reupload. Should be nice and
+	// slow but it is a start
+	vector<Mat> cpuImgs;
+	for (auto it = input.cbegin(); it != input.cend(); ++it)
+	{
+		Mat cpuImg;
+		it->download(cpuImg);
+		cpuImgs.push_back(cpuImg);
+	}
+	vector<Mat> xformedImgs = Transform32FC3(cpuImgs);
+	vector<GpuMat> ret;
+
+	for (auto it = ret.cbegin(); it != ret.cend(); ++it)
+	{
+		GpuMat gpuImg(*it);
+		ret.push_back(gpuImg);
+	}
+	return ret;
+}
+
+// Transform a vector of input images in floating
+// point format using the weights loaded
+// when this object was initialized
 vector<Mat> ZCA::Transform32FC3GPU(const vector<Mat> &input)
 {
 #ifdef DEBUG_TIME

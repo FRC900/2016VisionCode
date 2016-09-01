@@ -691,10 +691,20 @@ int main( int argc, const char** argv )
 			{
 				gdDraw = !gdDraw;
 			}
-			else if (c == 'G') // toggle CPU/GPU mode
+			else if (c == 'G') // toggle GIE mode
 			{
 				if (detectState)
-					detectState->toggleGPU();
+					detectState->toggleGIE();
+			}
+			else if (c == 'C') // toggle GPU Classifier mode
+			{
+				if (detectState)
+					detectState->toggleGPUClassifier();
+			}
+			else if (c == 'D') // toggle GPU Detector mode
+			{
+				if (detectState)
+					detectState->toggleGPUDetect();
 			}
 			else if (c == 'h') // toggle tracking histories
 			{
