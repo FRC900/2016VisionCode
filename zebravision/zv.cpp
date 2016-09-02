@@ -298,12 +298,15 @@ int main( int argc, const char** argv )
 	//The code can switch to other nets if they're named like d12_1, d12_2, etc.
 	DetectState *detectState = NULL;
 	if (args.detection)
+	{
+		bool hasGPU = gpu::getCudaEnabledDeviceCount() > 0;
 		detectState = new DetectState(
 				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
 				ClassifierIO(args.c12BaseDir, args.c12DirNum, args.c12StageNum),
 				ClassifierIO(args.c24BaseDir, args.c24DirNum, args.c24StageNum),
-				camParams.fov.x, gpu::getCudaEnabledDeviceCount() > 0);
+				camParams.fov.x, hasGPU, hasGPU);
+	}
 
 	// Find the first frame number which has ground truth data
 	if (args.groundTruth)

@@ -55,5 +55,4 @@ class CaffeClassifier : public Classifier<MatT>
 		std::shared_ptr<caffe::Net<float>> net_; // the net itself
 		std::vector< std::vector<MatT>> inputBatch_; // net input buffers wrapped in Mats
 		bool initialized_;
-		static bool glogInit_;
 };

@@ -11,8 +11,18 @@ using namespace caffe;
 using namespace cv;
 using namespace cv::gpu;
 
-template <class MatT>
-bool CaffeClassifier<MatT>::glogInit_ = false;
+static bool glogInit_ = false;
+
+#if 0
+#include <sys/time.h>
+static double gtod_wrapper(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+}
+#endif
 
 template <class MatT>
 CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
@@ -138,13 +148,20 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 	// Process each image so they match the format
 	// expected by the net, then copy the images
 	// into the net's input buffers
+	//double start = gtod_wrapper();
 	PreprocessBatch(imgs);
+	//cout << "PreprocessBatch " << gtod_wrapper() - start << endl;
+	//start = gtod_wrapper();
 	// Run a forward pass with the data filled in from above
 	net_->Forward();
+	//cout << "Forward " << gtod_wrapper() - start << endl;
+
+	//start = gtod_wrapper();
 	/* Copy the output layer to a flat vector */
 	Blob<float>* outputLayer = net_->output_blobs()[0];
 	const float* begin = outputLayer->cpu_data();
 	const float* end = begin + outputLayer->channels()*imgs.size();
+	//cout << "Output " << gtod_wrapper() - start << endl;
 	return vector<float>(begin, end);
 }
 
