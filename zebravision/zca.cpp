@@ -383,7 +383,7 @@ vector<GpuMat> ZCA::Transform32FC3(const vector<GpuMat> &input)
 	vector<Mat> xformedImgs = Transform32FC3(cpuImgs);
 	vector<GpuMat> ret;
 
-	for (auto it = ret.cbegin(); it != ret.cend(); ++it)
+	for (auto it = xformedImgs.cbegin(); it != xformedImgs.cend(); ++it)
 	{
 		GpuMat gpuImg(*it);
 		ret.push_back(gpuImg);
