@@ -19,7 +19,6 @@ void scalefactor(const MatT &inputimage, const Size &objectsize, const Size &min
 	//only works for square image?
 	double scale = (double)objectsize.width / minsize.width;
 
-
 	while(scale > (double)objectsize.width / maxsize.width)
 	{	
 		//set objectsize.width to scalefactor * objectsize.width
@@ -52,7 +51,7 @@ void scalefactor(const MatT &inputimage, const vector<pair<MatT, double> > &scal
 		Size newSize(it->first.cols * rescaleFactor, it->first.rows * rescaleFactor);
 		resize(inputimage, outputimage, newSize);
 		// calculate scale from actual size, which will
-		// includ rounding done to get to integral number
+		// include rounding done to get to integral number
 		// of pixels in each dimension
 		double scale = max((double)outputimage.rows / inputimage.rows, (double)outputimage.cols / inputimage.cols);
 		scaleInfoOut.push_back(make_pair(outputimage, scale));

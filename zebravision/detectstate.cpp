@@ -111,12 +111,12 @@ bool DetectState::update(void)
 			if (!gpuDetect_)
 				detector_ = new ObjDetectCPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 			else
-				detector_ = new ObjDetectCPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+				detector_ = new ObjDetectGPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		}
 		else
 		{
 			if (!gpuDetect_)
-				detector_ = new ObjDetectGPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+				detector_ = new ObjDetectCPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 			else
 				detector_ = new ObjDetectGPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		}
@@ -233,11 +233,11 @@ void DetectState::changeC24Model(bool increment)
 std::string DetectState::print(void) const
 {
 	string ret;
-	if (gpuClassifier_)
+	if (gpuDetect_)
 		ret += "G_";
 	else
 		ret += "C_";
-	if (gpuDetect_)
+	if (gpuClassifier_)
 		ret += "G_";
 	else
 		ret += "C_";
