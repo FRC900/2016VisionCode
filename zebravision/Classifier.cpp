@@ -27,7 +27,7 @@ Classifier<MatT>::Classifier(const string& modelFile,
       const string& labelFile,
       const size_t  batchSize) :
 	batchSize_(batchSize),
-	zca_(zcaWeightFile.c_str())
+	zca_(zcaWeightFile.c_str(), batchSize)
 {
 	(void)modelFile;
 	(void)trainedFile;
@@ -97,6 +97,7 @@ vector< vector<Prediction> > Classifier<Mat>::ClassifyBatch(
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
+	//cerr << "ClassifyBatch Mat->Mat" << endl;
 	vector<float> outputBatch = PredictBatch(imgs);
 	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
 }
@@ -109,6 +110,7 @@ vector< vector<Prediction> > Classifier<GpuMat>::ClassifyBatch(
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
+	//cerr << "ClassifyBatch GpuMat->GpuMat" << endl;
 	vector<float> outputBatch = PredictBatch(imgs);
 	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
 }
@@ -121,6 +123,7 @@ vector< vector<Prediction> > Classifier<Mat>::ClassifyBatch(
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
+	//cerr << "ClassifyBatch GpuMat->Mat" << endl;
 	vector<Mat> cpuImgs;
 	for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
 	{
@@ -140,6 +143,7 @@ vector< vector<Prediction> > Classifier<GpuMat>::ClassifyBatch(
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
+	//cerr << "ClassifyBatch Mat->GpuMat" << endl;
 	vector<GpuMat> gpuImgs;
 	for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
 	{

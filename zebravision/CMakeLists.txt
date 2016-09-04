@@ -28,6 +28,8 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
+INCLUDE( FindCUDA )
+
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 include_directories(/home/ubuntu/opencv-2.4.13/build/include
@@ -50,7 +52,13 @@ link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
-add_executable(zv
+set (CUDA_PROPAGATE_HOST_FLAGS off)
+LIST(APPEND CUDA_NVCC_FLAGS --compiler-options -fno-strict-aliasing -lineinfo -use_fast_math -Xptxas -dlcm=cg)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_52,code=sm_52)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
+LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
+
+CUDA_ADD_EXECUTABLE(zv
 	objdetect.cpp
 	GoalDetector.cpp
 	detect.cpp
@@ -84,6 +92,7 @@ add_executable(zv
 	kalman.cpp
 	hungarian.cpp
 	zca.cpp
+	zca.cu
 	ZvSettings.cpp
 	zv.cpp)
 
@@ -111,11 +120,11 @@ target_link_libraries( zv
 #target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 #add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 #target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-add_executable(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
+CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
 target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES})
-add_executable(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp classifierio.cpp)
+CUDA_ADD_EXECUTABLE(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
 target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
-add_executable(depthtest depthtest.cpp)
-target_link_libraries( depthtest ${OpenCV_LIBS} )
+#add_executable(depthtest depthtest.cpp)
+#target_link_libraries( depthtest ${OpenCV_LIBS} )

@@ -37,15 +37,15 @@ static double gtod_wrapper(void)
 // net is larger and slower but also more accurate.  
 template<class MatT, class ClassifierT>
 void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputImg,
-                                      const Mat&            depthMat,
-                                      const Size&           minSize,
-                                      const Size&           maxSize,
-                                      const double          scaleFactor,
-                                      const vector<double>& nmsThreshold,
-                                      const vector<double>& detectThreshold,
-                                      const vector<double>& calibrationThreshold,
-                                      vector<Rect>&         rectsOut,
-									  vector<Rect>&         uncalibRectsOut)
+												   const Mat&            depthMat,
+												   const Size&           minSize,
+												   const Size&           maxSize,
+												   const double          scaleFactor,
+												   const vector<double>& nmsThreshold,
+												   const vector<double>& detectThreshold,
+												   const vector<double>& calibrationThreshold,
+												   vector<Rect>&         rectsOut,
+												   vector<Rect>&         uncalibRectsOut)
 {
     // Size of the first level classifier. Others are an integer multiple
     // of this initial size (2x and maybe 4x if we need it)
