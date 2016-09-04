@@ -51,8 +51,6 @@
 
 #include <string>
 #include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-
 #include "zca.hpp"
 
 //#define DEBUG_TIME
@@ -368,14 +366,14 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 		cv::gpu::GpuMat &buf,
 		float *dMean,
 		float *dStddev,
-		std::vector<cv::gpu::GpuMat> &output);
+		float *output);
+
 // Transform a vector of input images in floating
 // point format using the weights loaded
 // when this object was initialized
-vector<GpuMat> ZCA::Transform32FC3(const vector<GpuMat> &input)
+void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 {
 	vector<GpuMat> foo;
-	vector<GpuMat> output;
 	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
 		if (it->size() != size_)
@@ -385,13 +383,10 @@ vector<GpuMat> ZCA::Transform32FC3(const vector<GpuMat> &input)
 		}
 		else 
 		{
-			// need clone so mat is contiguous - 
-			// reshape won't work otherwise
 			foo.push_back(*it);
 		}
 	}
-	cudaZCATransform(foo, weightsGPU_, dPssIn_, dPssOut_, gm_, gmOut_, buf_, dMean_, dStddev_, output);
-	return output;
+	cudaZCATransform(foo, weightsGPU_, dPssIn_, dPssOut_, gm_, gmOut_, buf_, dMean_, dStddev_, dest);
 }
 
 // Load a previously calcuated set of weights from file

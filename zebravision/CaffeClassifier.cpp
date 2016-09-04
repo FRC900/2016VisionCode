@@ -165,10 +165,25 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 	return vector<float>(begin, end);
 }
 
+// TODO : maybe don't specialize this one in case
+// we use something other than Mat or GpuMat in the
+// future?
+template <> template <>
+float *CaffeClassifier<Mat>::GetBlobData(Blob<float> *blob)
+{
+	return blob->mutable_cpu_data();
+}
+
+template <> template <>
+float *CaffeClassifier<GpuMat>::GetBlobData(Blob<float> *blob)
+{
+	return blob->mutable_gpu_data();
+}
+
 // Take each image in Mat, convert it to the correct image type,
 // Then actually write the images to the net input memory buffers
-template <class MatT>
-void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
+template <>
+void CaffeClassifier<Mat>::PreprocessBatch(const vector<Mat> &imgs)
 {
 	CHECK(imgs.size() <= this->batchSize_) <<
 		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
@@ -184,7 +199,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 		imwrite(s.str(), wr);
 	}
 #endif
-	vector<MatT> zcaImgs = this->zca_.Transform32FC3(imgs);
+	vector<Mat> zcaImgs = this->zca_.Transform32FC3(imgs);
 #if 0
 	for (size_t i = 0 ; i < zcaImgs.size(); i++)
 	{
@@ -209,7 +224,7 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 		/* This operation will write the separate BGR planes directly to the
 		 * input layer of the network because it is wrapped by the MatT
 		 * objects in inputChannels. */
-		vector<MatT> *inputChannels = &inputBatch_.at(i);
+		vector<Mat> *inputChannels = &inputBatch_.at(i);
 		split(zcaImgs[i], *inputChannels);
 
 #if 1
@@ -222,20 +237,19 @@ void CaffeClassifier<MatT>::PreprocessBatch(const vector<MatT> &imgs)
 	}
 }
 
-// TODO : maybe don't specialize this one in case
-// we use something other than Mat or GpuMat in the
-// future?
-template <> template <>
-float *CaffeClassifier<Mat>::GetBlobData(Blob<float> *blob)
+// Take each image in GpuMat, convert it to the correct image type,
+// Then actually write the images to the net input memory buffers
+template <>
+void CaffeClassifier<GpuMat>::PreprocessBatch(const vector<GpuMat> &imgs)
 {
-	return blob->mutable_cpu_data();
+	CHECK(imgs.size() <= this->batchSize_) <<
+		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
+
+	Blob<float>* inputLayer = net_->input_blobs()[0];
+	float* inputData = GetBlobData(inputLayer);
+	this->zca_.Transform32FC3(imgs, inputData);
 }
 
-template <> template <>
-float *CaffeClassifier<GpuMat>::GetBlobData(Blob<float> *blob)
-{
-	return blob->mutable_gpu_data();
-}
 
 // TODO : maybe don't specialize this one in case
 // we use something other than Mat or GpuMat in the

@@ -56,7 +56,9 @@ __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<fl
 
 
 __global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
-							 	       cv::gpu::PtrStepSz<float> *output)
+								 const size_t rows,
+								 const size_t cols,
+							 	 float *output)
 {
 	// 2D Index of current thread
 	const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -66,21 +68,28 @@ __global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
 	const int zIndex = blockIdx.z * blockDim.z + threadIdx.z;
 
 	//Only valid threads perform memory I/O
-	if((xIndex<output[zIndex].cols) && (yIndex<output[zIndex].rows))
+	if((xIndex<cols) && (yIndex<rows))
 	{
-		// yIndex * input[0].cols = number of floats per complete
+		// yIndex * cols = number of floats per complete
 		// filled row
 		// add xIndex to get to the correct location in this row
 		// Multiply by three to account for R, G, B float values
 		//   per col in the input images
-		const int flatIdxX = 3*(yIndex * output[zIndex].cols + xIndex);
+		const int flatIdxX = 3*(yIndex * cols + xIndex);
 		const float blue  = input(zIndex, flatIdxX + 0);
 		const float green = input(zIndex, flatIdxX + 1);
 		const float red	  = input(zIndex, flatIdxX + 2);
 
-		output[zIndex](yIndex, 3 * xIndex)     = blue;
-		output[zIndex](yIndex, 3 * xIndex + 1) = green;
-		output[zIndex](yIndex, 3 * xIndex + 2) = red;
+		// Convert to flat 1-D representation
+		// order is [image][color channel][row][col]
+		const int chanDist = rows * cols;
+		const int idx = zIndex * 3 * chanDist + // 3 channels of row*col pixels per image
+			            yIndex * cols +            
+						xIndex;
+
+		output[idx]              = blue;
+		output[idx +   chanDist] = green;
+		output[idx + 2*chanDist] = red;
 	}
 }
 
@@ -251,7 +260,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 		cv::gpu::GpuMat &buf,
 		float *dMean,
 		float *dStddev,
-		std::vector<cv::gpu::GpuMat> &output)
+		float *output)
 {
 	// Create array of PtrStepSz entries corresponding to
 	// each GPU mat in input. Copy it to device memory
@@ -315,6 +324,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 
 	gemm(dFlattenedImages, weights, 1.0, buf, 0.0, zcaOut);
 
+#if 0
 	output.clear();
 
 	// Turn each row back into a 2-d mat with 3 float color channels
@@ -327,7 +337,8 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 		//cout << "hPssOut[i] r=" << hPssOut[i].rows << " cols=" << hPssOut[i].cols << " step=" << hPssOut[i].step << endl;
 	}
 	cudaMemcpy(dPssOut, hPssOut, input.size() * sizeof(cv::gpu::PtrStepSz<float>), cudaMemcpyHostToDevice);
-	unflatten_kernel<<<grid,block>>>(zcaOut, dPssOut);
+#endif
+	unflatten_kernel<<<grid,block>>>(zcaOut, input[0].rows, input[0].cols, output);
 	SAFE_CALL(cudaDeviceSynchronize(),"GCN kernel launch failed");
 
 	SAFE_CALL(cudaFree(d_M1),"CUDA Free Failed");
