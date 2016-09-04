@@ -579,9 +579,12 @@ int ZedIn::height(void) const
 }
 
 
-ZedIn::ZedIn(const char *filename, const char *outputName)
+ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
+	MediaIn(settings)
 {
-	(void)filename;
+	(void)inFileName;
+	(void)gui;
+	(void)settings;
 	cerr << "Zed support not compiled in" << endl;
 }
 

@@ -12,7 +12,10 @@ if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
 elseif (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "aarch64-linux-gnu")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=cortex-a57")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -mcpu=cortex-a57")
-  add_definitions(-DUSE_GIE)
+  #add_definitions(-DUSE_GIE)
+  #link_directories(/home/ubuntu/GIE/lib)
+  #find_library (LibNVCaffeParser nvcaffe_parser /home/ubuntu/GIE/lib)
+  #find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
 else()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -march=native")
@@ -106,7 +109,7 @@ target_link_libraries( zv
 	${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
-	${ZED_LIBRARIES}
+	#${ZED_LIBRARIES}
 	${CUDA_LIBRARIES}
 	${CUDA_nppi_LIBRARY}
 	${CUDA_npps_LIBRARY}
@@ -114,6 +117,8 @@ target_link_libraries( zv
 	${LibGLOG}
 	${LibProtobuf}
 	${ZMQ_LIBRARIES}
+	#${LibNVCaffeParser}
+	#${LibNVInfer}
 	${LibTinyXML2})
 
 #add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
@@ -121,9 +126,9 @@ target_link_libraries( zv
 #add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 #target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
-target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES})
+target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
 CUDA_ADD_EXECUTABLE(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
-target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES})
+target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
 #add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
 #target_link_libraries( fpstest ${OpenCV_LIBS} )
 #add_executable(depthtest depthtest.cpp)

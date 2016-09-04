@@ -22,13 +22,6 @@ class GIEClassifier : public Classifier<MatT>
 		// This sets them up to be written with actual data
 		// in PreprocessBatch()
 		void WrapBatchInputLayer(void);
-
-		// Take each image in Mat, convert it to the correct image type,
-		// color depth, size to match the net input. Convert to 
-		// F32 type, since that's what the net inputs are. 
-		// Subtract out the mean before passing to the net input
-		// Then actually write the images to the net input memory buffers
-		void PreprocessBatch(const std::vector<cv::Mat> &imgs);
 #endif
 
 		// Get the output values for a set of images
@@ -54,7 +47,7 @@ class GIEClassifier : public Classifier<MatT>
 		int numChannels_;
 
 		float *inputCPU_;            // input CPU buffer
-		std::vector<std::vector<cv::Mat>> inputBatch_; // net input buffers wrapped in Mats
+		std::vector<std::vector<MatT>> inputBatch_; // net input buffers wrapped in Mats
 
 		bool initialized_;
 };

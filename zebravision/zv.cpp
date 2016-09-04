@@ -933,8 +933,10 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
+#ifdef ZED_SUPPORT
 		cap = new ZedIn(NULL, gui, zvSettings);
 		if(!cap->isOpened())
+#endif
 		{
 			delete cap;
 			cap = new C920CameraIn(camera, gui, zvSettings);
@@ -949,10 +951,12 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 				ss << "C920 Camera ";
 			}
 		}
+#ifdef ZED_SUPPORT
 		else
 		{
 			ss << "Zed Camera ";
 		}
+#endif
 		ss << camera;
 		windowName = ss.str();
 		capPath    = getDateTimeString();
@@ -962,9 +966,11 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
 			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
+#ifdef ZED_SUPPOER
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
 			cap = new ZedIn(readFileName.c_str(), gui, zvSettings);
+#endif
 		else
 			cap = new VideoIn(readFileName.c_str(), zvSettings);
 

@@ -88,31 +88,31 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
       const string& zcaWeightFile,
       const string& labelFile,
       const size_t  batchSize) :
-	Classifier(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
+	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
 	numChannels_(3),
 	inputCPU_(NULL),
 	initialized_(false)
 {
-	if (!Classifier<Mat>::initialized())
+	if (!Classifier<MatT>::initialized())
 		return;
 
-	if (!fileExists(modelFile))
+	if (!this->fileExists(modelFile))
 	{
 		cerr << "Could not find Caffe model " << modelFile << endl;
 		return;
 	}
-	if (!fileExists(trainedFile))
+	if (!this->fileExists(trainedFile))
 	{
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
 	}
 	cout << "Loading GIE model " << modelFile << " " << trainedFile << " " << zcaWeightFile << " " << labelFile << endl;
 
-	batchSize_ = batchSize;
+	this->batchSize_ = batchSize;
 
 	std::stringstream gieModelStream;
 	// TODO :: read from file if exists and is newer than modelFile and trainedFile
-	caffeToGIEModel(modelFile, trainedFile, std::vector < std::string > { OUTPUT_BLOB_NAME }, batchSize_, gieModelStream);
+	caffeToGIEModel(modelFile, trainedFile, std::vector < std::string > { OUTPUT_BLOB_NAME }, batchSize, gieModelStream);
 
 	// Create runable version of model by
 	// deserializing the engine 
@@ -132,8 +132,8 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
 	outputIndex_ = engine_->getBindingIndex(OUTPUT_BLOB_NAME);
 
 	// create GPU buffers and a stream
-	CHECK_CUDA(cudaMalloc(&buffers_[inputIndex_], batchSize * numChannels_ * inputGeometry_.area() * sizeof(float)));
-	CHECK_CUDA(cudaMalloc(&buffers_[outputIndex_], batchSize * labels_.size() * sizeof(float)));
+	CHECK_CUDA(cudaMalloc(&buffers_[inputIndex_], batchSize * numChannels_ * this->inputGeometry_.area() * sizeof(float)));
+	CHECK_CUDA(cudaMalloc(&buffers_[outputIndex_], batchSize * this->labels_.size() * sizeof(float)));
 
 	CHECK_CUDA(cudaStreamCreate(&stream_));
 
@@ -157,9 +157,9 @@ GIEClassifier<MatT>::~GIEClassifier()
 }
 
 template <class MatT>
-GIEClassifier<MatT>::initialized(void) const
+bool GIEClassifier<MatT>::initialized(void) const
 {
-	if (!Classifier<Mat>::initialized())
+	if (!Classifier<MatT>::initialized())
 		return false;
 	
 	return initialized_;
@@ -173,35 +173,38 @@ void GIEClassifier<MatT>::WrapBatchInputLayer(void)
 {
 	if (inputCPU_)
 		delete [] inputCPU_;
-	inputCPU_= new float[batchSize_ * numChannels_ * inputGeometry_.area()];
+	inputCPU_= new float[this->batchSize_ * numChannels_ * this->inputGeometry_.area()];
 	float *inputCPU = inputCPU_;
 
 	inputBatch_.clear();
 
-	for (size_t j = 0; j < batchSize_; j++)
+	for (size_t j = 0; j < this->batchSize_; j++)
 	{
-		vector<Mat> inputChannels;
+		vector<MatT> inputChannels;
 		for (int i = 0; i < numChannels_; ++i)
 		{
-			Mat channel(inputGeometry_.height, inputGeometry_.width, CV_32FC1, inputCPU);
+			MatT channel(this->inputGeometry_.height, this->inputGeometry_.width, CV_32FC1, inputCPU);
 			inputChannels.push_back(channel);
-			inputCPU += inputGeometry_.area();
+			inputCPU += this->inputGeometry_.area();
 		}
-		inputBatch_.push_back(vector<Mat>(inputChannels));
+		inputBatch_.push_back(vector<MatT>(inputChannels));
 	}
 }
 
-// Take each image in Mat, convert it to the correct image type,
-// Then actually write the images to the net input memory buffers
-template <class MatT>
-void GIEClassifier<MatT>::PreprocessBatch(const vector<Mat> &imgs)
+template <>
+vector<float> GIEClassifier<Mat>::PredictBatch(const vector<Mat> &imgs)
 {
-	if (imgs.size() > batchSize_) 
+	if (imgs.size() > this->batchSize_) 
 		cerr <<
 		"PreprocessBatch() : too many input images : batch size is " << 
-		batchSize_ << "imgs.size() = " << imgs.size() << endl; 
+		this->batchSize_ << "imgs.size() = " << imgs.size() << endl; 
 
-	vector<Mat> zcaImgs = zca_.Transform32FC3(imgs);
+	// Take each image in Mat, convert it to the correct image type,
+	// color depth, size to match the net input. Convert to 
+	// F32 type, since that's what the net inputs are. 
+	// Subtract out the mean before passing to the net input
+	// Then actually write the images to the net input memory buffers
+	vector<Mat> zcaImgs = this->zca_.Transform32FC3(imgs);
 	for (size_t i = 0 ; i < zcaImgs.size(); i++)
 	{
 		/* This operation will write the separate BGR planes directly to the
@@ -217,17 +220,36 @@ void GIEClassifier<MatT>::PreprocessBatch(const vector<Mat> &imgs)
 				cerr << "Input channels are not wrapping the input layer of the network." << endl;
 #endif
 	}
+	float output[this->labels_.size()];
+	// DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
+	CHECK_CUDA(cudaMemcpyAsync(buffers_[inputIndex_], inputCPU_, this->batchSize_ * this->inputGeometry_.area() * sizeof(float), cudaMemcpyHostToDevice, stream_));
+	context_->enqueue(this->batchSize_, buffers_, stream_, nullptr);
+	CHECK_CUDA(cudaMemcpyAsync(output, buffers_[outputIndex_], this->batchSize_ * this->labels_.size() * sizeof(float), cudaMemcpyDeviceToHost, stream_));
+	cudaStreamSynchronize(stream_);
+
+	return vector<float>(output, output + sizeof(output)/sizeof(output[0]));
 }
 
-template <class MatT>
-vector<float> GIEClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
+template <>
+vector<float> GIEClassifier<GpuMat>::PredictBatch(const vector<GpuMat> &imgs)
 {
-	PreprocessBatch(imgs);
-	float output[labels_.size()];
+	if (imgs.size() > this->batchSize_) 
+		cerr <<
+		"PreprocessBatch() : too many input images : batch size is " << 
+		this->batchSize_ << "imgs.size() = " << imgs.size() << endl; 
+
+	// Take each image in Mat, convert it to the correct image type,
+	// color depth, size to match the net input. Convert to 
+	// F32 type, since that's what the net inputs are. 
+	// Subtract out the mean before passing to the net input
+	// Then actually write the images to the net input memory buffers
+	this->zca_.Transform32FC3(imgs, (float *)buffers_[inputIndex_]);
+
 	// DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
-	CHECK_CUDA(cudaMemcpyAsync(buffers_[inputIndex_], inputCPU_, batchSize_ * inputGeometry_.area() * sizeof(float), cudaMemcpyHostToDevice, stream_));
-	context_->enqueue(batchSize_, buffers_, stream_, nullptr);
-	CHECK_CUDA(cudaMemcpyAsync(output, buffers_[outputIndex_], batchSize_ * labels_.size() * sizeof(float), cudaMemcpyDeviceToHost, stream_));
+	CHECK_CUDA(cudaMemcpyAsync(buffers_[inputIndex_], inputCPU_, this->batchSize_ * this->inputGeometry_.area() * sizeof(float), cudaMemcpyHostToDevice, stream_));
+	context_->enqueue(this->batchSize_, buffers_, stream_, nullptr);
+	float output[this->labels_.size()];
+	CHECK_CUDA(cudaMemcpyAsync(output, buffers_[outputIndex_], this->batchSize_ * this->labels_.size() * sizeof(float), cudaMemcpyDeviceToHost, stream_));
 	cudaStreamSynchronize(stream_);
 
 	return vector<float>(output, output + sizeof(output)/sizeof(output[0]));

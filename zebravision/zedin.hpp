@@ -22,14 +22,14 @@ class ZedIn : public MediaIn
 	public:
 		ZedIn(const char *inFileName = NULL, bool gui = false, ZvSettings *settings = NULL);
 		~ZedIn();
-		bool isOpened(void) const;
-		bool update(void);
-		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		int    width(void) const;
 		int    height(void) const;
 
 #ifdef ZED_SUPPORT
+		bool isOpened(void) const;
+		bool update(void);
+		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 		// How many frames?
 		int    frameCount(void) const;
 
