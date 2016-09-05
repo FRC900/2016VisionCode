@@ -18,6 +18,11 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 }
 #define SAFE_CALL(call,msg) _safe_cuda_call((call),(msg),__FILE__,__LINE__)
 
+// Apply global contrast normalization to
+// each input image.
+// For each channel in each image, the mean and stddev has
+// already been calculated
+// For each pixel, subtract the mean and divide by the stddev
 __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<float> *input,
 									const float *mean,
 									const float *stddev,
@@ -55,6 +60,11 @@ __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<fl
 }
 
 
+// Take the output of the ZCA matrix mul - that will
+// be a matrix. Each image is a row, each row is the pixels
+// in BGRBGRBGR.. order
+// Convert that to a flat 1-D array as expected by the neural
+// net input stages
 __global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
 								 const size_t rows,
 								 const size_t cols,
@@ -93,6 +103,8 @@ __global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
 	}
 }
 
+// Math to add two intermediate steps of mean & stddev 
+// See http://www.johndcook.com/blog/skewness_kurtosis/
 __device__ void combine_running_totals(float &M1_1, float M1_2, float &M2_1, float M2_2, unsigned int &n_1, unsigned int n_2)
 {
 	unsigned int combined_n = n_1 + n_2;
@@ -108,8 +120,8 @@ __device__ void combine_running_totals(float &M1_1, float M1_2, float &M2_1, flo
 	M2_1 = combined_M2;
 }
 
-// Shared memory per channel per thread = 1 long, 2 floats.
-// So a 3 channel image needs 3 longs and 6 floats
+// For each input image, calculate the mean and stddev
+// of each color channel
 __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *input,
 					float *M1Array,
 					float *M2Array,
@@ -120,6 +132,9 @@ __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *i
 	// Thread index within block - used for addressing smem below
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
+	// Shared memory per channel per thread = 1 long, 2 floats.
+	// So a 3 channel image needs 3 longs and 6 floats
+	// Thread blocks are 16x16 threads
 	// TODO : fixme for variable sized thread blocks
 	__shared__ float M1[16*16*3];
 	__shared__ float M2[16*16*3];
@@ -266,10 +281,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	// each GPU mat in input. Copy it to device memory
 	cv::gpu::PtrStepSz<float> hPssIn[input.size()];
 	for (size_t i = 0; i < input.size(); ++i)
-	{
 		hPssIn[i] = input[i];
-		//cout << "hPssIn[i] r=" << hPssIn[i].rows << " cols=" << hPssIn[i].cols << " step=" << hPssIn[i].step << endl;
-	}
 	cudaMemcpy(dPssIn, hPssIn, input.size() * sizeof(cv::gpu::PtrStepSz<float>), cudaMemcpyHostToDevice);
 
 	// Specify a reasonable block size
@@ -324,26 +336,11 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 
 	gemm(dFlattenedImages, weights, 1.0, buf, 0.0, zcaOut);
 
-#if 0
-	output.clear();
-
-	// Turn each row back into a 2-d mat with 3 float color channels
-	// Create array of PtrStepSz entries in device memory
-	cv::gpu::PtrStepSz<float> hPssOut[input.size()];
-	for (size_t i = 0; i < input.size(); ++i)
-	{
-		output.push_back(cv::gpu::GpuMat(input[0].rows, input[0].cols, CV_32FC3));
-		hPssOut[i] = output[i];
-		//cout << "hPssOut[i] r=" << hPssOut[i].rows << " cols=" << hPssOut[i].cols << " step=" << hPssOut[i].step << endl;
-	}
-	cudaMemcpy(dPssOut, hPssOut, input.size() * sizeof(cv::gpu::PtrStepSz<float>), cudaMemcpyHostToDevice);
-#endif
 	unflatten_kernel<<<grid,block>>>(zcaOut, input[0].rows, input[0].cols, output);
 	SAFE_CALL(cudaDeviceSynchronize(),"GCN kernel launch failed");
 
 	SAFE_CALL(cudaFree(d_M1),"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_M2),"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_n),"CUDA Free Failed");
-
 }
 
