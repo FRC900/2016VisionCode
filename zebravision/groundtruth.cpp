@@ -44,6 +44,7 @@ GroundTruth::GroundTruth(const string &truthFile, const string &videoFile)
 	count_ = 0;
 	found_ = 0;
 	falsePositives_ = 0;
+	framesSeen_     = 0;
 }
 
 
@@ -88,7 +89,7 @@ vector<Rect> GroundTruth::processFrame(int frameNum, const vector<Rect> &detectR
 	{
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 		{
-			// If the intersection is > 30% of the area of
+			// If the intersection is > 45% of the area of
 			// the ground truth, that's a success
 			if ((*it & *gt).area() > (max(gt->area(), it->area()) * 0.45))
 			{
@@ -106,6 +107,7 @@ vector<Rect> GroundTruth::processFrame(int frameNum, const vector<Rect> &detectR
 		if (!*it)
 			falsePositives_ += 1;
 
+	framesSeen_ += 1;
 	return retList;
 }
 
@@ -115,6 +117,6 @@ void GroundTruth::print(void) const
 	if (count_)
 	{
 		cout << found_ << " of " << count_ << " ground truth objects found (" << (double)found_ / count_ * 100.0 << "%)" << endl;
-		cout << falsePositives_ << " false positives found in " << frameList_.size() << " frames (" << (double)falsePositives_/frameList_.size()<< " per frame)" << endl;
+		cout << falsePositives_ << " false positives found in " << framesSeen_ << " frames (" << (double)falsePositives_/framesSeen_ << " per frame)" << endl;
 	}
 }
