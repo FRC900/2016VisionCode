@@ -208,9 +208,11 @@ TrackedObject::TrackedObject(int               id,
 }
 
 
+#if 0
 TrackedObject::~TrackedObject()
 {
 }
+#endif
 
 // Set the position based on x,y,z coords
 
@@ -505,6 +507,7 @@ void TrackedObjectList::getDisplay(vector<TrackedObjectDisplay> &displayList) co
 }
 
 const double dist_thresh_ = 1.0; // FIX ME!
+//#define VERBOSE_TRACK
 
 // Process a set of detected rectangles
 // Each will either match a previously detected object or
@@ -593,6 +596,10 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 			cout << "New assignment created " << i << endl;
 #endif
 			list_.push_back(TrackedObject(detectCount_++, types[i], detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
+
+#ifdef VERBOSE_TRACK
+			cout << "New assignment finished" << endl;
+#endif
 		}
 	}
 
@@ -641,7 +648,9 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	{
 		if (it->tooManyMissedFrames()) // For now just remove ones for
 		{                              // which detectList is empty
-			//cout << "Dropping " << it->getId() << endl;
+#ifdef VERBOSE_TRACK
+			cout << "Dropping " << it->getId() << endl;
+#endif
 			it = list_.erase(it);
 		}
 		else
