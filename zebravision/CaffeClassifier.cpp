@@ -33,6 +33,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
 	initialized_(false)
 {
+#ifdef USE_CAFFE
 	if (!Classifier<MatT>::initialized())
 		return;
 	if (!this->fileExists(modelFile))
@@ -99,6 +100,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	// into the input buffers for the net
 	WrapBatchInputLayer();
 	initialized_ = true;
+#endif
 }
 
 
@@ -107,6 +109,7 @@ CaffeClassifier<MatT>::~CaffeClassifier()
 {
 }
 
+#ifdef USE_CAFFE
 // Wrap input layer of the net into separate Mat objects
 // This sets them up to be written with actual data
 // in PreprocessBatch()
@@ -134,6 +137,7 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 		inputBatch_.push_back(vector<MatT>(inputChannels));
 	}
 }
+#endif
 
 // Get the output values for a set of images in one flat vector
 // These values will be in the same order as the labels for each
@@ -145,6 +149,7 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 template <class MatT>
 vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs) 
 {
+#ifdef USE_CAFFE
 	// Process each image so they match the format
 	// expected by the net, then copy the images
 	// into the net's input buffers
@@ -163,7 +168,12 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 	const float* end = begin + outputLayer->channels()*imgs.size();
 	//cout << "Output " << gtod_wrapper() - start << endl;
 	return vector<float>(begin, end);
+#else
+	return vector<float>(imgs.size() * this->labels_.size(), 0);
+#endif
 }
+
+#ifdef USE_CAFFE
 
 // TODO : maybe don't specialize this one in case
 // we use something other than Mat or GpuMat in the
@@ -265,6 +275,7 @@ bool CaffeClassifier<GpuMat>::IsGPU(void) const
 {
 	return true;
 }
+#endif
 
 template <class MatT>
 bool CaffeClassifier<MatT>::initialized(void) const
@@ -274,7 +285,6 @@ bool CaffeClassifier<MatT>::initialized(void) const
 	
 	return initialized_;
 }
-
 
 template class CaffeClassifier<Mat>;
 template class CaffeClassifier<GpuMat>;

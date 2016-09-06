@@ -20,6 +20,7 @@ class CaffeClassifier : public Classifier<MatT>
 		bool initialized(void) const;
 
 	private:
+#ifdef USE_CAFFE
 		// Wrap input layer of the net into separate Mat objects
 		// This sets them up to be written with actual data
 		// in PreprocessBatch()
@@ -31,6 +32,7 @@ class CaffeClassifier : public Classifier<MatT>
 		// Subtract out the mean before passing to the net input
 		// Then actually write the images to the net input memory buffers
 		void PreprocessBatch(const std::vector<MatT> &imgs);
+#endif
 
 		// Get the output values for a set of images
 		// These values will be in the same order as the labels for each
@@ -41,6 +43,7 @@ class CaffeClassifier : public Classifier<MatT>
 		// for the next image - [n+1] = label 0 for image #2.
 		std::vector<float> PredictBatch(const std::vector<MatT> &imgs);
 
+#ifdef USE_CAFFE
 		// Method which returns either mutable_cpu_data or mutable_gpu_data
 		// depending on whether we're using CPU or GPU Mats
 		// X will always be floats for our net, but C++ syntax
@@ -54,5 +57,6 @@ class CaffeClassifier : public Classifier<MatT>
 
 		std::shared_ptr<caffe::Net<float>> net_; // the net itself
 		std::vector< std::vector<MatT>> inputBatch_; // net input buffers wrapped in Mats
+#endif
 		bool initialized_;
 };

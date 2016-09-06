@@ -13,9 +13,9 @@ elseif (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "aarch64-linux-gnu")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=cortex-a57")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -mcpu=cortex-a57")
   #add_definitions(-DUSE_GIE)
-  #link_directories(/home/ubuntu/GIE/lib)
-  #find_library (LibNVCaffeParser nvcaffe_parser /home/ubuntu/GIE/lib)
-  #find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
+  link_directories(/home/ubuntu/GIE/lib)
+  find_library (LibNVCaffeParser nvcaffe_parser /home/ubuntu/GIE/lib)
+  find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
 else()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -march=native")
@@ -98,6 +98,46 @@ CUDA_ADD_EXECUTABLE(zv
 	zca.cu
 	ZvSettings.cpp
 	zv.cpp)
+target_compile_definitions(zv PRIVATE USE_CAFFE=1)
+
+CUDA_ADD_EXECUTABLE(zvgie
+	objdetect.cpp
+	GoalDetector.cpp
+	detect.cpp
+	Classifier.cpp
+	CaffeClassifier.cpp
+	GIEClassifier.cpp
+	fast_nms.cpp
+	scalefactor.cpp
+	detectstate.cpp
+	mediain.cpp
+	videoin.cpp
+	camerain.cpp
+	C920Camera.cpp
+	c920camerain.cpp
+	imagein.cpp
+	mediaout.cpp
+	aviout.cpp
+	pngout.cpp
+	zmsout.cpp
+	portable_binary_iarchive.cpp
+	portable_binary_oarchive.cpp
+	classifierio.cpp
+	Args.cpp
+	WriteOnFrame.cpp
+	zedin.cpp
+	groundtruth.cpp
+	Utilities.cpp
+	track3d.cpp
+	#../fovis/FovisLocalizer.cpp
+	FlowLocalizer.cpp
+	kalman.cpp
+	hungarian.cpp
+	zca.cpp
+	zca.cu
+	ZvSettings.cpp
+	zv.cpp)
+target_compile_definitions(zvgie PRIVATE USE_GIE=1)
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
@@ -119,6 +159,21 @@ target_link_libraries( zv
 	${ZMQ_LIBRARIES}
 	#${LibNVCaffeParser}
 	#${LibNVInfer}
+	${LibTinyXML2})
+
+target_link_libraries( zvgie
+	${OpenCV_LIBS}
+	#fovis
+	${CMAKE_THREAD_LIBS_INIT}
+	#${ZED_LIBRARIES}
+	${CUDA_LIBRARIES}
+	${CUDA_nppi_LIBRARY}
+	${CUDA_npps_LIBRARY}
+	${Boost_LIBRARIES}
+	${LibProtobuf}
+	${ZMQ_LIBRARIES}
+	${LibNVCaffeParser}
+	${LibNVInfer}
 	${LibTinyXML2})
 
 #add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
