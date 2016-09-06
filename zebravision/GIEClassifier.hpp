@@ -40,14 +40,15 @@ class GIEClassifier : public Classifier<MatT>
 		nvinfer1::ICudaEngine* engine_;        // network engine
 		nvinfer1::IExecutionContext *context_; // netowrk context to run on engine
 		cudaStream_t stream_;
-#endif
+
 		void* buffers_[2];           // input and output GPU buffers
-		int inputIndex_;
-		int outputIndex_;
-		int numChannels_;
+		size_t inputIndex_;
+		size_t outputIndex_;
+		size_t numChannels_;
 
 		float *inputCPU_;            // input CPU buffer
 		std::vector<std::vector<MatT>> inputBatch_; // net input buffers wrapped in Mats
+#endif
 
 		bool initialized_;
 };

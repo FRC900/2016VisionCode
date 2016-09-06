@@ -78,7 +78,6 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	engine->serialize(gieModelStream);
 	engine->destroy();
 	builder->destroy();
-
 }
 
 
@@ -106,13 +105,13 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
 	}
-	cout << "Loading GIE model " << modelFile << " " << trainedFile << " " << zcaWeightFile << " " << labelFile << endl;
+	cout << "Loading GIE model " << modelFile << endl << "\t" << trainedFile << endl << "\t" << zcaWeightFile << endl << "\t" << labelFile << endl;
 
 	this->batchSize_ = batchSize;
 
 	std::stringstream gieModelStream;
 	// TODO :: read from file if exists and is newer than modelFile and trainedFile
-	caffeToGIEModel(modelFile, trainedFile, std::vector < std::string > { OUTPUT_BLOB_NAME }, batchSize, gieModelStream);
+	caffeToGIEModel(modelFile, trainedFile, std::vector <std::string>{OUTPUT_BLOB_NAME}, batchSize, gieModelStream);
 
 	// Create runable version of model by
 	// deserializing the engine 
@@ -146,7 +145,9 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
 template <class MatT>
 GIEClassifier<MatT>::~GIEClassifier()
 {
-	delete [] inputCPU_;
+	if (inputCPU_)
+		delete [] inputCPU_;
+
 	// release the stream and the buffers
 	cudaStreamDestroy(stream_);
 	CHECK_CUDA(cudaFree(buffers_[inputIndex_]));
@@ -161,13 +162,13 @@ bool GIEClassifier<MatT>::initialized(void) const
 {
 	if (!Classifier<MatT>::initialized())
 		return false;
-	
+
 	return initialized_;
 }
 
 // Wrap input layer of the net into separate Mat objects
 // This sets them up to be written with actual data
-// in PreprocessBatch()
+// in PreprocessBatch() using OpenCV split() calls
 template <class MatT>
 void GIEClassifier<MatT>::WrapBatchInputLayer(void)
 {
@@ -181,11 +182,11 @@ void GIEClassifier<MatT>::WrapBatchInputLayer(void)
 	for (size_t j = 0; j < this->batchSize_; j++)
 	{
 		vector<MatT> inputChannels;
-		for (int i = 0; i < numChannels_; ++i)
+		for (size_t i = 0; i < numChannels_; ++i)
 		{
 			MatT channel(this->inputGeometry_.height, this->inputGeometry_.width, CV_32FC1, inputCPU);
 			inputChannels.push_back(channel);
-			inputCPU += this->inputGeometry_.area();
+			inputCPU += this->inputGeometry_.area(); // point to start of next image's location in the buffer
 		}
 		inputBatch_.push_back(vector<MatT>(inputChannels));
 	}
@@ -212,15 +213,8 @@ vector<float> GIEClassifier<Mat>::PredictBatch(const vector<Mat> &imgs)
 		 * objects in inputChannels. */
 		vector<Mat> *inputChannels = &inputBatch_.at(i);
 		split(zcaImgs[i], *inputChannels);
-
-#if 1
-		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
-		if (i == 0)
-			if (reinterpret_cast<float*>(inputChannels->at(0).data) != inputCPU_)
-				cerr << "Input channels are not wrapping the input layer of the network." << endl;
-#endif
 	}
-	float output[this->labels_.size()];
+	float output[this->labels_.size() * this->batchSize_];
 	// DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
 	CHECK_CUDA(cudaMemcpyAsync(buffers_[inputIndex_], inputCPU_, this->batchSize_ * this->inputGeometry_.area() * sizeof(float), cudaMemcpyHostToDevice, stream_));
 	context_->enqueue(this->batchSize_, buffers_, stream_, nullptr);
@@ -248,7 +242,10 @@ vector<float> GIEClassifier<GpuMat>::PredictBatch(const vector<GpuMat> &imgs)
 	// DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
 	CHECK_CUDA(cudaMemcpyAsync(buffers_[inputIndex_], inputCPU_, this->batchSize_ * this->inputGeometry_.area() * sizeof(float), cudaMemcpyHostToDevice, stream_));
 	context_->enqueue(this->batchSize_, buffers_, stream_, nullptr);
-	float output[this->labels_.size()];
+
+	// Setup an output buffer and enqueue a copy
+	// into it once the net has been run
+	float output[this->labels_.size() * this->batchSize_];
 	CHECK_CUDA(cudaMemcpyAsync(output, buffers_[outputIndex_], this->batchSize_ * this->labels_.size() * sizeof(float), cudaMemcpyDeviceToHost, stream_));
 	cudaStreamSynchronize(stream_);
 
