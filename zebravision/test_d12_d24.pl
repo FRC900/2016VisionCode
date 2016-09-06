@@ -15,7 +15,12 @@ my @videos = ();
 for $videodir (@videodirs)
 {
 	opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
-	push @videos, grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
+	my @this_videos = ();
+	push @this_videos, grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
+	for $video (sort @this_videos)
+	{
+		push @videos, $videodir . "/" . $video;
+	}
 	closedir $dh;
 }
 
@@ -45,7 +50,7 @@ for $d24_dir (sort @d24_model_dirs)
 		print "$d12_num, $d24_num, ";
 		for $video (sort @videos)
 		{
-			open (my $pipeh, "./zv --d12Dir=$d12_num --d24Dir=$d24_num --batch --groundTruth \"$videodir/$video\"  2>/dev/null|");
+			open (my $pipeh, "./zv --d12Dir=$d12_num --d24Dir=$d24_num --batch --groundTruth \"$video\"  2>/dev/null|");
 			while ($line = <$pipeh>)
 			{
 				if ($line =~ /(\d+) of (\d+) ground truth objects/)

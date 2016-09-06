@@ -9,7 +9,7 @@ using namespace cv;
 
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
+TKalmanFilter::TKalmanFilter(const Point3f &pt,float dt,float Accel_noise_mag) :
 	kalman(KalmanFilter(6, 3, 0, CV_32F)) // 6 state variables, 3 measurements
 {
 	//time increment (lower values makes target more "massive")
@@ -48,15 +48,20 @@ TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
 			-9.81*dt);
 #endif
 	// init... 
-	kalman.statePre.at<float>(0) = pt.x; // x
-	kalman.statePre.at<float>(1) = pt.y; // y
-	kalman.statePre.at<float>(2) = pt.z; // z
-	kalman.statePre.at<float>(4) = 0;    // v_x
-	kalman.statePre.at<float>(5) = 0;    // v_y
-	kalman.statePre.at<float>(6) = 0;    // v_z
+#if 0
+	kalman.statePre.at<float>(0,0) = pt.x; // x
+	kalman.statePre.at<float>(1,0) = pt.y; // y
+	kalman.statePre.at<float>(2,0) = pt.z; // z
+	kalman.statePre.at<float>(4,0) = 0;    // v_x
+	kalman.statePre.at<float>(5,0) = 0;    // v_y
+	kalman.statePre.at<float>(6,0) = 0;    // v_z
+#endif
 
-	kalman.statePost = kalman.statePre;
-
+	kalman.statePre = (Mat_<float>(6,1) <<
+			pt.x,pt.y,pt.z,0,0,0);
+	kalman.statePost = (Mat_<float>(6,1) <<
+			pt.x,pt.y,pt.z,0,0,0);
+			
 	setIdentity(kalman.measurementMatrix);
 
 	kalman.processNoiseCov=(Mat_<float>(6, 6) << 
@@ -88,18 +93,13 @@ TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
 }
 
 //---------------------------------------------------------------------------
-TKalmanFilter::~TKalmanFilter()
-{
-}
-
-//---------------------------------------------------------------------------
 Point3f TKalmanFilter::GetPrediction()
 {
 	Mat prediction = kalman.predict();
 	return Point3f(prediction.at<float>(0),prediction.at<float>(1),prediction.at<float>(2)); 
 }
 //---------------------------------------------------------------------------
-Point3f TKalmanFilter::Update(Point3f p)
+Point3f TKalmanFilter::Update(const Point3f &p)
 {
 	Mat measurement(3, 1, CV_32F);
 	measurement.at<float>(0) = p.x;  //update using measurements
@@ -128,7 +128,7 @@ void TKalmanFilter::adjustPrediction(const Eigen::Transform<double, 3, Eigen::Is
 	kalman.statePre.at<float>(5) = prediction_rot_vec(2);
 }
 #endif
-void TKalmanFilter::adjustPrediction(cv::Point3f delta_pos)
+void TKalmanFilter::adjustPrediction(const cv::Point3f &delta_pos)
 {
 	kalman.statePre.at<float>(0) = kalman.statePre.at<float>(0) + delta_pos.x;
 	kalman.statePre.at<float>(1) = kalman.statePre.at<float>(1) + delta_pos.y;

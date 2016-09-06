@@ -11,7 +11,9 @@ class ZCA
 		ZCA(const std::vector<cv::Mat> &images, const cv::Size &size, float epsilon, bool globalContrastNorm);
 
 		// Init a zca transformer by reading from a file
-		ZCA(const char *xmlFilename);
+		ZCA(const char *xmlFilename, size_t batchSize);
+
+		~ZCA();
 
 		// Save ZCA state to file
 		void Write(const char *xmlFilename) const;
@@ -24,8 +26,10 @@ class ZCA
 
 		// Batch versions of above - much faster
 		// especially if GPU can be used
-		std::vector<cv::Mat>Transform8UC3 (const std::vector<cv::Mat> &input);
-		std::vector<cv::Mat>Transform32FC3(const std::vector<cv::Mat> &input);
+		std::vector<cv::Mat> Transform8UC3 (const std::vector<cv::Mat> &input);
+		std::vector<cv::Mat> Transform32FC3(const std::vector<cv::Mat> &input);
+		std::vector<cv::gpu::GpuMat> Transform32FC3(const std::vector<cv::gpu::GpuMat> &input);
+		void Transform32FC3(const std::vector<cv::gpu::GpuMat> &input, float *dest);
 
 		// a and b parameters for transforming
 		// float pixel values back to 0-255
@@ -33,8 +37,9 @@ class ZCA
 		double alpha(int maxPixelVal = 255) const;
 		double beta(void) const;
 
+		cv::Size size(void) const;
+
 	private:
-		std::vector<cv::Mat> Transform32FC3GPU(const std::vector<cv::Mat> &input);
 		cv::Size         size_;
 
 		// The weights, stored in both
@@ -45,8 +50,13 @@ class ZCA
 		// them once gloabally and reuse them
 		cv::gpu::GpuMat  gm_;
 		cv::gpu::GpuMat  gmOut_;
-
 		cv::gpu::GpuMat  buf_;
+
+		cv::gpu::PtrStepSz<float> *dPssIn_;
+		cv::gpu::PtrStepSz<float> *dPssOut_;
+		float *dMean_;
+		float *dStddev_;
+
 		float            epsilon_;
 		double           overallMin_;
 		double           overallMax_;

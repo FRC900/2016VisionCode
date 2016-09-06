@@ -50,6 +50,7 @@
 // Additional references :
 
 #include <string>
+#include <cuda_runtime.h>
 #include "zca.hpp"
 
 //#define DEBUG_TIME
@@ -98,8 +99,9 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	// For each input image, convert to a floating point mat
 	//  and resize to constant size
 	// Find the mean and stddev of each color channel. Subtract
-	// out the mean and divide by stddev to get a 0-mean
-	// 1-stddev image - this helps normalize contrast between
+	// out the mean and divide by stddev to get to 0-mean
+	// 1-stddev for each channel of the image - this 
+	// helps normalize contrast between
 	// images in different lighting conditions 
 	// flatten to a single channel, 1 row matrix
 	Mat resizeImg;
@@ -189,11 +191,10 @@ Mat ZCA::Transform8UC3(const Mat &input)
 	vector<Mat> inputs;
 	inputs.push_back(input);
 	vector<Mat> outputs = Transform8UC3(inputs);
-	Mat output = outputs[0].clone();
-	return output;
+	return outputs[0].clone();
 }
 
-// Transform a typical 8 bit image as read from file
+// Transform a typical 8 bit images as read from files
 // Return the same 8UC3 type
 vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 {
@@ -201,8 +202,7 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 	Mat tmp;
 
 	// Create an intermediate vector of f32 versions
-	// of the input image. Scale them so the values
-	// are between 0 and 1 as the 32FC3 transform expects
+	// of the input image. 
 	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
 		it->convertTo(tmp, CV_32FC3);
@@ -216,6 +216,15 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 	// This turns it into a "normal" image file which
 	// can be processed and visualized using typical
 	// tools
+	// The float version will have values in a range which
+	// can't be exactly represented by the uchar version 
+	// (e.g. negative numbers, numbers larger than 255, etc).
+	// Scaling by alpha/beta will shift the range of
+	// float values to 0-255 (techinally, it'll move ~96%
+	// of the value into that range, the rest will be saturated
+	// to 0 or 255).  When training using these ucar images,
+	// be sure to undo the scaling so they are converted back
+	// to the correct float values
 	vector <Mat> ret;
 	for (auto it = f32Ret.cbegin(); it != f32Ret.cend(); ++it)
 	{
@@ -235,8 +244,7 @@ Mat ZCA::Transform32FC3(const Mat &input)
 	vector<Mat> inputs;
 	inputs.push_back(input);
 	vector<Mat> outputs = Transform32FC3(inputs);
-	Mat output = outputs[0].clone();
-	return output;
+	return outputs[0].clone();
 }
 
 // Transform a vector of input images in floating
@@ -244,18 +252,14 @@ Mat ZCA::Transform32FC3(const Mat &input)
 // when this object was initialized
 vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 {
-	//if (!weightsGPU_.empty())
-	//	return Transform32FC3GPU(input);
 #ifdef DEBUG_TIME
 	double start = gtod_wrapper();
 #endif
 	Mat output;
 	Mat work;
-	Scalar mean;
-	Scalar stddev;
 	// Create a large mat holding all of the pixels
 	// from all of the input images.
-	// Each column is data from one image. Each image
+	// Each row is data from one image. Each image
 	// is flattened to 1 channel of interlaved B,G,R
 	// values.  
 	// Global contrast normalization is applied to
@@ -273,23 +277,23 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 			// reshape won't work otherwise
 			output = it->clone();
 
+		Scalar mean;
+		Scalar stddev;
 		meanStdDev(output, mean, stddev);
 
-		Vec3f meanVec(mean[0], mean[1], mean[2]);
-		Vec3f stddevVec;
-		if (globalContrastNorm_)
-			stddevVec = Vec3f(stddev[0], stddev[1], stddev[2]);
-		else
-			stddevVec = Vec3f(255., 255., 255.);
+		// If GCN is disabled, just scale the values into
+		// a range from 0-1.  
+		if (!globalContrastNorm_)
+			stddev = Scalar(255., 255., 255., 255.);
 
 		for (int r = 0; r < output.rows; r++)
 		{
 			Vec3f *p = output.ptr<Vec3f>(r);
 			for (int c = 0; c < output.cols; c++)
 			{
-				p[c][0] = (p[c][0] - meanVec[0]) / stddevVec[0];
-				p[c][1] = (p[c][1] - meanVec[1]) / stddevVec[1];
-				p[c][2] = (p[c][2] - meanVec[2]) / stddevVec[2];
+				p[c][0] = (p[c][0] - mean[0]) / stddev[0];
+				p[c][1] = (p[c][1] - mean[1]) / stddev[1];
+				p[c][2] = (p[c][2] - mean[2]) / stddev[2];
 			}
 		}
 
@@ -303,23 +307,21 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	start = gtod_wrapper();
 #endif
 
-	// Math here is weights * images = output
-	// This works if each image is a row of data
+	// Apply ZCA transform matrix
+	// Math here is weights * images = output images
+	// This works if each image is a column of data
 	// The natural way to add data above using push_back
-	//  creates a transpose of that instead.  Take advantage
+	//  creates a transpose of that instead (i.e. each image is its
+	//  own row rather than its own column).  Take advantage
 	//  of the identiy (AB)^T = B^T A^T.  A=weights, B=images
 	// Since we want to pull images apart in the same transposed
 	// order, this saves a few transposes and gives a
 	// slight performance bump.
 
-	// Apply ZCA transform matrix
-	// This is just a matrix multiply of
-	// weights * the input images
 	// GPU is faster so use it if it exists.
 	if (!weightsGPU_.empty())
 	{
 		gm_.upload(work);
-		// gmOut_ = 1.0 * weightsGPU_ * gm_
 		gpu::gemm(gm_, weightsGPU_, 1.0, buf_, 0.0, gmOut_);
 
 		gmOut_.download(output);
@@ -355,170 +357,44 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	return ret;
 }
 
+void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input, 
+		const cv::gpu::GpuMat &weights, 
+		cv::gpu::PtrStepSz<float> *dPssIn,
+		cv::gpu::PtrStepSz<float> *dPssOut,
+		cv::gpu::GpuMat &gm,
+		cv::gpu::GpuMat &gmOut,
+		cv::gpu::GpuMat &buf,
+		float *dMean,
+		float *dStddev,
+		float *output);
+
 // Transform a vector of input images in floating
 // point format using the weights loaded
 // when this object was initialized
-vector<Mat> ZCA::Transform32FC3GPU(const vector<Mat> &input)
+void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 {
-#ifdef DEBUG_TIME
-	double start = gtod_wrapper();
-#endif
-	Mat image;
-	Mat work;
-	Scalar mean;
-	Scalar stddev;
-
-	vector<Mat> ret;
-	Stream gpuStream;
-	const size_t gpuBatchSize = 10000;
-	size_t inputStart = 0;
-	bool dataWaiting = false;
-	// Make these private members rather than reallocing each call?
-	CudaMem hostSrcCM(gpuBatchSize, size_.area() * input[0].channels(), CV_32FC1, CudaMem::ALLOC_PAGE_LOCKED);
-	CudaMem hostDstCM(gpuBatchSize, size_.area() * input[0].channels(), CV_32FC1, CudaMem::ALLOC_PAGE_LOCKED);
-
-	while (ret.size() != input.size())
+	vector<GpuMat> foo;
+	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
-		// Create a large mat holding all of the pixels
-		// from all of the input images.
-		// Each column is data from one image. Each image
-		// is flattened to 1 channel of interlaved B,G,R
-		// values.  
-		// Global contrast normalization is applied to
-		// each image - subtract the mean and divide
-		// by the standard deviation separately for each
-		// channel. That way each image is normalized to 0-mean 
-		// and a standard deviation of 1 before running it
-		// through ZCA weights.
-		auto itEnd = input.cend();
-		size_t i = 0;
-		for (auto it = input.cbegin() + inputStart;
-			 (it != itEnd) && (i < gpuBatchSize); 
-			  ++it, ++i)
+		if (it->size() != size_)
 		{
-			if (it->size() != size_)
-				resize(*it, image, size_);
-			else 
-				// need clone so mat is contiguous - 
-				// reshape won't work otherwise
-				image = it->clone();
-
-			meanStdDev(image, mean, stddev);
-
-			Vec3f meanVec(mean[0], mean[1], mean[2]);
-			Vec3f stddevVec;
-			if (globalContrastNorm_)
-				stddevVec = Vec3f(stddev[0], stddev[1], stddev[2]);
-			else
-				stddevVec = Vec3f(255., 255., 255.);
-
-			for (int r = 0; r < image.rows; r++)
-			{
-				Vec3f *p = image.ptr<Vec3f>(r);
-				for (int c = 0; c < image.cols; c++)
-				{
-					p[c][0] = (p[c][0] - meanVec[0]) / stddevVec[0];
-					p[c][1] = (p[c][1] - meanVec[1]) / stddevVec[1];
-					p[c][2] = (p[c][2] - meanVec[2]) / stddevVec[2];
-				}
-			}
-
-			// Reshape flattens the image to 1 channel, 1 row.
-			// Push that row into the bottom of work
-			work.push_back(image.reshape(1,1));
-			inputStart += 1;
+			foo.push_back(GpuMat());
+			resize(*it, foo[foo.size() - 1], size_);
 		}
-
-
-#ifdef DEBUG_TIME
-		double end = gtod_wrapper();
-		cout << "create work " << end - start << endl;
-		start = gtod_wrapper();
-#endif
-		if (dataWaiting)
+		else 
 		{
-			gpuStream.waitForCompletion();
-			Mat hostDst = hostDstCM;
-			Mat output;
-			hostDst.copyTo(output);
-#ifdef DEBUG_TIME
-			end = gtod_wrapper();
-			cout << "download " << end - start << endl;
-			start = gtod_wrapper();
-#endif
-
-			// Matrix comes out transposed - instead
-			// of an image per column it is an image per row.
-			// That's a natural fit for taking them apart
-			// back into images, though, so it save some time
-			// not having to transpose the output
-
-			// Each row is a different input image,
-			// put them each into their own Mat
-			for (int i = 0; (i < output.rows) && (ret.size() < input.size()); i++)
-			{
-				// Turn each row back into a 2-d mat with 3 float color channels
-				ret.push_back(output.row(i).reshape(input[i].channels(), size_.height));
-			}
-#ifdef DEBUG_TIME
-			end = gtod_wrapper();
-			cout << "add to ret " << end - start << endl;
-			start = gtod_wrapper();
-#endif
-			if (ret.size() == input.size())
-			{
-				return ret;
-			}
+			foo.push_back(*it);
 		}
-
-		// Pad out end of work Mat with dummy data
-		// This ensures the last partially-full
-		// batch will be the same size as the rest
-		while (work.rows < gpuBatchSize)
-			work.push_back(image.reshape(1,1));
-
-		//Get Mat for hostSrcCM - just header, no data copied
-		Mat hostSrc = hostSrcCM;
-		work.copyTo(hostSrc);
-		work.release();
-
-#ifdef DEBUG_TIME
-		end = gtod_wrapper();
-		cout << "copy to hostSrc " << end - start << endl;
-		start = gtod_wrapper();
-#endif
-		gpuStream.enqueueUpload(hostSrcCM, gm_);
-
-		// Math here is weights * images = output
-		// This works if each image is a row of data
-		// The natural way to add data above using push_back
-		//  creates a transpose of that instead.  Take advantage
-		//  of the identiy (AB)^T = B^T A^T.  A=weights, B=images
-		// Since we want to pull images apart in the same transposed
-		// order, this saves a few transposes and gives a
-		// slight performance bump.
-
-		// Apply ZCA transform matrix
-		// This is just a matrix multiply of
-		// weights * the input images
-		// GPU is faster so use it if it exists.
-		gemm(gm_, weightsGPU_, 1.0, buf_, 0.0, gmOut_, 0, gpuStream);
-
-		gpuStream.enqueueDownload(gmOut_, hostDstCM);
-		dataWaiting = true;
-
-#ifdef DEBUG_TIME
-		end = gtod_wrapper();
-		cout << "enqueue stream " << end - start << endl;
-		start = gtod_wrapper();
-#endif
 	}
-
-	return ret;
+	cudaZCATransform(foo, weightsGPU_, dPssIn_, dPssOut_, gm_, gmOut_, buf_, dMean_, dStddev_, dest);
 }
 
 // Load a previously calcuated set of weights from file
-ZCA::ZCA(const char *xmlFilename)
+ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
+	dPssIn_(NULL),
+	dPssOut_(NULL),
+	dMean_(NULL),
+	dStddev_(NULL)
 {
 	try 
 	{
@@ -545,6 +421,27 @@ ZCA::ZCA(const char *xmlFilename)
 	{
 		return;
 	}
+
+	if (!weightsGPU_.empty())
+	{
+		cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>));
+		cudaMalloc(&dPssOut_, batchSize * sizeof(cv::gpu::PtrStepSz<float>));
+		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
+		cudaMalloc(&dMean_,   3 * batchSize * sizeof(float));
+		cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float));
+	}
+}
+
+ZCA::~ZCA()
+{
+	if (dPssIn_)
+		cudaFree(dPssIn_);
+	if (dPssOut_)
+		cudaFree(dPssOut_);
+	if (dMean_)
+		cudaFree(dMean_);
+	if (dStddev_)
+		cudaFree(dStddev_);
 }
 
 // Save calculated weights to a file
@@ -571,4 +468,9 @@ double ZCA::alpha(int maxPixelValue) const
 double ZCA::beta(void) const
 {
 	return -overallMin_ * alpha();
+}
+
+Size ZCA::size(void) const
+{
+	return size_;
 }

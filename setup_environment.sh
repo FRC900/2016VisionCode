@@ -20,12 +20,12 @@ done
 #install basic dependencies
 
 # 64-bit linux only
-sudo dpkg --add-architecture armhf
-sudo apt-get update
-sudo apt-get install libc6:armhf libstdc++6:armhf libncurses5:armhf
+# Doesn't work yet 
+#sudo dpkg --add-architecture armhf
+#sudo apt-get update
+#sudo apt-get install libc6:armhf libstdc++6:armhf libncurses5:armhf
 
-
-sudo apt-get install libeigen3-dev build-essential gfortran git cmake libprotobuf-dev libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev protobuf-compiler liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev
+sudo apt-get install libeigen3-dev build-essential gfortran git cmake libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev
 
 sudo apt-get install --no-install-recommends libboost-all-dev
 sudo apt-get install v4l-conf v4l-utils 
@@ -39,6 +39,8 @@ export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -y
 sudo apt-get install -y git wget linux-image-generic build-essential unzip
 
+# FIXME : Only need this for x86, and should be using the
+# newest CUDA release
 # Cuda 7.0
 # instead we install the nvidia driver 352 from the cuda repo
 # which makes it easier than stopping lightdm and installing in terminal
@@ -51,6 +53,20 @@ sudo apt-get update && sudo apt-get install cuda-toolkit-7-0
 echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
 echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
 
+# install google protocol buffer 3.0
+# The Ubuntu package is 2.5 but GIE needs
+# 3.0
+cd
+wget https://github.com/google/protobuf/releases/download/v3.0.0/protobuf-cpp-3.0.0.tar.gz 
+tar -xzvf protobuf-cpp-3.0.0.tar.gz 
+cd protobuf-cpp-3.0.0
+mkdir build
+cd build
+../configure
+../make -j4
+sudo make install
+cd 
+rm -rf protobuf-cpp-3.0.0
 
 #install caffe
 cd

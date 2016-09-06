@@ -12,6 +12,10 @@ if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
 elseif (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "aarch64-linux-gnu")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=cortex-a57")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -mcpu=cortex-a57")
+  link_directories(/home/ubuntu/GIE/lib)
+  find_library (LibNVCaffeParser nvcaffe_parser /home/ubuntu/GIE/lib)
+  find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
+  add_definitions(-DUSE_GIE=1)
 else()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -march=native")
@@ -27,7 +31,11 @@ find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
+INCLUDE( FindCUDA )
+
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe-nv")
+
+#add_definitions(-DCPU_ONLY=1)
 
 include_directories(/home/ubuntu/opencv-2.4.13/build/include
 	../caffe_classifier
@@ -41,18 +49,29 @@ include_directories(/home/ubuntu/opencv-2.4.13/build/include
    	${EIGEN3_INCLUDE_DIR}
 	.
 	../fovis
-	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis)
+	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
+	../../GIE/include)
 
 link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
-add_executable(zv
+# Without this, nvcc grabs --std=c++11 which looks like
+# it breaks builds for some reason
+set (CUDA_PROPAGATE_HOST_FLAGS off)
+LIST(APPEND CUDA_NVCC_FLAGS --compiler-options -fno-strict-aliasing -lineinfo -use_fast_math -Xptxas -dlcm=cg)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_52,code=sm_52)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
+LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
+
+CUDA_ADD_EXECUTABLE(zv
 	objdetect.cpp
 	GoalDetector.cpp
 	detect.cpp
-	CaffeBatchPrediction.cpp
+	Classifier.cpp
+	CaffeClassifier.cpp
+	GIEClassifier.cpp
 	fast_nms.cpp
 	scalefactor.cpp
 	detectstate.cpp
@@ -80,13 +99,15 @@ add_executable(zv
 	kalman.cpp
 	hungarian.cpp
 	zca.cpp
+	zca.cu
 	ZvSettings.cpp
 	zv.cpp)
 
-find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
+find_library (LibCaffe caffe-nv PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 find_library (LibTinyXML2 tinyxml2)
+find_library (LibEFence efence)
 
 target_link_libraries( zv
 	${OpenCV_LIBS}
@@ -101,15 +122,18 @@ target_link_libraries( zv
 	${LibGLOG}
 	${LibProtobuf}
 	${ZMQ_LIBRARIES}
+	${LibNVCaffeParser}
+	${LibNVInfer}
 	${LibTinyXML2})
+	#${LibEFence} )
 
-#add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
-#target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-#add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
-#target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-add_executable(predict_one predict_one.cpp CaffeBatchPrediction.cpp zca.cpp classifierio.cpp)
-target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
-add_executable(rank_imagelist rank_imagelist.cpp CaffeBatchPrediction.cpp zca.cpp classifierio.cpp)
-target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} )
-#add_executable(fpstest fpstest.cpp objdetect.cpp mediain.cpp videoin.cpp ../caffe_classifier/detect.cpp ../caffe_classifier/CaffeBatchPrediction.cpp ../caffe_classifier/fast_nms.cpp ../caffe_classifier/scalefactor.cpp)
-#target_link_libraries( fpstest ${OpenCV_LIBS} )
+add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
+add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
+CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
+target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
+CUDA_ADD_EXECUTABLE(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
+target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
+#add_executable(depthtest depthtest.cpp)
+#target_link_libraries( depthtest ${OpenCV_LIBS} )
