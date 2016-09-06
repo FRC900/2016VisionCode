@@ -11,6 +11,9 @@ using namespace caffe;
 using namespace cv;
 using namespace cv::gpu;
 
+// Google logging init stuff needs to happen
+// just once per program run.  Use this
+// var to make sure it does.
 static bool glogInit_ = false;
 
 #if 0
@@ -33,9 +36,13 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
 	initialized_(false)
 {
-#ifdef USE_CAFFE
+	// Base class loads labels and ZCA preprocessing data.
+	// If those fail, bail out immediately.
 	if (!Classifier<MatT>::initialized())
 		return;
+
+	// Make sure the model definition and 
+	// weight files exist
 	if (!this->fileExists(modelFile))
 	{
 		cerr << "Could not find Caffe model " << modelFile << endl;
@@ -46,14 +53,16 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
 	}
-	cout << "Loading Caffe model " << modelFile << " " << trainedFile << " " << zcaWeightFile << " " << labelFile << endl;
 
-	if (IsGPU())
-		Caffe::set_mode(Caffe::GPU);
-	else
-		Caffe::set_mode(Caffe::CPU);
+	cout << "Loading Caffe model " << modelFile << endl << "\t" << trainedFile << endl << "\t" << zcaWeightFile << endl << "\t" << labelFile << endl;
+
+	// Switch to CPU or GPU mode depending on
+	// which version of the class we're running
+	Caffe::set_mode(IsGPU() ? Caffe::GPU : Caffe::CPU);
 
 	// Hopefully this turns off any logging
+	// Run only once the first time and CaffeClassifer
+	// class is created
 	if (!glogInit_)
 	{
 		::google::InitGoogleLogging("");
@@ -62,82 +71,96 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		glogInit_ = true;
 	}
 
-	/* Load the network - this includes model geometry and trained weights */
+	// Load the network - this includes model 
+	// geometry and trained weights
 	net_.reset(new Net<float>(modelFile, TEST));
 	net_->CopyTrainedLayersFrom(trainedFile);
 
+	// Some basic checking to make sure life makes sense
+	// Protip - it never really does
 	CHECK_EQ(net_->num_inputs(), 1) << "Network should have exactly one input.";
 	CHECK_EQ(net_->num_outputs(), 1) << "Network should have exactly one output.";
 
+	// More sanity checking. Number of input channels
+	// should be 3 since we're using color images.
 	Blob<float>* inputLayer = net_->input_blobs()[0];
 	const int numChannels = inputLayer->channels();
-	CHECK(numChannels == 3 || numChannels == 1) << "Input layer should have 1 or 3 channels.";
+	CHECK(numChannels == 3) << "Input layer should have 1 or 3 channels.";
+
+	// Also, make sure the input geometry matches
+	// the size expected by the preprocessing filters
 	if (this->inputGeometry_ != Size(inputLayer->width(), inputLayer->height()))
 	{
 		cerr << "Net size != ZCA size" << endl;
 		return;
 	}
 
+	// Quick check to make sure there are enough labels
+	// for each output
 	Blob<float>* outputLayer = net_->output_blobs()[0];
 	CHECK_EQ(this->labels_.size(), outputLayer->channels())
 		<< "Number of labels is different from the output layer dimension.";
 
-	// Pre-process Mat wrapping
+	// Set the network up for the specified batch
+	// size. This processes a number of images in 
+	// parallel. This works out to be a bit quicker
+	// than doing them one by one
 	inputLayer->Reshape(batchSize, numChannels,
-			inputLayer->height(),
-			inputLayer->width());
+						inputLayer->height(),
+						inputLayer->width());
 
-	/* Forward dimension change to all layers. */
+	// Forward dimension change to all layers
 	net_->Reshape();
 
-	// The wrap code puts the buffer for one individual channel
+	// The wrap code puts the buffer for each individual channel
 	// input to the net (one color channel of one image) into 
 	// a separate Mat 
 	// The inner vector here will be one Mat per channel of the 
 	// input to the net. The outer vector is a vector of those
-	// one for each of the batched inputs.
+	// one for each of the batched input images.
 	// This allows an easy copy from the input images
-	// into the input buffers for the net
-	WrapBatchInputLayer();
+	// into the input buffers for the net by simply doing
+	// an OpenCV split() call to split a 3-channel input
+	// image into 3 separate 1-channel images arranged in
+	// the correct order
+	// 
+	// GPU code path writes directly to the mutable_gpu_data()
+	// pointer so no wrapping is needed
+	if (!IsGPU())
+	{
+		Blob<float>* inputLayer = net_->input_blobs()[0];
+
+		const size_t width  = inputLayer->width();
+		const size_t height = inputLayer->height();
+		const size_t num    = inputLayer->num();
+
+		float* inputData = inputLayer->mutable_cpu_data();
+
+		inputBatch_.clear();
+
+		for (size_t j = 0; j < num; j++)
+		{
+			vector<MatT> inputChannels;
+			for (size_t i = 0; i < inputLayer->channels(); ++i)
+			{
+				MatT channel(height, width, CV_32FC1, inputData);
+				inputChannels.push_back(channel);
+				inputData += width * height;
+			}
+			inputBatch_.push_back(vector<MatT>(inputChannels));
+		}
+	}
+	
+	// We made it!
 	initialized_ = true;
-#endif
 }
 
 
+// TODO : this probably isn't needed
 template <class MatT>
 CaffeClassifier<MatT>::~CaffeClassifier()
 {
 }
-
-#ifdef USE_CAFFE
-// Wrap input layer of the net into separate Mat objects
-// This sets them up to be written with actual data
-// in PreprocessBatch()
-template <class MatT>
-void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
-{
-	Blob<float>* inputLayer = net_->input_blobs()[0];
-
-	const int width  = inputLayer->width();
-	const int height = inputLayer->height();
-	const int num    = inputLayer->num();
-	float* inputData = GetBlobData(inputLayer);
-
-	inputBatch_.clear();
-
-	for (int j = 0; j < num; j++)
-	{
-		vector<MatT> inputChannels;
-		for (int i = 0; i < inputLayer->channels(); ++i)
-		{
-			MatT channel(height, width, CV_32FC1, inputData);
-			inputChannels.push_back(channel);
-			inputData += width * height;
-		}
-		inputBatch_.push_back(vector<MatT>(inputChannels));
-	}
-}
-#endif
 
 // Get the output values for a set of images in one flat vector
 // These values will be in the same order as the labels for each
@@ -149,7 +172,6 @@ void CaffeClassifier<MatT>::WrapBatchInputLayer(void)
 template <class MatT>
 vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs) 
 {
-#ifdef USE_CAFFE
 	// Process each image so they match the format
 	// expected by the net, then copy the images
 	// into the net's input buffers
@@ -162,35 +184,19 @@ vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
 	//cout << "Forward " << gtod_wrapper() - start << endl;
 
 	//start = gtod_wrapper();
-	/* Copy the output layer to a flat vector */
+	// Copy the output layer to a flat vector 
+	// Use CPU data output unconditionally - it has
+	// to end up back at the CPU eventually so do it
+	// now ... just as good as any other time
 	Blob<float>* outputLayer = net_->output_blobs()[0];
 	const float* begin = outputLayer->cpu_data();
 	const float* end = begin + outputLayer->channels()*imgs.size();
 	//cout << "Output " << gtod_wrapper() - start << endl;
 	return vector<float>(begin, end);
-#else
-	return vector<float>(imgs.size() * this->labels_.size(), 0);
-#endif
 }
 
-#ifdef USE_CAFFE
-
-// TODO : maybe don't specialize this one in case
-// we use something other than Mat or GpuMat in the
-// future?
-template <> template <>
-float *CaffeClassifier<Mat>::GetBlobData(Blob<float> *blob)
-{
-	return blob->mutable_cpu_data();
-}
-
-template <> template <>
-float *CaffeClassifier<GpuMat>::GetBlobData(Blob<float> *blob)
-{
-	return blob->mutable_gpu_data();
-}
-
-// Take each image in Mat, convert it to the correct image type,
+// Take each image in Mat, convert it to the correct image size,
+// and apply ZCA whitening to preprocess the files
 // Then actually write the images to the net input memory buffers
 template <>
 void CaffeClassifier<Mat>::PreprocessBatch(const vector<Mat> &imgs)
@@ -198,37 +204,15 @@ void CaffeClassifier<Mat>::PreprocessBatch(const vector<Mat> &imgs)
 	CHECK(imgs.size() <= this->batchSize_) <<
 		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
 
-#if 0
-	for (size_t i = 0 ; i < imgs.size(); i++)
-	{
-		Mat img = imgs[i].clone();
-		Mat wr;
-		img.convertTo(wr, CV_8UC3, 255);
-		stringstream s;
-		s << "debug_ppb_before_" << i << ".png";
-		imwrite(s.str(), wr);
-	}
-#endif
 	vector<Mat> zcaImgs = this->zca_.Transform32FC3(imgs);
-#if 0
-	for (size_t i = 0 ; i < zcaImgs.size(); i++)
-	{
-		Mat img = zcaImgs[i].clone();
-		Mat wr;
-		img.convertTo(wr, CV_8UC3, 255, 127);
-		stringstream s;
-		s << "debug_ppb_after_" << i << ".png";
-		imwrite(s.str(), wr);
-	}
-#endif
 
-#if 0
-	for (size_t i = 0 ; i < zcaImgs.size(); i++)
-	{
-		zcaImgs[i] *= 255.;
-		zcaImgs[i] += 127.;
-	}
-#endif
+	// Hack to reset input layer to think that
+	// data is on the CPU side.  Only really needed
+	// when CPU & GPU operations are combined
+	net_->input_blobs()[0]->mutable_cpu_data()[0] = 0;
+
+	// For each image in the list, copy it to 
+	// the net's input buffer
 	for (size_t i = 0 ; i < zcaImgs.size(); i++)
 	{
 		/* This operation will write the separate BGR planes directly to the
@@ -236,40 +220,33 @@ void CaffeClassifier<Mat>::PreprocessBatch(const vector<Mat> &imgs)
 		 * objects in inputChannels. */
 		vector<Mat> *inputChannels = &inputBatch_.at(i);
 		split(zcaImgs[i], *inputChannels);
-
-#if 1
-		// TODO : CPU Mats + GPU Caffe fails if this isn't here, no idea why
-		if (i == 0)
-			CHECK(reinterpret_cast<float*>(inputChannels->at(0).data)
-					== GetBlobData(net_->input_blobs()[0]))
-				<< "Input channels are not wrapping the input layer of the network.";
-#endif
 	}
 }
 
 // Take each image in GpuMat, convert it to the correct image type,
-// Then actually write the images to the net input memory buffers
+// and apply ZCA whitening to preprocess the files
+// The GPU input to the net is passed in to Transform32FC3 and
+// that function copies its final results directly into the
+// input buffers of the net.
 template <>
 void CaffeClassifier<GpuMat>::PreprocessBatch(const vector<GpuMat> &imgs)
 {
 	CHECK(imgs.size() <= this->batchSize_) <<
 		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
 
-	Blob<float>* inputLayer = net_->input_blobs()[0];
-	float* inputData = GetBlobData(inputLayer);
+	float* inputData = net_->input_blobs()[0]->mutable_gpu_data();
 	this->zca_.Transform32FC3(imgs, inputData);
 }
 
 
-// TODO : maybe don't specialize this one in case
-// we use something other than Mat or GpuMat in the
-// future?
+// Specialize these functions - the Mat one works
+// on the CPU while the GpuMat one works on the GPU
 template <>
 bool CaffeClassifier<Mat>::IsGPU(void) const
 {
 	// TODO : change to unconditional false
-	// eventually
-	return (getCudaEnabledDeviceCount() > 0);
+	// eventually once things are debugged
+	//return (getCudaEnabledDeviceCount() > 0);
 	return false;
 }
 
@@ -278,7 +255,6 @@ bool CaffeClassifier<GpuMat>::IsGPU(void) const
 {
 	return true;
 }
-#endif
 
 template <class MatT>
 bool CaffeClassifier<MatT>::initialized(void) const
@@ -289,5 +265,7 @@ bool CaffeClassifier<MatT>::initialized(void) const
 	return initialized_;
 }
 
+
+// Instantiate both Mat and GpuMat versions of the Classifier
 template class CaffeClassifier<Mat>;
 template class CaffeClassifier<GpuMat>;
