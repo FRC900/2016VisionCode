@@ -267,7 +267,10 @@ void CaffeClassifier<GpuMat>::PreprocessBatch(const vector<GpuMat> &imgs)
 template <>
 bool CaffeClassifier<Mat>::IsGPU(void) const
 {
-	return true;
+	// TODO : change to unconditional false
+	// eventually
+	return (getCudaEnabledDeviceCount() > 0);
+	return false;
 }
 
 template <>
