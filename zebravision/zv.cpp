@@ -544,6 +544,8 @@ int main( int argc, const char** argv )
 			// users can keep track of that toggle's mode
 			if (args.captureAll)
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
+			if (filterUsingDepth)
+				putText(frame, "D", Point(50,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 0, 255));
 
 			// Display current classifier infomation
 			if (detectState)
@@ -597,7 +599,8 @@ int main( int argc, const char** argv )
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
 				} 
-				// Make sure last frame is written, then write this one
+				// Make sure last frame finished 
+				// writing, then write this one
 				processedOut->sync();
 				processedOut->saveFrame(frame, depth);
 			}
@@ -924,7 +927,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 // Open video capture object. Figure out if input is camera, video, image, etc
 void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName)
 {
-  zvSettings = new ZvSettings(xmlFilename);
+	zvSettings = new ZvSettings(xmlFilename);
 
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -966,10 +969,15 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
 			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
-#ifdef ZED_SUPPOER
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
+#ifdef ZED_SUPPORT
 			cap = new ZedIn(readFileName.c_str(), gui, zvSettings);
+#else
+		{
+			cap = new VideoIn(readFileName.c_str(), zvSettings);
+			cerr << "ZED support not enabled for this build " << endl;
+		}
 #endif
 		else
 			cap = new VideoIn(readFileName.c_str(), zvSettings);
