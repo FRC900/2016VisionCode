@@ -109,7 +109,7 @@ target_link_libraries( zv
 	${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
-	#${ZED_LIBRARIES}
+	${ZED_LIBRARIES}
 	${CUDA_LIBRARIES}
 	${CUDA_nppi_LIBRARY}
 	${CUDA_npps_LIBRARY}
