@@ -33,9 +33,13 @@ find_package(ZMQ REQUIRED)
 
 INCLUDE( FindCUDA )
 
-set (CAFFE_BASE_DIR "/home/ubuntu/caffe-nv")
+set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
+# Caffe headers change the size of various
+# objects based on these defines. Best to match
+# how caffe itself was compiled
 #add_definitions(-DCPU_ONLY=1)
+add_definitions(-DUSE_CUDNN=1)
 
 include_directories(/home/ubuntu/opencv-2.4.13/build/include
 	../caffe_classifier
@@ -103,7 +107,7 @@ CUDA_ADD_EXECUTABLE(zv
 	ZvSettings.cpp
 	zv.cpp)
 
-find_library (LibCaffe caffe-nv PATH  ${CAFFE_BASE_DIR}/build/lib)
+find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf)
 find_library (LibTinyXML2 tinyxml2)
