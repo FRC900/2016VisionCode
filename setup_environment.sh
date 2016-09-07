@@ -59,14 +59,14 @@ echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/l
 cd
 wget https://github.com/google/protobuf/releases/download/v3.0.0/protobuf-cpp-3.0.0.tar.gz 
 tar -xzvf protobuf-cpp-3.0.0.tar.gz 
-cd protobuf-cpp-3.0.0
+cd protobuf-3.0.0
 mkdir build
 cd build
 ../configure
-../make -j4
+make -j4
 sudo make install
 cd 
-rm -rf protobuf-cpp-3.0.0
+rm -rf protobuf-3.0.0
 
 #install caffe
 cd
