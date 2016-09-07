@@ -390,11 +390,6 @@ void NNDetect<MatT, ClassifierT>::runDetection(ClassifierT &classifier,
     // Return value from detection. This is a list of indexes from
     // the input array above which have a high enough confidence score
     vector<size_t> detected;
-
-    size_t batchSize = classifier.batchSize(); // defined when classifer is constructed
-    int    counter   = 0;
-    //double start     = gtod_wrapper(); // grab start time
-
     // For each input window, grab the correct image
     // subset from the correct scaled image.
     // Detection happens in batches, so save up a list of
@@ -409,50 +404,14 @@ void NNDetect<MatT, ClassifierT>::runDetection(ClassifierT &classifier,
 		// it->first is the rect describing the subset of that image 
 		// we need to process
         images.push_back(scaledImages[it->second].first(it->first));
-        if ((images.size() == batchSize) || ((it + 1) == windows.cend()))
-        {
-            doBatchPrediction(classifier, images, threshold, label, detected, scores);
+	}
 
-            // Clear out images array to start the next batch
-            // of processing fresh
-            images.clear();
-
-			// detected is a list of indexes of entries in the input
-			// which returned confidences higher than threshold. Keep
-			// those as valid detections and ignore the rest
-            for (size_t j = 0; j < detected.size(); j++)
-            {
-                // Indexes in detected array are relative to the start of the
-                // current batch just passed in to doBatchPrediction.
-                // Use counter to keep track of which batch we're in
-                windowsOut.push_back(windows[counter * batchSize + detected[j]]);
-            }
-            // Keep track of the batch number
-            counter++;
-        }
-    }
-    //double end = gtod_wrapper();
-    //cout << "runDetection time = " << (end - start) << endl;
-}
-
-
-// do 1 run of the classifier. This takes up batch_size predictions
-// and adds the index of anything found to the detected list
-template<class MatT, class ClassifierT>
-void NNDetect<MatT, ClassifierT>::doBatchPrediction(ClassifierT &classifier,
-												    const vector<MatT> &imgs,
-												    const float         threshold,
-												    const string&       label,
-												    vector<size_t>&     detected,
-												    vector<float>&      scores)
-{
-    detected.clear();
     // Grab the top 2 detected classes.  Since we're doing an object /
     // not object split, that will get the scores for both categories
-    vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 2);
+    auto predictions = classifier.ClassifyBatch(images, 2);
 
     // Each outer loop is the predictions for one input image
-    for (size_t i = 0; i < imgs.size(); ++i)
+    for (size_t i = 0; i < images.size(); ++i)
     {
         // Each inner loop is the prediction for a particular label
         // for the given image, sorted by score.
@@ -463,37 +422,22 @@ void NNDetect<MatT, ClassifierT>::doBatchPrediction(ClassifierT &classifier,
 		// identifies the image passed in
         for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
         {
-
-#if 0
-			if (imgs[i].rows > 12)
-			{
-				cout << it->first << " " << it->second << " ";
-				Mat img = imgs[i].clone();
-				Mat wr;
-				img.convertTo(wr, CV_8UC3, 255);
-				stringstream s;
-				s << "debug_" << i << ".png";
-				imwrite(s.str(), wr);
-			}
-#endif
-
-
             if (it->first == label)
             {
                 if (it->second >= threshold)
                 {
-                    detected.push_back(i);
+					windowsOut.push_back(windows[i]);
                     scores.push_back(it->second);
                 }
-#if 0
-				if (imgs[0].rows > 12)
-					cout << endl;
-#endif
                 break;
             }
         }
     }
+
+    //double end = gtod_wrapper();
+    //cout << "runDetection time = " << (end - start) << endl;
 }
+
 
 // Use a specially-traned net to adjust the position of a detection
 // rectangle to better match the actual position of the object we're
@@ -521,13 +465,8 @@ void NNDetect<MatT, ClassifierT>::runCalibration(const vector<Window>& windowsIn
 		// Grab the rect from the scaled image represented
 		// but each input window
 		images.push_back(scaledImages[it->second].first(it->first));
-		if ((images.size() == classifier.batchSize()) || ((it + 1) == windowsIn.cend()))
-		{
-			doBatchCalibration(classifier, images, threshold, shift);
-			shifts.insert(shifts.end(), shift.begin(), shift.end());
-			images.clear();
-		}
 	}
+	doBatchCalibration(classifier, images, threshold, shifts);
 	for (size_t i = 0; i < windowsIn.size(); i++)
 	{
 		Rect rOut = windowsIn[i].first;
@@ -618,9 +557,9 @@ void NNDetect<MatT, ClassifierT>::doBatchCalibration(ClassifierT            &cla
 {
 	shift.clear();
 	vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
-	float ds[] = { .81, .93, 1, 1.10, 1.21 };
-	float dx   = .17;
-	float dy   = .17;
+	const float ds[] = { .81, .93, 1, 1.10, 1.21 };
+	const float dx   = .17;
+	const float dy   = .17;
 	// Each outer loop is the predictions for one input image
 	for (size_t i = 0; i < imgs.size(); ++i)
 	{
