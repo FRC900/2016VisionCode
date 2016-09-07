@@ -82,7 +82,7 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 
 
 template <class MatT>
-GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
+GIEClassifierThread<MatT>::GIEClassifierThread(const string& modelFile,
       const string& trainedFile,
       const string& zcaWeightFile,
       const string& labelFile,
@@ -143,7 +143,7 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
 }
 
 template <class MatT>
-GIEClassifier<MatT>::~GIEClassifier()
+GIEClassifierThread<MatT>::~GIEClassifierThread()
 {
 	if (inputCPU_)
 		delete [] inputCPU_;
@@ -158,7 +158,7 @@ GIEClassifier<MatT>::~GIEClassifier()
 }
 
 template <class MatT>
-bool GIEClassifier<MatT>::initialized(void) const
+bool GIEClassifierThread<MatT>::initialized(void) const
 {
 	if (!Classifier<MatT>::initialized())
 		return false;
@@ -170,7 +170,7 @@ bool GIEClassifier<MatT>::initialized(void) const
 // This sets them up to be written with actual data
 // in PreprocessBatch() using OpenCV split() calls
 template <class MatT>
-void GIEClassifier<MatT>::WrapBatchInputLayer(void)
+void GIEClassifierThread<MatT>::WrapBatchInputLayer(void)
 {
 	if (inputCPU_)
 		delete [] inputCPU_;
@@ -193,7 +193,7 @@ void GIEClassifier<MatT>::WrapBatchInputLayer(void)
 }
 
 template <>
-vector<float> GIEClassifier<Mat>::PredictBatch(const vector<Mat> &imgs)
+vector<float> GIEClassifierThread<Mat>::PredictBatch(const vector<Mat> &imgs)
 {
 	if (imgs.size() > this->batchSize_) 
 		cerr <<
@@ -225,7 +225,7 @@ vector<float> GIEClassifier<Mat>::PredictBatch(const vector<Mat> &imgs)
 }
 
 template <>
-vector<float> GIEClassifier<GpuMat>::PredictBatch(const vector<GpuMat> &imgs)
+vector<float> GIEClassifierThread<GpuMat>::PredictBatch(const vector<GpuMat> &imgs)
 {
 	if (imgs.size() > this->batchSize_) 
 		cerr <<
@@ -260,32 +260,33 @@ using namespace cv;
 using namespace cv::gpu;
 
 template <class MatT>
-GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
-      const string& trainedFile,
-      const string& zcaWeightFile,
-      const string& labelFile,
-      const size_t  batchSize) :
-	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
+GIEClassifierThread<MatT>::GIEClassifierThread(const string &modelFile,
+			  const string &trainedFile,
+			  const ZCA         &zca,
+			  const size_t      batchSize,
+		shared_ptr<SynchronizedQueue<InQData<MatT>>> inQ,
+		shared_ptr<SynchronizedQueue<OutQData>>      outQ)
+
 {
+	(void)modelFile;
+	(void)trainedFile;
+	(void)zca;
+	(void)batchSize;
+	(void)inQ;
+	(void)outQ;
 	cerr << "GIE support not available" << endl;
 }
 
 template <class MatT>
-GIEClassifier<MatT>::~GIEClassifier()
+bool GIEClassifierThread<MatT>::initialized(void) const
 {
+	return false;
 }
 
 template <class MatT>
-bool GIEClassifier<MatT>::initialized(void) const
-{
-	return true;
-}
-
-template <class MatT>
-vector<float> GIEClassifier<MatT>::PredictBatch(const vector<MatT> &imgs)
+void GIEClassifierThread<MatT>::operator() ()
 {
 	cerr << "GIE support not available" << endl;
-	return vector<float>(imgs.size() * this->labels_.size(), 0.0);
 }
 #endif
 
@@ -342,5 +343,5 @@ int main(int argc, char** argv)
 }
 #endif
 
-template class GIEClassifier<Mat>;
-template class GIEClassifier<GpuMat>;
+template class GIEClassifierThread<Mat>;
+template class GIEClassifierThread<GpuMat>;

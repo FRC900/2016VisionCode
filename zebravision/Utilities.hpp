@@ -1,17 +1,14 @@
+#pragma once
 //standard include
-#include <math.h>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <string>
 
 //#include <Eigen/Geometry>
-#include <cmath>
 
 //opencv include
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/core/core.hpp"
-
-#ifndef UTILITIES
-#define UTILITIES
 
 namespace utils {
 
@@ -22,6 +19,6 @@ void shrinkRect(cv::Rect &rect_in, float shrink_factor);
 
 double normalCFD(const std::pair<double, double> &meanAndStdev, double value);
 
-}
+bool fileExists(const std::string &fileName);
 
-#endif
+}

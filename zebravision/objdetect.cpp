@@ -68,9 +68,7 @@ void ObjDetectNNet<MatT, ClassifierT>::Detect(const Mat &frameInput, const Mat &
 			uncalibImageRects);
 }
 
-template class ObjDetectNNet<Mat, CaffeClassifier<Mat>>;
-template class ObjDetectNNet<GpuMat, CaffeClassifier<Mat>>;
-template class ObjDetectNNet<Mat, CaffeClassifier<GpuMat>>;
-template class ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>;
-template class ObjDetectNNet<Mat, GIEClassifier<Mat>>;
-template class ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>;
+template class ObjDetectNNet<Mat, Classifier<Mat, CaffeClassifierThread<Mat>>>;
+template class ObjDetectNNet<GpuMat, Classifier<GpuMat, CaffeClassifierThread<GpuMat>>>;
+template class ObjDetectNNet<Mat, Classifier<Mat, GIEClassifierThread<Mat>>>;
+template class ObjDetectNNet<GpuMat, Classifier<GpuMat, GIEClassifierThread<GpuMat>>>;

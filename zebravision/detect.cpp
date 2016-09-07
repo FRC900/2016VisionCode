@@ -739,9 +739,7 @@ bool NNDetect<MatT, ClassifierT>::initialized(void) const
 
 
 // Explicitly instatiate classes used elsewhere
-template class NNDetect<Mat, CaffeClassifier<Mat>>;
-template class NNDetect<Mat, CaffeClassifier<GpuMat>>;
-template class NNDetect<GpuMat, CaffeClassifier<Mat>>;
-template class NNDetect<GpuMat, CaffeClassifier<GpuMat>>;
-template class NNDetect<Mat, GIEClassifier<Mat>>;
-template class NNDetect<GpuMat, GIEClassifier<GpuMat>>;
+template class NNDetect<Mat, Classifier<Mat, CaffeClassifierThread<Mat>>>;
+template class NNDetect<GpuMat, Classifier<GpuMat, CaffeClassifierThread<GpuMat>>>;
+template class NNDetect<Mat, Classifier<Mat, GIEClassifierThread<Mat>>>;
+template class NNDetect<GpuMat, Classifier<GpuMat, GIEClassifierThread<GpuMat>>>;

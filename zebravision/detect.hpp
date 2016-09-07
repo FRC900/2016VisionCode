@@ -1,5 +1,6 @@
-#ifndef INC_DETECT_HPP__
-#define INC_DETECT_HPP__
+#pragma once
+
+#include <Classifier.hpp>
 
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?
@@ -30,10 +31,10 @@ class NNDetect
 	   		     const std::vector<std::string> &c12Files,
 			     const std::vector<std::string> &c24Files, 
 			     float hfov) :
-			d12_(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 1024),
-			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64),
-			c12_(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64),
-			c24_(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64),
+			d12_(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 512, 2),
+			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64, 2),
+			c12_(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64, 2),
+			c24_(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64, 2),
 			hfov_(hfov)
 		{
 		}
@@ -109,4 +110,3 @@ class NNDetect
 		bool depthInRange(const float depth_min, const float depth_max, 
 				const cv::gpu::GpuMat &detectCheck);
 };
-#endif

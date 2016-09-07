@@ -33,8 +33,7 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	   	const ClassifierIO &c12IO, 
 		const ClassifierIO &c24IO, 
 		float hfov, 
-		bool gpuDetect, 
-		bool gpuClassifier,
+		bool gpu, 
 	   	bool gie) :
     detector_(NULL),
 	d12IO_(d12IO),
@@ -42,11 +41,9 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	c12IO_(c12IO),
 	c24IO_(c24IO),
 	hfov_(hfov),
-	gpuDetect_(gpuDetect),
-	gpuClassifier_(gpuClassifier),
+	gpu_(gpu),
 	gie_(gie),
-	oldGpuDetect_(gpuDetect),
-	oldGpuClassifier_(gpuClassifier),
+	oldGpu_(gpu),
 	oldGie_(gie),
 	reload_(true)
 {
@@ -106,32 +103,18 @@ bool DetectState::update(void)
 	// sense to maybe prune them down after some testing?
 	if (!gie_)
 	{
-		if (!gpuClassifier_)
-		{
-			if (!gpuDetect_)
-				detector_ = new ObjDetectCPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-			else
-				detector_ = new ObjDetectGPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
+		if (!gpu_)
+			detector_ = new ObjDetectCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		else
-		{
-			if (!gpuDetect_)
-				detector_ = new ObjDetectCPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-			else
-				detector_ = new ObjDetectGPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
+			detector_ = new ObjDetectCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 	}
 	else
 	{
 		// GIE implies GPU detection - CPU doesn't make sense there
-		if (!gpuClassifier_)
-		{
-			detector_ = new ObjDetectCPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
+		if (!gpu_)
+			detector_ = new ObjDetectGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		else
-		{
-			detector_ = new ObjDetectGPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
+			detector_ = new ObjDetectGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 	}
 
 	reload_ = false;
@@ -141,38 +124,28 @@ bool DetectState::update(void)
 	{
 		cerr << "Error loading detector" << endl;
 		detector_ = oldDetector;
-		gpuDetect_ = oldGpuDetect_;
-		gpuClassifier_ = oldGpuClassifier_;
+		gpu_ = oldGpu_;
 		gie_ = oldGie_;
 		return (oldDetector != NULL);
 	}
 
 	if (oldDetector)
 		delete oldDetector;
-	oldGpuDetect_ = gpuDetect_;
-	oldGpuClassifier_ = gpuClassifier_;
+	oldGpu_ = gpu_;
 	oldGie_ = gie_;
 
 	return true;
 }
 
-void DetectState::toggleGPUDetect(void)
+void DetectState::toggleGPU(void)
 {
 	if (getCudaEnabledDeviceCount() > 0)
 	{
-		gpuDetect_ = !gpuDetect_;
+		gpu_ = !gpu_;
 		reload_ = true;
 	}
 }
 
-void DetectState::toggleGPUClassifier(void)
-{
-	if (getCudaEnabledDeviceCount() > 0)
-	{
-		gpuClassifier_ = !gpuClassifier_;
-		reload_ = true;
-	}
-}
 void DetectState::toggleGIE(void)
 {
 	if (getCudaEnabledDeviceCount() > 0)
@@ -233,11 +206,7 @@ void DetectState::changeC24Model(bool increment)
 std::string DetectState::print(void) const
 {
 	string ret;
-	if (gpuDetect_)
-		ret += "G_";
-	else
-		ret += "C_";
-	if (gpuClassifier_)
+	if (gpu_)
 		ret += "G_";
 	else
 		ret += "C_";

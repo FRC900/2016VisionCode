@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include "Utilities.hpp"
 
 using namespace std;
@@ -132,4 +133,12 @@ namespace utils {
 			ofstream _data_file;
 	};
 
+	// Simple test to see if a file exists and
+	// is accessable
+	bool fileExists(const string &fileName)
+	{
+		struct stat statBuffer;
+		return stat(fileName.c_str(), &statBuffer) == 0;
+	}
 }
+

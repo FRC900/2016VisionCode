@@ -96,10 +96,10 @@ class ObjDetectNNet : public ObjDetect
 };
 
 // All-CPU code
-class ObjDetectCPUCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>>
+class ObjDetectCaffeCPU : public ObjDetectNNet<cv::Mat, Classifier<cv::Mat, CaffeClassifierThread<cv::Mat>>>
 {
 	public :
-		ObjDetectCPUCaffeCPU(std::vector<std::string> &d12Files,
+		ObjDetectCaffeCPU(std::vector<std::string> &d12Files,
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
@@ -108,59 +108,17 @@ class ObjDetectCPUCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::M
 		{
 		}
 
-		~ObjDetectCPUCaffeCPU(void)
-		{
-		}
-
-};
-
-// Detector does resizing, sliding windows and so
-// on in GPU, runs Caffe on CPU.  This is probably 
-// not a common config - if the GPU is there might
-// as well use it for both detector and Caffe
-class ObjDetectGPUCaffeCPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifier<cv::Mat>>
-{
-	public :
-		ObjDetectGPUCaffeCPU(std::vector<std::string> &d12Files,
-							 std::vector<std::string> &d24Files,
-							 std::vector<std::string> &c12Files,
-							 std::vector<std::string> &c24Files,
-							 float hfov) :
-						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-		}
-
-		~ObjDetectGPUCaffeCPU(void)
-		{
-		}
-
-};
-
-// Detector does resizing, sliding windows and so on
-// in CPU.  Caffe run on GPU
-class ObjDetectCPUCaffeGPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::gpu::GpuMat>>
-{
-	public :
-		ObjDetectCPUCaffeGPU(std::vector<std::string> &d12Files,
-							 std::vector<std::string> &d24Files,
-							 std::vector<std::string> &c12Files,
-							 std::vector<std::string> &c24Files,
-							 float hfov) :
-						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-		}
-
-		~ObjDetectCPUCaffeGPU(void)
+		~ObjDetectCaffeCPU(void)
 		{
 		}
 
 };
 
 // Both detector and Caffe run on the GPU
-class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifier<cv::gpu::GpuMat>>
+class ObjDetectCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, Classifier<cv::gpu::GpuMat, CaffeClassifierThread<cv::gpu::GpuMat>>>
 {
 	public :
-		ObjDetectGPUCaffeGPU(std::vector<std::string> &d12Files,
+		ObjDetectCaffeGPU(std::vector<std::string> &d12Files,
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
@@ -169,7 +127,7 @@ class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifi
 		{
 		}
 
-		~ObjDetectGPUCaffeGPU(void)
+		~ObjDetectCaffeGPU(void)
 		{
 		}
 
@@ -177,10 +135,10 @@ class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifi
 
 // Detector does resizing, sliding windows and so on
 // in CPU.  GIE run on GPU
-class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat>>
+class ObjDetectGIECPU : public ObjDetectNNet<cv::Mat, Classifier<cv::Mat, GIEClassifierThread<cv::Mat>>>
 {
 	public :
-		ObjDetectCPUGIEGPU(std::vector<std::string> &d12Files,
+		ObjDetectGIECPU(std::vector<std::string> &d12Files,
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
@@ -189,17 +147,17 @@ class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat>>
 		{
 		}
 
-		~ObjDetectCPUGIEGPU(void)
+		~ObjDetectGIECPU(void)
 		{
 		}
 
 };
 
 // Both detector and GIE run on the GPU
-class ObjDetectGPUGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, GIEClassifier<cv::gpu::GpuMat>>
+class ObjDetectGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, Classifier<cv::gpu::GpuMat, GIEClassifierThread<cv::gpu::GpuMat>>>
 {
 	public :
-		ObjDetectGPUGIEGPU(std::vector<std::string> &d12Files,
+		ObjDetectGIEGPU(std::vector<std::string> &d12Files,
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
@@ -208,7 +166,7 @@ class ObjDetectGPUGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, GIEClassifier<c
 		{
 		}
 
-		~ObjDetectGPUGIEGPU(void)
+		~ObjDetectGIEGPU(void)
 		{
 		}
 

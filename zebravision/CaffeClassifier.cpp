@@ -1,10 +1,11 @@
 #include <iostream>
-#include <sys/stat.h>
+#include <string>
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/gpu/gpu.hpp>
 
 #include "CaffeClassifier.hpp"
+#include "Utilities.hpp"
 
 using namespace std;
 using namespace caffe;
@@ -16,49 +17,31 @@ using namespace cv::gpu;
 // var to make sure it does.
 static bool glogInit_ = false;
 
-#if 0
-#include <sys/time.h>
-static double gtod_wrapper(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
-#endif
-
 template <class MatT>
-CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
-      const string& trainedFile,
-      const string& zcaWeightFile,
-      const string& labelFile,
-      const size_t  batchSize) :
-	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
-	initialized_(false)
+CaffeClassifierThread<MatT>::CaffeClassifierThread(const string &modelFile,
+							const string &trainedFile,
+							const ZCA    &zca,      
+							const size_t batchSize,
+		std::shared_ptr<SynchronizedQueue<InQData<MatT>>> inQ,
+		std::shared_ptr<SynchronizedQueue<OutQData>>      outQ) :
+	initialized_(false),
+	zca_(zca),
+	inQ_(inQ), // input and output queues for communicating
+	outQ_(outQ) // with the master thread
 {
-	// Base class loads labels and ZCA preprocessing data.
-	// If those fail, bail out immediately.
-	if (!Classifier<MatT>::initialized())
-		return;
-
 	// Make sure the model definition and 
 	// weight files exist
-	if (!this->fileExists(modelFile))
+	if (!utils::fileExists(modelFile))
 	{
 		cerr << "Could not find Caffe model " << modelFile << endl;
 		return;
 	}
-	if (!this->fileExists(trainedFile))
+	if (!utils::fileExists(trainedFile))
 	{
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
 	}
-
-	cout << "Loading Caffe model " << modelFile << endl << "\t" << trainedFile << endl << "\t" << zcaWeightFile << endl << "\t" << labelFile << endl;
-
-	// Switch to CPU or GPU mode depending on
-	// which version of the class we're running
-	Caffe::set_mode(IsGPU() ? Caffe::GPU : Caffe::CPU);
+	cout << "Loading Caffe worker thread " << endl << "\t" << modelFile << endl << "\t" << trainedFile << endl;
 
 	// Hopefully this turns off any logging
 	// Run only once the first time and CaffeClassifer
@@ -70,6 +53,10 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		::google::SetStderrLogging(3);
 		glogInit_ = true;
 	}
+
+	// Switch to CPU or GPU mode depending on
+	// which version of the class we're running
+	Caffe::set_mode(IsGPU() ? Caffe::GPU : Caffe::CPU);
 
 	// Load the network - this includes model 
 	// geometry and trained weights
@@ -89,17 +76,19 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 
 	// Also, make sure the input geometry matches
 	// the size expected by the preprocessing filters
-	if (this->inputGeometry_ != Size(inputLayer->width(), inputLayer->height()))
+	if (zca_.size() != Size(inputLayer->width(), inputLayer->height()))
 	{
 		cerr << "Net size != ZCA size" << endl;
 		return;
 	}
 
+#if 0
 	// Quick check to make sure there are enough labels
 	// for each output
 	Blob<float>* outputLayer = net_->output_blobs()[0];
 	CHECK_EQ(this->labels_.size(), outputLayer->channels())
 		<< "Number of labels is different from the output layer dimension.";
+#endif
 
 	// Set the network up for the specified batch
 	// size. This processes a number of images in 
@@ -150,18 +139,8 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 			inputBatch_.push_back(vector<MatT>(inputChannels));
 		}
 	}
-	
-	// We made it!
 	initialized_ = true;
 }
-
-
-// TODO : this probably isn't needed
-template <class MatT>
-CaffeClassifier<MatT>::~CaffeClassifier()
-{
-}
-
 // Get the output values for a set of images in one flat vector
 // These values will be in the same order as the labels for each
 // image, and each set of labels for an image next adjacent to the
@@ -170,40 +149,45 @@ CaffeClassifier<MatT>::~CaffeClassifier()
 // [n] = value for label n for the first image. It then starts again
 // for the next image - [n+1] = label 0 for image #2.
 template <class MatT>
-vector<float> CaffeClassifier<MatT>::PredictBatch(const vector<MatT> &imgs) 
+void CaffeClassifierThread<MatT>::operator() ()
 {
-	// Process each image so they match the format
-	// expected by the net, then copy the images
-	// into the net's input buffers
-	//double start = gtod_wrapper();
-	PreprocessBatch(imgs);
-	//cout << "PreprocessBatch " << gtod_wrapper() - start << endl;
-	//start = gtod_wrapper();
-	// Run a forward pass with the data filled in from above
-	net_->Forward();
-	//cout << "Forward " << gtod_wrapper() - start << endl;
+	// Loop forever waiting for data to process
+	while (true)
+	{
+		// Get input images from the queue, blocking if none
+		// is available
+		InQData<MatT> input = inQ_->Dequeue();
 
-	//start = gtod_wrapper();
-	// Copy the output layer to a flat vector 
-	// Use CPU data output unconditionally - it has
-	// to end up back at the CPU eventually so do it
-	// now ... just as good as any other time
-	Blob<float>* outputLayer = net_->output_blobs()[0];
-	const float* begin = outputLayer->cpu_data();
-	const float* end = begin + outputLayer->channels()*imgs.size();
-	//cout << "Output " << gtod_wrapper() - start << endl;
-	return vector<float>(begin, end);
+		// Convert each image so they match the format
+		// expected by the net, then copy the images
+		// into the net's input buffers
+		PreprocessBatch(input.data_);
+
+		// Run a forward pass with the data filled in from above
+		// This is the step which actually runs the net over
+		// the input images. It produces a set of confidence scores 
+		// per image - one score per label.  The higher
+		// the score, the more likely the net thinks
+		// it is that the input image matches a given
+		// label.
+		net_->Forward();
+
+		// Copy the output layer to a flat vector
+		Blob<float>* outputLayer = net_->output_blobs()[0];
+		const float* begin = outputLayer->cpu_data();
+		const float* end = begin + outputLayer->channels() * input.data_.size();
+		outQ_->Enqueue(OutQData(input.batchNum_, vector<float>(begin, end)));
+		// Make sure we can be interrupted
+		boost::this_thread::interruption_point();
+	}
 }
 
 // Take each image in Mat, convert it to the correct image size,
 // and apply ZCA whitening to preprocess the files
 // Then actually write the images to the net input memory buffers
 template <>
-void CaffeClassifier<Mat>::PreprocessBatch(const vector<Mat> &imgs)
+void CaffeClassifierThread<Mat>::PreprocessBatch(const vector<Mat> &imgs)
 {
-	CHECK(imgs.size() <= this->batchSize_) <<
-		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
-
 	vector<Mat> zcaImgs = this->zca_.Transform32FC3(imgs);
 
 	// Hack to reset input layer to think that
@@ -229,11 +213,8 @@ void CaffeClassifier<Mat>::PreprocessBatch(const vector<Mat> &imgs)
 // that function copies its final results directly into the
 // input buffers of the net.
 template <>
-void CaffeClassifier<GpuMat>::PreprocessBatch(const vector<GpuMat> &imgs)
+void CaffeClassifierThread<GpuMat>::PreprocessBatch(const vector<GpuMat> &imgs)
 {
-	CHECK(imgs.size() <= this->batchSize_) <<
-		"PreprocessBatch() : too many input images : batch size is " << this->batchSize_ << "imgs.size() = " << imgs.size(); 
-
 	float* inputData = net_->input_blobs()[0]->mutable_gpu_data();
 	this->zca_.Transform32FC3(imgs, inputData);
 }
@@ -242,30 +223,29 @@ void CaffeClassifier<GpuMat>::PreprocessBatch(const vector<GpuMat> &imgs)
 // Specialize these functions - the Mat one works
 // on the CPU while the GpuMat one works on the GPU
 template <>
-bool CaffeClassifier<Mat>::IsGPU(void) const
+bool CaffeClassifierThread<Mat>::IsGPU(void) const
 {
 	// TODO : change to unconditional false
 	// eventually once things are debugged
-	//return (getCudaEnabledDeviceCount() > 0);
+	return (getCudaEnabledDeviceCount() > 0);
 	return false;
 }
 
+
 template <>
-bool CaffeClassifier<GpuMat>::IsGPU(void) const
+bool CaffeClassifierThread<GpuMat>::IsGPU(void) const
 {
 	return true;
 }
 
+
 template <class MatT>
-bool CaffeClassifier<MatT>::initialized(void) const
+bool CaffeClassifierThread<MatT>::initialized(void) const
 {
-	if (!Classifier<MatT>::initialized())
-		return false;
-	
 	return initialized_;
 }
 
 
 // Instantiate both Mat and GpuMat versions of the Classifier
-template class CaffeClassifier<Mat>;
-template class CaffeClassifier<GpuMat>;
+template class CaffeClassifierThread<Mat>;
+template class CaffeClassifierThread<GpuMat>;
