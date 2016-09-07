@@ -121,6 +121,16 @@ if [ "$gpu" = true ] ; then
 	rm ./$ext
 fi
 
+# OpenCV build info - needed to get CUBLAS gemm support
+cd
+wget https://github.com/Itseez/opencv/archive/2.4.13.zip
+unzip -v 2.4.13.zip
+cd opencv-2.4.13
+mkdir build
+cd build
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.3" -DCUDA_ARCH_PTX="5.3" .
+make -j3
+
 #clone repo
 cd
 git clone https://github.com/FRC900/2016VisionCode.git
@@ -144,3 +154,4 @@ if [ "$jetson" = true ] ; then
 	sudo chmod 755 /usr/local/zed/settings
 	sudo cp ~/2016VisionCode/
 fi
+
