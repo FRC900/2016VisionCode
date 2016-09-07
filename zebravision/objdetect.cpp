@@ -34,7 +34,13 @@ using namespace cv::gpu;
 	Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
 */
-void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects, vector<Rect> &uncalibImageRects)
+
+// Basic version of detection used for all derived
+// neural-net based classes.  Detection code is the 
+// same for all even though they use different types
+// of detectors and classifiers (GPU vs. CPU, GIE vs. Caffe, etc)
+template <class MatT, class ClassifierT>
+void ObjDetectNNet<MatT, ClassifierT>::Detect(const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects, vector<Rect> &uncalibImageRects)
 {
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it
@@ -62,10 +68,9 @@ void GPU_NNDetect::Detect (const Mat &frameInput, const Mat &depthIn, vector<Rec
 			uncalibImageRects);
 }
 
-//gpu version with wrapper to upload Mat to GpuMat
-/*
-void GPU_CascadeDetect::Detect (const Mat &frame, vector<Rect> &imageRects)
-{
-   //uploadFrame.upload(frame);
-   Detect(uploadFrame, imageRects);
-}*/
+template class ObjDetectNNet<Mat, CaffeClassifier<Mat>>;
+template class ObjDetectNNet<GpuMat, CaffeClassifier<Mat>>;
+template class ObjDetectNNet<Mat, CaffeClassifier<GpuMat>>;
+template class ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>;
+template class ObjDetectNNet<Mat, GIEClassifier<Mat>>;
+template class ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>;

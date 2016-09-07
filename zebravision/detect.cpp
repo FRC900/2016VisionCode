@@ -1,16 +1,20 @@
 #include <iostream>
-#include "CaffeBatchPrediction.hpp"
+#include <sys/time.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/gpu/gpu.hpp>
+
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
 #include "detect.hpp"
+#include "CaffeClassifier.hpp"
+#include "GIEClassifier.hpp"
 #include "Utilities.hpp"
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
 
 //#define VERBOSE
 
 using namespace std;
 using namespace cv;
+using namespace cv::gpu;
 
 static double gtod_wrapper(void)
 {
@@ -31,17 +35,17 @@ static double gtod_wrapper(void)
 // neural net used is a simple, quick one. This quickly eliminates easy
 // to reject objects but leaves many false positives. The second level
 // net is larger and slower but also more accurate.  
-template<class MatT>
-void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
-                                      const Mat&            depthMat,
-                                      const Size&           minSize,
-                                      const Size&           maxSize,
-                                      double                scaleFactor,
-                                      const vector<double>& nmsThreshold,
-                                      const vector<double>& detectThreshold,
-                                      const vector<double>& calibrationThreshold,
-                                      vector<Rect>&         rectsOut,
-									  vector<Rect>&         uncalibRectsOut)
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputImg,
+												   const Mat&            depthMat,
+												   const Size&           minSize,
+												   const Size&           maxSize,
+												   const double          scaleFactor,
+												   const vector<double>& nmsThreshold,
+												   const vector<double>& detectThreshold,
+												   const vector<double>& calibrationThreshold,
+												   vector<Rect>&         rectsOut,
+												   vector<Rect>&         uncalibRectsOut)
 {
     // Size of the first level classifier. Others are an integer multiple
     // of this initial size (2x and maybe 4x if we need it)
@@ -80,7 +84,10 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 	// rather than every time we pass a sub-window into the detection
 	// code to save some time
     MatT(inputImg).convertTo(f32Img, CV_32FC3);
-    generateInitialWindows(f32Img, depthMat, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
+
+	// For GPU Mat, upload input CPU depth mat to GPU mat
+	MatT depth(depthMat);
+    generateInitialWindows(f32Img, depth, minSize, maxSize, wsize, scaleFactor, scaledImages12, windowsIn);
 
     // Generate scaled images for the larger net sizes as well.  Using a separate
 	// set of scaled images for the 24x24 net will allow the code to grab
@@ -164,11 +171,11 @@ void NNDetect<MatT>::detectMultiscale(const Mat&            inputImg,
 // is, a window from one scale can overlap and eliminate
 // a window at a different scale. Use this for the last
 // level of detection only
-template<class MatT>
-void NNDetect<MatT>::runGlobalNMS(const vector<Window>& windows,
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::runGlobalNMS(const vector<Window>& windows,
                                   const vector<float>& scores,
                                   const vector<pair<MatT, double> >& scaledImages,
-                                  double nmsThreshold,
+                                  const double nmsThreshold,
                                   vector<Window>& windowsOut)
 {
     if ((nmsThreshold > 0.0) && (nmsThreshold <= 1.0))
@@ -207,10 +214,10 @@ void NNDetect<MatT>::runGlobalNMS(const vector<Window>& windows,
 // Run NMS locally - only eliminate overlapping
 // windows of the same scale. Leave potential overlaps
 // from different scales alone
-template<class MatT>
-void NNDetect<MatT>::runLocalNMS(const vector<Window>& windows,
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::runLocalNMS(const vector<Window>& windows,
                                  const vector<float>& scores,
-                                 double nmsThreshold,
+                                 const double nmsThreshold,
                                  vector<Window>& windowsOut)
 {
     if ((nmsThreshold > 0.0) && (nmsThreshold <= 1.0))
@@ -283,14 +290,14 @@ void NNDetect<MatT>::runLocalNMS(const vector<Window>& windows,
 // size, anyting we detect in that rect can't really be a boulder
 // and should be filtered out of the initial list of possible
 // detection windows.
-template<class MatT>
-void NNDetect<MatT>::generateInitialWindows(
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::generateInitialWindows(
     const MatT& input,
-    const Mat& depthIn,
+    const MatT& depthIn,
     const Size& minSize,
     const Size& maxSize,
-    int wsize,
-    double scaleFactor,
+    const int wsize,
+    const double scaleFactor,
     vector<pair<MatT, double> >& scaledImages,
     vector<Window>& windows)
 {
@@ -304,14 +311,14 @@ void NNDetect<MatT>::generateInitialWindows(
     // pixels we step over.
     const int step = 4;
 
-    // Create array of scaled images
+    // Create array of scaled images for RGB 
+	// and depth data
+    scalefactor(input, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
     vector<pair<MatT, double> > scaledDepth;
     if (!depthIn.empty())
     {
-        MatT depthGpu = MatT(depthIn);
-        scalefactor(depthGpu, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
+        scalefactor(depthIn, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
     }
-    scalefactor(input, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledImages);
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
@@ -332,23 +339,21 @@ void NNDetect<MatT>::generateInitialWindows(
         // Start at the upper left corner.  Loop through the rows and cols adding
 		// each position to the list to check until the detection window falls off 
 		// the edges of the scaled image
-		// Throw out rects which would indicate an object that is totally the
-		// wrong size for the objects we're trying to detect
         for (int r = 0; (r + wsize) <= scaledImages[scale].first.rows; r += step)
         {
             for (int c = 0; (c + wsize) <= scaledImages[scale].first.cols; c += step)
             {
                 thisWindowsChecked += 1;
-                if (!depthIn.empty())
-                {
-                    Mat detectCheck = Mat(scaledDepth[scale].first(Rect(c, r, wsize, wsize)));
-                    if (!depthInRange(depth_min, depth_max, detectCheck))
-                    {
-                        continue;
-                    }
-                }
-                windows.push_back(Window(Rect(c, r, wsize, wsize), scale));
-                thisWindowsPassed += 1;
+				const Rect rect(c, r, wsize, wsize);
+				// If there is depth data, filter using it :
+				// Throw out rects which would indicate an object that is at the
+				// wrong depth given the size of the window being searched
+                if (depthIn.empty() ||
+                    depthInRange(depth_min, depth_max, scaledDepth[scale].first(rect)))
+				{
+					windows.push_back(Window(rect, scale));
+					thisWindowsPassed += 1;
+				}
             }
         }
         windowsChecked += thisWindowsChecked;
@@ -367,12 +372,12 @@ void NNDetect<MatT>::generateInitialWindows(
 // image as detected, and label is the name of the object
 // we're looking for.
 // For each detected window, also return a score 
-template<class MatT>
-void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::runDetection(ClassifierT &classifier,
                                   const vector<pair<MatT, double> >& scaledImages,
                                   const vector<Window>& windows,
-                                  float threshold,
-                                  string label,
+                                  const float threshold,
+                                  const string &label,
                                   vector<Window>& windowsOut,
                                   vector<float>& scores)
 {
@@ -386,7 +391,7 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
     // the input array above which have a high enough confidence score
     vector<size_t> detected;
 
-    size_t batchSize = classifier.BatchSize(); // defined when classifer is constructed
+    size_t batchSize = classifier.batchSize(); // defined when classifer is constructed
     int    counter   = 0;
     //double start     = gtod_wrapper(); // grab start time
 
@@ -433,13 +438,13 @@ void NNDetect<MatT>::runDetection(CaffeClassifier<MatT>& classifier,
 
 // do 1 run of the classifier. This takes up batch_size predictions
 // and adds the index of anything found to the detected list
-template<class MatT>
-void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
-                                       const vector<MatT>&    imgs,
-                                       float                  threshold,
-                                       const string&          label,
-                                       vector<size_t>&        detected,
-                                       vector<float>&         scores)
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::doBatchPrediction(ClassifierT &classifier,
+												    const vector<MatT> &imgs,
+												    const float         threshold,
+												    const string&       label,
+												    vector<size_t>&     detected,
+												    vector<float>&      scores)
 {
     detected.clear();
     // Grab the top 2 detected classes.  Since we're doing an object /
@@ -500,11 +505,11 @@ void NNDetect<MatT>::doBatchPrediction(CaffeClassifier<MatT>& classifier,
 // corresponding to that label.  
 // The actual shift/resize to apply is the average of all of them
 // with a high enough confidence
-template<class MatT>
-void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::runCalibration(const vector<Window>& windowsIn,
                                     const vector<pair<MatT, double> >& scaledImages,
-                                    CaffeClassifier<MatT>& classifier,
-                                    float threshold,
+                                    ClassifierT &classifier,
+                                    const float threshold,
                                     vector<Window>& windowsOut)
 {
 	windowsOut.clear();
@@ -516,7 +521,7 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 		// Grab the rect from the scaled image represented
 		// but each input window
 		images.push_back(scaledImages[it->second].first(it->first));
-		if ((images.size() == classifier.BatchSize()) || ((it + 1) == windowsIn.cend()))
+		if ((images.size() == classifier.batchSize()) || ((it + 1) == windowsIn.cend()))
 		{
 			doBatchCalibration(classifier, images, threshold, shift);
 			shifts.insert(shifts.end(), shift.begin(), shift.end());
@@ -605,11 +610,11 @@ void NNDetect<MatT>::runCalibration(const vector<Window>& windowsIn,
 }
 
 
-template<class MatT>
-void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
-                                        const vector<MatT>&     imgs,
-                                        float                   threshold,
-                                        vector<vector<float> >& shift)
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::doBatchCalibration(ClassifierT            &classifier,
+													 const vector<MatT>     &imgs,
+													 const float             threshold,
+													 vector<vector<float> > &shift)
 {
 	shift.clear();
 	vector<vector<Prediction> > predictions = classifier.ClassifyBatch(imgs, 45);
@@ -671,13 +676,14 @@ void NNDetect<MatT>::doBatchCalibration(CaffeClassifier<MatT>&  classifier,
 	}
 }
 
+// Can't do partial specialization of member functions?
 
 // Be conservative here - if any of the depth values in the target rect
 // are in the expected range, consider the rect in range.  Also
 // say that it is in range if any of the depth values are negative (i.e. no
 // depth info for those pixels)
-template<class MatT>
-bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& detectCheck)
+template<class MatT, class ClassifierT>
+bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const float depth_max, const Mat& detectCheck)
 {
     for (int py = 0; py < detectCheck.rows; py++)
     {
@@ -693,7 +699,49 @@ bool NNDetect<MatT>::depthInRange(float depth_min, float depth_max, const Mat& d
     return false;
 }
 
+// Possible GPU specialization
+template<class MatT, class ClassifierT>
+bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const float depth_max, const GpuMat& detectCheck)
+{
+	GpuMat dstNeg;
+	GpuMat dstLtMax;
+	GpuMat dstGtMin;
+	GpuMat dstInRange;
+	GpuMat dstFinal;
+
+	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
+	threshold (detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
+	if (countNonZero(dstNeg))
+		return true;
+
+	// Set dstLtMax to 1 if detectCheck < depth_max, otherwise set dst to 0
+	threshold (detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
+
+	// Set dstGtMin to 1 if detectCheck > depth_min, otherwise set dst to 0
+	threshold (detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
+
+	// dstInRange == 1 iff both LtMax and GtMin
+	multiply (dstLtMax, dstGtMin, dstInRange);
+
+	// dstFinal == 1 iff either InRange or Neg
+	add (dstNeg, dstInRange, dstFinal);
+	return (countNonZero(dstFinal) != 0);
+}
+
+template<class MatT, class ClassifierT>
+bool NNDetect<MatT, ClassifierT>::initialized(void) const
+{
+	if (d12_.initialized() && d24_.initialized() &&
+	    c12_.initialized() && c24_.initialized())
+		return true;
+	return false;
+}
+
 
 // Explicitly instatiate classes used elsewhere
-template class NNDetect<Mat>;
-//template class NNDetect<gpu::GpuMat>;
+template class NNDetect<Mat, CaffeClassifier<Mat>>;
+template class NNDetect<Mat, CaffeClassifier<GpuMat>>;
+template class NNDetect<GpuMat, CaffeClassifier<Mat>>;
+template class NNDetect<GpuMat, CaffeClassifier<GpuMat>>;
+template class NNDetect<Mat, GIEClassifier<Mat>>;
+template class NNDetect<GpuMat, GIEClassifier<GpuMat>>;

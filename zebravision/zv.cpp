@@ -199,11 +199,6 @@ int main( int argc, const char** argv )
 	bool gdDraw = false;      // draw goal detect details
 	int frameDisplayFrequency = 1;
 
-	// Hopefully this turns off any logging
-	::google::InitGoogleLogging("");
-	::google::LogToStderr();
-	::google::SetStderrLogging(3);
-
 	// Read through command line args, extract
 	// cmd line parameters and input filename
 	Args args;
@@ -303,12 +298,15 @@ int main( int argc, const char** argv )
 	//The code can switch to other nets if they're named like d12_1, d12_2, etc.
 	DetectState *detectState = NULL;
 	if (args.detection)
+	{
+		bool hasGPU = gpu::getCudaEnabledDeviceCount() > 0;
 		detectState = new DetectState(
 				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
 				ClassifierIO(args.c12BaseDir, args.c12DirNum, args.c12StageNum),
 				ClassifierIO(args.c24BaseDir, args.c24DirNum, args.c24StageNum),
-				camParams.fov.x, gpu::getCudaEnabledDeviceCount() > 0);
+				camParams.fov.x, hasGPU, hasGPU);
+	}
 
 	// Find the first frame number which has ground truth data
 	if (args.groundTruth)
@@ -546,6 +544,8 @@ int main( int argc, const char** argv )
 			// users can keep track of that toggle's mode
 			if (args.captureAll)
 				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
+			if (filterUsingDepth)
+				putText(frame, "D", Point(50,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 0, 255));
 
 			// Display current classifier infomation
 			if (detectState)
@@ -599,7 +599,8 @@ int main( int argc, const char** argv )
 					textWriter.writeTime(frame);
 					textWriter.writeMatchNumTime(frame);
 				} 
-				// Make sure last frame is written, then write this one
+				// Make sure last frame finished 
+				// writing, then write this one
 				processedOut->sync();
 				processedOut->saveFrame(frame, depth);
 			}
@@ -696,10 +697,20 @@ int main( int argc, const char** argv )
 			{
 				gdDraw = !gdDraw;
 			}
-			else if (c == 'G') // toggle CPU/GPU mode
+			else if (c == 'G') // toggle GIE mode
 			{
 				if (detectState)
-					detectState->toggleGPU();
+					detectState->toggleGIE();
+			}
+			else if (c == 'C') // toggle GPU Classifier mode
+			{
+				if (detectState)
+					detectState->toggleGPUClassifier();
+			}
+			else if (c == 'D') // toggle GPU Detector mode
+			{
+				if (detectState)
+					detectState->toggleGPUDetect();
 			}
 			else if (c == 'h') // toggle tracking histories
 			{
@@ -916,7 +927,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 // Open video capture object. Figure out if input is camera, video, image, etc
 void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName)
 {
-  zvSettings = new ZvSettings(xmlFilename);
+	zvSettings = new ZvSettings(xmlFilename);
 
 	// Digit, but no dot (meaning no file extension)? Open camera
 	if (readFileName.length() == 0 ||
@@ -925,8 +936,10 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
+#ifdef ZED_SUPPORT
 		cap = new ZedIn(NULL, gui, zvSettings);
 		if(!cap->isOpened())
+#endif
 		{
 			delete cap;
 			cap = new C920CameraIn(camera, gui, zvSettings);
@@ -941,10 +954,12 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 				ss << "C920 Camera ";
 			}
 		}
+#ifdef ZED_SUPPORT
 		else
 		{
 			ss << "Zed Camera ";
 		}
+#endif
 		ss << camera;
 		windowName = ss.str();
 		capPath    = getDateTimeString();
@@ -956,7 +971,14 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
 		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
 		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
+#ifdef ZED_SUPPORT
 			cap = new ZedIn(readFileName.c_str(), gui, zvSettings);
+#else
+		{
+			cap = new VideoIn(readFileName.c_str(), zvSettings);
+			cerr << "ZED support not enabled for this build " << endl;
+		}
+#endif
 		else
 			cap = new VideoIn(readFileName.c_str(), zvSettings);
 

@@ -14,7 +14,12 @@ my @videos = ();
 for $videodir (@videodirs)
 {
 	opendir(my $dh, $videodir) || die "Can not open $videodir : $!";
-	push @videos, grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
+	my @this_videos = ();
+	push @this_videos, grep { /.avi$/ && -f "$videodir/$_" } readdir($dh);
+	for $video (sort @this_videos)
+	{
+		push @videos, $videodir . "/" . $video;
+	}
 	closedir $dh;
 }
 

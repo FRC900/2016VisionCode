@@ -1,4 +1,4 @@
-#include "CaffeBatchPrediction.hpp"
+#include "CaffeClassifier.hpp"
 #include "classifierio.hpp"
 
 using namespace std;
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 		resize(img, rsz, c.getInputGeometry()); 
 		rsz.convertTo(f32, CV_32FC3);
 		imgs.push_back(f32.clone());
-		if (imgs.size() == c.BatchSize())
+		if (imgs.size() == c.batchSize())
 		{
 			auto p = c.ClassifyBatch(imgs,2);
 			for (auto v = p.cbegin(); v != p.cend(); ++v)

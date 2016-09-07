@@ -6,21 +6,26 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/gpu/gpu.hpp>
 #include "detect.hpp"
+#include "CaffeClassifier.hpp"
+#include "GIEClassifier.hpp"
 
 #include <vector>
 
-// Base class for detector. Doesn't really do much - all of the heavy lifting is
-// in the derived classes
+// Base class for detector. Doesn't really do much - all 
+// of the heavy lifting is in the derived classes
 class ObjDetect
 {
 	public :
 		ObjDetect() : init_(false) {} //pass in value of false to cascadeLoadedGPU_CascadeDetect
 		virtual ~ObjDetect() {}       //empty destructor
 		// virtual void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects) = 0; //pure virtual function, must be defined by CPU and GPU detect
-		virtual void Detect(const cv::Mat &frameGPUInput, const cv::Mat &depthIn, std::vector<cv::Rect> &imageRects, std::vector<cv::Rect> &uncalibImageRects)
+		virtual void Detect(const cv::Mat &frameInput, 
+				const cv::Mat &depthIn, 
+				std::vector<cv::Rect> &imageRects, 
+				std::vector<cv::Rect> &uncalibImageRects)
 		{
+			(void)frameInput;
 			(void)depthIn;
-			(void)frameGPUInput;
 			imageRects.clear();
 			uncalibImageRects.clear();
 		}
@@ -58,52 +63,158 @@ class ObjDetect
       cv::CascadeClassifier classifier_;
 };
 */
-// CPU version of cascade classifier. Pretty much the same interface
-// as the CPU version, but with an added method to handle data
-// which is already moved to a GpuMat
-class GPU_NNDetect : public ObjDetect
+
+// Class to handle detections for all NNet based
+// detectors. Detect code is the same for all of
+// them even though the detector and classifier
+// types are different.  Code the common Detect call
+// here and then create the various classifiers in a
+// set of derived classes
+template <class MatT, class ClassifierT>
+class ObjDetectNNet : public ObjDetect
 {
-	public :
-		GPU_NNDetect(const std::vector<std::string> &d12Info,
-					 const std::vector<std::string> &d24Info,
-					 const std::vector<std::string> &c12Info,
-					 const std::vector<std::string> &c24Info,
-					 float hfov) :
-						ObjDetect(),
-						classifier_(d12Info, d24Info, c12Info, c24Info, hfov)
+	public:
+		ObjDetectNNet(std::vector<std::string> &d12Files,
+					  std::vector<std::string> &d24Files,
+					  std::vector<std::string> &c12Files,
+					  std::vector<std::string> &c24Files,
+					  float hfov) :
+			ObjDetect(),
+			classifier_(d12Files, d24Files, c12Files, c24Files, hfov)
 		{
-			/* struct stat statbuf;		
-			   if (stat(cascadeName, &statbuf) != 0)
-			   {
-			   std::cerr << "Can not open classifier input " << cascadeName << std::endl;
-			   std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
-			   return;
-
-			   }
-
-			   init_ = classifier_.load(cascadeName);
-			   */
-			init_ = true;
+			init_ = classifier_.initialized();
 		}
-
-		~GPU_NNDetect(void)
+		virtual ~ObjDetectNNet()
 		{
-			// classifier_.release();
 		}
-		void Detect (const cv::Mat &frame, const cv::Mat &depthIn, std::vector<cv::Rect> &imageRects, std::vector<cv::Rect> &uncalibImageRects);
-		//void Detect (const cv::gpu::GpuMat &frameGPUInput, std::vector<cv::Rect> &imageRects);
-
+		void Detect(const cv::Mat &frameIn, 
+					const cv::Mat &depthIn, 
+					std::vector<cv::Rect> &imageRects, 
+					std::vector<cv::Rect> &uncalibImageRects);
 	private :
-		NNDetect<cv::Mat> classifier_;
-
-		// Declare GPU Mat elements once here instead of every single
-		// call to the functions which use them
-		//cv::gpu::GpuMat frameEq;
-		//cv::gpu::GpuMat frameGray;
-		//cv::gpu::GpuMat detectResultsGPU;
-		//cv::gpu::GpuMat uploadFrame;
+		NNDetect<MatT, ClassifierT> classifier_;
 };
 
+// All-CPU code
+class ObjDetectCPUCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>>
+{
+	public :
+		ObjDetectCPUCaffeCPU(std::vector<std::string> &d12Files,
+							 std::vector<std::string> &d24Files,
+							 std::vector<std::string> &c12Files,
+							 std::vector<std::string> &c24Files,
+							 float hfov) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+		{
+		}
+
+		~ObjDetectCPUCaffeCPU(void)
+		{
+		}
+
+};
+
+// Detector does resizing, sliding windows and so
+// on in GPU, runs Caffe on CPU.  This is probably 
+// not a common config - if the GPU is there might
+// as well use it for both detector and Caffe
+class ObjDetectGPUCaffeCPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifier<cv::Mat>>
+{
+	public :
+		ObjDetectGPUCaffeCPU(std::vector<std::string> &d12Files,
+							 std::vector<std::string> &d24Files,
+							 std::vector<std::string> &c12Files,
+							 std::vector<std::string> &c24Files,
+							 float hfov) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+		{
+		}
+
+		~ObjDetectGPUCaffeCPU(void)
+		{
+		}
+
+};
+
+// Detector does resizing, sliding windows and so on
+// in CPU.  Caffe run on GPU
+class ObjDetectCPUCaffeGPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::gpu::GpuMat>>
+{
+	public :
+		ObjDetectCPUCaffeGPU(std::vector<std::string> &d12Files,
+							 std::vector<std::string> &d24Files,
+							 std::vector<std::string> &c12Files,
+							 std::vector<std::string> &c24Files,
+							 float hfov) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+		{
+		}
+
+		~ObjDetectCPUCaffeGPU(void)
+		{
+		}
+
+};
+
+// Both detector and Caffe run on the GPU
+class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifier<cv::gpu::GpuMat>>
+{
+	public :
+		ObjDetectGPUCaffeGPU(std::vector<std::string> &d12Files,
+							 std::vector<std::string> &d24Files,
+							 std::vector<std::string> &c12Files,
+							 std::vector<std::string> &c24Files,
+							 float hfov) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+		{
+		}
+
+		~ObjDetectGPUCaffeGPU(void)
+		{
+		}
+
+};
+
+// Detector does resizing, sliding windows and so on
+// in CPU.  GIE run on GPU
+class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat>>
+{
+	public :
+		ObjDetectCPUGIEGPU(std::vector<std::string> &d12Files,
+							 std::vector<std::string> &d24Files,
+							 std::vector<std::string> &c12Files,
+							 std::vector<std::string> &c24Files,
+							 float hfov) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+		{
+		}
+
+		~ObjDetectCPUGIEGPU(void)
+		{
+		}
+
+};
+
+// Both detector and GIE run on the GPU
+class ObjDetectGPUGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, GIEClassifier<cv::gpu::GpuMat>>
+{
+	public :
+		ObjDetectGPUGIEGPU(std::vector<std::string> &d12Files,
+							 std::vector<std::string> &d24Files,
+							 std::vector<std::string> &c12Files,
+							 std::vector<std::string> &c24Files,
+							 float hfov) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+		{
+		}
+
+		~ObjDetectGPUGIEGPU(void)
+		{
+		}
+
+};
+
+// Various globals controlling detection.  
 extern int scale;
 extern int d12NmsThreshold;
 extern int d24NmsThreshold;

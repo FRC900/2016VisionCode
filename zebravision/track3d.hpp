@@ -77,7 +77,7 @@ class TrackedObject
 				float              accel_noise_mag = 0.25,
 				size_t             historyLength = TrackedObjectHistoryLength);
 
-		~TrackedObject();
+		//~TrackedObject();
 
 		// Mark the object as detected in this frame
 		void setDetected(void);

@@ -9,14 +9,12 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false);
-		~DetectState()
-		{
-			if (detector_)
-				delete detector_;
-		}
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpuClassifier = false, bool gpuDetect = false, bool gie = false);
+		~DetectState();
 		bool update(void);
-		void toggleGPU(void);
+		void toggleGIE(void);
+		void toggleGPUDetect(void);
+		void toggleGPUClassifier(void);
 		void changeD12Model(bool increment);
 		void changeD12SubModel(bool increment);
 		void changeD24Model(bool increment);
@@ -31,13 +29,24 @@ class DetectState
 			return detector_;
 		}
 	private:
+		bool checkNNetFiles(const ClassifierIO &inCLIO,
+							const std::string &name,
+							std::vector<std::string> &outFiles);
 		ObjDetect    *detector_;
 		ClassifierIO  d12IO_;
 		ClassifierIO  d24IO_;
 		ClassifierIO  c12IO_;
 		ClassifierIO  c24IO_;
 		float         hfov_;
-		bool          gpu_;
+		bool          gpuDetect_;
+		bool          gpuClassifier_;
+		bool          gie_;
+		// Settings from previous frame - used
+		// to undo changes if the selected state
+		// doesn't work
+		bool          oldGpuDetect_;
+		bool          oldGpuClassifier_;
+		bool          oldGie_;
 		bool          reload_;
 };
 

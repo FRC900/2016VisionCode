@@ -7,12 +7,11 @@
 class TKalmanFilter
 {
 	public:
-		TKalmanFilter(cv::Point3f p, float dt = 0.05, float Accel_noise_mag = 0.5);
-		~TKalmanFilter();
+		TKalmanFilter(const cv::Point3f &p, float dt = 0.05, float Accel_noise_mag = 0.5);
 		cv::Point3f GetPrediction();
-		cv::Point3f Update(cv::Point3f p);
+		cv::Point3f Update(const cv::Point3f &p);
 	//	void adjustPrediction(const Eigen::Transform<double, 3, Eigen::Isometry> &delta_robot);
-		void adjustPrediction(cv::Point3f delta_pos);
+		void adjustPrediction(const cv::Point3f &delta_pos);
 	private:
 		cv::KalmanFilter kalman;
 };

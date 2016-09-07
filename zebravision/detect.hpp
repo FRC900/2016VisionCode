@@ -1,8 +1,6 @@
 #ifndef INC_DETECT_HPP__
 #define INC_DETECT_HPP__
 
-#include "CaffeBatchPrediction.hpp"
-
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?
 //   Constructor takes Rect, size_t index
@@ -23,84 +21,92 @@
 //        See the top of the loop in runDetection for an example
 //
 
-template <class MatT>
+template <class MatT, class ClassifierT>
 class NNDetect
 {
 	public:
-		NNDetect(const std::vector<std::string> &d12Info,
-			 const std::vector<std::string> &d24Info, 
-			const std::vector<std::string> &c12Info,
-			const std::vector<std::string> &c24Info, 
-			float hfov)  :
-			d12_(CaffeClassifier<MatT>(d12Info[0], d12Info[1], d12Info[2], d12Info[3], 256)),
-			d24_(CaffeClassifier<MatT>(d24Info[0], d24Info[1], d24Info[2], d24Info[3], 64)),
-			c12_(CaffeClassifier<MatT>(c12Info[0], c12Info[1], c12Info[2], c12Info[3], 64)),
-			c24_(CaffeClassifier<MatT>(c24Info[0], c24Info[1], c24Info[2], c24Info[3], 64)),
+		NNDetect(const std::vector<std::string> &d12Files,
+			     const std::vector<std::string> &d24Files, 
+	   		     const std::vector<std::string> &c12Files,
+			     const std::vector<std::string> &c24Files, 
+			     float hfov) :
+			d12_(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 1024),
+			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64),
+			c12_(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64),
+			c24_(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64),
 			hfov_(hfov)
 		{
 		}
+
 		void detectMultiscale(const cv::Mat &inputImg,
 				const cv::Mat &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
-				double scaleFactor,
+				const double scaleFactor,
 				const std::vector<double> &nmsThreshold,
 				const std::vector<double> &detectThreshold,
 				const std::vector<double> &calThreshold,
 				std::vector<cv::Rect> &rectsOut,
 				std::vector<cv::Rect> &uncalibRectsOut);
 
+		bool initialized(void) const;
+
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
-		CaffeClassifier <MatT> d12_;
-		CaffeClassifier <MatT> d24_;
-		CaffeClassifier <MatT> c12_;
-		CaffeClassifier <MatT> c24_;
+		ClassifierT d12_;
+		ClassifierT d24_;
+		ClassifierT c12_;
+		ClassifierT c24_;
 		float hfov_;
-		void doBatchPrediction(CaffeClassifier<MatT> &classifier,
+		void doBatchPrediction(ClassifierT &classifier,
 				const std::vector<MatT> &imgs,
-				float threshold,
+				const float threshold,
 				const std::string &label,
 				std::vector<size_t> &detected,
 				std::vector<float>  &scores);
 
 		void generateInitialWindows(
 				const MatT &input,
-				const cv::Mat &depthIn,
+				const MatT &depthIn,
 				const cv::Size &minSize,
 				const cv::Size &maxSize,
-				int wsize,
+				const int wsize,
 				double scaleFactor,
 				std::vector<std::pair<MatT, double> > &scaledimages,
 				std::vector<Window> &windows);
 
-		void runDetection(CaffeClassifier<MatT> &classifier,
+		void runDetection(ClassifierT &classifier,
 				const std::vector<std::pair<MatT, double> > &scaledimages,
 				const std::vector<Window> &windows,
-				float threshold,
-				std::string label,
+				const float threshold,
+				const std::string &label,
 				std::vector<Window> &windowsOut,
 				std::vector<float> &scores);
 
 		void runGlobalNMS(const std::vector<Window> &windows, 
 				const std::vector<float> &scores,  
 				const std::vector<std::pair<MatT, double> > &scaledImages,
-				double nmsThreshold,
+				const double nmsThreshold,
 				std::vector<Window> &windowsOut);
 		void runLocalNMS(const std::vector<Window> &windows, 
 				const std::vector<float> &scores,  
-				double nmsThreshold,
+				const double nmsThreshold,
 				std::vector<Window> &windowsOut);
+
 		void runCalibration(const std::vector<Window>& windowsIn,
 				    const std::vector<std::pair<MatT, double> > &scaledImages,
-				    CaffeClassifier<MatT>& classifier,
+				    ClassifierT &classifier,
 				    float threshold,
 				    std::vector<Window>& windowsOut);
-		void doBatchCalibration(CaffeClassifier<MatT>& classifier,
-					const std::vector<MatT>& imags,
-					float threshold,
-					std::vector<std::vector<float> >& shift);
-		bool depthInRange(float depth_min, float depth_max, const cv::Mat &detectCheck);
-};
 
+		void doBatchCalibration(ClassifierT &classifier,
+					const std::vector<MatT>& imags,
+					const float threshold,
+					std::vector<std::vector<float> >& shift);
+
+		bool depthInRange(const float depth_min, const float depth_max, 
+				const cv::Mat &detectCheck);
+		bool depthInRange(const float depth_min, const float depth_max, 
+				const cv::gpu::GpuMat &detectCheck);
+};
 #endif

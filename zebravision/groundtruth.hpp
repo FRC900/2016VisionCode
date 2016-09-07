@@ -43,6 +43,7 @@ class GroundTruth
 		unsigned count_;
 		unsigned found_;
 		unsigned falsePositives_;
+		unsigned framesSeen_;
 };
 
 #endif
