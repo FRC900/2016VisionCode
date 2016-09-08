@@ -151,6 +151,7 @@ CaffeClassifierThread<MatT>::CaffeClassifierThread(const string &modelFile,
 template <class MatT>
 void CaffeClassifierThread<MatT>::operator() ()
 {
+	Caffe::set_mode(IsGPU() ? Caffe::GPU : Caffe::CPU);
 	// Loop forever waiting for data to process
 	while (true)
 	{
