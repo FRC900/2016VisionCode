@@ -443,13 +443,13 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 ZCA::ZCA(const ZCA &zca) :
 	size_(zca.size_),
 	weights_(zca.weights_),
+	dPssIn_(NULL),
+	dMean_(NULL),
+	dStddev_(NULL),
 	epsilon_(zca.epsilon_),
 	overallMin_(zca.overallMin_),
 	overallMax_(zca.overallMax_),
-	globalContrastNorm_(zca.globalContrastNorm_),
-	dPssIn_(NULL),
-	dMean_(NULL),
-	dStddev_(NULL)
+	globalContrastNorm_(zca.globalContrastNorm_)
 {
 	if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
 	{
