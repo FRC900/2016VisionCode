@@ -23,15 +23,19 @@ class Args //class for processing arguments
 		std::string d12BaseDir; // base directory for d12 net info
 		int  d12DirNum;         // d12 directory and
 		int  d12StageNum;       // stage to use
+		int  d12Threshold;      // detection threshold
 		std::string d24BaseDir; // base directory for d24 net info
 		int  d24DirNum;         // d24 directory and
 		int  d24StageNum;       // stage to use
+		int  d24Threshold;      // detection threshold
 		std::string c12BaseDir; // base directory for d12 net info
 		int  c12DirNum;         // d12 directory and 
 		int  c12StageNum;       // stage to use
+		int  c12Threshold;      // detection threshold
 		std::string c24BaseDir; // base directory for d24 net info
 		int  c24DirNum;         // d24 directory and 
 		int  c24StageNum;       // stage to use
+		int  c24Threshold;      // detection threshold
 		std::string inputName; // input file name or camera number
 		bool groundTruth;      // only test frames with ground truth data
 		std::string xmlFilename;   // XML settings file

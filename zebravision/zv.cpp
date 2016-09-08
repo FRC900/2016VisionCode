@@ -262,7 +262,10 @@ int main( int argc, const char** argv )
 	//minDetectSize = angular_size * (cap->width() / camParams.fov.x);
 	minDetectSize = 60;
 	cout << "Min Detect Size: " << minDetectSize << endl;
-
+	d12Threshold = args.d12Threshold;
+	d24Threshold = args.d24Threshold;
+	c12Threshold = args.c12Threshold;
+	c24Threshold = args.c24Threshold;
 	// If UI is up, pop up the parameters window
 	if (!args.batchMode && args.detection)
 	{
@@ -275,8 +278,8 @@ int main( int argc, const char** argv )
 		createTrackbar ("Max Detect", detectWindowName, &maxDetectSize, max(cap->width(), cap->height()));
 		createTrackbar ("D12 Threshold", detectWindowName, &d12Threshold, 100);
 		createTrackbar ("D24 Threshold", detectWindowName, &d24Threshold, 100);
-		createTrackbar ("C12 Threshold", detectWindowName, &c12Threshold, 15);
-		createTrackbar ("C24 Threshold", detectWindowName, &c24Threshold, 15);
+		createTrackbar ("C12 Threshold", detectWindowName, &c12Threshold, 45);
+		createTrackbar ("C24 Threshold", detectWindowName, &c24Threshold, 100);
 	}
 
 	// Create list of tracked objects
