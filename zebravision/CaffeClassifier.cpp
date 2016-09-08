@@ -227,7 +227,7 @@ bool CaffeClassifierThread<Mat>::IsGPU(void) const
 {
 	// TODO : change to unconditional false
 	// eventually once things are debugged
-	return (getCudaEnabledDeviceCount() > 0);
+	//return (getCudaEnabledDeviceCount() > 0);
 	return false;
 }
 
