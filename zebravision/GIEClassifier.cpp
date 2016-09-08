@@ -123,7 +123,7 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
 
 	// input and output buffer pointers that we pass to the engine - the engine requires exactly IEngine::getNbBindings(),
 	// of these, but in this case we know that there is exactly one input and one output.
-	assert(engine_.getNbBindings() == 2);
+	assert(engine_->getNbBindings() == 2);
 
 	// In order to bind the buffers, we need to know the names of the input and output tensors.
 	// note that indices are guaranteed to be less than IEngine::getNbBindings()

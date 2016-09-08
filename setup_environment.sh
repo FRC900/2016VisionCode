@@ -60,6 +60,9 @@ cd
 wget https://github.com/google/protobuf/releases/download/v3.0.0/protobuf-cpp-3.0.0.tar.gz 
 tar -xzvf protobuf-cpp-3.0.0.tar.gz 
 cd protobuf-3.0.0
+cd src/google/protobuf/stubs
+# edit port.h - change typedefs for int64 and uint64 to long long and unsigned long long respectively - this matches the protobuf build GIE was linked against
+# then move constructor/destructor for UnknownFieldSet from unknown_field_set.h to unknown_field_set.cc
 mkdir build
 cd build
 ../configure

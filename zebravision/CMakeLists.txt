@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -56,6 +56,7 @@ include_directories(/home/ubuntu/opencv-2.4.13/build/include
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
 	../../GIE/include)
 
+link_directorieS(/home/ubuntu/GIE/lib)
 link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
@@ -109,11 +110,13 @@ CUDA_ADD_EXECUTABLE(zv
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
-find_library (LibProtobuf protobuf)
+find_library (LibProtobuf protobuf )
+find_library (LibWconv wconv /home/ubuntu/GIE/lib)
 find_library (LibTinyXML2 tinyxml2)
 find_library (LibEFence efence)
 
 target_link_libraries( zv
+	${LibProtobuf}
 	${OpenCV_LIBS}
 	${LibCaffe}
 	#fovis
@@ -124,11 +127,12 @@ target_link_libraries( zv
 	${CUDA_npps_LIBRARY}
 	${Boost_LIBRARIES}
 	${LibGLOG}
-	${LibProtobuf}
 	${ZMQ_LIBRARIES}
 	${LibNVCaffeParser}
 	${LibNVInfer}
-	${LibTinyXML2})
+	${LibTinyXML2}
+	${LibProtobuf}
+)
 	#${LibEFence} )
 
 add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
