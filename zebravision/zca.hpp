@@ -13,6 +13,10 @@ class ZCA
 		// Init a zca transformer by reading from a file
 		ZCA(const char *xmlFilename, size_t batchSize);
 
+		// Copy constructor - needed since some pointers
+		// are allocated in constructor
+		ZCA(const ZCA &zca);
+
 		~ZCA();
 
 		// Save ZCA state to file
