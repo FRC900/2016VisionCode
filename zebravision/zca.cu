@@ -301,7 +301,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	//        for all 3 channels
 	cudaMalloc(&d_M1, 3*numBlocks * sizeof(float));
 	cudaMalloc(&d_M2, 3*numBlocks * sizeof(float));
-	cudaMalloc(&d_n,  3*numBlocks * sizeof(unsigned int ));
+	cudaMalloc(&d_n,  3*numBlocks * sizeof(unsigned int));
 
 	//Launch the first reduction kernel
 	// this will output an array of intermediate values

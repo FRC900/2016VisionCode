@@ -388,6 +388,17 @@ void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 	cudaZCATransform(foo, weightsGPU_, dPssIn_, gm_, gmOut_, buf_, dMean_, dStddev_, dest);
 }
 
+static inline void _safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number)
+{
+	if(err!=cudaSuccess)
+	{
+		fprintf(stderr,"%s\n\nFile: %s\n\nLine Number: %d\n\nReason: %s\n",msg,file_name,line_number,cudaGetErrorString(err));
+		exit(EXIT_FAILURE);
+	}
+}
+#define SAFE_CALL(call,msg) _safe_cuda_call((call),(msg),__FILE__,__LINE__)
+
+
 // Load a previously calcuated set of weights from file
 ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	dPssIn_(NULL),
@@ -422,21 +433,21 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 
 	if (!weightsGPU_.empty())
 	{
-		cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>));
+		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
-		cudaMalloc(&dMean_,   3 * batchSize * sizeof(float));
-		cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float));
+		SAFE_CALL(cudaMalloc(&dMean_,   3 * batchSize * sizeof(float)), "cudaMalloc mean");
+		SAFE_CALL(cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float)), "cudaMalloc stddev");
 	}
 }
 
 ZCA::~ZCA()
 {
 	if (dPssIn_)
-		cudaFree(dPssIn_);
+		SAFE_CALL(cudaFree(dPssIn_), "cudaFree dPssIn");
 	if (dMean_)
-		cudaFree(dMean_);
+		SAFE_CALL(cudaFree(dMean_), "cudaFree dMean");
 	if (dStddev_)
-		cudaFree(dStddev_);
+		SAFE_CALL(cudaFree(dStddev_), "cudaFree dStddev");
 }
 
 // Save calculated weights to a file
