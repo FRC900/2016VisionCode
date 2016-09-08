@@ -44,6 +44,7 @@ link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
+add_definitions(-DUSE_CUDNN=1)
 add_executable(zv
 	objdetect.cpp
 	GoalDetector.cpp

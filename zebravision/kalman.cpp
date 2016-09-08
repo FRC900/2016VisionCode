@@ -51,9 +51,9 @@ TKalmanFilter::TKalmanFilter(Point3f pt,float dt,float Accel_noise_mag) :
 	kalman.statePre.at<float>(0) = pt.x; // x
 	kalman.statePre.at<float>(1) = pt.y; // y
 	kalman.statePre.at<float>(2) = pt.z; // z
-	kalman.statePre.at<float>(4) = 0;    // v_x
-	kalman.statePre.at<float>(5) = 0;    // v_y
-	kalman.statePre.at<float>(6) = 0;    // v_z
+	kalman.statePre.at<float>(3) = 0;    // v_x
+	kalman.statePre.at<float>(4) = 0;    // v_y
+	kalman.statePre.at<float>(5) = 0;    // v_z
 
 	kalman.statePost = kalman.statePre;
 
