@@ -7,6 +7,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace cv::gpu;
 
 int main(int argc, char **argv)
 {
@@ -16,7 +17,7 @@ int main(int argc, char **argv)
 		cout << "Usage : " << argv[0] << " xml_saved_weights_24 filelist outdir" << endl;
 		return 1;
 	}
-	ZCA zca(argv[1]);
+	ZCA zca(argv[1], batchSize);
 
 	Mat img; // full image data
 	ifstream infile(argv[2]);
@@ -45,6 +46,23 @@ int main(int argc, char **argv)
 			double start = gtod_wrapper();
 #endif
 			auto outImgs = zca.Transform8UC3(imgs);
+#if 0
+			cout << outImgs[0] << endl;
+
+			Mat m;
+			imgs[0].convertTo(m, CV_32FC3);
+			vector<GpuMat> in;
+			in.push_back(GpuMat(m));
+			auto gmOut = zca.Transform32FC3(in);
+			gmOut[0].download(m);
+			cout << m << endl;
+			Mat o;
+			m.convertTo(o, CV_8UC3, zca.alpha(), zca.beta());
+			subtract(outImgs[0], o, m);
+			cout << m << endl;
+
+			return 0;
+#endif
 #if 0
 			double end = gtod_wrapper();
 			cout << "Elapsed time " << end - start << endl;
