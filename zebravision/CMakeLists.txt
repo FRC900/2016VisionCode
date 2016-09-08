@@ -35,6 +35,9 @@ INCLUDE( FindCUDA )
 
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
+# Caffe headers change the size of various
+# objects based on these defines. Best to match
+# how caffe itself was compiled
 #add_definitions(-DCPU_ONLY=1)
 add_definitions(-DUSE_CUDNN=1)
 
