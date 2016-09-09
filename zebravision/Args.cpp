@@ -64,7 +64,7 @@ Args::Args(void)
 	c12BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c12";
 	c12DirNum          = -1;
 	c12StageNum        = -1;
-	c12Threshold       = 17;
+	c12Threshold       = 21;
 	c24BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c24";
 	c24DirNum          = -1;
 	c24StageNum        = -1;
