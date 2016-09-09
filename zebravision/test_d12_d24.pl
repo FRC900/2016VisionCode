@@ -30,9 +30,9 @@ for $video (sort @videos)
 }
 print "\n\nD12 Net,D24 Net, Detected, Actual, False Positives, Frames\n";
 
-for $d12_thresh (1..100)
+for $d12_thresh (map {3 * $_} 3..30)
 {
-for $c12_thresh (1..65)
+for $c12_thresh (map {4 * $_ + 1} 2..13)
 {
 for $d24_dir (sort @d24_model_dirs)
 {
