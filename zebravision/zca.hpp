@@ -53,7 +53,6 @@ class ZCA
 		cv::gpu::GpuMat  buf_;
 
 		cv::gpu::PtrStepSz<float> *dPssIn_;
-		cv::gpu::PtrStepSz<float> *dPssOut_;
 		float *dMean_;
 		float *dStddev_;
 

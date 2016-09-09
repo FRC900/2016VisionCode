@@ -360,7 +360,6 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input, 
 		const cv::gpu::GpuMat &weights, 
 		cv::gpu::PtrStepSz<float> *dPssIn,
-		cv::gpu::PtrStepSz<float> *dPssOut,
 		cv::gpu::GpuMat &gm,
 		cv::gpu::GpuMat &gmOut,
 		cv::gpu::GpuMat &buf,
@@ -386,13 +385,12 @@ void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 			foo.push_back(*it);
 		}
 	}
-	cudaZCATransform(foo, weightsGPU_, dPssIn_, dPssOut_, gm_, gmOut_, buf_, dMean_, dStddev_, dest);
+	cudaZCATransform(foo, weightsGPU_, dPssIn_, gm_, gmOut_, buf_, dMean_, dStddev_, dest);
 }
 
 // Load a previously calcuated set of weights from file
 ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	dPssIn_(NULL),
-	dPssOut_(NULL),
 	dMean_(NULL),
 	dStddev_(NULL)
 {
@@ -425,7 +423,6 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	if (!weightsGPU_.empty())
 	{
 		cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>));
-		cudaMalloc(&dPssOut_, batchSize * sizeof(cv::gpu::PtrStepSz<float>));
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
 		cudaMalloc(&dMean_,   3 * batchSize * sizeof(float));
 		cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float));
@@ -436,8 +433,6 @@ ZCA::~ZCA()
 {
 	if (dPssIn_)
 		cudaFree(dPssIn_);
-	if (dPssOut_)
-		cudaFree(dPssOut_);
 	if (dMean_)
 		cudaFree(dMean_);
 	if (dStddev_)

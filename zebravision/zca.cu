@@ -269,7 +269,6 @@ __global__ void mean_stddev_reduction_kernel24(const float *M1In, const float *M
 void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input, 
 		const cv::gpu::GpuMat &weights, 
 		cv::gpu::PtrStepSz<float> *dPssIn,
-		cv::gpu::PtrStepSz<float> *dPssOut,
 		cv::gpu::GpuMat &dFlattenedImages,
 		cv::gpu::GpuMat &zcaOut,
 		cv::gpu::GpuMat &buf,
