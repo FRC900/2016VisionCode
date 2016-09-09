@@ -4,6 +4,8 @@
 #include "zca.hpp"
 
 #include "utilities_common.h"
+#include<cuda_runtime.h>
+#include<cuda_runtime_api.h>
 
 using namespace std;
 using namespace cv;
@@ -47,22 +49,53 @@ int main(int argc, char **argv)
 #endif
 			auto outImgs = zca.Transform8UC3(imgs);
 #if 0
-			cout << outImgs[0] << endl;
+			vector<GpuMat> gpuImgs;
+			for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
+			{
+				GpuMat gm(*it);
+				GpuMat gpuF32;
+				gm.convertTo(gpuF32, CV_32FC3);
+				gpuImgs.push_back(gpuF32.clone());
+			}
+			float *dResult;
+			float hResult[outImgs.size() * outImgs[0].size().area() * 3];
+			cudaMalloc(&dResult, outImgs.size() * sizeof(float) * outImgs[0].size().area() * 3);
+			zca.Transform32FC3(gpuImgs, dResult);
+			cudaMemcpy(hResult, dResult, outImgs.size() * sizeof(float) * outImgs[0].size().area() * 3, cudaMemcpyDeviceToHost);
+			float *hPtr = hResult;
 
-			Mat m;
-			imgs[0].convertTo(m, CV_32FC3);
-			vector<GpuMat> in;
-			in.push_back(GpuMat(m));
-			auto gmOut = zca.Transform32FC3(in);
-			gmOut[0].download(m);
-			cout << m << endl;
-			Mat o;
-			m.convertTo(o, CV_8UC3, zca.alpha(), zca.beta());
-			subtract(outImgs[0], o, m);
-			cout << m << endl;
+			for (size_t i = 0; i < outImgs.size(); i++)
+			{
+				Mat ml[3];
+				ml[0] = Mat(outImgs[i].rows, outImgs[i].cols, CV_32FC1, hPtr);
+				hPtr += outImgs[i].size().area();
+				ml[1] = Mat(outImgs[i].rows, outImgs[i].cols, CV_32FC1, hPtr);
+				hPtr += outImgs[i].size().area();
+				ml[2] = Mat(outImgs[i].rows, outImgs[i].cols, CV_32FC1, hPtr);
+				hPtr += outImgs[i].size().area();
+				Mat m;
+				merge(ml, 3, m);
+				Mat m2;
+				m.convertTo(m2, CV_8UC3, zca.alpha(), zca.beta());
 
+				Mat diff;
+				subtract(outImgs[i], m2, diff);
+				split (diff, ml);
+				if (countNonZero(ml[0]) ||
+				    countNonZero(ml[1]) ||
+				    countNonZero(ml[2]))
+				{
+				cout << "outImgs[" << i << "]" << endl;
+				cout << outImgs[i] << endl;
+				cout << "gpuOut[" << i << "]" << endl;
+				cout << m2 << endl;
+				cout << "diff[" << i << "]" << endl;
+				cout << diff << endl;
+				}
+			}
 			return 0;
 #endif
+
 #if 0
 			double end = gtod_wrapper();
 			cout << "Elapsed time " << end - start << endl;
