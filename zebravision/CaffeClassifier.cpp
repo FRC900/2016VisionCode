@@ -85,7 +85,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 	// should be 3 since we're using color images.
 	Blob<float>* inputLayer = net_->input_blobs()[0];
 	const int numChannels = inputLayer->channels();
-	CHECK(numChannels == 3) << "Input layer should have 1 or 3 channels.";
+	CHECK(numChannels == 3) << "Input layer should have 3 channels.";
 
 	// Also, make sure the input geometry matches
 	// the size expected by the preprocessing filters
@@ -141,7 +141,7 @@ CaffeClassifier<MatT>::CaffeClassifier(const string& modelFile,
 		for (size_t j = 0; j < num; j++)
 		{
 			vector<MatT> inputChannels;
-			for (size_t i = 0; i < inputLayer->channels(); ++i)
+			for (int i = 0; i < inputLayer->channels(); ++i)
 			{
 				MatT channel(height, width, CV_32FC1, inputData);
 				inputChannels.push_back(channel);
