@@ -12,7 +12,7 @@
 #include <string>
 
 #include "detectstate.hpp"
-#include "CaffeClassifier.hpp"
+//#include "CaffeClassifier.hpp"
 #include "GIEClassifier.hpp"
 
 using namespace std;
@@ -104,6 +104,7 @@ bool DetectState::update(void)
 	// Decision tree on which detector and classifier
 	// to run.  Some of these combinations might not make
 	// sense to maybe prune them down after some testing?
+#if 0
 	if (!gie_)
 	{
 		if (!gpuClassifier_)
@@ -122,16 +123,13 @@ bool DetectState::update(void)
 		}
 	}
 	else
+#endif
 	{
 		// GIE implies GPU detection - CPU doesn't make sense there
 		if (!gpuClassifier_)
-		{
 			detector_ = new ObjDetectCPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
 		else
-		{
 			detector_ = new ObjDetectGPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
 	}
 
 	reload_ = false;

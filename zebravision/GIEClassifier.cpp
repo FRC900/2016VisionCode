@@ -54,6 +54,8 @@ void caffeToGIEModel(const std::string& deployFile,				// name for caffe prototx
 	// parse the caffe model to populate the network, then set the outputs
 	INetworkDefinition* network = builder->createNetwork();
 	CaffeParser* parser = new CaffeParser;
+	bool useFp16 = builder->plaformHasFastFp16();
+	nvinfer1::DataType modelDataType = useFp16 ?nvinfer1:: DataType::kHALF : nvinfer1::DataType::kFLOAT; // create a 16-bit model if it's natively supported
 	const IBlobNameToTensor* blobNameToTensor = parser->parse(deployFile.c_str(),
 															  modelFile.c_str(),
 															  *network,
@@ -105,7 +107,7 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
 		cerr << "Could not find Caffe trained weights " << trainedFile << endl;
 		return;
 	}
-	cout << "Loading GIE model " << modelFile << endl << "\t" << trainedFile << endl << "\t" << zcaWeightFile << endl << "\t" << labelFile << endl;
+	cout << "Loading GIE model " << endl << modelFile << endl << "\t" << trainedFile << endl << "\t" << zcaWeightFile << endl << "\t" << labelFile << endl;
 
 	this->batchSize_ = batchSize;
 

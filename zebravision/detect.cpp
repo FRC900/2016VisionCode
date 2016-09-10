@@ -6,7 +6,7 @@
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
 #include "detect.hpp"
-#include "CaffeClassifier.hpp"
+//#include "CaffeClassifier.hpp"
 #include "GIEClassifier.hpp"
 #include "Utilities.hpp"
 
@@ -739,9 +739,11 @@ bool NNDetect<MatT, ClassifierT>::initialized(void) const
 
 
 // Explicitly instatiate classes used elsewhere
+#if 0
 template class NNDetect<Mat, CaffeClassifier<Mat>>;
 template class NNDetect<Mat, CaffeClassifier<GpuMat>>;
 template class NNDetect<GpuMat, CaffeClassifier<Mat>>;
 template class NNDetect<GpuMat, CaffeClassifier<GpuMat>>;
+#endif
 template class NNDetect<Mat, GIEClassifier<Mat>>;
 template class NNDetect<GpuMat, GIEClassifier<GpuMat>>;

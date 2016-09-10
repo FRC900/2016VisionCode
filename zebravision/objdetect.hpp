@@ -6,7 +6,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/gpu/gpu.hpp>
 #include "detect.hpp"
-#include "CaffeClassifier.hpp"
+//#include "CaffeClassifier.hpp"
 #include "GIEClassifier.hpp"
 
 #include <vector>
@@ -95,6 +95,7 @@ class ObjDetectNNet : public ObjDetect
 		NNDetect<MatT, ClassifierT> classifier_;
 };
 
+#if 0
 // All-CPU code
 class ObjDetectCPUCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>>
 {
@@ -174,6 +175,7 @@ class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifi
 		}
 
 };
+#endif
 
 // Detector does resizing, sliding windows and so on
 // in CPU.  GIE run on GPU

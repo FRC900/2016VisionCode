@@ -75,7 +75,7 @@ CUDA_ADD_EXECUTABLE(zv
 	GoalDetector.cpp
 	detect.cpp
 	Classifier.cpp
-	CaffeClassifier.cpp
+	#CaffeClassifier.cpp
 	GIEClassifier.cpp
 	fast_nms.cpp
 	scalefactor.cpp
@@ -110,15 +110,15 @@ CUDA_ADD_EXECUTABLE(zv
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
-find_library (LibProtobuf protobuf )
+find_library (LibProtobuf protobuf /home/ubuntu/GIE/lib)
 find_library (LibWconv wconv /home/ubuntu/GIE/lib)
 find_library (LibTinyXML2 tinyxml2)
 find_library (LibEFence efence)
 
 target_link_libraries( zv
-	${LibProtobuf}
+	/home/ubuntu/GIE/lib/libprotobuf.so
 	${OpenCV_LIBS}
-	${LibCaffe}
+	#${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
 	${ZED_LIBRARIES}
@@ -131,7 +131,6 @@ target_link_libraries( zv
 	${LibNVCaffeParser}
 	${LibNVInfer}
 	${LibTinyXML2}
-	${LibProtobuf}
 )
 	#${LibEFence} )
 
