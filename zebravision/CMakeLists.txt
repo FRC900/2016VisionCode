@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -75,7 +75,7 @@ CUDA_ADD_EXECUTABLE(zv
 	GoalDetector.cpp
 	detect.cpp
 	Classifier.cpp
-	CaffeClassifier.cpp
+	#CaffeClassifier.cpp
 	GIEClassifier.cpp
 	fast_nms.cpp
 	scalefactor.cpp
@@ -110,15 +110,15 @@ CUDA_ADD_EXECUTABLE(zv
 
 find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
-find_library (LibProtobuf protobuf )
+find_library (LibProtobuf protobuf /home/ubuntu/GIE/lib)
 find_library (LibWconv wconv /home/ubuntu/GIE/lib)
 find_library (LibTinyXML2 tinyxml2)
 find_library (LibEFence efence)
 
 target_link_libraries( zv
-	${LibProtobuf}
+	/home/ubuntu/GIE/lib/libprotobuf.so
 	${OpenCV_LIBS}
-	${LibCaffe}
+	#${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
 	${ZED_LIBRARIES}
@@ -131,7 +131,6 @@ target_link_libraries( zv
 	${LibNVCaffeParser}
 	${LibNVInfer}
 	${LibTinyXML2}
-	${LibProtobuf}
 )
 	#${LibEFence} )
 
