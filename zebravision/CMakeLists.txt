@@ -12,10 +12,10 @@ if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf")
 elseif (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "aarch64-linux-gnu")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=cortex-a57")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -mcpu=cortex-a57")
-  link_directories(/home/ubuntu/GIE/lib)
-  find_library (LibNVCaffeParser nvcaffe_parser /home/ubuntu/GIE/lib)
-  find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
-  add_definitions(-DUSE_GIE=1)
+  #link_directories(/home/ubuntu/GIE/lib)
+  #find_library (LibNVCaffeParser nvcaffe_parser /home/ubuntu/GIE/lib)
+  #find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
+  #add_definitions(-DUSE_GIE=1)
 else()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -march=native")
@@ -75,7 +75,7 @@ CUDA_ADD_EXECUTABLE(zv
 	GoalDetector.cpp
 	detect.cpp
 	Classifier.cpp
-	#CaffeClassifier.cpp
+	CaffeClassifier.cpp
 	GIEClassifier.cpp
 	fast_nms.cpp
 	scalefactor.cpp
@@ -116,9 +116,9 @@ find_library (LibTinyXML2 tinyxml2)
 find_library (LibEFence efence)
 
 target_link_libraries( zv
-	/home/ubuntu/GIE/lib/libprotobuf.so
+	${LibProtobuf}
 	${OpenCV_LIBS}
-	#${LibCaffe}
+	${LibCaffe}
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
 	${ZED_LIBRARIES}
