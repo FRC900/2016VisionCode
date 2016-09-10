@@ -108,7 +108,7 @@ bool DetectState::update(void)
 	// to run.  Some of these combinations might not make
 	// sense to maybe prune them down after some testing?
 #ifndef USE_GIE
-	if (!gie_)
+	//if (!gie_)
 	{
 		if (!gpuClassifier_)
 		{
@@ -125,8 +125,8 @@ bool DetectState::update(void)
 				detector_ = new ObjDetectGPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		}
 	}
-	else
 #else
+	//else
 	{
 		// GIE implies GPU detection - CPU doesn't make sense there
 		if (!gpuClassifier_)
