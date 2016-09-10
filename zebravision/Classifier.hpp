@@ -31,6 +31,9 @@ class InQData
 class OutQData
 {
 	public:
+		OutQData(void)
+		{
+		}
 		OutQData(int batchNum, const std::vector<float> &data) :
 			batchNum_(batchNum),
 			data_(data)
@@ -47,6 +50,10 @@ template <typename T>
 class SynchronizedQueue
 {
 	public:
+		SynchronizedQueue(void) : 
+			exit_(false)
+		{
+		}
 		// Add data to the queue and notify others
 		void Enqueue(const T& data)
 		{
@@ -69,19 +76,35 @@ class SynchronizedQueue
 			// When there is no data, wait till someone fills it.
 			// Lock is automatically released in the wait and obtained
 			// again after the wait
-			while (queue_.size()==0)
+			while (queue_.size() == 0)
+			{
+				if (exit_)
+					return T();
 				cond_.wait(lock);
+			}
 
 			// Retrieve the data from the queue
-			T result=queue_.front(); 
+			T result = queue_.front(); 
 			queue_.pop();
 			return result;
 		} // Lock is automatically released here
+
+		void signalExit(void)
+		{
+			exit_ = true;
+			cond_.notify_all();
+		}
+
+		bool checkExit(void) const
+		{
+			return exit_;
+		}
 
 	private:
 		std::queue<T> queue_; // Use STL queue to store data
 		boost::mutex mutex_; // The mutex to synchronise on
 		boost::condition_variable cond_; // The condition to wait for
+		bool exit_;
 };
  
 template<class MatT, class ClassifierT>
@@ -94,6 +117,7 @@ class Classifier
 				   const std::string &labelFile,
 				   const size_t       batchSize,
 				   const size_t       numThreads);
+		~Classifier();
 
 		// Given X input images, return X vectors of predictions.
 		// Each prediction is a label, value pair, where the value is

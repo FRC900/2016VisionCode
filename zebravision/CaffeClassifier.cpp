@@ -130,7 +130,7 @@ CaffeClassifierThread<MatT>::CaffeClassifierThread(const string &modelFile,
 		for (size_t j = 0; j < num; j++)
 		{
 			vector<MatT> inputChannels;
-			for (size_t i = 0; i < inputLayer->channels(); ++i)
+			for (int i = 0; i < inputLayer->channels(); ++i)
 			{
 				MatT channel(height, width, CV_32FC1, inputData);
 				inputChannels.push_back(channel);
@@ -141,6 +141,16 @@ CaffeClassifierThread<MatT>::CaffeClassifierThread(const string &modelFile,
 	}
 	initialized_ = true;
 }
+
+template <class MatT>
+CaffeClassifierThread<MatT>::~CaffeClassifierThread()
+{
+	cout << "CaffeClassifierThread destructor" << endl;
+	cout << "net_.use_count() = " << net_.use_count() << endl;
+	if (net_.use_count() == 1)
+		net_ = NULL;
+}
+
 // Get the output values for a set of images in one flat vector
 // These values will be in the same order as the labels for each
 // image, and each set of labels for an image next adjacent to the
@@ -158,6 +168,9 @@ void CaffeClassifierThread<MatT>::operator() ()
 		// Get input images from the queue, blocking if none
 		// is available
 		InQData<MatT> input = inQ_->Dequeue();
+
+		if (inQ_->checkExit())
+			break;
 
 		// Convert each image so they match the format
 		// expected by the net, then copy the images

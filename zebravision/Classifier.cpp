@@ -55,7 +55,7 @@ Classifier<MatT, ClassifierT>::Classifier(const string& modelFile,
 
 	// Create requested number of worker threads
 	threads_ = std::make_shared<boost::thread_group>();
-	for (int i = 0; i < numThreads; i++)
+	for (size_t i = 0; i < numThreads; i++)
 	{
 		ClassifierT t(modelFile, trainedFile, zca_, batchSize, inQ_, outQ_);
 		
@@ -67,6 +67,13 @@ Classifier<MatT, ClassifierT>::Classifier(const string& modelFile,
 
 	inputGeometry_ = zca_.size();
 	initialized_ = true;
+}
+
+template <class MatT, class ClassifierT>
+Classifier<MatT, ClassifierT>::~Classifier()
+{
+	inQ_->signalExit();
+	threads_->join_all();
 }
 
 // Helper function for compare - used to sort values by pair.first keys
