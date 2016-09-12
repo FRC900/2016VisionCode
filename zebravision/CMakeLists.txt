@@ -30,6 +30,10 @@ find_package(Boost COMPONENTS filesystem system serialization iostreams thread R
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
+find_package(MKL)
+if (${MKL_FOUND})
+	add_definitions(-DUSE_MKL=1)
+endif()
 
 INCLUDE( FindCUDA )
 
@@ -41,8 +45,9 @@ set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 #add_definitions(-DCPU_ONLY=1)
 add_definitions(-DUSE_CUDNN=1)
 
-include_directories(/home/ubuntu/opencv-2.4.13/build/include
-	../caffe_classifier
+include_directories(
+	/home/ubuntu/opencv-2.4.13/build/include
+	#${OpenCV_INCLUDE_DIRS}
 	${ZED_INCLUDE_DIRS}
 	${CUDA_INCLUDE_DIRS}
 	${CAFFE_BASE_DIR}/build/install/include
@@ -51,12 +56,13 @@ include_directories(/home/ubuntu/opencv-2.4.13/build/include
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
    	${EIGEN3_INCLUDE_DIR}
+	${MKL_INCLUDE_DIR}
 	.
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
 	../../GIE/include)
 
-link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
+link_directories(/home/kjaget/opencv-2.4.13/build/lib)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
@@ -128,7 +134,8 @@ target_link_libraries( zv
 	${ZMQ_LIBRARIES}
 	${LibNVCaffeParser}
 	${LibNVInfer}
-	${LibTinyXML2})
+	${LibTinyXML2}
+	${MKL_LIBRARIES})
 	#${LibEFence} )
 
 add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
