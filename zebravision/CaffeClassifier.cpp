@@ -145,10 +145,6 @@ CaffeClassifierThread<MatT>::CaffeClassifierThread(const string &modelFile,
 template <class MatT>
 CaffeClassifierThread<MatT>::~CaffeClassifierThread()
 {
-	cout << "CaffeClassifierThread destructor" << endl;
-	cout << "net_.use_count() = " << net_.use_count() << endl;
-	if (net_.use_count() == 1)
-		net_ = NULL;
 }
 
 // Get the output values for a set of images in one flat vector

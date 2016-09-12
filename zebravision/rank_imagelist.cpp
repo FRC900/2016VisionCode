@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 
 	ifstream infile(argv[1]);
 
-	CaffeClassifier<Mat> c(files[0], files[1], files[2], files[3], 256); 
+	Classifier<Mat, CaffeClassifierThread<Mat>> c(files[0], files[1], files[2], files[3], 256, 4); 
 
 	Mat img;
 	Mat rsz;
