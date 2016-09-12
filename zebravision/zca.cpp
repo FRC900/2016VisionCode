@@ -453,6 +453,28 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	}
 }
 
+ZCA::ZCA(const ZCA &zca) :
+	size_(zca.size_),
+	weights_(zca.weights_),
+	dPssIn_(NULL),
+	dMean_(NULL),
+	dStddev_(NULL),
+	epsilon_(zca.epsilon_),
+	overallMin_(zca.overallMin_),
+	overallMax_(zca.overallMax_),
+	globalContrastNorm_(zca.globalContrastNorm_)
+{
+	if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
+	{
+		size_t batchSize = zca.gm_.rows;
+		weightsGPU_.upload(weights_);
+		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
+		gm_ = zca.gm_.clone();
+		SAFE_CALL(cudaMalloc(&dMean_,   3 * batchSize * sizeof(float)), "cudaMalloc mean");
+		SAFE_CALL(cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float)), "cudaMalloc stddev");
+	}
+}
+
 ZCA::~ZCA()
 {
 	if (dPssIn_)
@@ -462,6 +484,7 @@ ZCA::~ZCA()
 	if (dStddev_)
 		SAFE_CALL(cudaFree(dStddev_), "cudaFree dStddev");
 }
+
 
 // Save calculated weights to a file
 void ZCA::Write(const char *xmlFilename) const

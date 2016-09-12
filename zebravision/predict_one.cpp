@@ -1,3 +1,4 @@
+#include "Classifier.hpp"
 #include "CaffeClassifier.hpp"
 #include "classifierio.hpp"
 
@@ -19,12 +20,13 @@ int main(int argc, char **argv)
 
 	ifstream infile(argv[1]);
 
-	CaffeClassifier<Mat> c(files[0], files[1], files[2], files[3], 256); 
+	Classifier<Mat, CaffeClassifierThread<Mat>> c(files[0], files[1], files[2], files[3], 256, 1); 
 
 	Mat img;
 	Mat rsz;
 	Mat f32;
 	vector<Mat> imgs;
+	vector<GpuMat> gpuImgs;
 	string filename;
 	while(getline(infile, filename))
 	{
@@ -33,12 +35,14 @@ int main(int argc, char **argv)
 		resize(img, rsz, c.getInputGeometry()); 
 		rsz.convertTo(f32, CV_32FC3);
 		imgs.push_back(f32.clone());
+		GpuMat g(f32);
+		gpuImgs.push_back(g.clone());
 	}
 
 	//while (clio.findNextClassifierStage(false))
 	{
 		//vector<string> files = clio.getClassifierFiles();
-		//CaffeClassifier<Mat> c(files[0], files[1], files[2], files[3], 256); 
+		//Classifier<Mat, CaffeClassifier<Mat>> c(files[0], files[1], files[2], files[3], 256, 4); 
 		vector<vector<Prediction>> p = c.ClassifyBatch(imgs,2);
 		for (auto v = p.cbegin(); v != p.cend(); ++v)
 		{
@@ -49,8 +53,8 @@ int main(int argc, char **argv)
 		cout <<"---------------------"<< endl;
 	}
 
-	CaffeClassifier<GpuMat> g(files[0], files[1], files[2], files[3], 256); 
-		vector<vector<Prediction>> p = g.ClassifyBatch(imgs,2);
+	Classifier<GpuMat, CaffeClassifierThread<GpuMat>> g(files[0], files[1], files[2], files[3], 256, 1); 
+		vector<vector<Prediction>> p = g.ClassifyBatch(gpuImgs,2);
 		for (auto v = p.cbegin(); v != p.cend(); ++v)
 		{
 			for (auto it = v->cbegin(); it != v->cend(); ++it)

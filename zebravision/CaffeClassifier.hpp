@@ -17,6 +17,8 @@ class CaffeClassifierThread
 				std::shared_ptr<SynchronizedQueue<InQData<MatT>>> inQ,
 				std::shared_ptr<SynchronizedQueue<OutQData>>      outQ);
 
+		~CaffeClassifierThread();
+
 		// Get the output values for a set of images in one flat vector
 		// These values will be in the same order as the labels for each
 		// image, and each set of labels for an image next adjacent to the
