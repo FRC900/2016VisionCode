@@ -56,13 +56,16 @@ include_directories(
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
    	${EIGEN3_INCLUDE_DIR}
-	${MKL_INCLUDE_DIR}
 	.
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
 	../../GIE/include)
 
-link_directorieS(/home/ubuntu/GIE/lib)
+if (${MKL_FOUND})
+	include_directories (${MKL_INCLUDE_DIR})
+endif()
+
+#link_directorieS(/home/ubuntu/GIE/lib)
 link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
 link_directories(/home/kjaget/opencv-2.4.13/build/lib)
 link_directories(${ZED_LIBRARY_DIR})
