@@ -51,6 +51,7 @@
 
 #include <string>
 #include <cuda_runtime.h>
+#include <mkl.h>
 #include "zca.hpp"
 
 //#define DEBUG_TIME
@@ -327,7 +328,19 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		gmOut_.download(output);
 	}
 	else if (!weights_.empty())
+	{
+#ifdef USE_MKL
+		const size_t m = work.rows;
+		const size_t n = weights_.rows;
+		const size_t k = weights_.cols;
+
+		output = Mat(work.rows, work.cols, CV_32FC1);
+		cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
+                m, n, k, 1.0, (const float *)work.data, k, (const float *)weights_.data, n, 0.0, (float *)output.data, n);
+#else
 		gemm(work, weights_, 1.0, Mat(), 0.0, output);
+#endif
+	}
 
 #ifdef DEBUG_TIME
 	end = gtod_wrapper();
