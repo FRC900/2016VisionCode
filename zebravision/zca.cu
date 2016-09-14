@@ -1,9 +1,10 @@
-#include<iostream>
-#include<cstdio>
-#include<opencv2/core/core.hpp>
-#include<opencv2/gpu/gpu.hpp>
-#include<cuda_runtime.h>
-#include<cuda_runtime_api.h>
+#include <iostream>
+#include <cstdio>
+#include <opencv2/core/core.hpp>
+#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/gpu/stream_accessor.hpp>
+#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
 
 using std::cout;
 using std::endl;
@@ -188,8 +189,8 @@ __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *i
 			for (int i = 0; i < 3; i++)
 			{
 				// Blue, green, red = 3 entries per shared mem array
-				int i1 = 3 * tid + i;
-				int i2 = 3 * (tid + s) + i;
+				const int i1 = 3 * tid + i;
+				const int i2 = 3 * (tid + s) + i;
 				if (n[i2])
 					combine_running_totals(M1[i1], M1[i2], M2[i1], M2[i2], n[i1], n[i2]);
 			}
@@ -303,15 +304,18 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	cudaMalloc(&d_M2, 3*numBlocks * sizeof(float));
 	cudaMalloc(&d_n,  3*numBlocks * sizeof(unsigned int));
 
+	// Create a CPU stream. This lets us queue up a number of
+	// cuda calls back to back and then later check to see
+	// that they all finished
+	cv::gpu::Stream stream;
+	cv::gpu::StreamAccessor sa;
+
 	//Launch the first reduction kernel
 	// this will output an array of intermediate values
 	// in M1 (running average) and M2 (variance * number 
 	// of values seen). n is number of values corresponding
 	// to each M1 and M2 value.
-	mean_stddev_reduction_kernel1<<<grid,block>>>(dPssIn, d_M1, d_M2, d_n);
-
-	//Synchronize to check for any kernel launch errors
-	SAFE_CALL(cudaDeviceSynchronize(),"Stddev/mean reduction kernel launch failed");
+	mean_stddev_reduction_kernel1<<<grid,block,0,sa.getStream(stream)>>>(dPssIn, d_M1, d_M2, d_n);
 
 	// Second reduction generates mean and stddev values
 	// 12x12 fit in a single block so there's no
@@ -321,22 +325,27 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	// the intermediate results from each block and combines
 	// them into the final values
 	if (numBlocks == input.size())
-		mean_stddev_reduction_kernel12<<<1, input.size()>>>(d_M1, d_M2, d_n, dMean, dStddev);
+		mean_stddev_reduction_kernel12<<<1, input.size(),0,sa.getStream(stream)>>>(d_M1, d_M2, d_n, dMean, dStddev);
 	else
-		mean_stddev_reduction_kernel24<<<1, input.size()>>>(d_M1, d_M2, d_n, dMean, dStddev);
-	SAFE_CALL(cudaDeviceSynchronize(),"Stddev/mean final kernel Launch failed");
+		mean_stddev_reduction_kernel24<<<1, input.size(),0,sa.getStream(stream)>>>(d_M1, d_M2, d_n, dMean, dStddev);
 
-	// Generate a mat with space for all of the images 
-	// in this batch.  Each row is a flattened version
-	// of the image - rows are concatenated together
-	// to turn the image into a 1-D array
-	global_contrast_normalization_kernel<<<grid,block>>>(dPssIn, dMean, dStddev, dFlattenedImages);
-	SAFE_CALL(cudaDeviceSynchronize(),"GCN kernel launch failed");
+	// Convert each input image held in GpuMats pointed to
+	// by dPssIn into a flattened format.  Each 2-D image
+	// becomes a single row in dFlattenedImages.  Apply
+	// GCN to each pixel - subtract the image channel's 
+	// mean and divide by the stddev. Each channel from each
+	// image has the mean and stddev computed individually
+	// in the CUDA kernels above
+	global_contrast_normalization_kernel<<<grid,block,0,sa.getStream(stream)>>>(dPssIn, dMean, dStddev, dFlattenedImages);
 
-	gemm(dFlattenedImages, weights, 1.0, buf, 0.0, zcaOut);
+	// Multiply images by weights to get the ZCA-whitened output
+	gemm(dFlattenedImages, weights, 1.0, buf, 0.0, zcaOut, 0, stream);
 
-	unflatten_kernel<<<grid,block>>>(zcaOut, input[0].rows, input[0].cols, output);
-	SAFE_CALL(cudaDeviceSynchronize(),"GCN kernel launch failed");
+	// Copy to output buffer in the order expected by
+	// neural net input
+	unflatten_kernel<<<grid,block,0,sa.getStream(stream)>>>(zcaOut, input[0].rows, input[0].cols, output);
+
+	SAFE_CALL(cudaStreamSynchronize(sa.getStream(stream)),"ZCA cudaStreamSynchronize failed");
 
 	SAFE_CALL(cudaFree(d_M1),"CUDA Free Failed");
 	SAFE_CALL(cudaFree(d_M2),"CUDA Free Failed");

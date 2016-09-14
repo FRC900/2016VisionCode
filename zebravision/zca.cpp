@@ -433,6 +433,7 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 
 	if (!weightsGPU_.empty())
 	{
+		setDevice(0);
 		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
 		SAFE_CALL(cudaMalloc(&dMean_,   3 * batchSize * sizeof(float)), "cudaMalloc mean");
@@ -443,13 +444,13 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 ZCA::ZCA(const ZCA &zca) :
 	size_(zca.size_),
 	weights_(zca.weights_),
+	dPssIn_(NULL),
+	dMean_(NULL),
+	dStddev_(NULL),
 	epsilon_(zca.epsilon_),
 	overallMin_(zca.overallMin_),
 	overallMax_(zca.overallMax_),
-	globalContrastNorm_(zca.globalContrastNorm_),
-	dPssIn_(NULL),
-	dMean_(NULL),
-	dStddev_(NULL)
+	globalContrastNorm_(zca.globalContrastNorm_)
 {
 	if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
 	{
