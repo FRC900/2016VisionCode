@@ -69,6 +69,7 @@ LIST(APPEND CUDA_NVCC_FLAGS --compiler-options -fno-strict-aliasing -lineinfo -u
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_52,code=sm_52)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
 LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
+LIST(APPEND CUDA_NVCC_FLAGS -O3 --default-stream per-thread)
 
 CUDA_ADD_EXECUTABLE(zv
 	objdetect.cpp
