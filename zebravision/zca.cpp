@@ -51,7 +51,9 @@
 
 #include <string>
 #include <cuda_runtime.h>
+#ifdef USE_MKL
 #include <mkl.h>
+#endif
 #include "zca.hpp"
 
 //#define DEBUG_TIME
