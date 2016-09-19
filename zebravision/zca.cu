@@ -23,7 +23,7 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 // each input image.
 // For each channel in each image, the mean and stddev has
 // already been calculated
-// For each pixel, subtract the mean and divide by the stddev
+// For each channel in each pixel, subtract the mean and divide by the stddev
 __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<float> *input,
 									const float *mean,
 									const float *stddev,
@@ -36,8 +36,10 @@ __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<fl
 	// Each image it its own zIndex
 	const int zIndex = blockIdx.z * blockDim.z + threadIdx.z;
 
-	//Only valid threads perform memory I/O
-	if((xIndex<input[zIndex].cols) && (yIndex<input[zIndex].rows))
+	// Insure only valid threads perform memory I/O
+	// If the x/y index for this thread is beyond the
+	// number of cols/rows, do nothing
+	if((xIndex < input[zIndex].cols) && (yIndex < input[zIndex].rows))
 	{
 		// xIndex * 3 since col has a blue green and red component
 		float blue	= input[zIndex](yIndex, 3 * xIndex);
@@ -53,7 +55,7 @@ __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<fl
 		// add xIndex to get to the correct location in this row
 		// Multiply by three to account for R, G, B float values
 		//   per col in the input images
-		const int flatIdxX = 3*(yIndex * input[zIndex].cols + xIndex);
+		const int flatIdxX = 3 * (yIndex * input[zIndex].cols + xIndex);
 		output(zIndex, flatIdxX + 0) = blue;
 		output(zIndex, flatIdxX + 1) = green;
 		output(zIndex, flatIdxX + 2) = red;
@@ -79,7 +81,7 @@ __global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
 	const int zIndex = blockIdx.z * blockDim.z + threadIdx.z;
 
 	//Only valid threads perform memory I/O
-	if((xIndex<cols) && (yIndex<rows))
+	if((xIndex < cols) && (yIndex < rows))
 	{
 		// yIndex * cols = number of floats per complete
 		// filled row
@@ -98,25 +100,25 @@ __global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
 			            yIndex * cols +            
 						xIndex;
 
-		output[idx]              = blue;
-		output[idx +   chanDist] = green;
-		output[idx + 2*chanDist] = red;
+		output[idx]                = blue;
+		output[idx +     chanDist] = green;
+		output[idx + 2 * chanDist] = red;
 	}
 }
 
 // Math to add two intermediate steps of mean & stddev 
 // See http://www.johndcook.com/blog/skewness_kurtosis/
-__device__ void combine_running_totals(float &M1_1, float M1_2, float &M2_1, float M2_2, unsigned int &n_1, unsigned int n_2)
+__device__ void combine_running_totals(float &M1_1, const float M1_2, float &M2_1, const float M2_2, unsigned int &n_1, const unsigned int n_2)
 {
 	unsigned int combined_n = n_1 + n_2;
 
-	const float delta = M1_2 - M1_1;
+	const float delta  = M1_2 - M1_1;
 	const float delta2 = delta * delta;
 
 	float combined_M1 = (n_1 * M1_1 + n_2 * M1_2) / combined_n;
 	float combined_M2 = M2_1 + M2_2 + delta2 * n_1 * n_2 / combined_n;
 
-	n_1 = combined_n;
+	n_1  = combined_n;
 	M1_1 = combined_M1;
 	M2_1 = combined_M2;
 }
@@ -149,7 +151,7 @@ __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *i
 	const int zIndex = blockIdx.z * blockDim.z + threadIdx.z;
 
 	//Only valid threads perform memory I/O
-	if((xIndex<input[zIndex].cols) && (yIndex<input[zIndex].rows))
+	if((xIndex < input[zIndex].cols) && (yIndex < input[zIndex].rows))
 	{
 		// xIndex * 3 since col has a blue green and red component
 		const float blue	= input[zIndex](yIndex, 3*xIndex);
@@ -182,6 +184,10 @@ __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *i
     __syncthreads();
 
     // do reduction in shared mem
+	// For each thread, combine the results from 2 threads
+	// down into one. Each pass through the loop eliminates
+	// half of the partial results, eventually ending up
+	// with just one final result per block
     for (unsigned int s = (blockDim.x * blockDim.y) / 2; s > 0; s >>= 1)
     {
         if (tid < s)
@@ -227,8 +233,8 @@ __global__ void mean_stddev_reduction_kernel12(const float *M1In, const float *M
 
 
 // For 24x24 reductions, there are 4 entries x 3 channels
-// left over after a 16x16 thread is reduced (i.e. 24x24 fills
-// 4 thread blocks). Reduce those 4 values down to one
+// left over after a 16x16 thread is reduced (since 24x24 fills
+// 4 16x16 thread blocks). Reduce those 4 values down to one
 __global__ void mean_stddev_reduction_kernel24(const float *M1In, const float *M2In, const unsigned int *nIn,
 		float *mean, float *stddev)
 {
@@ -300,9 +306,9 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	// 3 color channels to keep results for
 	// TODO : reduce n down to 1 per block since it is the same
 	//        for all 3 channels
-	cudaMalloc(&d_M1, 3*numBlocks * sizeof(float));
-	cudaMalloc(&d_M2, 3*numBlocks * sizeof(float));
-	cudaMalloc(&d_n,  3*numBlocks * sizeof(unsigned int));
+	cudaMalloc(&d_M1, 3 * numBlocks * sizeof(float));
+	cudaMalloc(&d_M2, 3 * numBlocks * sizeof(float));
+	cudaMalloc(&d_n,  3 * numBlocks * sizeof(unsigned int));
 
 	// Create a CPU stream. This lets us queue up a number of
 	// cuda calls back to back and then later check to see
