@@ -56,13 +56,16 @@ include_directories(
 	${Boost_INCLUDE_DIR}
 	${ZMQ_INCLUDE_DIRS}
    	${EIGEN3_INCLUDE_DIR}
-	${MKL_INCLUDE_DIR}
 	.
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
 	../../GIE/include)
 
-link_directorieS(/home/ubuntu/GIE/lib)
+if (${MKL_FOUND})
+	include_directories (${MKL_INCLUDE_DIR})
+endif()
+
+#link_directorieS(/home/ubuntu/GIE/lib)
 link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
 link_directories(/home/kjaget/opencv-2.4.13/build/lib)
 link_directories(${ZED_LIBRARY_DIR})
@@ -76,6 +79,7 @@ LIST(APPEND CUDA_NVCC_FLAGS --compiler-options -fno-strict-aliasing -lineinfo -u
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_52,code=sm_52)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
 LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
+LIST(APPEND CUDA_NVCC_FLAGS -O3 --default-stream per-thread)
 
 CUDA_ADD_EXECUTABLE(zv
 	objdetect.cpp

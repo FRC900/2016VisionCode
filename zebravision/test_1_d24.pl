@@ -36,7 +36,7 @@ for $d24_dir (sort @d24_model_dirs)
 	{
 		$d24_num = $1;
 	}
-	next if ($d12_num == -1);
+	next if ($d24_num == -1);
 
 	for $d12_dir (sort @d12_model_dirs)
 	{
