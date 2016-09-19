@@ -46,9 +46,9 @@ __global__ void global_contrast_normalization_kernel(const cv::gpu::PtrStepSz<fl
 		float green	= input[zIndex](yIndex, 3 * xIndex + 1);
 		float red	= input[zIndex](yIndex, 3 * xIndex + 2);
 
-		blue  = (blue  - mean[3*zIndex + 0])/ stddev[3*zIndex + 0];
-		green = (green - mean[3*zIndex + 1])/ stddev[3*zIndex + 1];
-		red   = (red   - mean[3*zIndex + 2])/ stddev[3*zIndex + 2];
+		blue  = (blue  - mean[3*zIndex    ]) / stddev[3*zIndex    ];
+		green = (green - mean[3*zIndex + 1]) / stddev[3*zIndex + 1];
+		red   = (red   - mean[3*zIndex + 2]) / stddev[3*zIndex + 2];
 
 		// yIndex * input[0].cols = number of floats per complete
 		// filled row
@@ -125,12 +125,16 @@ __device__ void combine_running_totals(float &M1_1, const float M1_2, float &M2_
 
 // For each input image, calculate the mean and stddev
 // of each color channel
+// TODO : instead of 16x16 thread block use 12x12 or 24x24 depending
+//        on input size. Then combine this with the final step of converting
+//        M!/M2 into mean and stddev() at the very end of the kernel 
+//        This will eliminate the need for global memory for intermediates 
+//        since each image will fit in one block
 __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *input,
 					float *M1Array,
 					float *M2Array,
 					unsigned int *nArray)
 {
-	const unsigned int blockId = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
 
 	// Thread index within block - used for addressing smem below
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
@@ -207,6 +211,7 @@ __global__ void mean_stddev_reduction_kernel1(const cv::gpu::PtrStepSz<float> *i
     // write result for this block to global mem
     if (tid == 0)
 	{
+		const unsigned int blockId = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
 		for (int i = 0; i < 3; i++)
 		{
 			M1Array[3 * blockId + i] = M1[i];
@@ -227,7 +232,7 @@ __global__ void mean_stddev_reduction_kernel12(const float *M1In, const float *M
 	for (unsigned int i = 0; i < 3; i++)
 	{
 		mean[tid + i] = M1In[tid + i];
-		stddev[tid + i] = sqrt(M2In[tid + i]/nIn[tid + i]);
+		stddev[tid + i] = sqrt(M2In[tid + i] / nIn[tid + i]);
 	}
 }
 
@@ -270,7 +275,6 @@ __global__ void mean_stddev_reduction_kernel24(const float *M1In, const float *M
 		mean[tidOut + i] = M1[i];
 		stddev[tidOut + i] = sqrt(M2[i]/n[i]);
 	}
-
 }
 
 void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input, 
