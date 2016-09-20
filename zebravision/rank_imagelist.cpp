@@ -6,13 +6,12 @@ using namespace cv;
 
 int main(int argc, char **argv)
 {
-	::google::InitGoogleLogging(argv[0]);
 	if (argc < 2)
 	{
 		cout << "Usage : " << argv[0] << " filelist_of_imgs.txt" << endl;
 		return 1;
 	}
-	ClassifierIO clio("d24", 22, -1);
+	ClassifierIO clio("d12", -1, -1);
 	vector<string> files = clio.getClassifierFiles();
 	for (auto it = files.begin(); it != files.end(); ++it)
 	{
@@ -22,7 +21,7 @@ int main(int argc, char **argv)
 
 	ifstream infile(argv[1]);
 
-	CaffeClassifier<Mat> c(files[0], files[1], files[2], files[3], 256); 
+	CaffeClassifier<cv::gpu::GpuMat> c(files[0], files[1], files[2], files[3], 256); 
 
 	Mat img;
 	Mat rsz;
