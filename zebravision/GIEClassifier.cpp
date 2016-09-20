@@ -255,11 +255,11 @@ vector<float> GIEClassifier<GpuMat>::PredictBatch(const vector<GpuMat> &imgs)
 }
 #else
 #include <vector>
+#include "opencv2_3_shim.hpp"
 #include "GIEClassifier.hpp"
 
 using namespace std;
 using namespace cv;
-using namespace cv::gpu;
 
 template <class MatT>
 GIEClassifier<MatT>::GIEClassifier(const string& modelFile,

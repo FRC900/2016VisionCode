@@ -1,5 +1,6 @@
-#ifndef INC_DETECT_HPP__
-#define INC_DETECT_HPP__
+#pragma once
+
+#include "opencv2_3_shim.hpp"
 
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?
@@ -107,6 +108,5 @@ class NNDetect
 		bool depthInRange(const float depth_min, const float depth_max, 
 				const cv::Mat &detectCheck);
 		bool depthInRange(const float depth_min, const float depth_max, 
-				const cv::gpu::GpuMat &detectCheck);
+				const GpuMat &detectCheck);
 };
-#endif

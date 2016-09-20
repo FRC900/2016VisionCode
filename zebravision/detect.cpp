@@ -1,7 +1,6 @@
 #include <iostream>
 #include <sys/time.h>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2_3_shim.hpp"
 
 #include "scalefactor.hpp"
 #include "fast_nms.hpp"
@@ -16,7 +15,7 @@
 
 using namespace std;
 using namespace cv;
-using namespace cv::gpu;
+//using namespace cv::gpu;
 
 static double gtod_wrapper(void)
 {

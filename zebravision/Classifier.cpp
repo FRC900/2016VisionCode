@@ -2,14 +2,12 @@
 #include <fstream>
 #include <sys/stat.h>
 
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2_3_shim.hpp"
 
 #include "Classifier.hpp"
 
 using namespace std;
 using namespace cv;
-using namespace cv::gpu;
 
 // Simple test to see if a file exists and
 // is accessable

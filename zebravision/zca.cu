@@ -1,14 +1,18 @@
 #include <iostream>
 #include <cstdio>
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/stream_accessor.hpp>
+#include "opencv2_3_shim.hpp"
+
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <cublas_v2.h>
 
 using std::cout;
 using std::endl;
+#if CV_MAJOR_VERSION == 2
+using cv::gpu::PtrStepSz;
+#elif CV_MAJOR_VERSION == 3
+using cv::cuda::PtrStepSz;
+#endif
 
 static inline void safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number)
 {
@@ -36,7 +40,7 @@ void cublasSafeCallWrapper(cublasStatus_t err, const char *file, const int line)
 // in BGRBGRBGR.. order
 // Convert that to a flat 1-D array as expected by the neural
 // net input stages
-__global__ void unflatten_kernel(const cv::gpu::PtrStepSz<float> input,
+__global__ void unflatten_kernel(const PtrStepSz<float> input,
 								 const size_t rows,
 								 const size_t cols,
 							 	 float *output)
@@ -98,8 +102,8 @@ __device__ void combine_running_totals(float &M1_1, const float M1_2, float &M2_
 //        M!/M2 into mean and stddev() at the very end of the kernel 
 //        This will eliminate the need for global memory for intermediates 
 //        since each image will fit in one block
-__global__ void mean_stddev_reduction_kernel(const cv::gpu::PtrStepSz<float> *input,
-												   cv::gpu::PtrStepSz<float> output)
+__global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
+												   PtrStepSz<float> output)
 {
 
 	// Thread index within block - used for addressing smem below
@@ -216,19 +220,19 @@ n[i2] = 0;
 	}
 }
 
-void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input, 
-		const cv::gpu::GpuMat &weights, 
-		cv::gpu::PtrStepSz<float> *dPssIn,
-		cv::gpu::GpuMat &dFlattenedImages,
-		cv::gpu::GpuMat &zcaOut,
+void cudaZCATransform(const std::vector<GpuMat> &input, 
+		const GpuMat &weights, 
+		PtrStepSz<float> *dPssIn,
+		GpuMat &dFlattenedImages,
+		GpuMat &zcaOut,
 		float *output)
 {
 	// Create array of PtrStepSz entries corresponding to
 	// each GPU mat in input. Copy it to device memory
-	cv::gpu::PtrStepSz<float> hPssIn[input.size()];
+	PtrStepSz<float> hPssIn[input.size()];
 	for (size_t i = 0; i < input.size(); ++i)
 		hPssIn[i] = input[i];
-	cudaMemcpy(dPssIn, hPssIn, input.size() * sizeof(cv::gpu::PtrStepSz<float>), cudaMemcpyHostToDevice);
+	cudaMemcpy(dPssIn, hPssIn, input.size() * sizeof(PtrStepSz<float>), cudaMemcpyHostToDevice);
 
 	// Each block is one image
 	const dim3 block(32,32);
@@ -251,7 +255,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	//SAFE_CALL(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
 
 	// Multiply images by weights to get the ZCA-whitened output
-	//gemm(dFlattenedImages, weights, 1.0, cv::gpu::GpuMat(), 0.0, zcaOut, 0, stream);
+	//gemm(dFlattenedImages, weights, 1.0, GpuMat(), 0.0, zcaOut, 0, stream);
 
 	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
     cublasHandle_t handle;

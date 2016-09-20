@@ -7,10 +7,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/objdetect/objdetect.hpp>
+#include "opencv2_3_shim.hpp"
 
 #include <zmq.hpp>
 
@@ -41,6 +38,11 @@
 using namespace std;
 using namespace cv;
 using namespace utils;
+#if CV_MAJOR_VERSION == 2
+using namespace cv::gpu;
+#elif CV_MAJOR_VERSION == 3
+using namespace cv::cuda;
+#endif
 
 //function prototypes
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp);
@@ -302,7 +304,7 @@ int main( int argc, const char** argv )
 	DetectState *detectState = NULL;
 	if (args.detection)
 	{
-		bool hasGPU = gpu::getCudaEnabledDeviceCount() > 0;
+		bool hasGPU = getCudaEnabledDeviceCount() > 0;
 		detectState = new DetectState(
 				ClassifierIO(args.d12BaseDir, args.d12DirNum, args.d12StageNum),
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),

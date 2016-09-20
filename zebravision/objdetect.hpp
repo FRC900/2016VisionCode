@@ -3,8 +3,7 @@
 
 #include <iostream>
 #include <sys/stat.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2_3_shim.hpp"
 #include "detect.hpp"
 #ifndef GIE
 #include "CaffeClassifier.hpp"
@@ -122,7 +121,7 @@ class ObjDetectCPUCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::M
 // on in GPU, runs Caffe on CPU.  This is probably 
 // not a common config - if the GPU is there might
 // as well use it for both detector and Caffe
-class ObjDetectGPUCaffeCPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifier<cv::Mat>>
+class ObjDetectGPUCaffeCPU : public ObjDetectNNet<GpuMat, CaffeClassifier<cv::Mat>>
 {
 	public :
 		ObjDetectGPUCaffeCPU(std::vector<std::string> &d12Files,
@@ -142,7 +141,7 @@ class ObjDetectGPUCaffeCPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifi
 
 // Detector does resizing, sliding windows and so on
 // in CPU.  Caffe run on GPU
-class ObjDetectCPUCaffeGPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::gpu::GpuMat>>
+class ObjDetectCPUCaffeGPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<GpuMat>>
 {
 	public :
 		ObjDetectCPUCaffeGPU(std::vector<std::string> &d12Files,
@@ -161,7 +160,7 @@ class ObjDetectCPUCaffeGPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::g
 };
 
 // Both detector and Caffe run on the GPU
-class ObjDetectGPUCaffeGPU : public ObjDetectNNet<cv::gpu::GpuMat, CaffeClassifier<cv::gpu::GpuMat>>
+class ObjDetectGPUCaffeGPU : public ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>
 {
 	public :
 		ObjDetectGPUCaffeGPU(std::vector<std::string> &d12Files,
@@ -201,7 +200,7 @@ class ObjDetectCPUGIEGPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat>>
 };
 
 // Both detector and GIE run on the GPU
-class ObjDetectGPUGIEGPU : public ObjDetectNNet<cv::gpu::GpuMat, GIEClassifier<cv::gpu::GpuMat>>
+class ObjDetectGPUGIEGPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
 {
 	public :
 		ObjDetectGPUGIEGPU(std::vector<std::string> &d12Files,

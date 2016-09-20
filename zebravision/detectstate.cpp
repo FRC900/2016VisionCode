@@ -20,7 +20,12 @@
 
 using namespace std;
 using namespace cv;
+
+#if CV_MAJOR_VERSION == 2
 using namespace cv::gpu;
+#elif CV_MAJOR_VERSION == 3
+using namespace cv::cuda;
+#endif
 
 // Classifier IO holds the directory which has
 // net description, weights, labels, etc.

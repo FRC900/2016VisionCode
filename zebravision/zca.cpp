@@ -70,7 +70,11 @@ double gtod_wrapper(void)
 
 using namespace std;
 using namespace cv;
+#if CV_MAJOR_VERSION == 2
 using namespace cv::gpu;
+#elif CV_MAJOR_VERSION == 3
+using namespace cv::cuda;
+#endif
 
 // Using the input images provided, generate a ZCA transform
 // matrix.  Images will be resized to the requested size 
@@ -325,7 +329,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	if (!weightsGPU_.empty())
 	{
 		gm_.upload(work);
-		gpu::gemm(gm_, weightsGPU_, 1.0, buf_, 0.0, gmOut_);
+		gemm(gm_, weightsGPU_, 1.0, buf_, 0.0, gmOut_);
 
 		gmOut_.download(output);
 	}
@@ -372,11 +376,11 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	return ret;
 }
 
-void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input, 
-		const cv::gpu::GpuMat &weights, 
-		cv::gpu::PtrStepSz<float> *dPssIn,
-		cv::gpu::GpuMat &gm,
-		cv::gpu::GpuMat &gmOut,
+void cudaZCATransform(const vector<GpuMat> &input, 
+		const GpuMat &weights, 
+		PtrStepSz<float> *dPssIn,
+		GpuMat &gm,
+		GpuMat &gmOut,
 		float *output);
 
 // Transform a vector of input images in floating
@@ -426,7 +430,7 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 			// Transpose these once here to save doing
 			// it every time in the calcuation step
 			weights_ = weights_.t();
-			if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
+			if (!weights_.empty() && (getCudaEnabledDeviceCount() > 0))
 				weightsGPU_.upload(weights_);
 
 			fs["ZCAEpsilon"] >> epsilon_;
@@ -444,7 +448,7 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	if (!weightsGPU_.empty())
 	{
 		setDevice(0);
-		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
+		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
 	}
 }
@@ -458,11 +462,11 @@ ZCA::ZCA(const ZCA &zca) :
 	overallMax_(zca.overallMax_),
 	globalContrastNorm_(zca.globalContrastNorm_)
 {
-	if (!weights_.empty() && (gpu::getCudaEnabledDeviceCount() > 0))
+	if (!weights_.empty() && (getCudaEnabledDeviceCount() > 0))
 	{
 		size_t batchSize = zca.gm_.rows;
 		weightsGPU_.upload(weights_);
-		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
+		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = zca.gm_.clone();
 	}
 }

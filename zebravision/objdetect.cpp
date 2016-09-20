@@ -16,7 +16,6 @@ const double DETECT_ASPECT_RATIO = 1.0;
 
 using namespace std;
 using namespace cv;
-using namespace cv::gpu;
 
 /*void CPU_CascadeDetect::Detect (const Mat &frame, vector<Rect> &imageRects)
 {

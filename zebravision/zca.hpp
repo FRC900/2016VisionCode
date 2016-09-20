@@ -1,7 +1,11 @@
 #pragma once
 #include <vector>
-#include <opencv2/opencv.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2_3_shim.hpp"
+#if CV_MAJOR_VERSION == 2
+using cv::gpu::PtrStepSz;
+#elif CV_MAJOR_VERSION == 3
+using cv::cuda::PtrStepSz;
+#endif
 
 class ZCA
 {
@@ -32,8 +36,8 @@ class ZCA
 		// especially if GPU can be used
 		std::vector<cv::Mat> Transform8UC3 (const std::vector<cv::Mat> &input);
 		std::vector<cv::Mat> Transform32FC3(const std::vector<cv::Mat> &input);
-		std::vector<cv::gpu::GpuMat> Transform32FC3(const std::vector<cv::gpu::GpuMat> &input);
-		void Transform32FC3(const std::vector<cv::gpu::GpuMat> &input, float *dest);
+		std::vector<GpuMat> Transform32FC3(const std::vector<GpuMat> &input);
+		void Transform32FC3(const std::vector<GpuMat> &input, float *dest);
 
 		// a and b parameters for transforming
 		// float pixel values back to 0-255
@@ -44,19 +48,19 @@ class ZCA
 		cv::Size size(void) const;
 
 	private:
-		cv::Size         size_;
+		cv::Size size_;
 
 		// The weights, stored in both
 		// the CPU and, if available, GPU
-		cv::Mat          weights_;
-		cv::gpu::GpuMat  weightsGPU_;
+		cv::Mat  weights_;
+		GpuMat   weightsGPU_;
 		// GPU buffers - more efficient to allocate
 		// them once gloabally and reuse them
-		cv::gpu::GpuMat  gm_;
-		cv::gpu::GpuMat  gmOut_;
-		cv::gpu::GpuMat  buf_;
+		GpuMat   gm_;
+		GpuMat   gmOut_;
+		GpuMat   buf_;
 
-		cv::gpu::PtrStepSz<float> *dPssIn_;
+		PtrStepSz<float> *dPssIn_;
 
 		float            epsilon_;
 		double           overallMin_;

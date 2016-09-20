@@ -1,15 +1,13 @@
 #include <iostream>
 #include <sys/stat.h>
 
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2_3_shim.hpp"
 
 #include "CaffeClassifier.hpp"
 
 using namespace std;
 using namespace caffe;
 using namespace cv;
-using namespace cv::gpu;
 
 // Google logging init stuff needs to happen
 // just once per program run.  Use this

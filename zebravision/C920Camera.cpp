@@ -83,12 +83,15 @@ namespace v4l2 {
 			image.release();
 			return false;
 		}
+#if CV_MAJOR_VERSION == 2
+		cv::Mat temp(_img);
+#elif CV_MAJOR_VERSION == 3
+		cv::Mat temp = cv::cvarrToMat(_img);
+#endif
 		if (_img->origin == IPL_ORIGIN_TL)
-			cv::Mat(_img).copyTo(image);
-		else {
-			cv::Mat temp(_img);
+			temp.copyTo(image);
+		else 
 			cv::flip(temp, image, 0);
-		}
 		return true;
 	}
 	bool C920Camera::ChangeCaptureSize(enum CaptureSize cameracapturesize) {
