@@ -42,12 +42,12 @@ set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 # Caffe headers change the size of various
 # objects based on these defines. Best to match
 # how caffe itself was compiled
-#add_definitions(-DCPU_ONLY=1)
-add_definitions(-DUSE_CUDNN=1)
+add_definitions(-DCPU_ONLY=1)
+#add_definitions(-DUSE_CUDNN=1)
 
 include_directories(
-	/home/ubuntu/opencv-2.4.13/build/include
-	#${OpenCV_INCLUDE_DIRS}
+	#/home/ubuntu/opencv-2.4.13/build/include
+	${OpenCV_INCLUDE_DIRS}
 	${ZED_INCLUDE_DIRS}
 	${CUDA_INCLUDE_DIRS}
 	${CAFFE_BASE_DIR}/build/install/include
@@ -65,9 +65,8 @@ if (${MKL_FOUND})
 	include_directories (${MKL_INCLUDE_DIR})
 endif()
 
-#link_directorieS(/home/ubuntu/GIE/lib)
-link_directories(/home/ubuntu/opencv-2.4.13/build/lib)
-link_directories(/home/kjaget/opencv-2.4.13/build/lib)
+#link_directories(/home/ubuntu/GIE/lib)
+link_directories(/opt/intel//ipp90legacy/linux/lib/intel64/threaded)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
@@ -119,7 +118,7 @@ CUDA_ADD_EXECUTABLE(zv
 	ZvSettings.cpp
 	zv.cpp)
 
-find_library (LibCaffe caffe PATH  ${CAFFE_BASE_DIR}/build/lib)
+find_library (LibCaffe caffe PATH ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)
 find_library (LibProtobuf protobuf /home/ubuntu/GIE/lib)
 find_library (LibWconv wconv /home/ubuntu/GIE/lib)
@@ -133,9 +132,6 @@ target_link_libraries( zv
 	#fovis
 	${CMAKE_THREAD_LIBS_INIT}
 	${ZED_LIBRARIES}
-	${CUDA_LIBRARIES}
-	${CUDA_nppi_LIBRARY}
-	${CUDA_npps_LIBRARY}
 	${Boost_LIBRARIES}
 	${LibGLOG}
 	${ZMQ_LIBRARIES}
@@ -145,14 +141,17 @@ target_link_libraries( zv
 	${MKL_LIBRARIES}
 	#${LibEFence} 
 	)
+CUDA_ADD_CUBLAS_TO_TARGET(zv)
 
 add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
-target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
+target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${MKL_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
+CUDA_ADD_CUBLAS_TO_TARGET(predict_one)
 CUDA_ADD_EXECUTABLE(rank_imagelist rank_imagelist.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp)
-target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${CUDA_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
+target_link_libraries( rank_imagelist ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${MKL_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
+CUDA_ADD_CUBLAS_TO_TARGET(rank_imagelist)
 #add_executable(depthtest depthtest.cpp)
 #target_link_libraries( depthtest ${OpenCV_LIBS} )
