@@ -1,6 +1,8 @@
 #pragma once
 
+#ifdef USE_GIE
 #include "Infer.h"
+#endif
 #include "Classifier.hpp"
 
 template <class MatT>
