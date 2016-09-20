@@ -21,7 +21,7 @@ using namespace cv;
 
 int main(int argc, char *argv[])
 {
-    CameraIn::CameraIn vidIn(1, true);
+    CameraIn vidIn(1, NULL);
     char name[PATH_MAX];
     int  index = 0;
     int  rc;
@@ -31,12 +31,14 @@ int main(int argc, char *argv[])
         sprintf(name, "cap%d.avi", index++);
         rc = stat(name, &statbuf);
     } while (rc == 0);
-    VideoWriter outputVideo(name, CV_FOURCC('A', 'V', 'C', '1'), 30, Size(vidIn.width(), vidIn.height()), true);
+    VideoWriter outputVideo(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(vidIn.width(), vidIn.height()), true);
     Mat frame;
+	Mat depth;
 
     while (true)
     {
-        vidIn.getNextFrame(frame, false);
+		vidIn.update();
+        vidIn.getFrame(frame, depth, false);
         if (!frame.empty())
         {
             outputVideo << frame;
