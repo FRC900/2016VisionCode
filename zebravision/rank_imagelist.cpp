@@ -3,6 +3,11 @@
 
 using namespace std;
 using namespace cv;
+#if CV_MAJOR_VERSION == 2
+using namespace cv::gpu;
+#elif CV_MAJOR_VERSION == 3
+using namespace cv::cuda;
+#endif
 
 int main(int argc, char **argv)
 {
@@ -21,7 +26,7 @@ int main(int argc, char **argv)
 
 	ifstream infile(argv[1]);
 
-	CaffeClassifier<cv::gpu::GpuMat> c(files[0], files[1], files[2], files[3], 256); 
+	CaffeClassifier<GpuMat> c(files[0], files[1], files[2], files[3], 256); 
 
 	Mat img;
 	Mat rsz;
