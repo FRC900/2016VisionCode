@@ -377,9 +377,6 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 		cv::gpu::PtrStepSz<float> *dPssIn,
 		cv::gpu::GpuMat &gm,
 		cv::gpu::GpuMat &gmOut,
-		cv::gpu::GpuMat &buf,
-		float *dMean,
-		float *dStddev,
 		float *output);
 
 // Transform a vector of input images in floating
@@ -400,7 +397,7 @@ void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 			foo.push_back(*it);
 		}
 	}
-	cudaZCATransform(foo, weightsGPU_, dPssIn_, gm_, gmOut_, buf_, dMean_, dStddev_, dest);
+	cudaZCATransform(foo, weightsGPU_, dPssIn_, gm_, gmOut_, dest);
 }
 
 static inline void _safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number)
@@ -451,8 +448,6 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 		setDevice(0);
 		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
-		SAFE_CALL(cudaMalloc(&dMean_,   3 * batchSize * sizeof(float)), "cudaMalloc mean");
-		SAFE_CALL(cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float)), "cudaMalloc stddev");
 	}
 }
 
@@ -460,8 +455,6 @@ ZCA::ZCA(const ZCA &zca) :
 	size_(zca.size_),
 	weights_(zca.weights_),
 	dPssIn_(NULL),
-	dMean_(NULL),
-	dStddev_(NULL),
 	epsilon_(zca.epsilon_),
 	overallMin_(zca.overallMin_),
 	overallMax_(zca.overallMax_),
@@ -473,8 +466,6 @@ ZCA::ZCA(const ZCA &zca) :
 		weightsGPU_.upload(weights_);
 		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(cv::gpu::PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = zca.gm_.clone();
-		SAFE_CALL(cudaMalloc(&dMean_,   3 * batchSize * sizeof(float)), "cudaMalloc mean");
-		SAFE_CALL(cudaMalloc(&dStddev_, 3 * batchSize * sizeof(float)), "cudaMalloc stddev");
 	}
 }
 
@@ -482,10 +473,6 @@ ZCA::~ZCA()
 {
 	if (dPssIn_)
 		SAFE_CALL(cudaFree(dPssIn_), "cudaFree dPssIn");
-	if (dMean_)
-		SAFE_CALL(cudaFree(dMean_), "cudaFree dMean");
-	if (dStddev_)
-		SAFE_CALL(cudaFree(dStddev_), "cudaFree dStddev");
 }
 
 

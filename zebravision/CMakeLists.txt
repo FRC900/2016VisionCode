@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -42,11 +42,10 @@ set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 # Caffe headers change the size of various
 # objects based on these defines. Best to match
 # how caffe itself was compiled
-add_definitions(-DCPU_ONLY=1)
-#add_definitions(-DUSE_CUDNN=1)
+#add_definitions(-DCPU_ONLY=1)
+add_definitions(-DUSE_CUDNN=1)
 
 include_directories(
-	#/home/ubuntu/opencv-2.4.13/build/include
 	${OpenCV_INCLUDE_DIRS}
 	${ZED_INCLUDE_DIRS}
 	${CUDA_INCLUDE_DIRS}
