@@ -236,19 +236,19 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	// z dimension is number of images
 	const dim3 grid(1, 1, input.size());
 
-	// Create a CPU stream. This lets us queue up a number of
+	// Create a CUDA stream. This lets us queue up a number of
 	// cuda calls back to back and then later check to see
 	// that they all finished
-	cv::gpu::Stream stream;
-	cv::gpu::StreamAccessor sa;
+	cudaStream_t stream;
+	SAFE_CALL(cudaStreamCreate(&stream), "ZCA cudaStreamCreate");
 
 	//Launch the first reduction kernel
 	// this will output an array of intermediate values
 	// in M1 (running average) and M2 (variance * number 
 	// of values seen). n is number of values corresponding
 	// to each M1 and M2 value.
-	mean_stddev_reduction_kernel<<<grid,block,0,sa.getStream(stream)>>>(dPssIn, dFlattenedImages);
-	SAFE_CALL(cudaStreamSynchronize(sa.getStream(stream)),"ZCA cudaStreamSynchronize failed");
+	mean_stddev_reduction_kernel<<<grid,block,0,stream>>>(dPssIn, dFlattenedImages);
+	//SAFE_CALL(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
 
 	// Multiply images by weights to get the ZCA-whitened output
 	//gemm(dFlattenedImages, weights, 1.0, cv::gpu::GpuMat(), 0.0, zcaOut, 0, stream);
@@ -256,8 +256,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
     cublasHandle_t handle;
     cublasSafeCall( cublasCreate_v2(&handle) );
-
-    cublasSafeCall( cublasSetStream_v2(handle, sa.getStream(stream)) );
+    cublasSafeCall( cublasSetStream_v2(handle, stream) );
 
     cublasSafeCall( cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST) );
     const float alphaf = 1.0;
@@ -272,7 +271,8 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 
 	// Copy to output buffer in the order expected by
 	// neural net input
-	unflatten_kernel<<<grid,block,0,sa.getStream(stream)>>>(zcaOut, input[0].rows, input[0].cols, output);
+	unflatten_kernel<<<grid,block,0,stream>>>(zcaOut, input[0].rows, input[0].cols, output);
 
-	SAFE_CALL(cudaStreamSynchronize(sa.getStream(stream)),"ZCA cudaStreamSynchronize failed");
+	SAFE_CALL(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
+	SAFE_CALL(cudaStreamDestroy(stream), "ZCA cudaStreamDestroy failed");
 }

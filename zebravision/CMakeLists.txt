@@ -1,7 +1,7 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 add_definitions(-std=c++11 -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -flto")
@@ -34,8 +34,6 @@ find_package(MKL)
 if (${MKL_FOUND})
 	add_definitions(-DUSE_MKL=1)
 endif()
-
-INCLUDE( FindCUDA )
 
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
