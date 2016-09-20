@@ -16,7 +16,10 @@ class CameraParams
 			fy(0),
 			cx(0),
 			cy(0)
-		{}
+		{
+			for (size_t i = 0; i < sizeof(disto)/sizeof(disto[0]); i++)
+				disto[i] = 0.0;
+		}
 		cv::Point2f fov;
 		float       fx;
 		float       fy;

@@ -267,7 +267,8 @@ GIEClassifier<MatT>::GIEClassifier(const string& modelFile,
       const string& zcaWeightFile,
       const string& labelFile,
       const size_t  batchSize) :
-	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize)
+	Classifier<MatT>(modelFile, trainedFile, zcaWeightFile, labelFile, batchSize),
+	initialized_(false)
 {
 	cerr << "GIE support not available" << endl;
 }

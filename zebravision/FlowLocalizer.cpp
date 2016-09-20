@@ -7,7 +7,7 @@ using namespace std;
 
 FlowLocalizer::FlowLocalizer(const cv::Mat &initial_frame)
 {
-	cvtColor(initial_frame,_prevFrame, CV_BGR2GRAY);
+	cvtColor(initial_frame, _prevFrame, CV_BGR2GRAY);
 }
 
 void FlowLocalizer::processFrame(const Mat &frame) 

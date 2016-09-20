@@ -496,7 +496,7 @@ CameraParams ZedIn::getCameraParams(bool left) const
 
 void zedBrightnessCallback(int value, void *data)
 {
-    ZedIn *zedPtr = (ZedIn *)data;
+    ZedIn *zedPtr = static_cast<ZedIn *>(data);
 	zedPtr->brightness_ = value;
 	if (zedPtr->zed_)
 	{
@@ -507,7 +507,7 @@ void zedBrightnessCallback(int value, void *data)
 
 void zedContrastCallback(int value, void *data)
 {
-    ZedIn *zedPtr = (ZedIn *)data;
+    ZedIn *zedPtr = static_cast<ZedIn *>(data);
 	zedPtr->contrast_ = value;
 	if (zedPtr->zed_)
 	{
@@ -518,7 +518,7 @@ void zedContrastCallback(int value, void *data)
 
 void zedHueCallback(int value, void *data)
 {
-    ZedIn *zedPtr = (ZedIn *)data;
+    ZedIn *zedPtr = static_cast<ZedIn *>(data);
 	zedPtr->hue_ = value;
 	if (zedPtr->zed_)
 	{
@@ -529,7 +529,7 @@ void zedHueCallback(int value, void *data)
 
 void zedSaturationCallback(int value, void *data)
 {
-    ZedIn *zedPtr = (ZedIn *)data;
+    ZedIn *zedPtr = static_cast<ZedIn *>(data);
 	zedPtr->saturation_ = value;
 	if (zedPtr->zed_)
 	{
@@ -540,7 +540,7 @@ void zedSaturationCallback(int value, void *data)
 
 void zedGainCallback(int value, void *data)
 {
-    ZedIn *zedPtr = (ZedIn *)data;
+    ZedIn *zedPtr = static_cast<ZedIn *>(data);
 	zedPtr->gain_ = value;
 	if (zedPtr->zed_)
 	{
@@ -551,7 +551,7 @@ void zedGainCallback(int value, void *data)
 
 void zedWhiteBalanceCallback(int value, void *data)
 {
-    ZedIn *zedPtr = (ZedIn *)data;
+    ZedIn *zedPtr = static_cast<ZedIn *>(data);
 	zedPtr->whiteBalance_ = value;
 	if (zedPtr->zed_)
 	{

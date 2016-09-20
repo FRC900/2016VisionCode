@@ -199,7 +199,7 @@ class TrackedObjectList
 		// Each will either match a previously detected object or
 		// if not, be added as new object to the list
 		void processDetect(const std::vector<cv::Rect> &detectedRects,
-						   const std::vector<float> depths,
+						   const std::vector<float> &depths,
 						   const std::vector<ObjectType> &types);
 
 	private :

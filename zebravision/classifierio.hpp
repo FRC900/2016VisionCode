@@ -7,7 +7,7 @@
 class ClassifierIO
 {
 	public:
-		ClassifierIO(std::string baseDir, int dirNum, int stageNum);
+		ClassifierIO(const std::string &baseDir, int dirNum, int stageNum);
 		bool findNextClassifierStage(bool increment);
 		bool findNextClassifierDir(bool increment);
 		std::vector<std::string> getClassifierFiles(void) const;

@@ -16,7 +16,7 @@ using namespace boost::filesystem;
 // Default constructor : takes a baseDir, dirNum and stageNum
 // combines baseDir and dirNum to create a path to load config info
 // from. stageNum is the training stage in that file.
-ClassifierIO::ClassifierIO(string baseDir, int dirNum, int stageNum) :
+ClassifierIO::ClassifierIO(const string &baseDir, int dirNum, int stageNum) :
     baseDir_ (baseDir),
     dirNum_  (dirNum),
     stageIdx_(0)

@@ -107,7 +107,7 @@ namespace utils {
 		public:	
 			DataRecorder(void) {}
 			
-			DataRecorder(string file_name, vector<string> column_names) {
+			DataRecorder(const string &file_name, const vector<string> &column_names) {
 				_data_file.open(file_name + ".csv");
 				_num_columns = column_names.size();
 				log(column_names);
@@ -115,7 +115,7 @@ namespace utils {
 
 			~DataRecorder() { _data_file.close(); }
 
-			void log(vector<string> data) {
+			void log(const vector<string> &data) {
 				//this function won't do anything if the data file was not opened
 				//this makes it safe to not pass a DataRecorder to an object and it won't break everything
 

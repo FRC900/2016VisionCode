@@ -57,8 +57,6 @@ class ZCA
 		cv::gpu::GpuMat  buf_;
 
 		cv::gpu::PtrStepSz<float> *dPssIn_;
-		float *dMean_;
-		float *dStddev_;
 
 		float            epsilon_;
 		double           overallMin_;

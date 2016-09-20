@@ -46,7 +46,7 @@ using namespace utils;
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp);
 void writeImage(const Mat& frame, const vector<Rect>& rects, size_t index, const char *path, int frameNumber);
 string getDateTimeString(void);
-void drawRects(Mat image ,const vector<Rect> detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
+void drawRects(Mat image, const vector<Rect> &detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, const vector<TrackedObjectDisplay> &displayList, const vector<vector<Point>> &posHist);
 void drawTrackingTopDown(Mat &frame, const vector<TrackedObjectDisplay> &displayList);
 void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName);
@@ -63,7 +63,7 @@ void my_handler(int s)
     }
 }
 
-void drawRects(Mat image, const vector<Rect> detectRects, Scalar rectColor, bool text)
+void drawRects(Mat image, const vector<Rect> &detectRects, Scalar rectColor, bool text)
 {
     for (auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
     {

@@ -146,7 +146,7 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 	return retPt;
 }
 
-static Rect worldToScreenCoords(const Point3f &_position, ObjectType _type, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
+static Rect worldToScreenCoords(const Point3f &_position, const ObjectType &_type, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
 {
 	// TODO : replace magic numbers with an object depth property
 	// This constant is half a ball diameter (9.75-ish inches), converted to meters
@@ -513,7 +513,7 @@ const double dist_thresh_ = 1.0; // FIX ME!
 // Each will either match a previously detected object or
 // if not, be added as new object to the list
 void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
-									  const vector<float> depths,
+									  const vector<float> &depths,
 									  const vector<ObjectType> &types)
 {
 	vector<Point3f> detectedPositions;

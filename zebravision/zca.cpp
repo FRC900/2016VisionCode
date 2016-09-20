@@ -413,9 +413,7 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 
 // Load a previously calcuated set of weights from file
 ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
-	dPssIn_(NULL),
-	dMean_(NULL),
-	dStddev_(NULL)
+	dPssIn_(NULL)
 {
 	try 
 	{
