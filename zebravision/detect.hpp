@@ -32,8 +32,8 @@ class NNDetect
 			     const std::vector<std::string> &c24Files, 
 			     float hfov) :
 			d12_(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 1024),
-			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64),
-			c12_(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64),
+			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 256),
+			c12_(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 256),
 			c24_(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64),
 			hfov_(hfov)
 		{
