@@ -7,12 +7,15 @@ find_package(OpenCV REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams REQUIRED)
 find_package(ZED REQUIRED)
 find_package(CUDA REQUIRED)
-include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ../bindetection)
+find_package(Eigen3 REQUIRED)
+find_library (LibTinyXML2 tinyxml2)
+
+include_directories( ${OpenCV_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ../zebravision)
 link_directories(${ZED_INCLUDE_DIRS})
 link_directories(${CUDA_INCLUDE_DIRS})
 set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g -Wall -Ofast")
  
 add_definitions(-DZED_SUPPORT)
 
-add_executable( ZedCap ZedCap.cpp ../bindetection/mediain.cpp ../bindetection/zedin.cpp)
-target_link_libraries( ZedCap ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${Boost_LIBRARIES})
+add_executable( ZedCap ZedCap.cpp ../zebravision/mediain.cpp ../zebravision/zedin.cpp ../zebravision/ZvSettings.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
+target_link_libraries( ZedCap ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${Boost_LIBRARIES} ${LibTinyXML2})
