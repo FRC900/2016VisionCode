@@ -12,13 +12,13 @@ using namespace std;
 
 using namespace cv;
 using namespace boost::filesystem;
+using namespace sl::zed;
 
 void zedBrightnessCallback(int value, void *data);
 void zedContrastCallback(int value, void *data);
 void zedHueCallback(int value, void *data);
 void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
-void zedWhiteBalanceCallback(int value, void *data);
 
 ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 	MediaIn(settings),
@@ -41,7 +41,7 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 		// Might be svo, might be zms
 		string fnExt = path(inFileName).extension().string();
 		if ((fnExt == ".svo") || (fnExt == ".SVO"))
-			zed_ = new sl::zed::Camera(inFileName);
+			zed_ = new Camera(inFileName);
 		else if ((fnExt == ".zms") || (fnExt == ".ZMS"))
 		{
 			// ZMS file is home-brewed serialization format
@@ -97,17 +97,25 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 			}
 		}
 	}
-	else // Open an actual camera for input
-		zed_ = new sl::zed::Camera(sl::zed::HD720, 30);
+	else if (Camera::isZEDconnected()) // Open an actual camera for input
+		zed_ = new Camera(HD720, 30);
 
 	if (zed_)
 	{
+		InitParams parameters;
+		parameters.mode = PERFORMANCE;
+		parameters.unit = MILLIMETER;
+		parameters.verbose = 1;
 		// init computation mode of the zed
-		sl::zed::ERRCODE err = zed_->init(sl::zed::MODE::QUALITY, -1, true);
+		ERRCODE err = zed_->init(parameters);
+
+		//only for Jetson K1/X1 - see if it helps
+		Camera::sticktoCPUCore(2);
+
 		// Quit if an error occurred
-		if (err != sl::zed::SUCCESS)
+		if (err != SUCCESS)
 		{
-			cout << sl::zed::errcode2str(err) << endl;
+			cout << errcode2str(err) << endl;
 			delete zed_;
 			zed_ = NULL;
 		}
@@ -133,14 +141,12 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 			zedHueCallback(hue_, this);
 			zedSaturationCallback(saturation_, this);
 			zedGainCallback(gain_, this);
-			zedWhiteBalanceCallback(whiteBalance_, this);
 
-			cout << "brightness_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_BRIGHTNESS) << endl;
-			cout << "contrast_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_CONTRAST) << endl;
-			cout << "hue_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_HUE) << endl;
-			cout << "saturation_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_SATURATION) << endl;
-			cout << "gain_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_GAIN) << endl;
-			cout << "whiteBalance_ = " << zed_->getCameraSettingsValue(sl::zed::ZED_WHITEBALANCE) << endl;
+			cout << "brightness_ = " << zed_->getCameraSettingsValue(ZED_BRIGHTNESS) << endl;
+			cout << "contrast_ = " << zed_->getCameraSettingsValue(ZED_CONTRAST) << endl;
+			cout << "hue_ = " << zed_->getCameraSettingsValue(ZED_HUE) << endl;
+			cout << "saturation_ = " << zed_->getCameraSettingsValue(ZED_SATURATION) << endl;
+			cout << "gain_ = " << zed_->getCameraSettingsValue(ZED_GAIN) << endl;
 			if (gui)
 			{
 				cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
@@ -149,7 +155,6 @@ ZedIn::ZedIn(const char *inFileName, bool gui, ZvSettings *settings) :
 				cv::createTrackbar("Hue", "Adjustments", &hue_, 12, zedHueCallback, this);
 				cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
 				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
-				cv::createTrackbar("White Balance", "Adjustments", &whiteBalance_, 6501, zedWhiteBalanceCallback, this);
 			}
 		}
 	}
@@ -302,7 +307,7 @@ bool ZedIn::update(bool left)
 	if (zed_)
 	{
 		int badReadCounter = 0;
-		while (zed_->grab(sl::zed::SENSING_MODE::RAW))
+		while (zed_->grab(SENSING_MODE::STANDARD))
 		{
 			cerr << "********---------GRAB RETURNED FALSE " << endl;
 			usleep(33333);
@@ -317,8 +322,8 @@ bool ZedIn::update(bool left)
 				return false;
 		}
 
-		slDepth_ = zed_->retrieveMeasure(sl::zed::MEASURE::DEPTH);
-		slFrame_ = zed_->retrieveImage(left ? sl::zed::SIDE::LEFT : sl::zed::SIDE::RIGHT);
+		slDepth_ = zed_->retrieveMeasure(MEASURE::DEPTH);
+		slFrame_ = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
 		boost::lock_guard<boost::mutex> guard(mtx_);
 		setTimeStamp();
 		incFrameNumber();
@@ -429,7 +434,7 @@ int ZedIn::height(void) const
 
 CameraParams ZedIn::getCameraParams(bool left) const
 {
-	sl::zed::CamParameters zedp;
+	CamParameters zedp;
 	if (zed_)
 	{
 		if(left)
@@ -500,7 +505,7 @@ void zedBrightnessCallback(int value, void *data)
 	zedPtr->brightness_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_BRIGHTNESS, value - 1, value == 0);
+		zedPtr->zed_->setCameraSettingsValue(ZED_BRIGHTNESS, value - 1, value == 0);
 	}
 }
 
@@ -511,7 +516,7 @@ void zedContrastCallback(int value, void *data)
 	zedPtr->contrast_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_CONTRAST, value - 1, value == 0);
+		zedPtr->zed_->setCameraSettingsValue(ZED_CONTRAST, value - 1, value == 0);
 	}
 }
 
@@ -522,7 +527,7 @@ void zedHueCallback(int value, void *data)
 	zedPtr->hue_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_HUE, value - 1, value == 0);
+		zedPtr->zed_->setCameraSettingsValue(ZED_HUE, value - 1, value == 0);
 	}
 }
 
@@ -533,7 +538,7 @@ void zedSaturationCallback(int value, void *data)
 	zedPtr->saturation_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_SATURATION, value - 1, value == 0);
+		zedPtr->zed_->setCameraSettingsValue(ZED_SATURATION, value - 1, value == 0);
 	}
 }
 
@@ -544,18 +549,7 @@ void zedGainCallback(int value, void *data)
 	zedPtr->gain_ = value;
 	if (zedPtr->zed_)
 	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_GAIN, value - 1, value == 0);
-	}
-}
-
-
-void zedWhiteBalanceCallback(int value, void *data)
-{
-    ZedIn *zedPtr = static_cast<ZedIn *>(data);
-	zedPtr->whiteBalance_ = value;
-	if (zedPtr->zed_)
-	{
-		zedPtr->zed_->setCameraSettingsValue(sl::zed::ZED_WHITEBALANCE, value - 1, value == 0);
+		zedPtr->zed_->setCameraSettingsValue(ZED_GAIN, value - 1, value == 0);
 	}
 }
 
