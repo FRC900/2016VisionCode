@@ -5,6 +5,7 @@
 #include <opencv2/gpu/stream_accessor.hpp>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#include <cublas_v2.h>
 
 using std::cout;
 using std::endl;
@@ -19,6 +20,16 @@ static inline void _safe_cuda_call(cudaError err, const char* msg, const char* f
 }
 #define SAFE_CALL(call,msg) _safe_cuda_call((call),(msg),__FILE__,__LINE__)
 
+#ifndef cublasSafeCall
+#define cublasSafeCall(err) __cublasSafeCall(err, __FILE__, __LINE__)
+#endif
+inline void __cublasSafeCall(cublasStatus_t err, const char *file, const int line)
+{
+if( CUBLAS_STATUS_SUCCESS != err) {
+fprintf(stderr, "CUBLAS error in file '%s', line %d\n \nerror %d \nterminating!\n",__FILE__, __LINE__,err);
+cudaDeviceReset(); assert(0);
+}
+}
 // Apply global contrast normalization to
 // each input image.
 // For each channel in each image, the mean and stddev has
@@ -316,6 +327,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	// of values seen). n is number of values corresponding
 	// to each M1 and M2 value.
 	mean_stddev_reduction_kernel1<<<grid,block,0,sa.getStream(stream)>>>(dPssIn, d_M1, d_M2, d_n);
+	SAFE_CALL(cudaStreamSynchronize(sa.getStream(stream)),"ZCA cudaStreamSynchronize failed");
 
 	// Second reduction generates mean and stddev values
 	// 12x12 fit in a single block so there's no
@@ -328,6 +340,7 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 		mean_stddev_reduction_kernel12<<<1, input.size(),0,sa.getStream(stream)>>>(d_M1, d_M2, d_n, dMean, dStddev);
 	else
 		mean_stddev_reduction_kernel24<<<1, input.size(),0,sa.getStream(stream)>>>(d_M1, d_M2, d_n, dMean, dStddev);
+	SAFE_CALL(cudaStreamSynchronize(sa.getStream(stream)),"ZCA cudaStreamSynchronize failed");
 
 	// Convert each input image held in GpuMats pointed to
 	// by dPssIn into a flattened format.  Each 2-D image
@@ -337,9 +350,27 @@ void cudaZCATransform(const std::vector<cv::gpu::GpuMat> &input,
 	// image has the mean and stddev computed individually
 	// in the CUDA kernels above
 	global_contrast_normalization_kernel<<<grid,block,0,sa.getStream(stream)>>>(dPssIn, dMean, dStddev, dFlattenedImages);
+	SAFE_CALL(cudaStreamSynchronize(sa.getStream(stream)),"ZCA cudaStreamSynchronize failed");
 
 	// Multiply images by weights to get the ZCA-whitened output
-	gemm(dFlattenedImages, weights, 1.0, buf, 0.0, zcaOut, 0, stream);
+	//gemm(dFlattenedImages, weights, 1.0, cv::gpu::GpuMat(), 0.0, zcaOut, 0, stream);
+
+	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
+    cublasHandle_t handle;
+    cublasSafeCall( cublasCreate_v2(&handle) );
+
+    cublasSafeCall( cublasSetStream_v2(handle, sa.getStream(stream)) );
+
+    cublasSafeCall( cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST) );
+    const float alphaf = 1.0;
+    const float betaf = 0.0;
+        cublasSafeCall( cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N, weights.cols, dFlattenedImages.rows, weights.rows,
+            &alphaf,
+            weights.ptr<float>(), static_cast<int>(weights.step / sizeof(float)),
+            dFlattenedImages.ptr<float>(), static_cast<int>(dFlattenedImages.step / sizeof(float)),
+            &betaf,
+            zcaOut.ptr<float>(), static_cast<int>(zcaOut.step / sizeof(float))) );
+    cublasSafeCall( cublasDestroy_v2(handle) );
 
 	// Copy to output buffer in the order expected by
 	// neural net input
