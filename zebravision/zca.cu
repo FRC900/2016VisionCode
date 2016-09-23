@@ -2,9 +2,7 @@
 #include <cstdio>
 #include "opencv2_3_shim.hpp"
 
-#include <cuda_runtime.h>
-#include <cuda_runtime_api.h>
-#include <cublas_v2.h>
+#include "cuda_utils.hpp"
 
 using std::cout;
 using std::endl;
@@ -13,27 +11,6 @@ using cv::gpu::PtrStepSz;
 #elif CV_MAJOR_VERSION == 3
 using cv::cuda::PtrStepSz;
 #endif
-
-static inline void safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number)
-{
-	if(err!=cudaSuccess)
-	{
-		fprintf(stderr,"%s\n\nFile: %s\n\nLine Number: %d\n\nReason: %s\n",msg,file_name,line_number,cudaGetErrorString(err));
-		exit(EXIT_FAILURE);
-	}
-}
-#define SAFE_CALL(call,msg) safe_cuda_call((call),(msg),__FILE__,__LINE__)
-
-#ifndef cublasSafeCall
-#define cublasSafeCall(err) cublasSafeCallWrapper(err, __FILE__, __LINE__)
-#endif
-void cublasSafeCallWrapper(cublasStatus_t err, const char *file, const int line)
-{
-	if( CUBLAS_STATUS_SUCCESS != err) {
-		fprintf(stderr, "CUBLAS error in file '%s', line %d\n \nerror %d \nterminating!\n", file, line ,err);
-		cudaDeviceReset(); assert(0);
-	}
-}
 
 // Take the output of the ZCA matrix mul - that will
 // be a matrix. Each image is a row, each row is the pixels
@@ -96,16 +73,15 @@ __device__ void combine_running_totals(float &M1_1, const float M1_2, float &M2_
 }
 
 // For each input image, calculate the mean and stddev
-// of each color channel
-// TODO : instead of 16x16 thread block use 12x12 or 24x24 depending
-//        on input size. Then combine this with the final step of converting
-//        M!/M2 into mean and stddev() at the very end of the kernel 
-//        This will eliminate the need for global memory for intermediates 
-//        since each image will fit in one block
+// of each color channel in each image.  Then, for each
+// pixel in a given image, apply global contrast normalization
+// to the image - subtract the mean and divide by the stddev
+// of the color channel of that image.
+// input is an array of images, output is a 2d matrix where
+// each image has been flattened into a single row
 __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 												   PtrStepSz<float> output)
 {
-
 	// Thread index within block - used for addressing smem below
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
@@ -220,7 +196,7 @@ n[i2] = 0;
 	}
 }
 
-void cudaZCATransform(const std::vector<GpuMat> &input, 
+__host__ void cudaZCATransform(const std::vector<GpuMat> &input, 
 		const GpuMat &weights, 
 		PtrStepSz<float> *dPssIn,
 		GpuMat &dFlattenedImages,
@@ -232,25 +208,33 @@ void cudaZCATransform(const std::vector<GpuMat> &input,
 	PtrStepSz<float> hPssIn[input.size()];
 	for (size_t i = 0; i < input.size(); ++i)
 		hPssIn[i] = input[i];
-	cudaMemcpy(dPssIn, hPssIn, input.size() * sizeof(PtrStepSz<float>), cudaMemcpyHostToDevice);
+	cudaSafeCall(cudaMemcpy(dPssIn, hPssIn, input.size() * sizeof(PtrStepSz<float>), cudaMemcpyHostToDevice), "cudaMemcpy dPssIn");
 
 	// Each block is one image
-	const dim3 block(32,32);
+	// Set the block size to the smallest power
+	// of two large enough to hold an image
+	dim3 block;
+	if (input[0].cols == 12)
+		block = dim3(16, 16);
+	else
+		block = dim3(32, 32);
 
 	// z dimension is number of images
 	const dim3 grid(1, 1, input.size());
 
+	// Todo : do this once in ZCA constructor
 	// Create a CUDA stream. This lets us queue up a number of
 	// cuda calls back to back and then later check to see
 	// that they all finished
 	cudaStream_t stream;
-	SAFE_CALL(cudaStreamCreate(&stream), "ZCA cudaStreamCreate");
+	cudaSafeCall(cudaStreamCreate(&stream), "ZCA cudaStreamCreate");
 
+	// Todo : do this once in ZCA constructor
     cublasHandle_t handle;
-    cublasSafeCall( cublasCreate_v2(&handle) );
-    cublasSafeCall( cublasSetStream_v2(handle, stream) );
+    cublasSafeCall(cublasCreate_v2(&handle), "cublasCreate");
+    cublasSafeCall(cublasSetStream_v2(handle, stream), "cublasSetStream");
 
-    cublasSafeCall( cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST) );
+    cublasSafeCall(cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST), "cublasSetPointerMode");
     const float alpha = 1.0;
     const float beta = 0.0;
 
@@ -260,27 +244,26 @@ void cudaZCATransform(const std::vector<GpuMat> &input,
 	// of values seen). n is number of values corresponding
 	// to each M1 and M2 value.
 	mean_stddev_reduction_kernel<<<grid,block,0,stream>>>(dPssIn, dFlattenedImages);
-	//SAFE_CALL(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
+	//cudaSafeCall(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
+
+
+	// Todo : do this once in ZCA constructor
+	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
 
 	// Multiply images by weights to get the ZCA-whitened output
-	//gemm(dFlattenedImages, weights, 1.0, GpuMat(), 0.0, zcaOut, 0, stream);
-
-	zcaOut.release();
-	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
-#if 1
-	cublasSafeCall( cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N, weights.cols, dFlattenedImages.rows, weights.rows,
+	cublasSafeCall(cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N, weights.cols, dFlattenedImages.rows, weights.rows,
 		&alpha,
 		weights.ptr<float>(), static_cast<int>(weights.step / sizeof(float)),
 		dFlattenedImages.ptr<float>(), static_cast<int>(dFlattenedImages.step / sizeof(float)),
 		&beta,
-		zcaOut.ptr<float>(), static_cast<int>(zcaOut.step / sizeof(float))) );
-#endif
+		zcaOut.ptr<float>(), static_cast<int>(zcaOut.step / sizeof(float))),
+		"cublasSgemm"	);
 
 	// Copy to output buffer in the order expected by
 	// neural net input
 	unflatten_kernel<<<grid,block,0,stream>>>(zcaOut, input[0].rows, input[0].cols, output);
 
-	SAFE_CALL(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
-	cublasSafeCall( cublasDestroy_v2(handle) );
-	SAFE_CALL(cudaStreamDestroy(stream), "ZCA cudaStreamDestroy failed");
+	cudaSafeCall(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
+	cublasSafeCall(cublasDestroy_v2(handle), "cublasDestroy");
+	cudaSafeCall(cudaStreamDestroy(stream), "ZCA cudaStreamDestroy failed");
 }
