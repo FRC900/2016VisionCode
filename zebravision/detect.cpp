@@ -705,10 +705,12 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
 #include <opencv2/cudaarithm.hpp>
 #endif
 // Possible GPU specialization
+bool cudaDepthThreshold(const GpuMat &image, const float depthMin, const float &depthMax);
+// 
 template<class MatT, class ClassifierT>
 bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const float depth_max, const GpuMat& detectCheck)
 {
-	return true;
+	return cudaDepthThreshold(detectCheck, depth_min, depth_max);
 	GpuMat dstNeg;
 	GpuMat dstLtMax;
 	GpuMat dstGtMin;
