@@ -383,6 +383,9 @@ void cudaZCATransform(const vector<GpuMat> &input,
 		GpuMat &gmOut,
 		float *output);
 
+#if CV_MAJOR_VERSION == 3
+#include <opencv2/cudawarping.hpp>
+#endif
 // Transform a vector of input images in floating
 // point format using the weights loaded
 // when this object was initialized
@@ -394,7 +397,7 @@ void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 		if (it->size() != size_)
 		{
 			foo.push_back(GpuMat());
-			resize(*it, foo[foo.size() - 1], size_);
+			cuda::resize(*it, foo[foo.size() - 1], size_);
 		}
 		else 
 		{

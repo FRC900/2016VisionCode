@@ -11,6 +11,7 @@
 #include "GIEClassifier.hpp"
 #include "Utilities.hpp"
 
+
 //#define VERBOSE
 
 using namespace std;
@@ -700,10 +701,14 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
     return false;
 }
 
+#if CV_MAJOR_VERSION == 3
+#include <opencv2/cudaarithm.hpp>
+#endif
 // Possible GPU specialization
 template<class MatT, class ClassifierT>
 bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const float depth_max, const GpuMat& detectCheck)
 {
+	return true;
 	GpuMat dstNeg;
 	GpuMat dstLtMax;
 	GpuMat dstGtMin;
@@ -711,22 +716,22 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
 	GpuMat dstFinal;
 
 	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
-	threshold (detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
-	if (countNonZero(dstNeg))
+	cv::cuda::threshold(detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
+	if (cv::cuda::countNonZero(dstNeg))
 		return true;
 
 	// Set dstLtMax to 1 if detectCheck < depth_max, otherwise set dst to 0
-	threshold (detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
+	cv::cuda::threshold(detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
 
 	// Set dstGtMin to 1 if detectCheck > depth_min, otherwise set dst to 0
-	threshold (detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
+	cv::cuda::threshold(detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
 
 	// dstInRange == 1 iff both LtMax and GtMin
-	multiply (dstLtMax, dstGtMin, dstInRange);
+	cv::cuda::multiply(dstLtMax, dstGtMin, dstInRange);
 
 	// dstFinal == 1 iff either InRange or Neg
-	add (dstNeg, dstInRange, dstFinal);
-	return (countNonZero(dstFinal) != 0);
+	cv::cuda::add(dstNeg, dstInRange, dstFinal);
+	return (cv::cuda::countNonZero(dstFinal) != 0);
 }
 
 template<class MatT, class ClassifierT>
