@@ -25,7 +25,7 @@ done
 #sudo apt-get update
 #sudo apt-get install libc6:armhf libstdc++6:armhf libncurses5:armhf
 
-sudo apt-get install libeigen3-dev build-essential gfortran git cmake libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev v4l-conf v4l-utils libgtk2.0-dev pkg-config exfat-fuse exfat-utils libprotobuf-dev protobuf-compiler unzip
+sudo apt-get install libeigen3-dev build-essential gfortran git cmake libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev v4l-conf v4l-utils libgtk2.0-dev pkg-config exfat-fuse exfat-utils libprotobuf-dev protobuf-compiler unzip python-numpy python-scipy
 
 sudo apt-get install --no-install-recommends libboost-all-dev
 
@@ -79,7 +79,7 @@ cd build
 if [ "$gpu" == "false" ] ; then
 	cmake -DCPU_ONLY ..
 else
-	cmake ..
+	cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF ..
 fi
 
 make -j4 all
@@ -88,7 +88,8 @@ make runtest
 make install
 
 # Install libsodium - this is a prereq for zeromq
-wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.11.tar.gz
+cd
+wget --no-check-certificate https://download.libsodium.org/libsodium/releases/libsodium-1.0.11.tar.gz
 tar -zxvf libsodium-1.0.11.tar.gz
 cd libsodium-1.0.11
 ./configure
@@ -99,7 +100,7 @@ rm -rf libsodium-1.0.11*
 
 # install zeromq
 cd
-wget https://github.com/zeromq/zeromq4-1/releases/download/v4.1.5/zeromq-4.1.5.tar.gz
+wget --no-check-certificate https://github.com/zeromq/zeromq4-1/releases/download/v4.1.5/zeromq-4.1.5.tar.gz
 tar -xzvf zeromq-4.1.5.tar.gz
 cd zeromq-4.1.5
 ./configure
@@ -108,7 +109,7 @@ sudo make install
 cd ..
 rm -rf zeromq-4.1.5*
 cd /usr/local/include/
-sudo wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
+sudo wget --no-check-certificate https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
 
 # Install tinyxml2
 cd
@@ -120,7 +121,7 @@ cmake ..
 make -j4
 sudo make install
 cd ../..
-rm -f tinyxml2
+rm -rf tinyxml2
 
 #install zed sdk
 if [ "$gpu" = true ] ; then
@@ -131,14 +132,14 @@ if [ "$gpu" = true ] ; then
 	else
 		ext = "ZED_SDK_Linux_x86_64_v1.0.0c.run" 
 	fi
-	wget https://www.stereolabs.com/download_327af3/$ext
+	wget --no-check-certificate https://www.stereolabs.com/download_327af3/$ext
 	chmod 755 $ext
 	./$ext
 	rm ./$ext
 fi
 
 cd
-wget https://github.com/FFmpeg/FFmpeg/archive/n3.1.3.zip
+wget --no-check-certificate https://github.com/FFmpeg/FFmpeg/archive/n3.1.3.zip
 unzip n3.1.3.zip
 cd FFmpeg-n3.1.3
 # configure gets confused with 64-bit kernel + 32-bit userspace
@@ -151,7 +152,7 @@ rm -rf FFmpeg-n3.1.3 n3.1.3.zip
 
 # OpenCV build info - needed to get CUBLAS gemm support
 cd
-wget https://github.com/Itseez/opencv/archive/2.4.13.zip
+wget --no-check-certificate https://github.com/Itseez/opencv/archive/2.4.13.zip
 unzip -v 2.4.13.zip
 cd opencv-2.4.13
 mkdir build
