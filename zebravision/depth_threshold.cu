@@ -57,6 +57,12 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> input,
 	// with just one final result per block
     for (unsigned int s = (blockDim.x * blockDim.y) / 2; s > 0; s >>= 1)
     {
+		if (inRange[0] == true)
+		{
+			if (tid == 0)
+				*answer = inRange[0];
+			return;
+		}
 		// Basically just propagate any true values
 		// down to thread 0 - only return false
 		// if the entire set of compares was false
@@ -66,9 +72,7 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> input,
     }
 
     if (tid == 0)
-	{
 		*answer = inRange[0];
-	}
 }
 
 __host__ bool cudaDepthThreshold(const GpuMat &image, const float depthMin, const float &depthMax)
