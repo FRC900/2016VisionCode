@@ -50,10 +50,10 @@
 // Additional references :
 
 #include <string>
-#include <cuda_runtime.h>
 #ifdef USE_MKL
 #include <mkl.h>
 #endif
+#include "cuda_utils.hpp"
 #include "zca.hpp"
 
 //#define DEBUG_TIME
@@ -407,17 +407,6 @@ void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 	cudaZCATransform(foo, weightsGPU_, dPssIn_, gm_, gmOut_, dest);
 }
 
-static inline void _safe_cuda_call(cudaError err, const char* msg, const char* file_name, const int line_number)
-{
-	if(err!=cudaSuccess)
-	{
-		fprintf(stderr,"%s\n\nFile: %s\n\nLine Number: %d\n\nReason: %s\n",msg,file_name,line_number,cudaGetErrorString(err));
-		exit(EXIT_FAILURE);
-	}
-}
-#define SAFE_CALL(call,msg) _safe_cuda_call((call),(msg),__FILE__,__LINE__)
-
-
 // Load a previously calcuated set of weights from file
 ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	dPssIn_(NULL)
@@ -451,7 +440,7 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 	if (!weightsGPU_.empty())
 	{
 		setDevice(0);
-		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
+		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
 	}
 }
@@ -469,7 +458,7 @@ ZCA::ZCA(const ZCA &zca) :
 	{
 		size_t batchSize = zca.gm_.rows;
 		weightsGPU_.upload(weights_);
-		SAFE_CALL(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
+		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = zca.gm_.clone();
 	}
 }
@@ -477,7 +466,7 @@ ZCA::ZCA(const ZCA &zca) :
 ZCA::~ZCA()
 {
 	if (dPssIn_)
-		SAFE_CALL(cudaFree(dPssIn_), "cudaFree dPssIn");
+		cudaSafeCall(cudaFree(dPssIn_), "cudaFree dPssIn");
 }
 
 
