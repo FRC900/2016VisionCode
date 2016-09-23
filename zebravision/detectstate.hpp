@@ -9,12 +9,11 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpuClassifier = false, bool gpuDetect = false, bool gie = false);
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false, bool tensorRT = false);
 		~DetectState();
 		bool update(void);
-		void toggleGIE(void);
-		void toggleGPUDetect(void);
-		void toggleGPUClassifier(void);
+		void toggleGPU(void);
+		void toggleTensorRT(void);
 		void changeD12Model(bool increment);
 		void changeD12SubModel(bool increment);
 		void changeD24Model(bool increment);
@@ -38,15 +37,13 @@ class DetectState
 		ClassifierIO  c12IO_;
 		ClassifierIO  c24IO_;
 		float         hfov_;
-		bool          gpuDetect_;
-		bool          gpuClassifier_;
-		bool          gie_;
+		bool          gpu_;
+		bool          tensorRT_;
 		// Settings from previous frame - used
 		// to undo changes if the selected state
 		// doesn't work
-		bool          oldGpuDetect_;
-		bool          oldGpuClassifier_;
-		bool          oldGie_;
+		bool          oldGpu_;
+		bool          oldTensorRT_;
 		bool          reload_;
 };
 

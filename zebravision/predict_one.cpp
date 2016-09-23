@@ -29,6 +29,7 @@ int main(int argc, char **argv)
 	Mat rsz;
 	Mat f32;
 	vector<Mat> imgs;
+	vector<GpuMat> gpuImgs;
 	string filename;
 	while(getline(infile, filename))
 	{
@@ -37,6 +38,7 @@ int main(int argc, char **argv)
 		resize(img, rsz, c.getInputGeometry()); 
 		rsz.convertTo(f32, CV_32FC3);
 		imgs.push_back(f32.clone());
+		gpuImgs.push_back(GpuMat(f32).clone());
 	}
 
 	//while (clio.findNextClassifierStage(false))
@@ -54,7 +56,7 @@ int main(int argc, char **argv)
 	}
 
 	CaffeClassifier<GpuMat> g(files[0], files[1], files[2], files[3], 256); 
-		vector<vector<Prediction>> p = g.ClassifyBatch(imgs,2);
+		vector<vector<Prediction>> p = g.ClassifyBatch(gpuImgs, 2);
 		for (auto v = p.cbegin(); v != p.cend(); ++v)
 		{
 			for (auto it = v->cbegin(); it != v->cend(); ++it)

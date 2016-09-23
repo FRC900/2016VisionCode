@@ -87,68 +87,15 @@ static vector<int> Argmax(const vector<float>& v, size_t N)
 // Each of the X vectors are themselves a vector which will have the 
 // N predictions with the highest confidences for the corresponding
 // input image
-template <>
-vector< vector<Prediction> > Classifier<Mat>::ClassifyBatch(
-		const vector<Mat> &imgs, const size_t numClasses)
+template <class MatT>
+vector< vector<Prediction> > Classifier<MatT>::ClassifyBatch(
+		const vector<MatT> &imgs, const size_t numClasses)
 {
 	// outputBatch will be a flat vector of N floating point values 
 	// per image (1 per N output labels), repeated
 	// times the number of input images batched per run
 	// Convert that into the output vector of vectors
-	//cerr << "ClassifyBatch Mat->Mat" << endl;
 	vector<float> outputBatch = PredictBatch(imgs);
-	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
-}
-
-template <>
-vector< vector<Prediction> > Classifier<GpuMat>::ClassifyBatch(
-		const vector<GpuMat> &imgs, const size_t numClasses)
-{
-	// outputBatch will be a flat vector of N floating point values 
-	// per image (1 per N output labels), repeated
-	// times the number of input images batched per run
-	// Convert that into the output vector of vectors
-	//cerr << "ClassifyBatch GpuMat->GpuMat" << endl;
-	vector<float> outputBatch = PredictBatch(imgs);
-	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
-}
-
-template<>
-vector< vector<Prediction> > Classifier<Mat>::ClassifyBatch(
-		const vector<GpuMat> &imgs, const size_t numClasses)
-{
-	// outputBatch will be a flat vector of N floating point values 
-	// per image (1 per N output labels), repeated
-	// times the number of input images batched per run
-	// Convert that into the output vector of vectors
-	//cerr << "ClassifyBatch GpuMat->Mat" << endl;
-	vector<Mat> cpuImgs;
-	for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
-	{
-		Mat cpuImg;
-		it->download(cpuImg);
-		cpuImgs.push_back(cpuImg);
-	}
-	vector<float> outputBatch = PredictBatch(cpuImgs);
-	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
-}
-
-template<>
-vector< vector<Prediction> > Classifier<GpuMat>::ClassifyBatch(
-		const vector<Mat> &imgs, const size_t numClasses)
-{
-	// outputBatch will be a flat vector of N floating point values 
-	// per image (1 per N output labels), repeated
-	// times the number of input images batched per run
-	// Convert that into the output vector of vectors
-	//cerr << "ClassifyBatch Mat->GpuMat" << endl;
-	vector<GpuMat> gpuImgs;
-	for (auto it = imgs.cbegin(); it != imgs.cend(); ++it)
-	{
-		GpuMat gpuImg(*it);
-		gpuImgs.push_back(gpuImg);
-	}
-	vector<float> outputBatch = PredictBatch(gpuImgs);
 	return floatsToPredictions(outputBatch, imgs.size(), numClasses);
 }
 

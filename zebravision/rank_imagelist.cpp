@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 	Mat img;
 	Mat rsz;
 	Mat f32;
-	vector<Mat> imgs;
+	vector<GpuMat> imgs;
 	vector<string> filenames;
 	vector<pair<string, double>> predictions;
 	string filename;
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 		img = imread(filename);
 		resize(img, rsz, c.getInputGeometry()); 
 		rsz.convertTo(f32, CV_32FC3);
-		imgs.push_back(f32.clone());
+		imgs.push_back(GpuMat(f32).clone());
 		if (imgs.size() == c.batchSize())
 		{
 			auto p = c.ClassifyBatch(imgs,2);
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 	sort(predictions.begin(), predictions.end(), 
 			[](const pair<string,double> &left, const pair<string,double> &right) 
 			{
-				return left.second < right.second;
+			return left.second < right.second;
 			});
 	for (auto it = predictions.cbegin(); it != predictions.cend(); ++it)
 		cout << it->first << " " << it->second << endl;

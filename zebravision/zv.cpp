@@ -310,7 +310,7 @@ int main( int argc, const char** argv )
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
 				ClassifierIO(args.c12BaseDir, args.c12DirNum, args.c12StageNum),
 				ClassifierIO(args.c24BaseDir, args.c24DirNum, args.c24StageNum),
-				camParams.fov.x, hasGPU, hasGPU);
+				camParams.fov.x, hasGPU);
 	}
 
 	// Find the first frame number which has ground truth data
@@ -702,20 +702,15 @@ int main( int argc, const char** argv )
 			{
 				gdDraw = !gdDraw;
 			}
-			else if (c == 'G') // toggle GIE mode
+			else if (c == 'C') // toggle GIE mode
 			{
 				if (detectState)
-					detectState->toggleGIE();
+					detectState->toggleTensorRT();
 			}
-			else if (c == 'C') // toggle GPU Classifier mode
+			else if (c == 'G') // toggle GPU/CPU detection mode
 			{
 				if (detectState)
-					detectState->toggleGPUClassifier();
-			}
-			else if (c == 'D') // toggle GPU Detector mode
-			{
-				if (detectState)
-					detectState->toggleGPUDetect();
+					detectState->toggleGPU();
 			}
 			else if (c == 'h') // toggle tracking histories
 			{

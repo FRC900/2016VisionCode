@@ -12,10 +12,10 @@
 #include <string>
 
 #include "detectstate.hpp"
-#ifndef USE_GIE
+#ifndef USE_TensorRT
 #include "CaffeClassifier.hpp"
 #else
-#include "GIEClassifier.hpp"
+#include "TensorRTClassifier.hpp"
 #endif
 
 using namespace std;
@@ -41,21 +41,18 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	   	const ClassifierIO &c12IO, 
 		const ClassifierIO &c24IO, 
 		float hfov, 
-		bool gpuDetect, 
-		bool gpuClassifier,
-	   	bool gie) :
+		bool gpu,
+	   	bool tensorRT) :
     detector_(NULL),
 	d12IO_(d12IO),
 	d24IO_(d24IO),
 	c12IO_(c12IO),
 	c24IO_(c24IO),
 	hfov_(hfov),
-	gpuDetect_(gpuDetect),
-	gpuClassifier_(gpuClassifier),
-	gie_(gie),
-	oldGpuDetect_(gpuDetect),
-	oldGpuClassifier_(gpuClassifier),
-	oldGie_(gie),
+	gpu_(gpu),
+	tensorRT_(tensorRT),
+	oldGpu_(gpu),
+	oldTensorRT_(tensorRT),
 	reload_(true)
 {
    update();
@@ -112,32 +109,22 @@ bool DetectState::update(void)
 	// Decision tree on which detector and classifier
 	// to run.  Some of these combinations might not make
 	// sense to maybe prune them down after some testing?
-#ifndef USE_GIE
-	//if (!gie_)
+#ifndef USE_TensorRT
+	//if (!tensorRT_)
 	{
-		if (!gpuClassifier_)
-		{
-			if (!gpuDetect_)
-				detector_ = new ObjDetectCPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-			else
-				detector_ = new ObjDetectGPUCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
+		if (!gpu_)
+			detector_ = new ObjDetectCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		else
-		{
-			if (!gpuDetect_)
-				detector_ = new ObjDetectCPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-			else
-				detector_ = new ObjDetectGPUCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
-		}
+			detector_ = new ObjDetectCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 	}
 #else
 	//else
 	{
-		// GIE implies GPU detection - CPU doesn't make sense there
-		if (!gpuClassifier_)
-			detector_ = new ObjDetectCPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+		// TensorRT implies GPU detection - CPU doesn't make sense there
+		if (!gpu_)
+			detector_ = new ObjDetectTensorRTGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		else
-			detector_ = new ObjDetectGPUGIEGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+			detector_ = new ObjDetectTensorRTGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 	}
 #endif
 
@@ -148,43 +135,33 @@ bool DetectState::update(void)
 	{
 		cerr << "Error loading detector" << endl;
 		detector_ = oldDetector;
-		gpuDetect_ = oldGpuDetect_;
-		gpuClassifier_ = oldGpuClassifier_;
-		gie_ = oldGie_;
+		gpu_ = oldGpu_;
+		tensorRT_ = oldTensorRT_;
 		return (oldDetector != NULL);
 	}
 
 	if (oldDetector)
 		delete oldDetector;
-	oldGpuDetect_ = gpuDetect_;
-	oldGpuClassifier_ = gpuClassifier_;
-	oldGie_ = gie_;
+	oldGpu_ = gpu_;
+	oldTensorRT_ = tensorRT_;
 
 	return true;
 }
 
-void DetectState::toggleGPUDetect(void)
+void DetectState::toggleGPU(void)
 {
 	if (getCudaEnabledDeviceCount() > 0)
 	{
-		gpuDetect_ = !gpuDetect_;
+		gpu_ = !gpu_;
 		reload_ = true;
 	}
 }
 
-void DetectState::toggleGPUClassifier(void)
+void DetectState::toggleTensorRT(void)
 {
 	if (getCudaEnabledDeviceCount() > 0)
 	{
-		gpuClassifier_ = !gpuClassifier_;
-		reload_ = true;
-	}
-}
-void DetectState::toggleGIE(void)
-{
-	if (getCudaEnabledDeviceCount() > 0)
-	{
-		gie_ = !gie_;
+		tensorRT_ = !tensorRT_;
 		reload_ = true;
 	}
 }
@@ -240,16 +217,12 @@ void DetectState::changeC24Model(bool increment)
 std::string DetectState::print(void) const
 {
 	string ret;
-	if (gpuDetect_)
-		ret += "G_";
+	if (gpu_)
+		ret += "GPU_";
 	else
-		ret += "C_";
-	if (gpuClassifier_)
-		ret += "G_";
-	else
-		ret += "C_";
-	if (gie_)
-		ret += "GIE";
+		ret += "CPU_";
+	if (tensorRT_)
+		ret += "TensorRT";
 	else
 		ret += "Caffe";
 	ret += " " + d12IO_.print() + "," + d24IO_.print() + "," + c12IO_.print() + "," + c24IO_.print();

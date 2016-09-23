@@ -28,8 +28,7 @@ class Classifier
 		// Each of the X vectors are themselves a vector which will have the 
 		// N predictions with the highest confidences for the corresponding
 		// input image
-		std::vector<std::vector<Prediction>> ClassifyBatch(const std::vector<cv::Mat> &imgs, const size_t numClasses);
-		std::vector<std::vector<Prediction>> ClassifyBatch(const std::vector<GpuMat> &imgs, const size_t numClasses);
+		std::vector<std::vector<Prediction>> ClassifyBatch(const std::vector<MatT> &imgs, const size_t numClasses);
 
 		// Get the width and height of an input image to the net
 		cv::Size getInputGeometry(void) const;

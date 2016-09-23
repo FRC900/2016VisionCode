@@ -749,10 +749,8 @@ bool NNDetect<MatT, ClassifierT>::initialized(void) const
 // Explicitly instatiate classes used elsewhere
 #ifndef USE_GIE
 template class NNDetect<Mat, CaffeClassifier<Mat>>;
-template class NNDetect<Mat, CaffeClassifier<GpuMat>>;
-template class NNDetect<GpuMat, CaffeClassifier<Mat>>;
 template class NNDetect<GpuMat, CaffeClassifier<GpuMat>>;
-template class NNDetect<Mat, GIEClassifier<Mat>>;
 #else
+template class NNDetect<Mat, GIEClassifier<Mat>>;
 template class NNDetect<GpuMat, GIEClassifier<GpuMat>>;
 #endif

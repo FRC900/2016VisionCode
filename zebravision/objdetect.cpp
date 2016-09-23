@@ -69,8 +69,6 @@ void ObjDetectNNet<MatT, ClassifierT>::Detect(const Mat &frameInput, const Mat &
 
 #ifndef USE_GIE 
 template class ObjDetectNNet<Mat, CaffeClassifier<Mat>>;
-template class ObjDetectNNet<GpuMat, CaffeClassifier<Mat>>;
-template class ObjDetectNNet<Mat, CaffeClassifier<GpuMat>>;
 template class ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>;
 #else
 template class ObjDetectNNet<Mat, GIEClassifier<Mat>>;
