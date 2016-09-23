@@ -246,6 +246,14 @@ void cudaZCATransform(const std::vector<GpuMat> &input,
 	cudaStream_t stream;
 	SAFE_CALL(cudaStreamCreate(&stream), "ZCA cudaStreamCreate");
 
+    cublasHandle_t handle;
+    cublasSafeCall( cublasCreate_v2(&handle) );
+    cublasSafeCall( cublasSetStream_v2(handle, stream) );
+
+    cublasSafeCall( cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST) );
+    const float alpha = 1.0;
+    const float beta = 0.0;
+
 	//Launch the first reduction kernel
 	// this will output an array of intermediate values
 	// in M1 (running average) and M2 (variance * number 
@@ -257,26 +265,22 @@ void cudaZCATransform(const std::vector<GpuMat> &input,
 	// Multiply images by weights to get the ZCA-whitened output
 	//gemm(dFlattenedImages, weights, 1.0, GpuMat(), 0.0, zcaOut, 0, stream);
 
+	zcaOut.release();
 	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
-    cublasHandle_t handle;
-    cublasSafeCall( cublasCreate_v2(&handle) );
-    cublasSafeCall( cublasSetStream_v2(handle, stream) );
-
-    cublasSafeCall( cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST) );
-    const float alphaf = 1.0;
-    const float betaf = 0.0;
+#if 1
 	cublasSafeCall( cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N, weights.cols, dFlattenedImages.rows, weights.rows,
-		&alphaf,
+		&alpha,
 		weights.ptr<float>(), static_cast<int>(weights.step / sizeof(float)),
 		dFlattenedImages.ptr<float>(), static_cast<int>(dFlattenedImages.step / sizeof(float)),
-		&betaf,
+		&beta,
 		zcaOut.ptr<float>(), static_cast<int>(zcaOut.step / sizeof(float))) );
-   cublasSafeCall( cublasDestroy_v2(handle) );
+#endif
 
 	// Copy to output buffer in the order expected by
 	// neural net input
 	unflatten_kernel<<<grid,block,0,stream>>>(zcaOut, input[0].rows, input[0].cols, output);
 
 	SAFE_CALL(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
+	cublasSafeCall( cublasDestroy_v2(handle) );
 	SAFE_CALL(cudaStreamDestroy(stream), "ZCA cudaStreamDestroy failed");
 }
