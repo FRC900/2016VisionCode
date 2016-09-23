@@ -90,6 +90,7 @@ __host__ bool cudaDepthThreshold(const GpuMat &image, const float depthMin, cons
 	cudaSafeCall(cudaDeviceSynchronize(), "depthThreshold cudaDeviceSynchronize failed");
 
 	cudaSafeCall(cudaMemcpy(&hResult, dResult, sizeof(bool), cudaMemcpyDeviceToHost), "cudaMemcpy depth result");
+	cudaSafeCall(cudaFree(dResult), "depthThreshold cudaFree");
 
 	return hResult;
 }
