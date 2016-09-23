@@ -703,10 +703,12 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
 
 #if CV_MAJOR_VERSION == 3
 #include <opencv2/cudaarithm.hpp>
+#else
+#define cuda gpu
 #endif
 // Possible GPU specialization
 bool cudaDepthThreshold(const GpuMat &image, const float depthMin, const float &depthMax);
-// 
+
 template<class MatT, class ClassifierT>
 bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const float depth_max, const GpuMat& detectCheck)
 {
@@ -718,22 +720,22 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
 	GpuMat dstFinal;
 
 	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
-	cv::cuda::threshold(detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
-	if (cv::cuda::countNonZero(dstNeg))
+	cuda::threshold(detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
+	if (cuda::countNonZero(dstNeg))
 		return true;
 
 	// Set dstLtMax to 1 if detectCheck < depth_max, otherwise set dst to 0
-	cv::cuda::threshold(detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
+	cuda::threshold(detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
 
 	// Set dstGtMin to 1 if detectCheck > depth_min, otherwise set dst to 0
-	cv::cuda::threshold(detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
+	cuda::threshold(detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
 
 	// dstInRange == 1 iff both LtMax and GtMin
-	cv::cuda::multiply(dstLtMax, dstGtMin, dstInRange);
+	cuda::multiply(dstLtMax, dstGtMin, dstInRange);
 
 	// dstFinal == 1 iff either InRange or Neg
-	cv::cuda::add(dstNeg, dstInRange, dstFinal);
-	return (cv::cuda::countNonZero(dstFinal) != 0);
+	cuda::add(dstNeg, dstInRange, dstFinal);
+	return (cuda::countNonZero(dstFinal) != 0);
 }
 
 template<class MatT, class ClassifierT>

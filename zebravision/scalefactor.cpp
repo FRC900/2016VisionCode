@@ -4,6 +4,7 @@ using namespace std;
 using namespace cv;
 #if CV_MAJOR_VERSION == 2
 using namespace cv::gpu;
+#define cuda gpu
 #elif CV_MAJOR_VERSION == 3
 #include <opencv2/cudawarping.hpp>
 using namespace cv::cuda;
@@ -55,7 +56,7 @@ void scalefactor(const GpuMat &inputimage, const Size &objectsize, const Size &m
 		//set objectsize.width to scalefactor * objectsize.width
 		//set objectsize.height to scalefactor * objectsize.height
 		GpuMat outputimage;
-		cv::cuda::resize(inputimage, outputimage, Size(), scale, scale);
+		cuda::resize(inputimage, outputimage, Size(), scale, scale);
 
 		// Resize will round / truncate to integer size, recalculate
 		// scale using actual results from the resize
@@ -96,7 +97,7 @@ void scalefactor(const GpuMat &inputimage, const vector<pair<GpuMat, double> > &
 		GpuMat outputimage;
 
 		Size newSize(it->first.cols * rescaleFactor, it->first.rows * rescaleFactor);
-		cv::cuda::resize(inputimage, outputimage, newSize);
+		cuda::resize(inputimage, outputimage, newSize);
 		// calculate scale from actual size, which will
 		// include rounding done to get to integral number
 		// of pixels in each dimension
