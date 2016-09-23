@@ -1,10 +1,11 @@
+name: "D24"
 layer {
   name: "train-data"
   type: "Data"
   top: "data"
   top: "label"
   include {
-    phase: TRAIN
+    stage: "train"
   }
   transform_param {
     scale: 0.015164888
@@ -13,9 +14,7 @@ layer {
     mean_value: 127.5
   }
   data_param {
-    source: "/home/kjaget/DIGITS/digits/jobs/20160904-161905-abd5/train_db"
     batch_size: 128
-    backend: LMDB
   }
 }
 layer {
@@ -24,7 +23,7 @@ layer {
   top: "data"
   top: "label"
   include {
-    phase: TEST
+    stage: "val"
   }
   transform_param {
     scale: 0.015164888
@@ -33,9 +32,7 @@ layer {
     mean_value: 127.5
   }
   data_param {
-    source: "/home/kjaget/DIGITS/digits/jobs/20160904-161905-abd5/val_db"
     batch_size: 128
-    backend: LMDB
   }
 }
 layer {
@@ -221,7 +218,7 @@ layer {
   bottom: "label"
   top: "accuracy"
   include {
-    phase: TEST
+    stage: "val"
   }
 }
 layer {
@@ -230,4 +227,16 @@ layer {
   bottom: "fc2_d24"
   bottom: "label"
   top: "loss"
+  exclude {
+    stage: "deploy"
+  }
+}
+layer {
+  name: "softmax"
+  type: "Softmax"
+  bottom: "fc2_d24"
+  top: "softmax"
+  include {
+    stage: "deploy"
+  }
 }
