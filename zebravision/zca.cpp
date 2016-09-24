@@ -327,6 +327,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	// slight performance bump.
 
 	// GPU is faster so use it if it exists.
+#if 0
 	if (!weightsGPU_.empty())
 	{
 		gm_.upload(work);
@@ -335,6 +336,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		gmOut_.download(output);
 	}
 	else if (!weights_.empty())
+#endif
 	{
 #ifdef USE_MKL
 		const size_t m = work.rows;
