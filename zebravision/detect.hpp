@@ -112,6 +112,4 @@ class NNDetect
 
 		bool depthInRange(const float depth_min, const float depth_max, 
 				const cv::Mat &detectCheck);
-		bool depthInRange(const float depth_min, const float depth_max, 
-				const GpuMat &detectCheck);
 };
