@@ -1,3 +1,4 @@
+#include <vector>
 #include "cuda_utils.hpp"
 #include "opencv2_3_shim.hpp"
 
@@ -11,7 +12,7 @@ using cv::cuda::PtrStepSz;
 // in the range between depthMin and depthMax.  If
 // so, set answer to true. If all pixels fall outside
 // the range, set answer to false.
-__global__ void depth_threshold_kernel(const PtrStepSz<float> input,
+__global__ void depth_threshold_kernel(const PtrStepSz<float> *input,
 									   const float depthMin,
 									   const float depthMax,
 									   bool *answer)
@@ -19,21 +20,23 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> input,
 	// Thread index within block - used for addressing smem below
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
-	__shared__ bool inRange[32*32*3];
+	__shared__ bool inRange[16*16];
 
 	// 2D pixel index of current thread
-	const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-	const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+	const int xIndex = threadIdx.x;
+	const int yIndex = threadIdx.y;
+
+	const int imgIndex = blockIdx.x;
 
 	// Only valid threads perform memory I/O
-	if((xIndex < input.cols) && (yIndex < input.rows))
+	if((xIndex < input[0].cols) && (yIndex < input[0].rows))
 	{
 		// Be conservative here - if any of the depth values in the 
 		// target rect are in the expected range, consider the entire 
 		// rect in range.  Also say that it is in range if any of the 
 		// depth values are negative (i.e. no depth info for those pixels)
-		const float depth = input(yIndex, xIndex);
-		if ((depth <= 0) || ((depth > depthMin) && (depth < depthMax)))
+		const float depth = input[imgIndex](yIndex, xIndex);
+		if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
 			inRange[tid] = true;
 		else
 			inRange[tid] = false;
@@ -57,12 +60,9 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> input,
 	// with just one final result per block
     for (unsigned int s = (blockDim.x * blockDim.y) / 2; s > 0; s >>= 1)
     {
-		if (inRange[0] == true)
-		{
-			if (tid == 0)
-				*answer = inRange[0];
-			return;
-		}
+		if (inRange[0])
+			break;
+
 		// Basically just propagate any true values
 		// down to thread 0 - only return false
 		// if the entire set of compares was false
@@ -72,29 +72,39 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> input,
     }
 
     if (tid == 0)
-		*answer = inRange[0];
+		answer[imgIndex] = inRange[0];
 }
 
-__host__ bool cudaDepthThreshold(const GpuMat &image, const float depthMin, const float &depthMax)
+__host__ std::vector<bool> cudaDepthThreshold(const std::vector<GpuMat> &depthList, const float depthMin, const float depthMax)
 {
+	// Create array of PtrStepSz entries corresponding to
+	// each GPU mat in depthList. Copy it to device memory
+
+	PtrStepSz<float> hPssIn[depthList.size()];
+	for (size_t i = 0; i < depthList.size(); ++i)
+		hPssIn[i] = depthList[i];
+	PtrStepSz<float> *dPssIn;
+	cudaSafeCall(cudaMalloc(&dPssIn, depthList.size() * sizeof(*dPssIn)), "cudaMalloc threshold dPssIn");
+	cudaSafeCall(cudaMemcpy(dPssIn, hPssIn, depthList.size() * sizeof(PtrStepSz<float>), cudaMemcpyHostToDevice), "cudaMemcpy dPssIn");
+	
 	bool *dResult;
-	bool  hResult;
+	cudaSafeCall(cudaMalloc(&dResult, depthList.size() * sizeof(bool)), "cudaMalloc threshold result");
 
-	cudaSafeCall(cudaMalloc(&dResult, sizeof(bool)), "cudaMalloc threshold result");
-
-	// Each block is one image
+	// Each block is one depth
 	// Set the block size to the smallest power
-	// of two large enough to hold an image
+	// of two large enough to hold an depth
 	const dim3 block(16, 16);
 
-	// only do 1 image at a time for now
-	const dim3 grid(1, 1);
+	// each block is 1 image
+	const dim3 grid(depthList.size());
 
-	depth_threshold_kernel<<<grid, block>>>(image, depthMin, depthMax, dResult);
+	depth_threshold_kernel<<<grid, block>>>(dPssIn, depthMin, depthMax, dResult);
 	cudaSafeCall(cudaDeviceSynchronize(), "depthThreshold cudaDeviceSynchronize failed");
 
-	cudaSafeCall(cudaMemcpy(&hResult, dResult, sizeof(bool), cudaMemcpyDeviceToHost), "cudaMemcpy depth result");
+	bool hResult[depthList.size()];
+	cudaSafeCall(cudaMemcpy(&hResult, dResult, sizeof(bool) * depthList.size(), cudaMemcpyDeviceToHost), "cudaMemcpy depth result");
+	cudaSafeCall(cudaFree(dPssIn), "depthThreshold cudaFree");
 	cudaSafeCall(cudaFree(dResult), "depthThreshold cudaFree");
 
-	return hResult;
+	return std::vector<bool>(hResult, hResult + depthList.size());
 }

@@ -321,6 +321,7 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
     {
         scalefactor(depthIn, Size(wsize, wsize), minSize, maxSize, scaleFactor, scaledDepth);
     }
+
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
@@ -338,6 +339,7 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
         size_t thisWindowsChecked = 0;
         size_t thisWindowsPassed  = 0;
 
+		vector<Window> unfilteredWindows;
         // Start at the upper left corner.  Loop through the rows and cols adding
 		// each position to the list to check until the detection window falls off 
 		// the edges of the scaled image
@@ -347,18 +349,39 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
             {
                 thisWindowsChecked += 1;
 				const Rect rect(c, r, wsize, wsize);
-				// If there is depth data, filter using it :
-				// Throw out rects which would indicate an object that is at the
-				// wrong depth given the size of the window being searched
-                if (depthIn.empty() ||
-                    depthInRange(depth_min, depth_max, scaledDepth[scale].first(rect)))
-				{
-					windows.push_back(Window(rect, scale));
-					thisWindowsPassed += 1;
-				}
+				unfilteredWindows.push_back(Window(rect, scale));
             }
         }
         windowsChecked += thisWindowsChecked;
+		vector<bool> validList;
+
+		// If there is depth data, filter using it :
+		// Throw out rects which would indicate an object that is at the
+		// wrong depth given the size of the window being searched
+		if (!depthIn.empty())
+		{
+			vector<MatT> depthList;
+
+			for (size_t i = 0; i < unfilteredWindows.size(); i++)
+			{
+				const Rect r(unfilteredWindows[i].first);
+				size_t scale = unfilteredWindows[i].second;
+				depthList.push_back(scaledDepth[scale].first(r));
+			}
+			checkDepthList(depth_min, depth_max, depthList, validList);
+		}
+		else
+		{
+			validList = vector<bool>(unfilteredWindows.size(), true);
+		}
+		for (size_t i = 0; i < unfilteredWindows.size(); i++)
+		{
+			if (validList[i])
+			{
+				windows.push_back(unfilteredWindows[i]);
+				thisWindowsPassed += 1;
+			}
+		}
 #if 0
         cout << " Windows Passed:" << thisWindowsPassed << "/" << thisWindowsChecked << endl;
 #endif
@@ -678,7 +701,19 @@ void NNDetect<MatT, ClassifierT>::doBatchCalibration(ClassifierT            &cla
 	}
 }
 
-// Can't do partial specialization of member functions?
+
+// Check each image in the list to see if any pixels
+// in the window are at the correct depth for the size/scale
+// of that window.  
+template<class MatT, class ClassifierT>
+void NNDetect<MatT, ClassifierT>::checkDepthList(const float depth_min, const float depth_max,
+		const vector<Mat> &depthList, vector<bool> &validList)
+{
+	validList.clear();
+	for (auto it = depthList.cbegin(); it != depthList.cend(); ++it)
+		validList.push_back(depthInRange(depth_min, depth_max, *it));
+}
+
 
 // Be conservative here - if any of the depth values in the target rect
 // are in the expected range, consider the rect in range.  Also
@@ -692,7 +727,7 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
         const float *p = detectCheck.ptr<float>(py);
         for (int px = 0; px < detectCheck.cols; px++)
         {
-            if ((p[px] <= 0.0) || ((p[px] < depth_max) && (p[px] > depth_min)))
+            if (std::isnan(p[px]) || (p[px] <= 0.0) || ((p[px] < depth_max) && (p[px] > depth_min)))
             {
                 return true;
             }
@@ -701,41 +736,30 @@ bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const floa
     return false;
 }
 
-#if CV_MAJOR_VERSION == 3
-#include <opencv2/cudaarithm.hpp>
-#else
-#define cuda gpu
-#endif
-// Possible GPU specialization
-bool cudaDepthThreshold(const GpuMat &image, const float depthMin, const float &depthMax);
+// GPU specialization
+vector<bool> cudaDepthThreshold(const vector<GpuMat> &depthList, const float depthMin, const float depthMax);
 
 template<class MatT, class ClassifierT>
-bool NNDetect<MatT, ClassifierT>::depthInRange(const float depth_min, const float depth_max, const GpuMat& detectCheck)
+void NNDetect<MatT, ClassifierT>::checkDepthList(const float depth_min, const float depth_max,
+		const vector<GpuMat> &depthList, vector<bool> &validList)
 {
-	return cudaDepthThreshold(detectCheck, depth_min, depth_max);
-	GpuMat dstNeg;
-	GpuMat dstLtMax;
-	GpuMat dstGtMin;
-	GpuMat dstInRange;
-	GpuMat dstFinal;
+	const size_t batchSize = 128;
+	validList.clear();
+	vector<GpuMat> depthBatch;
+	vector<Mat> depthMats;
+	for (auto it = depthList.cbegin(); it != depthList.cend(); ++it)
+	{
+		depthBatch.push_back(*it);
+		if ((depthBatch.size() == batchSize) || (it == (depthList.cend() - 1)))
+		{
+			auto validBatch = cudaDepthThreshold(depthBatch, depth_min, depth_max);
+			for (auto v = validBatch.cbegin(); v != validBatch.cend(); ++v)
+				validList.push_back(*v);
 
-	// Set dstNeg to 1 if src < 0, otherwise set dst to 0
-	cuda::threshold(detectCheck, dstNeg, 0, 1, THRESH_BINARY_INV);
-	if (cuda::countNonZero(dstNeg))
-		return true;
-
-	// Set dstLtMax to 1 if detectCheck < depth_max, otherwise set dst to 0
-	cuda::threshold(detectCheck, dstLtMax, depth_max, 1, THRESH_BINARY_INV);
-
-	// Set dstGtMin to 1 if detectCheck > depth_min, otherwise set dst to 0
-	cuda::threshold(detectCheck, dstGtMin, depth_min, 1, THRESH_BINARY);
-
-	// dstInRange == 1 iff both LtMax and GtMin
-	cuda::multiply(dstLtMax, dstGtMin, dstInRange);
-
-	// dstFinal == 1 iff either InRange or Neg
-	cuda::add(dstNeg, dstInRange, dstFinal);
-	return (cuda::countNonZero(dstFinal) != 0);
+			depthBatch.clear();
+			validBatch.clear();
+		}
+	}
 }
 
 template<class MatT, class ClassifierT>
