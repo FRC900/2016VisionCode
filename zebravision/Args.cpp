@@ -9,33 +9,45 @@ using namespace std;
 
 static void Usage(void)
 {
-   cout << "Usage : test [option list] [camera # | video name]" << endl << endl;
+   cout << "Usage : test [option list] [camera # | input file name]" << endl << endl;
    cout << "  Camera number is an integer corresponding to /dev/video??" << endl;
+   cout << "  Input files can be video, combined video & depth (ZMS or SVO) or PNG/JPG images" << endl;
 
    cout << "\t--frame=<frame num>  start at given frame" << endl;
    cout << "\t--all                write to disk all detected images in each frame" << endl;
    cout << "\t--batch              run without GUI" << endl;
-   cout << "\t--skip=<x>           skip frames, only processing every <x> - file input only." << endl;
+   cout << "\t--skip=<x>           skip frames, only processing every <x> - file input only" << endl;
+   cout << "\t--pause              start paused" << endl;
    cout << "\t--calibrate          bring up crosshair to calibrate camera position" << endl;
-   cout << "\t--capture            save raw camera video to output file" << endl;
-   cout << "\t--captureSkip=       only save one of every N frames" << endl;
+   cout << "\t--capture            write raw camera video to output file" << endl;
+   cout << "\t--captureSkip=       only write one of every N frames" << endl;
    cout << "\t--save               write processed video to output file" << endl;
-   cout << "\t--saveSkip=          only save one of every N processed frames" << endl;
+   cout << "\t--saveSkip=          only write one of every N processed frames" << endl;
    cout << "\t--no-rects           start with detection rectangles disabled" << endl;
    cout << "\t--no-tracking        start with tracking rectangles disabled" << endl;
    cout << "\t--no-detection       disable object detection" << endl;
    cout << "\t--d12Base=           base directory for d12 info" << endl;
    cout << "\t--d12Dir=            pick d12 dir and stage number" << endl;
    cout << "\t--d12Stage=          from command line" << endl;
+   cout << "\t--d12Threshold=      set d12 detection threshold" << endl;
    cout << "\t--d24Base=           base directory for d24 info" << endl;
    cout << "\t--d24Dir=            pick d24 dir and stage number" << endl;
    cout << "\t--d24Stage=          from command line" << endl;
+   cout << "\t--d24Threshold=      set d24 detection threshold" << endl;
+   cout << "\t--c12Base=           base directory for c12 info" << endl;
+   cout << "\t--c12Dir=            pick c12 dir and stage number" << endl;
+   cout << "\t--c12Stage=          from command line" << endl;
+   cout << "\t--c12Threshold=      set c12 detection threshold" << endl;
+   cout << "\t--c24Base=           base directory for c24 info" << endl;
+   cout << "\t--c24Dir=            pick c24 dir and stage number" << endl;
+   cout << "\t--c24Stage=          from command line" << endl;
+   cout << "\t--c24Threshold=      set c24 detection threshold" << endl;
    cout << "\t--groundTruth        only test frames which have ground truth data " << endl;
    cout << "\t--xmlFile=           XML file to read/write settings to/from" << endl;
    cout << endl;
    cout << "Examples:" << endl;
    cout << "test : start in GUI mode, open default camera, start detecting and tracking while displaying results in the GUI" << endl;
-   cout << "test --batch --capture : Start without a gui, write captured video to disk.  This is the normal way the code is run on the robot during matches. The code communicates via network tables to the roborio." << endl;
+   cout << "test --batch --capture : Start without a gui, write captured video to disk.  This is the normal way the code is run on the robot during matches. The code communicates via ZMQ to the roborio." << endl;
    cout << "test --batch --all foo.mp4 : run through foo.mp4. For each frame, write to disk images of all recognized objects. Might be useful for grabbing negative samples from a video known to have no positives in it" << endl;
 }
 
