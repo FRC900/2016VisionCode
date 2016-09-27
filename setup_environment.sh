@@ -108,11 +108,11 @@ rm -rf tinyxml2
 #install zed sdk
 if [ "$gpu" = true ] ; then
 	if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
-		ext = "ZED_SDK_Linux_JTK1_v1.0.0c.run"
+		ext = "ZED_SDK_Linux_JTK1_v1.1.0.run"
 	elif [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
-		ext = "ZED_SDK_Linux_JTX1_v0.9.4e_beta.run"
+		ext = "ZED_SDK_Linux_JTX1_v1.1.0_32b_JP21.run"
 	else
-		ext = "ZED_SDK_Linux_x86_64_v1.0.0c.run" 
+		ext = "ZED_SDK_Linux_x86_64_v1.1.0.run" 
 	fi
 	wget --no-check-certificate https://www.stereolabs.com/download_327af3/$ext
 	chmod 755 $ext
