@@ -445,6 +445,7 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 		setDevice(0);
 		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
+		gmOut_ = GpuMat(gm_.size(), gm_.type());
 	}
 }
 
@@ -463,6 +464,7 @@ ZCA::ZCA(const ZCA &zca) :
 		weightsGPU_.upload(weights_);
 		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = zca.gm_.clone();
+		gmOut_ = zca.gm_.clone();
 	}
 }
 

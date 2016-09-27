@@ -17,19 +17,21 @@ using cv::cuda::PtrStepSz;
 // in BGRBGRBGR.. order
 // Convert that to a flat 1-D array as expected by the neural
 // net input stages
-__global__ void unflatten_kernel(const PtrStepSz<float> input,
-								 const size_t rows,
-								 const size_t cols,
-							 	 float *output)
+__global__ void split_image_channels(const PtrStepSz<float> input,
+									 const size_t rows,
+									 const size_t cols,
+									 float *output)
 {
 	// 2D Index of current thread
-	const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-	const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+	const int xIndex = threadIdx.x;
+	const int yIndex = threadIdx.y;
 
-	// Each image it its own zIndex
-	const int zIndex = blockIdx.z * blockDim.z + threadIdx.z;
+	// Each image is its own block
+	const int imgIndex = blockIdx.x;
 
-	//Only valid threads perform memory I/O
+	// Only valid threads perform memory I/O
+	// See if thisis needed after setting the
+	// block size to the image size
 	if((xIndex < cols) && (yIndex < rows))
 	{
 		// yIndex * cols = number of floats per complete
@@ -38,14 +40,14 @@ __global__ void unflatten_kernel(const PtrStepSz<float> input,
 		// Multiply by three to account for R, G, B float values
 		//   per col in the input images
 		const int flatIdxX = 3*(yIndex * cols + xIndex);
-		const float blue  = input(zIndex, flatIdxX + 0);
-		const float green = input(zIndex, flatIdxX + 1);
-		const float red	  = input(zIndex, flatIdxX + 2);
+		const float blue   = input(imgIndex, flatIdxX + 0);
+		const float green  = input(imgIndex, flatIdxX + 1);
+		const float red	   = input(imgIndex, flatIdxX + 2);
 
 		// Convert to flat 1-D representation
 		// order is [image][color channel][row][col]
 		const int chanDist = rows * cols;
-		const int idx = zIndex * 3 * chanDist + // 3 channels of row*col pixels per image
+		const int idx = imgIndex * 3 * chanDist + // 3 color channels of row*col pixels per image
 			            yIndex * cols +         // select correct row   
 						xIndex;                 // and the column in that row
 
@@ -88,59 +90,138 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 	// Shared memory per channel per thread = 2 floats for
 	// mean and stddev sub-totals. Also keep 1 value per pixel
 	// (i.e. 1 per each 3-channel set of above floats) for a total
-	// of how many pixels ahve been processed.
+	// of how many pixels have been processed.
 	// So a 3 channel pixel needs 1 unsigned int and 6 floats
 	// Thread blocks are up to 24x24 images, one thread per 3-channel pixel
 	// TODO : fixme for variable sized thread blocks
-	__shared__ float M1[32*32*3];
-	__shared__ float M2[32*32*3];
-	__shared__ unsigned int n[32*32];
+	__shared__ float M1[24*24*3];
+	__shared__ float M2[24*24*3];
+	__shared__ unsigned int n[24*24];
 
 	// 2D Index of current thread
-	const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-	const int yIndex = blockIdx.y * blockDim.y + threadIdx.y;
+	const int xIndex = threadIdx.x;
+	const int yIndex = threadIdx.y;
 
-	// Each image it its own zIndex
-	const int zIndex = blockIdx.z * blockDim.z + threadIdx.z;
+	// Each image it its own block
+	const int imgIndex = blockIdx.x;
 
-	// Only valid threads perform memory I/O
-	if((xIndex < input[zIndex].cols) && (yIndex < input[zIndex].rows))
-	{
-		// xIndex * 3 since col has a blue green and red component
-		const float blue  = input[zIndex](yIndex, 3*xIndex);
-		const float green = input[zIndex](yIndex, 3*xIndex + 1);
-		const float red	  = input[zIndex](yIndex, 3*xIndex + 2);
+	// TODO : cut the block size by 3x, do the first
+	// reduction straight from memory?  Eliminates
+	// 2/3rds of smem needed...
 
-		// Initialize running average
-		M1[tid * 3]     = blue;
-		M1[tid * 3 + 1] = green;
-		M1[tid * 3 + 2] = red;
+	// Will need do 3x the number of pixels in the final 
+	// processing step at the end.
 
-		M2[tid * 3]     = 0;
-		M2[tid * 3 + 1] = 0;
-		M2[tid * 3 + 2] = 0;
+	// xIndex * 3 since col has a blue green and red component
+	const float blue  = input[imgIndex](yIndex, 3*xIndex);
+	const float green = input[imgIndex](yIndex, 3*xIndex + 1);
+	const float red	  = input[imgIndex](yIndex, 3*xIndex + 2);
 
-		// Initialize pixel count
-		n[tid] = 1;
-	}
-	else
-	{
-		// This thread is outside the bounds of the
-		// image and therefore has nothing to contribute
-		// to the final result
-		n[tid] = 0;
-	}
-	
+	// Initialize running average
+	M1[tid * 3]     = blue;
+	M1[tid * 3 + 1] = green;
+	M1[tid * 3 + 2] = red;
+
+	M2[tid * 3]     = 0;
+	M2[tid * 3 + 1] = 0;
+	M2[tid * 3 + 2] = 0;
+
+	// Initialize pixel count
+	n[tid] = 1;
+
     __syncthreads();
 
-    // do reduction in shared mem
-	// For each thread, combine the results from 2 threads
+	// For each thread, combine the results from 2 or 3 threads
 	// down into one. Each pass through the loop eliminates
-	// half of the partial results, eventually ending up
+	// half or 2/3rds of the partial results, eventually ending up
 	// with just one final result per block
-    for (unsigned int s = (blockDim.x * blockDim.y) / 2; s > 0; s >>= 1)
-    {
-        if ((tid < s) && (n[tid + s]))
+
+	// First do a pair of reductions by 3x. Both 12x12
+	// and 24x24 have 3^2*2^N as prime factors, so this
+	// will reduce the number of intermediate terms
+	// to a power of 2.
+    unsigned int s = (blockDim.x * blockDim.y) / 3;
+	if (tid < s) 
+	{
+		// N is the same for all 3 channels of a
+		// given pixel. Re-use it when combining
+		// the stats of the 3 channels
+		unsigned int saved_n = n[tid];
+		for (int i = 0; i < 3; i++)
+		{
+			// Blue, green, red = 3 entries per shared mem array
+			const int i1 = 3 * tid + i;
+			const int i2 = 3 * (tid + s) + i;
+			n[tid] = saved_n;
+			combine_running_totals(M1[i1], M1[i2], 
+					M2[i1], M2[i2], 
+					n[tid], n[tid + s]);
+		}
+		// N is the same for all 3 channels of a
+		// given pixel. Re-use it when combining
+		// the stats of the 3 channels
+		saved_n = n[tid];
+		for (int i = 0; i < 3; i++)
+		{
+			// Blue, green, red = 3 entries per shared mem array
+			const int i1 = 3 * tid + i;
+			const int i2 = 3 * (tid + 2*s) + i;
+			n[tid] = saved_n;
+			combine_running_totals(M1[i1], M1[i2], 
+					M2[i1], M2[i2], 
+					n[tid], n[tid + 2*s]);
+		}
+	}
+	__syncthreads();
+    s = (blockDim.x * blockDim.y) / 9;
+	if (tid < s) 
+	{
+		// N is the same for all 3 channels of a
+		// given pixel. Re-use it when combining
+		// the stats of the 3 channels
+		unsigned int saved_n = n[tid];
+		for (int i = 0; i < 3; i++)
+		{
+			// Blue, green, red = 3 entries per shared mem array
+			const int i1 = 3 * tid + i;
+			const int i2 = 3 * (tid + s) + i;
+			n[tid] = saved_n;
+			combine_running_totals(M1[i1], M1[i2], 
+					M2[i1], M2[i2], 
+					n[tid], n[tid + s]);
+		}
+		saved_n = n[tid];
+		for (int i = 0; i < 3; i++)
+		{
+			// Blue, green, red = 3 entries per shared mem array
+			const int i1 = 3 * tid + i;
+			const int i2 = 3 * (tid + 2*s) + i;
+			n[tid] = saved_n;
+			combine_running_totals(M1[i1], M1[i2], 
+					M2[i1], M2[i2], 
+					n[tid], n[tid + 2*s]);
+		}
+	}
+	__syncthreads();
+
+	// At this point the number of intermediate
+	// results is a power of two.  
+	// Keep reducing by 2x until only one
+	// result is left
+	// At most 64 values are left, so stride
+	// will be no more than 32. That fits in a
+	// single warp.  
+	// Instructions are SIMD synchronous in a warp
+	//   so no need for syncthreads() anymore
+	// Also, since there's memory allocated for 64 entries,
+	// no point in checking for tid < s ... tid >= s will
+	// be able to read and generate nonsense data that will
+	// never be used, but that is quicker than a separate
+	// condition check to keep them from running.
+
+	if (tid < 32)
+	{
+		for (s = (blockDim.x * blockDim.y) / (3*3*2); s > 0; s >>= 1)
 		{
 			// N is the same for all 3 channels of a
 			// given pixel. Re-use it when combining
@@ -152,21 +233,21 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 				const int i1 = 3 * tid + i;
 				const int i2 = 3 * (tid + s) + i;
 				n[tid] = saved_n;
-				combine_running_totals(M1[i1], M1[i2], M2[i1], M2[i2], n[tid], n[tid + s]);
+				combine_running_totals(M1[i1], M1[i2], 
+						M2[i1], M2[i2], 
+						n[tid], n[tid + s]);
 			}
-			// Setting n = 0 for the thread just copied out
-			// of will prevent the data from being added
-			// a second time
-			n[tid + s] = 0;
-        }
-        __syncthreads();
-    }
+		}
+	}
+
+	__syncthreads();
 
     // Update M1[0-2] and M2[0-2] with the 
     // mean and stddev of the B, G, R pixels
     if (tid < 3)
 	{
 		// M1 is the mean already - nothing extra needed
+
 		// calculate stddev from M2 and n
 		M2[tid] = sqrt(M2[tid] / n[0]);
 	}
@@ -180,12 +261,12 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 	// Insure only valid threads perform memory I/O
 	// If the x/y index for this thread is beyond the
 	// number of cols/rows, do nothing
-	if((xIndex < input[zIndex].cols) && (yIndex < input[zIndex].rows))
+	if((xIndex < input[imgIndex].cols) && (yIndex < input[imgIndex].rows))
 	{
 		// xIndex * 3 since col has a blue green and red component
-		float blue	= input[zIndex](yIndex, 3 * xIndex);
-		float green	= input[zIndex](yIndex, 3 * xIndex + 1);
-		float red	= input[zIndex](yIndex, 3 * xIndex + 2);
+		float blue	= input[imgIndex](yIndex, 3 * xIndex);
+		float green	= input[imgIndex](yIndex, 3 * xIndex + 1);
+		float red	= input[imgIndex](yIndex, 3 * xIndex + 2);
 
 		blue  = (blue  - M1[0]) / M2[0];
 		green = (green - M1[1]) / M2[1];
@@ -196,10 +277,10 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 		// add xIndex to get to the correct location in this row
 		// Multiply by three to account for R, G, B float values
 		//   per col in the input images
-		const int flatIdxX = 3 * (yIndex * input[zIndex].cols + xIndex);
-		output(zIndex, flatIdxX + 0) = blue;
-		output(zIndex, flatIdxX + 1) = green;
-		output(zIndex, flatIdxX + 2) = red;
+		const int flatIdxX = 3 * (yIndex * input[imgIndex].cols + xIndex);
+		output(imgIndex, flatIdxX + 0) = blue;
+		output(imgIndex, flatIdxX + 1) = green;
+		output(imgIndex, flatIdxX + 2) = red;
 	}
 }
 
@@ -218,16 +299,10 @@ __host__ void cudaZCATransform(const std::vector<GpuMat> &input,
 	cudaSafeCall(cudaMemcpy(dPssIn, hPssIn, input.size() * sizeof(PtrStepSz<float>), cudaMemcpyHostToDevice), "cudaMemcpy dPssIn");
 
 	// Each block is one image
-	// Set the block size to the smallest power
-	// of two large enough to hold an image
-	dim3 block;
-	if (input[0].cols == 12)
-		block = dim3(16, 16);
-	else
-		block = dim3(32, 32);
+	const dim3 block(input[0].cols, input[0].rows);
 
-	// z dimension is number of images
-	const dim3 grid(1, 1, input.size());
+	// x dimension is number of images
+	const dim3 grid(input.size());
 
 	// Todo : do this once in ZCA constructor
 	// Create a CUDA stream. This lets us queue up a number of
@@ -242,6 +317,8 @@ __host__ void cudaZCATransform(const std::vector<GpuMat> &input,
     cublasSafeCall(cublasSetStream_v2(handle, stream), "cublasSetStream");
 
     cublasSafeCall(cublasSetPointerMode_v2(handle, CUBLAS_POINTER_MODE_HOST), "cublasSetPointerMode");
+
+	// Move these to device memory?
     const float alpha = 1.0;
     const float beta = 0.0;
 
@@ -254,8 +331,8 @@ __host__ void cudaZCATransform(const std::vector<GpuMat> &input,
 	//cudaSafeCall(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
 
 
-	// Todo : do this once in ZCA constructor
-	zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
+	// Todo : do this once in ZCA constructor?
+	//zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
 
 	// Multiply images by weights to get the ZCA-whitened output
 	cublasSafeCall(cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N, weights.cols, dFlattenedImages.rows, weights.rows,
@@ -268,7 +345,7 @@ __host__ void cudaZCATransform(const std::vector<GpuMat> &input,
 
 	// Copy to output buffer in the order expected by
 	// neural net input
-	unflatten_kernel<<<grid,block,0,stream>>>(zcaOut, input[0].rows, input[0].cols, output);
+	split_image_channels<<<grid,block,0,stream>>>(zcaOut, input[0].rows, input[0].cols, output);
 
 	cudaSafeCall(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
 	cublasSafeCall(cublasDestroy_v2(handle), "cublasDestroy");
