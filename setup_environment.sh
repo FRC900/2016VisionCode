@@ -51,24 +51,6 @@ sudo apt-get update && sudo apt-get install cuda-toolkit-7-0
 echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
 echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
 
-# install google protocol buffer 3.0
-# The Ubuntu package is 2.5 but GIE needs
-# 3.0
-#cd
-#wget https://github.com/google/protobuf/releases/download/v3.0.0/protobuf-cpp-3.0.0.tar.gz 
-#tar -xzvf protobuf-cpp-3.0.0.tar.gz 
-#cd protobuf-3.0.0
-#cd src/google/protobuf/stubs
-# edit port.h - change typedefs for int64 and uint64 to long long and unsigned long long respectively - this matches the protobuf build GIE was linked against
-# then move constructor/destructor for UnknownFieldSet from unknown_field_set.h to unknown_field_set.cc
-#mkdir build
-#cd build
-#../configure
-#make -j4
-#sudo make install
-#cd 
-#rm -rf protobuf-3.0.0
-
 #install caffe
 cd
 git clone https://github.com/BVLC/caffe.git
@@ -138,27 +120,33 @@ if [ "$gpu" = true ] ; then
 	rm ./$ext
 fi
 
-cd
-wget --no-check-certificate https://github.com/FFmpeg/FFmpeg/archive/n3.1.3.zip
-unzip n3.1.3.zip
-cd FFmpeg-n3.1.3
+# Install ffmpeg. This is a prereq for OpenCV, so 
+# unless you're installing that skip this as well.
+#cd
+#wget --no-check-certificate https://github.com/FFmpeg/FFmpeg/archive/n3.1.3.zip
+#unzip n3.1.3.zip
+#cd FFmpeg-n3.1.3
 # configure gets confused with 64-bit kernel + 32-bit userspace
 # and tries to build aarch64 :
-./configure --arch=arm --enable-shared
-make -j4
-sudo make install
-cd ..
-rm -rf FFmpeg-n3.1.3 n3.1.3.zip
+#./configure --arch=arm --enable-shared
+#make -j4
+#sudo make install
+#cd ..
+#rm -rf FFmpeg-n3.1.3 n3.1.3.zip
 
-# OpenCV build info - needed to get CUBLAS gemm support
-cd
-wget --no-check-certificate https://github.com/Itseez/opencv/archive/2.4.13.zip
-unzip -v 2.4.13.zip
-cd opencv-2.4.13
-mkdir build
-cd build
-cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.3" -DCUDA_ARCH_PTX="5.3" ..
-make -j3
+# OpenCV build info. Not needed for Jetson, might be
+# needed for x86 PCs to enable CUDA support 
+# Note that the latest ZED drivers for x86_64 require
+# OpenCV3.1 install should be similar, just download the
+# correct version of the code
+#cd
+#wget --no-check-certificate https://github.com/Itseez/opencv/archive/2.4.13.zip
+#unzip -v 2.4.13.zip
+#cd opencv-2.4.13
+#mkdir build
+#cd build
+#cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2" -DCUDA_ARCH_PTX="5.2" ..
+#make -j4
 
 #clone repo
 cd
