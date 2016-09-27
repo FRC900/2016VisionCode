@@ -85,13 +85,16 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 	// Thread index within block - used for addressing smem below
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
-	// Shared memory per channel per thread = 1 long, 2 floats.
-	// So a 3 channel image needs 3 longs and 6 floats
-	// Thread blocks are up to 24x24 images, one thread per pixel
+	// Shared memory per channel per thread = 2 floats for
+	// mean and stddev sub-totals. Also keep 1 value per pixel
+	// (i.e. 1 per each 3-channel set of above floats) for a total
+	// of how many pixels ahve been processed.
+	// So a 3 channel pixel needs 1 unsigned int and 6 floats
+	// Thread blocks are up to 24x24 images, one thread per 3-channel pixel
 	// TODO : fixme for variable sized thread blocks
 	__shared__ float M1[32*32*3];
 	__shared__ float M2[32*32*3];
-	__shared__ unsigned int n[32*32*3];
+	__shared__ unsigned int n[32*32];
 
 	// 2D Index of current thread
 	const int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -113,23 +116,20 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 		M1[tid * 3 + 1] = green;
 		M1[tid * 3 + 2] = red;
 
+		M2[tid * 3]     = 0;
+		M2[tid * 3 + 1] = 0;
+		M2[tid * 3 + 2] = 0;
+
 		// Initialize pixel count
-		n[tid * 3]     = 1;
-		n[tid * 3 + 1] = 1;
-		n[tid * 3 + 2] = 1;
+		n[tid] = 1;
 	}
 	else
 	{
-		// This thread has nothing to contribute
+		// This thread is outside the bounds of the
+		// image and therefore has nothing to contribute
 		// to the final result
-		n[tid * 3]     = 0;
-		n[tid * 3 + 1] = 0;
-		n[tid * 3 + 2] = 0;
+		n[tid] = 0;
 	}
-
-	M2[tid * 3]     = 0;
-	M2[tid * 3 + 1] = 0;
-	M2[tid * 3 + 2] = 0;
 	
     __syncthreads();
 
@@ -140,17 +140,24 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
 	// with just one final result per block
     for (unsigned int s = (blockDim.x * blockDim.y) / 2; s > 0; s >>= 1)
     {
-        if (tid < s)
-        {
+        if ((tid < s) && (n[tid + s]))
+		{
+			// N is the same for all 3 channels of a
+			// given pixel. Re-use it when combining
+			// the stats of the 3 channels
+			unsigned int saved_n = n[tid];
 			for (int i = 0; i < 3; i++)
 			{
 				// Blue, green, red = 3 entries per shared mem array
 				const int i1 = 3 * tid + i;
 				const int i2 = 3 * (tid + s) + i;
-				if (n[i2])
-					combine_running_totals(M1[i1], M1[i2], M2[i1], M2[i2], n[i1], n[i2]);
-n[i2] = 0;
+				n[tid] = saved_n;
+				combine_running_totals(M1[i1], M1[i2], M2[i1], M2[i2], n[tid], n[tid + s]);
 			}
+			// Setting n = 0 for the thread just copied out
+			// of will prevent the data from being added
+			// a second time
+			n[tid + s] = 0;
         }
         __syncthreads();
     }
@@ -161,7 +168,7 @@ n[i2] = 0;
 	{
 		// M1 is the mean already - nothing extra needed
 		// calculate stddev from M2 and n
-		M2[tid] = sqrt(M2[tid] / n[tid]);
+		M2[tid] = sqrt(M2[tid] / n[0]);
 	}
 	__syncthreads();
 
