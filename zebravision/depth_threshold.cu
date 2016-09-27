@@ -66,8 +66,8 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> *input,
 		// Basically just propagate any true values
 		// down to thread 0 - only return false
 		// if the entire set of compares was false
-        if ((tid < s) && inRange[tid + s])
-			inRange[tid] = true;
+        if (tid < s)
+			inRange[tid] |= inRange[tid + s];
         __syncthreads();
     }
 
