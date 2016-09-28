@@ -20,7 +20,7 @@ using cv::cuda::PtrStepSz;
 __global__ void split_image_channels(const PtrStepSz<float> input,
 									 const size_t rows,
 									 const size_t cols,
-									 float *output)
+									 float * __restrict__ output)
 {
 	// 2D Index of current thread
 	const int xIndex = threadIdx.x;
@@ -81,7 +81,7 @@ __device__ void combine_running_totals(float &M1_1, const float M1_2, float &M2_
 // of the color channel of that image.
 // input is an array of images, output is a 2d matrix where
 // each image has been flattened into a single row
-__global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> *input,
+__global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> * __restrict__ input,
 												   PtrStepSz<float> output)
 {
 	// Thread index within block - used for addressing smem below
