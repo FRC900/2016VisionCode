@@ -139,12 +139,13 @@ rm ./$ext
 # correct version of the code
 cd
 wget --no-check-certificate https://github.com/Itseez/opencv/archive/3.1.0.zip
-unzip -v 3.1.0.zip
+unzip 3.1.0.zip
 cd opencv-3.1.0
 mkdir build
 cd build
 cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2" -DCUDA_ARCH_PTX="5.2" ..
 make -j4
+sudo make install
 
 #clone repo
 cd
