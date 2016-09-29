@@ -46,9 +46,9 @@ void printDepthInRange(float depth_min, float depth_max, const Mat& detectCheck)
         for (int px = 0; px < detectCheck.cols; px++)
         {
             if (isnan(p[px]) || (p[px] <= 0.0) || ((p[px] <= depth_max) && (p[px] > depth_min)))
-				cout << "1 " << endl;
+				cout << "1 ";
 			else
-				cout << "0 " << endl;
+				cout << "0 ";
         }
 		cout << endl;
     }
@@ -78,10 +78,13 @@ int main(void)
 			vector <GpuMat> gpuList;
 			gpuList.push_back(GpuMat(mat));
 			auto gpuResult = cudaDepthThreshold(gpuList, minRange, maxRange);
+			cout << "." ;
 			if (cpuResult != gpuResult[0])
 			{
-				cout << mat <<endl;
+				cout << endl << mat <<endl;
+				cout << minRange << " " << maxRange << endl;
 				printDepthInRange(minRange, maxRange, mat);
+				return 0;
 			}
 
 		}
