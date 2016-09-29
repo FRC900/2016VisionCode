@@ -20,7 +20,8 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> *input,
 	// Thread index within block - used for addressing smem below
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
-	__shared__ bool inRange[16*16];
+	__shared__ bool inRange[12*4];
+	bool myinRange = false;
 
 	// 2D pixel index of current thread
 	const int xIndex = threadIdx.x;
@@ -28,48 +29,67 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> *input,
 
 	const int imgIndex = blockIdx.x;
 
-	// Only valid threads perform memory I/O
-	if((xIndex < input[0].cols) && (yIndex < input[0].rows))
-	{
-		// Be conservative here - if any of the depth values in the 
-		// target rect are in the expected range, consider the entire 
-		// rect in range.  Also say that it is in range if any of the 
-		// depth values are negative (i.e. no depth info for those pixels)
-		const float depth = input[imgIndex](yIndex, xIndex);
-		if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
-			inRange[tid] = true;
-		else
-			inRange[tid] = false;
-	}
-	else
-	{
-		// Set values outside the range of the image
-		// to false. This will make them ignored in
-		// the reduction down to a single compare value
-		inRange[tid] = false;
-	}
+	// General approach is to populate shared mem with true/false
+	// values from input pixels. Then OR together results from sets
+	// of pixels iteratively until all results have been ORd into
+	// inRange[0].
+	// The input images are 12x12. That's not a power of two, so 
+	// do two reductions by 3x before finishing up reducing by 2x four times.
+	// Use initial read from memory to do the first 3x reduction. That
+	// reduces the number of threads and shared memory needed by a factor of 3.
+
+	// Be conservative here - if any of the depth values in the 
+	// target rect are in the expected range, consider the entire 
+	// rect in range.  Also say that it is in range if any of the 
+	// depth values are negative (i.e. no depth info for those pixels)
+	float depth = input[imgIndex](yIndex, xIndex);
+	if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
+		myinRange = true;
+
+	depth = input[imgIndex](yIndex + blockDim.y, xIndex);
+	if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
+		myinRange = true;
+
+	depth = input[imgIndex](yIndex + 2*blockDim.y, xIndex);
+	if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
+		myinRange = true;
+
+	inRange[tid] = myinRange;
 
 	// Let all threads finish the compare and put
 	// their results in shared mem
     __syncthreads();
 
-    // do reduction in shared mem
-	// For each thread, combine the results from 2 threads
-	// down into one. Each pass through the loop eliminates
-	// half of the partial results, eventually ending up
-	// with just one final result per block
-    for (unsigned int s = (blockDim.x * blockDim.y) / 2; s > 0; s >>= 1)
-    {
-		if (inRange[0])
-			break;
+	// Do another reduction by 3x here, from 
+	// shared mem to shared mem
+	// Simply OR the results together to propagate
+	// true values down to inRange[0]
+	const unsigned int s = (blockDim.x * blockDim.y) / 3;
+	if (tid < s)
+		inRange[tid] = myinRange = inRange[tid] | inRange[tid + s] | inRange[tid + 2*s];
 
-		// Basically just propagate any true values
-		// down to thread 0 - only return false
-		// if the entire set of compares was false
-        if (tid < s)
-			inRange[tid] |= inRange[tid + s];
-        __syncthreads();
-    }
+    __syncthreads();
+
+	if (tid < 8)
+	{
+#if 0
+		myinRange |= inRange[tid + 8];
+		myinRange |= inRange[tid + 4];
+		myinRange |= inRange[tid + 2];
+		myinRange |= inRange[tid + 1];
+#else
+		// Final set of reductions by 2x to get down to one result
+		for (unsigned int s = (blockDim.x * blockDim.y) / 6; s > 0; s >>= 1)
+		{
+			// Basically just propagate any true values
+			// down to thread 0 - only return false
+			// if the entire set of compares was false
+			//if (tid < s)
+				inRange[tid] |= inRange[tid + s];
+			//myinRange |= __shfl_down(myinRange, s);
+		}
+#endif
+	}
 
     if (tid == 0)
 		answer[imgIndex] = inRange[0];
@@ -93,7 +113,7 @@ __host__ std::vector<bool> cudaDepthThreshold(const std::vector<GpuMat> &depthLi
 	// Each block is one depth
 	// Set the block size to the smallest power
 	// of two large enough to hold an depth
-	const dim3 block(16, 16);
+	const dim3 block(12, 4);
 
 	// each block is 1 image
 	const dim3 grid(depthList.size());
