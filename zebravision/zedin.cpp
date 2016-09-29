@@ -337,7 +337,7 @@ bool ZedIn::update(bool left)
 		}
 	}
 	else if (archiveIn_ || portableArchiveIn_)
-		usleep (50000);
+		usleep (150000);
 	else
 		return false;
 
@@ -417,6 +417,7 @@ void ZedIn::frameNumber(int frameNumber)
 {
 	if (zed_ && zed_->setSVOPosition(frameNumber))
 		setFrameNumber(frameNumber);
+	// TODO :: seek forward in ZMS file frame by frame?
 }
 
 
