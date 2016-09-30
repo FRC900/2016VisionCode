@@ -455,14 +455,21 @@ int main( int argc, const char** argv )
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
 			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+
+			// If no depth data is available, calculate a fake
+			// depth value as if the object were at the perfect
+			// location for the detected rectangle size
 			if (objectDepth < 0)
 			{
+				// TODO : calculate using object type rather
+				// than hard-coding for boulders
 				float percent_image = (float)it->width / frame.cols;
 				float size_fov = percent_image * camParams.fov.x; //TODO fov size
+				// ball is 9.75 inches, convert to metric
 				objectDepth = (9.75 * 2.54 / 100.) / (2.0 * tanf(size_fov / 2.0));
 			}
 			cout << " Depth: " << objectDepth << endl;
-			if(objectDepth > 0)
+			if (objectDepth > 0)
 			{
 				depthFilteredDetectRects.push_back(*it);
 				depths.push_back(objectDepth);
