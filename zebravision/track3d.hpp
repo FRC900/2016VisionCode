@@ -1,8 +1,7 @@
-#ifndef TRACK_HPP_INC__
-#define TRACK_HPP_INC__
-
+#pragma once
 #include <algorithm>
 #include <string>
+#include <vector>
 #include <list>
 //#include <Eigen/Geometry>
 #include <boost/circular_buffer.hpp>
@@ -170,4 +169,3 @@ class TrackedObjectList
 		float       cameraElevation_;
 };
 
-#endif
