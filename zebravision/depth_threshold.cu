@@ -12,7 +12,7 @@ using cv::cuda::PtrStepSz;
 // in the range between depthMin and depthMax.  If
 // so, set answer to true. If all pixels fall outside
 // the range, set answer to false.
-__global__ void depth_threshold_kernel(const PtrStepSz<float> *input,
+__global__ void depth_threshold_kernel(const PtrStepSz<float> * __restrict__ input,
 									   const float depthMin,
 									   const float depthMax,
 									   bool *answer)
