@@ -44,9 +44,9 @@ sudo apt-get install --no-install-recommends libboost-all-dev
 # which makes it easier than stopping lightdm and installing in terminal
 
 cd /tmp
-wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.0-28_amd64.deb
-sudo dpkg -i cuda-repo-ubuntu1404_7.0-28_amd64.deb
-sudo apt-get update && sudo apt-get install cuda-toolkit-7-0
+wget http://developer.download.nvidia.com/compute/cuda/7.5/Prod/local_installers/cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb
+sudo dpkg -i cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb
+sudo apt-get update && sudo apt-get install cuda-toolkit-7-5
 
 echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
 echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
