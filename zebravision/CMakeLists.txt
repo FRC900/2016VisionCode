@@ -109,6 +109,7 @@ CUDA_ADD_EXECUTABLE(zv
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp
+	objtype.cpp
 	#../fovis/FovisLocalizer.cpp
 	FlowLocalizer.cpp
 	kalman.cpp

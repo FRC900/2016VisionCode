@@ -455,14 +455,21 @@ int main( int argc, const char** argv )
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
 			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+
+			// If no depth data is available, calculate a fake
+			// depth value as if the object were at the perfect
+			// location for the detected rectangle size
 			if (objectDepth < 0)
 			{
+				// TODO : calculate using object type rather
+				// than hard-coding for boulders
 				float percent_image = (float)it->width / frame.cols;
 				float size_fov = percent_image * camParams.fov.x; //TODO fov size
+				// ball is 9.75 inches, convert to metric
 				objectDepth = (9.75 * 2.54 / 100.) / (2.0 * tanf(size_fov / 2.0));
 			}
 			cout << " Depth: " << objectDepth << endl;
-			if(objectDepth > 0)
+			if (objectDepth > 0)
 			{
 				depthFilteredDetectRects.push_back(*it);
 				depths.push_back(objectDepth);
@@ -479,7 +486,10 @@ int main( int argc, const char** argv )
 		if (showTrackingHistory)
 			posHist = objectTrackingList.getScreenPositionHistories();
 
-        sendZMQData(netTableArraySize, publisher, displayList, gd, cap->timeStamp());
+		// Send data over the network
+		// If objdetction is enabled, send detection data
+		// always send goal detection info
+        sendZMQData(detectState ? netTableArraySize : 0, publisher, displayList, gd, cap->timeStamp());
 
 		// Ground truth is a way of storing known locations of objects in a file.
 		// Check ground truth data on videos and images,
@@ -852,38 +862,42 @@ int main( int argc, const char** argv )
 
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp)
 {
-    stringstream zmqString;
+	// Only send objdetect data if the objdetection code is running
+	if (objectCount)
+	{
+		stringstream objdetString;
 
-    zmqString << "B ";
-    for (size_t i = 0; i < objectCount; i++)
-    {
-        if (i < displayList.size())
-        {
-            zmqString << fixed << setprecision(2) << displayList[i].ratio << " ";
-            zmqString << fixed << setprecision(2) << displayList[i].position.x << " ";
-            zmqString << fixed << setprecision(2) << displayList[i].position.y << " ";
-            zmqString << fixed << setprecision(2) << displayList[i].position.z << " ";
-        }
-        else
-        {
-            zmqString << "0.00 0.00 0.00 0.00 ";
-        }
-    }
+		objdetString << "B ";
+		for (size_t i = 0; i < objectCount; i++)
+		{
+			if (i < displayList.size())
+			{
+				objdetString << fixed << setprecision(2) << displayList[i].ratio << " ";
+				objdetString << fixed << setprecision(2) << displayList[i].position.x << " ";
+				objdetString << fixed << setprecision(2) << displayList[i].position.y << " ";
+				objdetString << fixed << setprecision(2) << displayList[i].position.z << " ";
+			}
+			else
+			{
+				objdetString << "0.00 0.00 0.00 0.00 ";
+			}
+		}
 
-    //cout << "B : " << timestamp << " : " << zmqString.str() << endl;
+		cout << "B : " << timestamp << " : " << objdetString.str() << endl;
+		zmq::message_t request(objdetString.str().length() - 1);
+		memcpy((void *)request.data(), objdetString.str().c_str(), objdetString.str().length() - 1);
+		publisher.send(request);
+	}
 
     //Creates immutable strings for 0MQ Output
-    stringstream gString;
-    gString << "G ";
-    gString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
-    gString << fixed << setprecision(2) << gd.angle_to_goal();
+    stringstream goalString;
+    goalString << "G ";
+    goalString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
+    goalString << fixed << setprecision(2) << gd.angle_to_goal();
 
-    cout << "G " << timestamp << " : " << gString.str().length() << " : " << gString.str() << endl;
-    zmq::message_t request(zmqString.str().length() - 1);
-    zmq::message_t grequest(gString.str().length() - 1);
-    memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
-    memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
-    //publisher.send(request);
+    cout << "G " << timestamp << " : " << goalString.str().length() << " : " << goalString.str() << endl;
+    zmq::message_t grequest(goalString.str().length() - 1);
+    memcpy((void *)grequest.data(), goalString.str().c_str(), goalString.str().length() - 1);
     publisher.send(grequest);
 }
 
