@@ -658,7 +658,7 @@ int main( int argc, const char** argv )
 				// If either return false, that probably means EOF
 				// so bail out
 				if (!cap->getFrame(frame, depth, false))
-					isRunning = false;
+					break;
 			}
 			else if (c == 'd')
 			{
@@ -692,9 +692,11 @@ int main( int argc, const char** argv )
 				// Save from a copy rather than the original
 				// so all the markup isn't saved, only the raw image
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy, true);
-				for (size_t index = 0; index < detectRects.size(); index++)
-					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
+				if (cap->getFrame(frameCopy, depthCopy, true))
+					for (size_t index = 0; index < detectRects.size(); index++)
+						writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
+				else
+					break;
 			}
 			else if (c == 'p') // print frame number to console
 			{
@@ -813,8 +815,10 @@ int main( int argc, const char** argv )
 			else if (isdigit(c)) // save a single detected image
 			{
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy, true);
-				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
+				if (cap->getFrame(frameCopy, depthCopy, true))
+					writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
+				else 
+					break;
 			}
 		}
 
@@ -846,7 +850,7 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
-		if(!cap->getFrame(frame, depth, pause))
+		if (!cap->getFrame(frame, depth, pause))
 			break;
 	}
   	g_thread.interrupt();
