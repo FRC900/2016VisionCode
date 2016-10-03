@@ -3,6 +3,8 @@
 #include <boost/thread.hpp>
 #include <opencv2/core/core.hpp>
 
+#include "frameticker.hpp"
+
 // Base class for output.  Derived classes are for writing 
 // AVI videos, zms (video + depth), plus whatever else we
 // imagine in the future.
@@ -13,6 +15,7 @@ class MediaOut
 		virtual ~MediaOut();
 		bool saveFrame(const cv::Mat &frame, const cv::Mat &depth);
 		void sync(void);
+		float FPS(void) const;
 
    protected:
 		// The base class calls these dervied classes to do the 
@@ -41,4 +44,5 @@ class MediaOut
 		bool frameReady_;
 		bool writePending_;
 		boost::thread thread_;
+		FrameTicker ft_;
 };

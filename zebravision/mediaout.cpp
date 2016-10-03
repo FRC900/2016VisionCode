@@ -114,7 +114,6 @@ void MediaOut::writeThread(void)
 {
 	Mat frame;
 	Mat depth;
-	FrameTicker ft;
 	while (true)
 	{
 		// Grab the lock mutex
@@ -174,11 +173,15 @@ void MediaOut::writeThread(void)
 				frameCond_.notify_all();
 			}
 		}
-		ft.mark();
-		std::cerr << std::setprecision(2) << ft.getFPS() << " Write FPS" << std::endl;
+		ft_.mark();
 
 		boost::this_thread::interruption_point();
 	}
+}
+
+float MediaOut::FPS(void) const
+{
+	return ft_.getFPS();
 }
 
 // Loop until any pending write has completed

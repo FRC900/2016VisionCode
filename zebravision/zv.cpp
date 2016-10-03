@@ -371,7 +371,7 @@ int main( int argc, const char** argv )
 		frameTicker.mark(); // mark start of new frame
 
 		// Write raw video before anything gets drawn on it
-		if (args.writeVideo && rawOut)
+		if (rawOut)
 			rawOut->saveFrame(frame, depth);
 
 		// This code will load a classifier if none is loaded - this handles
@@ -509,18 +509,22 @@ int main( int argc, const char** argv )
 				frameStr << '/' << frames;
 
 			stringstream fpsStr;
-			float capFPS= cap->FPS();
+			float inFPS = cap->FPS();
+			float outFPS = rawOut ? rawOut->FPS() : -1;
 			
-			if (capFPS > 0)
-				fpsStr << fixed << setprecision(1) << capFPS << "G ";
-			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "M FPS";
+			if (inFPS > 0)
+				fpsStr << fixed << setprecision(1) << inFPS << "G ";
+			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "M";
+			if (outFPS > 0)
+				fpsStr << " " << fixed << setprecision(1) << outFPS << "W";
+			fpsStr << " FPS";
 			if (!args.batchMode)
 			{
 				if (printFrames)
 					putText(frame, frameStr.str(),
-							Point(frame.cols - 15 * frameStr.str().length(), 45),
+							Point(frame.cols - 14 * frameStr.str().length(), 45),
 							FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 20), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+				putText(frame, fpsStr.str(), Point(frame.cols - 14 * fpsStr.str().length(), 20), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			}
 			else
 				cerr << args.inputName << " : " << frameStr.str() << " : " << fpsStr.str() << endl;
