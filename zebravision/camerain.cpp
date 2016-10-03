@@ -99,7 +99,7 @@ bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 		frame_.copyTo(pausedFrame_);
 	}
 	pausedFrame_.copyTo(frame);
-			depth = Mat();
+	depth = Mat();
 	return true;
 }
 
