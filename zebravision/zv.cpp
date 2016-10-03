@@ -30,6 +30,7 @@
 #include "Utilities.hpp"
 #include "FlowLocalizer.hpp"
 #include "ZvSettings.hpp"
+#include "version.hpp"
 
 #include <boost/thread.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
@@ -222,7 +223,7 @@ int main( int argc, const char** argv )
     sigIntHandler.sa_flags = SA_SIGINFO;
     sigaction(SIGINT, &sigIntHandler, NULL);
 
-	string windowName = "Ball Detection"; // GUI window name
+	string windowName = "Zebravision"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap; //input object
 
@@ -245,6 +246,7 @@ int main( int argc, const char** argv )
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
+	cout << "Welcome to Zebravision v" << VERSION_MAJOR << "." << VERSION_MINOR << " " << GitDesc << endl;
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth goalTruth("goal_truth.txt", args.inputName);
