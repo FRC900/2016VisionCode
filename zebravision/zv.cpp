@@ -168,7 +168,7 @@ void drawTrackingTopDown(Mat& frame, const vector<TrackedObjectDisplay>& display
     }
 }
 
-void grabThread(MediaIn *cap, bool &pause)
+static void grabThread(MediaIn *cap)
 {
 	// this runs concurrently with the main while loop 
 	// If using a camera it will constantly grab frames
@@ -178,18 +178,12 @@ void grabThread(MediaIn *cap, bool &pause)
 	// That way all video frames are processed rather than 
 	// skipping some and repeating others since the update
 	// is out of sync with the main loop
-	FrameTicker frameTicker;
 	while(1) 
 	{
-		if(!pause) 
+		if(!cap->update()) 
 		{
-			frameTicker.mark();
-			if(!cap->update()) 
-			{
-				cerr << "Failed to capture" << endl;
-				isRunning = false;
-			}
-			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
+			cerr << "Failed to capture" << endl;
+			isRunning = false;
 		}
 		boost::this_thread::interruption_point();
 	}
@@ -365,7 +359,7 @@ int main( int argc, const char** argv )
 	// --update the current frame
 	//this loop runs asynchronously with the main loop if the input is a camera
 	//and synchronously if the input is a video (i.e. one grab per process)
-	boost::thread g_thread(grabThread, cap, boost::ref(pause));
+	boost::thread g_thread(grabThread, cap);
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -515,14 +509,18 @@ int main( int argc, const char** argv )
 				frameStr << '/' << frames;
 
 			stringstream fpsStr;
-			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << " FPS";
+			float capFPS= cap->FPS();
+			
+			if (capFPS > 0)
+				fpsStr << fixed << setprecision(1) << capFPS << "G ";
+			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "M FPS";
 			if (!args.batchMode)
 			{
 				if (printFrames)
 					putText(frame, frameStr.str(),
-							Point(frame.cols - 15 * frameStr.str().length(), 20),
+							Point(frame.cols - 15 * frameStr.str().length(), 45),
 							FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 20), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			}
 			else
 				cerr << args.inputName << " : " << frameStr.str() << " : " << fpsStr.str() << endl;
@@ -655,7 +653,7 @@ int main( int argc, const char** argv )
 				// same data since pause is set earlier
 				// If either return false, that probably means EOF
 				// so bail out
-				if (!cap->update() || !cap->getFrame(frame, depth, false))
+				if (!cap->getFrame(frame, depth, false))
 					isRunning = false;
 			}
 			else if (c == 'd')

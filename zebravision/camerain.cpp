@@ -71,6 +71,7 @@ bool CameraIn::isOpened() const
 
 bool CameraIn::update(void)
 {
+	FPSmark();
 	if (!cap_.isOpened()  ||
 	    !cap_.grab() ||
 	    !cap_.retrieve(localFrame_))
@@ -86,16 +87,19 @@ bool CameraIn::update(void)
 
 bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
-	(void)pause;
 	if (!cap_.isOpened())
 		return false;
-	depth = Mat();
-	boost::lock_guard<boost::mutex> guard(mtx_);
-	if (frame_.empty())
-		return false;
-	frame_.copyTo(frame);
-	lockTimeStamp();
-	lockFrameNumber();
+	if (!pause)
+	{
+		boost::lock_guard<boost::mutex> guard(mtx_);
+		if (frame_.empty())
+			return false;
+		lockTimeStamp();
+		lockFrameNumber();
+		frame_.copyTo(pausedFrame_);
+	}
+	pausedFrame_.copyTo(frame);
+			depth = Mat();
 	return true;
 }
 

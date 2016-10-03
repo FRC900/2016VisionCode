@@ -53,8 +53,8 @@ class ZedIn : public MediaIn
 		sl::zed::Camera* zed_;
 		sl::zed::Mat slDepth_;
 		sl::zed::Mat slFrame_;
-		cv::Mat localFrame_;
-		cv::Mat localDepth_;
+		cv::Mat pausedFrame_;
+		cv::Mat pausedDepth_;
 		cv::Mat depthMat_;
 		int width_;
 		int height_;

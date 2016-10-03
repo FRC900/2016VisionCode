@@ -97,6 +97,16 @@ void MediaIn::frameNumber(int frameNumber)
 	lockFrameNumber();
 }
 
+void MediaIn::FPSmark(void)
+{
+	frameTicker.mark();
+}
+
+float MediaIn::FPS(void) const
+{
+	return frameTicker.getFPS();
+}
+
 CameraParams MediaIn::getCameraParams(bool left) const
 {
 	(void)left;

@@ -153,6 +153,7 @@ bool C920CameraIn::isOpened(void) const
 
 bool C920CameraIn::update(void)
 {
+	FPSmark();
 	if (!camera_.IsOpen() ||
 	    !camera_.GrabFrame() ||
 	    !camera_.RetrieveMat(localFrame_))
@@ -171,13 +172,18 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	(void)pause;
 	if (!camera_.IsOpen())
 		return false;
+	if (!pause)
+	{
+		boost::lock_guard<boost::mutex> guard(mtx_);
+		if (frame_.empty())
+			return false;
+		frame_.copyTo(pausedFrame_);
+		lockFrameNumber();
+		lockTimeStamp();
+	}
+	pausedFrame_.copyTo(frame);
 	depth = Mat();
-	boost::lock_guard<boost::mutex> guard(mtx_);
-	if( frame_.empty() )
-		return false;
-	frame_.copyTo(frame);
-	lockFrameNumber();
-	lockTimeStamp();
+
 	return true;
 }
 

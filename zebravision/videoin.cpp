@@ -43,7 +43,7 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	if (!cap_.isOpened())
 		return false;
-	if(!pause)
+	if (!pause)
 	{
 		cap_ >> frame_;
 		if (frame_.empty())
