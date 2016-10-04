@@ -306,6 +306,9 @@ bool ZedIn::update(bool left)
 	// a previously-serialized ZMS file
 	if (zed_)
 	{
+		// Only time input rate if grabbing live camera data
+		if (zed_->getSVOPosition() < 0)
+			FPSmark();
 		int badReadCounter = 0;
 		while (zed_->grab(SENSING_MODE::STANDARD))
 		{
@@ -381,12 +384,18 @@ bool ZedIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	// will return the last frame read in update -
 	// this can also be paused by the calling code
 	// if desired
-	boost::lock_guard<boost::mutex> guard(mtx_);
-	lockTimeStamp();
-	lockFrameNumber();
+	if (!pause)
+	{
+		boost::lock_guard<boost::mutex> guard(mtx_);
+		lockTimeStamp();
+		lockFrameNumber();
 
-	frame_.copyTo(frame);
-	depthMat_.copyTo(depth);
+		frame_.copyTo(pausedFrame_);
+		depthMat_.copyTo(pausedDepth_);
+	}
+	pausedFrame_.copyTo(frame);
+	pausedDepth_.copyTo(depth);
+
 	return true;
 }
 

@@ -5,6 +5,7 @@
 #include <boost/thread.hpp>
 #include <tinyxml2.h>
 
+#include "frameticker.hpp"
 #include "ZvSettings.hpp"
 
 class CameraParams
@@ -51,6 +52,8 @@ class MediaIn
 		int frameNumber(void) const;
 		long long timeStamp(void) const;
 
+		virtual float FPS(void) const;
+
 		// Other functions that really only work from zedin
 		virtual CameraParams getCameraParams(bool left) const;
 
@@ -64,6 +67,7 @@ class MediaIn
 		void setFrameNumber(int frameNumber);
 		void incFrameNumber(void);
 		void lockFrameNumber(void);
+		void FPSmark(void);
 
 		virtual bool loadSettings(void);
 		virtual bool saveSettings(void) const;
@@ -74,5 +78,6 @@ class MediaIn
 		int       lockedFrameNumber_;
 		long long timeStamp_;
 		long long lockedTimeStamp_;
+		FrameTicker frameTicker;
 };
 #endif

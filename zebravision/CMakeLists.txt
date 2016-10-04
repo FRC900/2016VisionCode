@@ -37,6 +37,11 @@ if (${MKL_FOUND})
 	add_definitions(-DUSE_MKL=1)
 endif()
 
+include (GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+git_describe(GIT_DESC "--long")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/version.cpp" @ONLY)
+
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 # Caffe headers change the size of various
@@ -109,6 +114,7 @@ CUDA_ADD_EXECUTABLE(zv
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp
+	objtype.cpp
 	#../fovis/FovisLocalizer.cpp
 	FlowLocalizer.cpp
 	kalman.cpp
@@ -117,7 +123,8 @@ CUDA_ADD_EXECUTABLE(zv
 	zca.cu
 	cuda_utils.cpp
 	ZvSettings.cpp
-	zv.cpp)
+	zv.cpp 
+	${CMAKE_CURRENT_BINARY_DIR}/version.cpp)
 
 find_library (LibCaffe caffe PATH ${CAFFE_BASE_DIR}/build/lib)
 find_library (LibGLOG  glog)

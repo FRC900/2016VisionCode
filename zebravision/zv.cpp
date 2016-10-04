@@ -30,6 +30,7 @@
 #include "Utilities.hpp"
 #include "FlowLocalizer.hpp"
 #include "ZvSettings.hpp"
+#include "version.hpp"
 
 #include <boost/thread.hpp>
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
@@ -167,7 +168,7 @@ void drawTrackingTopDown(Mat& frame, const vector<TrackedObjectDisplay>& display
     }
 }
 
-void grabThread(MediaIn *cap, bool &pause)
+static void grabThread(MediaIn *cap)
 {
 	// this runs concurrently with the main while loop 
 	// If using a camera it will constantly grab frames
@@ -177,18 +178,12 @@ void grabThread(MediaIn *cap, bool &pause)
 	// That way all video frames are processed rather than 
 	// skipping some and repeating others since the update
 	// is out of sync with the main loop
-	FrameTicker frameTicker;
 	while(1) 
 	{
-		if(!pause) 
+		if(!cap->update()) 
 		{
-			frameTicker.mark();
-			if(!cap->update()) 
-			{
-				cerr << "Failed to capture" << endl;
-				isRunning = false;
-			}
-			cout << setprecision(2) << frameTicker.getFPS() << " Grab FPS" << endl;
+			cerr << "Failed to capture" << endl;
+			isRunning = false;
 		}
 		boost::this_thread::interruption_point();
 	}
@@ -222,7 +217,7 @@ int main( int argc, const char** argv )
     sigIntHandler.sa_flags = SA_SIGINFO;
     sigaction(SIGINT, &sigIntHandler, NULL);
 
-	string windowName = "Ball Detection"; // GUI window name
+	string windowName = "Zebravision"; // GUI window name
 	string capPath; // Output directory for captured images
 	MediaIn* cap; //input object
 
@@ -245,6 +240,7 @@ int main( int argc, const char** argv )
 		cerr << "Could not open input file " << args.inputName << endl;
 		return 0;
 	}
+	cout << "Welcome to Zebravision v" << VERSION_MAJOR << "." << VERSION_MINOR << " " << GitDesc << endl;
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth goalTruth("goal_truth.txt", args.inputName);
@@ -363,7 +359,7 @@ int main( int argc, const char** argv )
 	// --update the current frame
 	//this loop runs asynchronously with the main loop if the input is a camera
 	//and synchronously if the input is a video (i.e. one grab per process)
-	boost::thread g_thread(grabThread, cap, boost::ref(pause));
+	boost::thread g_thread(grabThread, cap);
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -375,7 +371,7 @@ int main( int argc, const char** argv )
 		frameTicker.mark(); // mark start of new frame
 
 		// Write raw video before anything gets drawn on it
-		if (args.writeVideo && rawOut)
+		if (rawOut)
 			rawOut->saveFrame(frame, depth);
 
 		// This code will load a classifier if none is loaded - this handles
@@ -455,14 +451,21 @@ int main( int argc, const char** argv )
 			shrinkRect(depthRect,depthRectScale);
 			Mat emptyMask(depth.rows,depth.cols,CV_8UC1,Scalar(255));
 			float objectDepth = minOfDepthMat(depth, emptyMask, depthRect, 10).first;
+
+			// If no depth data is available, calculate a fake
+			// depth value as if the object were at the perfect
+			// location for the detected rectangle size
 			if (objectDepth < 0)
 			{
+				// TODO : calculate using object type rather
+				// than hard-coding for boulders
 				float percent_image = (float)it->width / frame.cols;
 				float size_fov = percent_image * camParams.fov.x; //TODO fov size
+				// ball is 9.75 inches, convert to metric
 				objectDepth = (9.75 * 2.54 / 100.) / (2.0 * tanf(size_fov / 2.0));
 			}
 			cout << " Depth: " << objectDepth << endl;
-			if(objectDepth > 0)
+			if (objectDepth > 0)
 			{
 				depthFilteredDetectRects.push_back(*it);
 				depths.push_back(objectDepth);
@@ -479,7 +482,10 @@ int main( int argc, const char** argv )
 		if (showTrackingHistory)
 			posHist = objectTrackingList.getScreenPositionHistories();
 
-        sendZMQData(netTableArraySize, publisher, displayList, gd, cap->timeStamp());
+		// Send data over the network
+		// If objdetction is enabled, send detection data
+		// always send goal detection info
+        sendZMQData(detectState ? netTableArraySize : 0, publisher, displayList, gd, cap->timeStamp());
 
 		// Ground truth is a way of storing known locations of objects in a file.
 		// Check ground truth data on videos and images,
@@ -503,14 +509,22 @@ int main( int argc, const char** argv )
 				frameStr << '/' << frames;
 
 			stringstream fpsStr;
-			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << " FPS";
+			float inFPS = cap->FPS();
+			float outFPS = rawOut ? rawOut->FPS() : -1;
+			
+			if (inFPS > 0)
+				fpsStr << fixed << setprecision(1) << inFPS << "G ";
+			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "M";
+			if (outFPS > 0)
+				fpsStr << " " << fixed << setprecision(1) << outFPS << "W";
+			fpsStr << " FPS";
 			if (!args.batchMode)
 			{
 				if (printFrames)
 					putText(frame, frameStr.str(),
-							Point(frame.cols - 15 * frameStr.str().length(), 20),
+							Point(frame.cols - 14 * frameStr.str().length(), 45),
 							FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
-				putText(frame, fpsStr.str(), Point(frame.cols - 15 * fpsStr.str().length(), 50), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
+				putText(frame, fpsStr.str(), Point(frame.cols - 14 * fpsStr.str().length(), 20), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			}
 			else
 				cerr << args.inputName << " : " << frameStr.str() << " : " << fpsStr.str() << endl;
@@ -643,8 +657,8 @@ int main( int argc, const char** argv )
 				// same data since pause is set earlier
 				// If either return false, that probably means EOF
 				// so bail out
-				if (!cap->update() || !cap->getFrame(frame, depth, false))
-					isRunning = false;
+				if (!cap->getFrame(frame, depth, false))
+					break;
 			}
 			else if (c == 'd')
 			{
@@ -678,9 +692,11 @@ int main( int argc, const char** argv )
 				// Save from a copy rather than the original
 				// so all the markup isn't saved, only the raw image
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy, true);
-				for (size_t index = 0; index < detectRects.size(); index++)
-					writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
+				if (cap->getFrame(frameCopy, depthCopy, true))
+					for (size_t index = 0; index < detectRects.size(); index++)
+						writeImage(frameCopy, detectRects, index, capPath.c_str(), cap->frameNumber());
+				else
+					break;
 			}
 			else if (c == 'p') // print frame number to console
 			{
@@ -799,8 +815,10 @@ int main( int argc, const char** argv )
 			else if (isdigit(c)) // save a single detected image
 			{
 				Mat frameCopy, depthCopy;
-				cap->getFrame(frameCopy, depthCopy, true);
-				writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
+				if (cap->getFrame(frameCopy, depthCopy, true))
+					writeImage(frameCopy, detectRects, c - '0', capPath.c_str(), cap->frameNumber());
+				else 
+					break;
 			}
 		}
 
@@ -832,7 +850,7 @@ int main( int argc, const char** argv )
 		if (args.batchMode && (cap->frameCount() == 1))
 			break;
 
-		if(!cap->getFrame(frame, depth, pause))
+		if (!cap->getFrame(frame, depth, pause))
 			break;
 	}
   	g_thread.interrupt();
@@ -852,38 +870,42 @@ int main( int argc, const char** argv )
 
 void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<TrackedObjectDisplay>& displayList, const GoalDetector& gd, long long timestamp)
 {
-    stringstream zmqString;
+	// Only send objdetect data if the objdetection code is running
+	if (objectCount)
+	{
+		stringstream objdetString;
 
-    zmqString << "B ";
-    for (size_t i = 0; i < objectCount; i++)
-    {
-        if (i < displayList.size())
-        {
-            zmqString << fixed << setprecision(2) << displayList[i].ratio << " ";
-            zmqString << fixed << setprecision(2) << displayList[i].position.x << " ";
-            zmqString << fixed << setprecision(2) << displayList[i].position.y << " ";
-            zmqString << fixed << setprecision(2) << displayList[i].position.z << " ";
-        }
-        else
-        {
-            zmqString << "0.00 0.00 0.00 0.00 ";
-        }
-    }
+		objdetString << "B ";
+		for (size_t i = 0; i < objectCount; i++)
+		{
+			if (i < displayList.size())
+			{
+				objdetString << fixed << setprecision(2) << displayList[i].ratio << " ";
+				objdetString << fixed << setprecision(2) << displayList[i].position.x << " ";
+				objdetString << fixed << setprecision(2) << displayList[i].position.y << " ";
+				objdetString << fixed << setprecision(2) << displayList[i].position.z << " ";
+			}
+			else
+			{
+				objdetString << "0.00 0.00 0.00 0.00 ";
+			}
+		}
 
-    //cout << "B : " << timestamp << " : " << zmqString.str() << endl;
+		cout << "B : " << timestamp << " : " << objdetString.str() << endl;
+		zmq::message_t request(objdetString.str().length() - 1);
+		memcpy((void *)request.data(), objdetString.str().c_str(), objdetString.str().length() - 1);
+		publisher.send(request);
+	}
 
     //Creates immutable strings for 0MQ Output
-    stringstream gString;
-    gString << "G ";
-    gString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
-    gString << fixed << setprecision(2) << gd.angle_to_goal();
+    stringstream goalString;
+    goalString << "G ";
+    goalString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
+    goalString << fixed << setprecision(2) << gd.angle_to_goal();
 
-    cout << "G " << timestamp << " : " << gString.str().length() << " : " << gString.str() << endl;
-    zmq::message_t request(zmqString.str().length() - 1);
-    zmq::message_t grequest(gString.str().length() - 1);
-    memcpy((void *)request.data(), zmqString.str().c_str(), zmqString.str().length() - 1);
-    memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
-    //publisher.send(request);
+    cout << "G " << timestamp << " : " << goalString.str().length() << " : " << goalString.str() << endl;
+    zmq::message_t grequest(goalString.str().length() - 1);
+    memcpy((void *)grequest.data(), goalString.str().c_str(), goalString.str().length() - 1);
     publisher.send(grequest);
 }
 

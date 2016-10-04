@@ -44,9 +44,9 @@ sudo apt-get install --no-install-recommends libboost-all-dev
 # which makes it easier than stopping lightdm and installing in terminal
 
 cd /tmp
-wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.0-28_amd64.deb
-sudo dpkg -i cuda-repo-ubuntu1404_7.0-28_amd64.deb
-sudo apt-get update && sudo apt-get install cuda-toolkit-7-0
+wget http://developer.download.nvidia.com/compute/cuda/7.5/Prod/local_installers/cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb
+sudo dpkg -i cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb
+sudo apt-get update && sudo apt-get install cuda-toolkit-7-5
 
 echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
 echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
@@ -59,7 +59,7 @@ mkdir build
 cd build
 
 if [ "$gpu" == "false" ] ; then
-	cmake -DCPU_ONLY ..
+	cmake -DCPU_ONLY=ON ..
 else
 	cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF ..
 fi
@@ -106,19 +106,17 @@ cd ../..
 rm -rf tinyxml2
 
 #install zed sdk
-if [ "$gpu" = true ] ; then
-	if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
-		ext = "ZED_SDK_Linux_JTK1_v1.1.0.run"
-	elif [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
-		ext = "ZED_SDK_Linux_JTX1_v1.1.0_32b_JP21.run"
-	else
-		ext = "ZED_SDK_Linux_x86_64_v1.1.0.run" 
-	fi
-	wget --no-check-certificate https://www.stereolabs.com/download_327af3/$ext
-	chmod 755 $ext
-	./$ext
-	rm ./$ext
+if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
+	ext = "ZED_SDK_Linux_JTK1_v1.1.0.run"
+elif [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
+	ext = "ZED_SDK_Linux_JTX1_v1.1.0_32b_JP21.run"
+else
+	ext = "ZED_SDK_Linux_x86_64_v1.1.0.run" 
 fi
+wget --no-check-certificate https://www.stereolabs.com/download_327af3/$ext
+chmod 755 $ext
+./$ext
+rm ./$ext
 
 # Install ffmpeg. This is a prereq for OpenCV, so 
 # unless you're installing that skip this as well.
@@ -139,14 +137,15 @@ fi
 # Note that the latest ZED drivers for x86_64 require
 # OpenCV3.1 install should be similar, just download the
 # correct version of the code
-#cd
-#wget --no-check-certificate https://github.com/Itseez/opencv/archive/2.4.13.zip
-#unzip -v 2.4.13.zip
-#cd opencv-2.4.13
-#mkdir build
-#cd build
-#cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2" -DCUDA_ARCH_PTX="5.2" ..
-#make -j4
+cd
+wget --no-check-certificate https://github.com/Itseez/opencv/archive/3.1.0.zip
+unzip 3.1.0.zip
+cd opencv-3.1.0
+mkdir build
+cd build
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2" -DCUDA_ARCH_PTX="5.2" ..
+make -j4
+sudo make install
 
 #clone repo
 cd

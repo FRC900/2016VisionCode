@@ -8,7 +8,8 @@ using namespace cv;
 
 VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
 	MediaIn(settings),
-	cap_(inpath)
+	cap_(inpath),
+	frameReady_(false)
 {
 	if (cap_.isOpened())
 	{
@@ -32,10 +33,33 @@ bool VideoIn::isOpened(void) const
 	return cap_.isOpened();
 }
 
-// Do nothing - all of the work is acutally in getFrame
 bool VideoIn::update(void)
 {
-	usleep(150000);
+	FPSmark();
+
+	// If the frame read from the last update()
+	// call hasn't been used yet, loop here
+	// until it has been. This will prevent
+	// the code from reading multiple frames
+	// in the time it takes to process one and
+	// skipping some video in the process
+	boost::mutex::scoped_lock guard(mtx_);
+	while (frameReady_)
+		condVar_.wait(guard);
+
+	cap_ >> frame_;
+	setTimeStamp();
+	incFrameNumber();
+	if (frame_.empty())
+		return false;
+	while (frame_.rows > 700)
+		pyrDown(frame_, frame_);
+
+	// Let getFrame know that a frame is ready
+	// to be read / processed
+	frameReady_ = true;
+	condVar_.notify_all();
+
 	return true;
 }
 
@@ -43,20 +67,24 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	if (!cap_.isOpened())
 		return false;
-	if(!pause)
-	{
-		cap_ >> frame_;
-		if (frame_.empty())
-			return false;
-		setTimeStamp();
-		incFrameNumber();
-		while (frame_.rows > 800)
-			pyrDown(frame_, frame_);
-	}
+
+	// Wait until a valid frame is in frame_
+	boost::mutex::scoped_lock guard(mtx_);
+	while (!frameReady_)
+		condVar_.wait(guard);
+
 	depth = Mat();
 	frame_.copyTo(frame);
 	lockTimeStamp();
 	lockFrameNumber();
+
+	// If paused, don't request a new 
+	// frame from update() yet
+	if (!pause)
+	{
+		frameReady_ = false;
+		condVar_.notify_all();
+	}
 	return true;
 }
 
@@ -81,5 +109,6 @@ void VideoIn::frameNumber(int frameNumber)
 	{
 		cap_.set(CV_CAP_PROP_POS_FRAMES, frameNumber);
 		setFrameNumber(frameNumber);
+		frameReady_ = false;
 	}
 }

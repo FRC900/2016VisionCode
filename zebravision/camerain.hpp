@@ -24,6 +24,7 @@ class CameraIn : public MediaIn
 		int              saveHeight_;
 		double           fps_;
 		cv::Mat          localFrame_;
+		cv::Mat          pausedFrame_;
 		cv::VideoCapture cap_;
 
 		std::string getClassName() const { return "CameraIn"; } 

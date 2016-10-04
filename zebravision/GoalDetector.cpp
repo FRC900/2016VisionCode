@@ -310,7 +310,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 		int best_index = 0;
 		if (best_goals.size() > 1)
 		{
+#ifdef VERBOSE
 			cout << best_goals.size() << " goals passed first detection" << endl;
+#endif
 			// Remove down to 3 goals based on confidence
 			// Sort by decreasing confidence - first entries will
 			// have the highest confidence
@@ -330,7 +332,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			//due to camera distortions
 			if(abs(best_goals[0].rect.width - best_goals[1].rect.width) > 5)
 			{
+#ifdef VERBOSE
 				cout << "Deciding based on width" << endl;
+#endif
 				if(best_goals[0].rect.width > best_goals[1].rect.width)
 					best_index = 0;
 				else
@@ -338,7 +342,9 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 			}
 			else
 			{
+#ifdef VERBOSE
 				cout << "Deciding based on position " << endl;
+#endif
 				if(best_goals[0].rect.br().x < best_goals[1].rect.br().x)
 					best_index = 1;
 				else

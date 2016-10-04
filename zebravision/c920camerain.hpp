@@ -52,6 +52,8 @@ class C920CameraIn : public MediaIn
 
 	   v4l2::C920Camera  camera_;
 	   cv::Mat           localFrame_;
+	   cv::Mat           pausedFrame_;
+
 	   int               brightness_;
 	   int               contrast_;
 	   int               saturation_;
