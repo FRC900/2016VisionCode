@@ -34,6 +34,21 @@ ZvSettings::getInt(const std::string &sectionName,
 	return false;
 }
 
+// Horrible hack here - hopefully there's no overflow
+bool
+ZvSettings::getUnsignedInt(const std::string &sectionName,
+                           const std::string &name,
+                           unsigned int &value)
+{
+    int tmpInt;
+    XMLElement *elem = getElement(sectionName, name);
+    if (elem && elem->QueryIntText(&tmpInt) == XML_SUCCESS) {
+        value = tmpInt;
+        return true;
+    }
+	return false;
+}
+
 bool
 ZvSettings::getDouble(const std::string &sectionName,
                       const std::string &name,

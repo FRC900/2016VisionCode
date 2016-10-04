@@ -14,6 +14,10 @@ public:
                 const std::string &name,
                 int &value);
 
+    bool getUnsignedInt(const std::string &sectionName,
+                        const std::string &name,
+                        unsigned int &value);
+
     bool getDouble(const std::string &sectionName,
                    const std::string &name,
                    double &value);
