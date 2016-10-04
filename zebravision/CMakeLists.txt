@@ -154,9 +154,9 @@ target_link_libraries( zv
 	)
 CUDA_ADD_CUBLAS_TO_TARGET(zv)
 
-add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp cuda_utils.cpp)
 target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${MKL_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})

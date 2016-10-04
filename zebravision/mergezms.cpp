@@ -1,7 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-#include "zedin.hpp"
+#include "zmsin.hpp"
 #include "zmsout.hpp"
 
 using namespace cv;
@@ -19,12 +19,13 @@ int main(int argc, char **argv)
 	Mat depth;
 	for (int i = 2; i < argc; i++)
 	{
-		ZedIn  in(argv[i], false);
+		ZMSIn in(argv[i]);
 
-		while (in.update() && in.getFrame(image, depth) )
+		while (in.update() && in.getFrame(image, depth))
 		{
 			out.sync();
 			out.saveFrame(image, depth);
+			cout << in.FPS() << " FPS" << endl;
 		}
 	}
 	out.sync();
