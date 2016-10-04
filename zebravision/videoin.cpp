@@ -48,10 +48,14 @@ bool VideoIn::update(void)
 		condVar_.wait(guard);
 
 	cap_ >> frame_;
+	if (frame_.empty())
+	{
+		frameReady_ = true;
+		condVar_.notify_all();
+		return false;
+	}
 	setTimeStamp();
 	incFrameNumber();
-	if (frame_.empty())
-		return false;
 	while (frame_.rows > 700)
 		pyrDown(frame_, frame_);
 
@@ -72,6 +76,8 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	boost::mutex::scoped_lock guard(mtx_);
 	while (!frameReady_)
 		condVar_.wait(guard);
+	if (frame_.empty())
+		return false;
 
 	depth = Mat();
 	frame_.copyTo(frame);
