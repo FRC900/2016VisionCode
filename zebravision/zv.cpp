@@ -18,7 +18,9 @@
 #include "imagein.hpp"
 #include "camerain.hpp"
 #include "c920camerain.hpp"
-#include "zedin.hpp"
+#include "zedcamerain.hpp"
+#include "zedsvoin.hpp"
+#include "zmsin.hpp"
 #include "aviout.hpp"
 #include "pngout.hpp"
 #include "zmsout.hpp"
@@ -52,7 +54,7 @@ string getDateTimeString(void);
 void drawRects(Mat image, const vector<Rect> &detectRects, Scalar rectColor = Scalar(0,0,255), bool text = true);
 void drawTrackingInfo(Mat &frame, const vector<TrackedObjectDisplay> &displayList, const vector<vector<Point>> &posHist);
 void drawTrackingTopDown(Mat &frame, const vector<TrackedObjectDisplay> &displayList);
-void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName);
+bool openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName);
 string getVideoOutName(bool raw, const char *suffix);
 
 static bool isRunning = true;
@@ -222,7 +224,11 @@ int main( int argc, const char** argv )
 	MediaIn* cap; //input object
 
 	shared_ptr<tinyxml2::XMLDocument> capSettings;
-	openMedia(args.inputName, !args.batchMode, args.xmlFilename, cap, capPath, windowName);
+	if (!openMedia(args.inputName, !args.batchMode, args.xmlFilename, cap, capPath, windowName))
+	{
+		cerr << "Could not open input file " << args.inputName << endl;
+		return 0;
+	}
 
 	// Current frame data - BGR image and depth data (if available)
 	Mat frame;
@@ -947,7 +953,7 @@ bool hasSuffix(const std::string& str, const std::string& suffix)
 
 
 // Open video capture object. Figure out if input is camera, video, image, etc
-void openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName)
+bool openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName)
 {
 	zvSettings = new ZvSettings(xmlFilename);
 
@@ -959,11 +965,13 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
 #ifdef ZED_SUPPORT
-		cap = new ZedIn(NULL, gui, zvSettings);
-		if(!cap->isOpened())
+		cap = new ZedCameraIn(gui, zvSettings);
+		if (!cap->isOpened())
 #endif
 		{
+#ifdef ZED_SUPPORT
 			delete cap;
+#endif
 			cap = new C920CameraIn(camera, gui, zvSettings);
 			if (!cap->isOpened())
 			{
@@ -991,16 +999,24 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
 		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
 			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
-		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO") ||
-		         hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
-#ifdef ZED_SUPPORT
-			cap = new ZedIn(readFileName.c_str(), gui, zvSettings);
-#else
+		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO"))
 		{
-			cap = new VideoIn(readFileName.c_str(), zvSettings);
+#ifdef ZED_SUPPORT
+			cap = new ZedSVOIn(readFileName.c_str(), zvSettings);
+#else
 			cerr << "ZED support not enabled for this build " << endl;
-		}
+			return false;
 #endif
+		}
+		else if ( hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
+		{
+#ifdef ZED_SUPPORT
+			cap = new ZMSIn(readFileName.c_str(), zvSettings);
+#else
+			cerr << "ZED support not enabled for this build " << endl;
+			return false
+#endif
+		}
 		else
 			cap = new VideoIn(readFileName.c_str(), zvSettings);
 
@@ -1011,6 +1027,7 @@ void openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 			capPath.erase(0, last_slash_idx + 1);
 		windowName = readFileName;
 	}
+	return true;
 }
 
 // Video-YYYY-MM-DD_hr-min-sec-##.avi

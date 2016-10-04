@@ -111,6 +111,9 @@ CUDA_ADD_EXECUTABLE(zv
 	Args.cpp
 	WriteOnFrame.cpp
 	zedin.cpp
+	zedcamerain.cpp
+	zedsvoin.cpp
+	zmsin.cpp
 	groundtruth.cpp
 	Utilities.cpp
 	track3d.cpp

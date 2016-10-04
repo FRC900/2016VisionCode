@@ -1,14 +1,10 @@
-#ifndef ZEDCAMERAIN_HPP__
-#define ZEDCAMERAIN_HPP__
+#pragma once
 
 //opencv include
 #include <opencv2/core/core.hpp>
 #include "mediain.hpp"
 
 #ifdef ZED_SUPPORT
-#include <boost/archive/binary_iarchive.hpp>
-#include <portable_binary_iarchive.hpp>
-#include <boost/iostreams/filtering_streambuf.hpp>
 //zed include
 #include <zed/Mat.hpp>
 #include <zed/Camera.hpp>
@@ -20,68 +16,26 @@ class ZvSettings;
 class ZedIn : public MediaIn
 {
 	public:
-		ZedIn(const char *inFileName = NULL, bool gui = false, ZvSettings *settings = NULL);
-		~ZedIn();
+		ZedIn(ZvSettings *settings = NULL);
+		~ZedIn(void);
 
-		int    width(void) const;
-		int    height(void) const;
+		int width(void) const;
+		int height(void) const;
 
 #ifdef ZED_SUPPORT
-		bool isOpened(void) const;
-		bool update(void);
-		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
-		// How many frames?
-		int    frameCount(void) const;
-
-		// Get and set current frame number
-		int    frameNumber(void) const;
-		void   frameNumber(int frameNumber);
-		long long timeStamp(void) const;
-
 		CameraParams getCameraParams(bool left) const;
-#endif
 
-	private:
-#ifdef ZED_SUPPORT
-		void deleteInputPointers(void);
-		bool openSerializeInput(const char *filename, bool portable);
-		bool update(bool left);
-		bool loadSettings(void);
-		bool saveSettings(void) const;
-		std::string getClassName() const { return "ZedIn"; }
-
+	protected:
 		sl::zed::Camera* zed_;
 		sl::zed::Mat slDepth_;
 		sl::zed::Mat slFrame_;
 		cv::Mat pausedFrame_;
 		cv::Mat pausedDepth_;
 		cv::Mat depthMat_;
+
 		int width_;
 		int height_;
-		int frameNumber_;
-		int lockedFrameNumber_;
 
-		int brightness_;
-		int contrast_;
-		int hue_;
-		int saturation_;
-		int gain_;
-		int whiteBalance_;
-
-		// Hack up a way to save zed data - serialize both
-		// BGR frame and depth frame
-		std::ifstream *serializeIn_;
-		boost::iostreams::filtering_streambuf<boost::iostreams::input> *filtSBIn_;
-		boost::archive::binary_iarchive *archiveIn_;
-		portable_binary_iarchive *portableArchiveIn_;
-
-		// Mark these as friends so they can access private class data
-		friend void zedBrightnessCallback(int value, void *data);
-		friend void zedContrastCallback(int value, void *data);
-		friend void zedHueCallback(int value, void *data);
-		friend void zedSaturationCallback(int value, void *data);
-		friend void zedGainCallback(int value, void *data);
-		friend void zedWhiteBalanceCallback(int value, void *data);
+	private:
 #endif
 };
-#endif
