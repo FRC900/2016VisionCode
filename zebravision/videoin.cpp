@@ -52,8 +52,6 @@ bool VideoIn::isOpened(void) const
 // before overwriting it.
 void VideoIn::update(void)
 {
-	FPSmark();
-
 	// Loop until an empty frame is read - 
 	// this should identify EOF
 	do

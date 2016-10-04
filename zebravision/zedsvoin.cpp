@@ -66,8 +66,6 @@ void ZedSVOIn::update(void)
 
 	do
 	{
-		FPSmark();
-
 		// This can be done outside of the mutex
 		// since it doesn't update any shared buffers
 		if (zed_->grab())
