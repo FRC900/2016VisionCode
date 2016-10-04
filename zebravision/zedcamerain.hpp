@@ -1,6 +1,15 @@
+// Class to handle video input from ZED camera
+// Similar to other camerain classes, except that depth
+// data is returned from getFrame.
+// Note that this class is derived from ZedIn rather than 
+// MediaIn like many of the other *in classes. This lets the
+// code use a common call to grab the camera parameters.
+// TODO : test to see that this is correct for SVO files.
+// If not, break the code up since calls from ZMS in use fakes
+// of those values
 #pragma once
 
-//opencv include
+#include <boost/thread.hpp>
 #include <opencv2/core/core.hpp>
 #include "zedin.hpp"
 
@@ -19,14 +28,30 @@ class ZedCameraIn : public ZedIn
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
-#endif
 
 	private:
-#ifdef ZED_SUPPORT
 		bool update(bool left);
 		bool loadSettings(void);
 		bool saveSettings(void) const;
 		std::string getClassName() const { return "ZedCameraIn"; }
+
+		// Input is buffered several times
+		// RGB and depth are stored in separate cv::Mat objects
+		// frame_/depth_ is the most recent frame grabbed from 
+		// the camera
+		// pausedFrame_/pausedDepth_ is the most recent frame returned
+		// from a call to getFrame. If video is paused, this
+		// frame is returned multiple times until the
+		// GUI is unpaused
+		cv::Mat      frame_;
+		cv::Mat      depth_;
+		cv::Mat      pausedFrame_;
+		cv::Mat      pausedDepth_;
+
+		// Mutex used to protect frame_
+		// from simultaneous accesses 
+		// by multiple threads
+		boost::mutex mtx_;
 
 		int brightness_;
 		int contrast_;

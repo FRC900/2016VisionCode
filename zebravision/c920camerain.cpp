@@ -164,14 +164,15 @@ bool C920CameraIn::isOpened(void) const
 bool C920CameraIn::update(void)
 {
 	FPSmark();
+	Mat localFrame;
 	if (!camera_.IsOpen() ||
 	    !camera_.GrabFrame() ||
-	    !camera_.RetrieveMat(localFrame_))
+	    !camera_.RetrieveMat(localFrame))
 		return false;
 	boost::lock_guard<boost::mutex> guard(mtx_);
 	setTimeStamp();
 	incFrameNumber();
-	localFrame_.copyTo(frame_);
+	localFrame.copyTo(frame_);
 	while (frame_.rows > 700)
 		pyrDown(frame_, frame_);
 	return true;

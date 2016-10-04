@@ -65,7 +65,7 @@ void MediaIn::setTimeStamp(long long timeStamp)
 {
 	if (timeStamp != -1)
 	{
-		timeStamp_ = -1;
+		timeStamp_ = timeStamp;
 	}
 	else
 	{

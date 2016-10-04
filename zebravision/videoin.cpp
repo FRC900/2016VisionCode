@@ -9,15 +9,16 @@ using namespace cv;
 VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
 	MediaIn(settings),
 	cap_(inpath),
-	frameReady_(false)
+	frameReady_(false) // signal update() to load a new frame immediately
 {
 	if (cap_.isOpened())
 	{
 		width_  = cap_.get(CV_CAP_PROP_FRAME_WIDTH);
 		height_ = cap_.get(CV_CAP_PROP_FRAME_HEIGHT);
+
 		// getNextFrame scales down large inputs
 		// make width and height match adjusted frame size
-		while (height_ > 800)
+		while (height_ > 700)
 		{
 			width_ /= 2;
 			height_ /= 2;
@@ -33,6 +34,12 @@ bool VideoIn::isOpened(void) const
 	return cap_.isOpened();
 }
 
+// Read the next frame from the input file.  Store the
+// read frame in frame_.
+// The code is designed not to skip any input frames,
+// so if the data stored in frame_ hasn't been read
+// in getFrame yet, update() will loop until it has
+// before overwriting it.
 bool VideoIn::update(void)
 {
 	FPSmark();
@@ -48,12 +55,6 @@ bool VideoIn::update(void)
 		condVar_.wait(guard);
 
 	cap_ >> frame_;
-	if (frame_.empty())
-	{
-		frameReady_ = true;
-		condVar_.notify_all();
-		return false;
-	}
 	setTimeStamp();
 	incFrameNumber();
 	while (frame_.rows > 700)
@@ -64,6 +65,12 @@ bool VideoIn::update(void)
 	frameReady_ = true;
 	condVar_.notify_all();
 
+	// Pass an empty frame to getFrame to
+	// signal that there was an error with
+	// the input (most likely EOF)
+	if (frame_.empty())
+		return false;
+
 	return true;
 }
 
@@ -72,25 +79,37 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	if (!cap_.isOpened())
 		return false;
 
-	// Wait until a valid frame is in frame_
-	boost::mutex::scoped_lock guard(mtx_);
-	while (!frameReady_)
-		condVar_.wait(guard);
-	if (frame_.empty())
-		return false;
-
-	depth = Mat();
-	frame_.copyTo(frame);
-	lockTimeStamp();
-	lockFrameNumber();
-
-	// If paused, don't request a new 
-	// frame from update() yet
+	// If not paused, copy the next frame from
+	// frame_. This is the Mat holding the next
+	// frame read from the video that update()
+	// fills in a separate thread
 	if (!pause)
 	{
+		// Wait until a valid frame is in frame_
+		boost::mutex::scoped_lock guard(mtx_);
+		while (!frameReady_)
+			condVar_.wait(guard);
+		if (frame_.empty())
+			return false;
+
+		frame_.copyTo(prevGetFrame_);
+		lockTimeStamp();
+		lockFrameNumber();
+
+		// Let update() know that getFrame has copied
+		// the current frame out of frame_
 		frameReady_ = false;
 		condVar_.notify_all();
+
+		// Release the mutex so that update() can
+		// start getting the next frame while the 
+		// current one is returned and processed
+		// in the main thread.
 	}
+	if (prevGetFrame_.empty())
+		return false;
+	prevGetFrame_.copyTo(frame);
+	depth = Mat();
 	return true;
 }
 
@@ -105,6 +124,6 @@ void VideoIn::frameNumber(int frameNumber)
 	{
 		cap_.set(CV_CAP_PROP_POS_FRAMES, frameNumber);
 		setFrameNumber(frameNumber);
-		frameReady_ = false;
+		frameReady_ = false; // force update to read this frame
 	}
 }

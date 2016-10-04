@@ -1,3 +1,6 @@
+// Base class for ZED-derived inputs (cameras and svo files)
+// All this really does is provide a common getCameraParams call
+// to all of them - the real work is done in those derived classes
 #pragma once
 
 //opencv include
@@ -6,9 +9,7 @@
 
 #ifdef ZED_SUPPORT
 //zed include
-#include <zed/Mat.hpp>
 #include <zed/Camera.hpp>
-#include <zed/utils/GlobalDefine.hpp>
 #endif
 
 class ZvSettings;
@@ -24,15 +25,5 @@ class ZedIn : public MediaIn
 
 	protected:
 		sl::zed::Camera* zed_;
-		sl::zed::Mat slDepth_;
-		sl::zed::Mat slFrame_;
-		cv::Mat pausedFrame_;
-		cv::Mat pausedDepth_;
-		cv::Mat depthMat_;
-
-		int width_;
-		int height_;
-
-	private:
 #endif
 };

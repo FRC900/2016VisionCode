@@ -156,18 +156,18 @@ bool ZedCameraIn::update(bool left)
 			return false;
 	}
 
-	slDepth_ = zed_->retrieveMeasure(MEASURE::DEPTH);
-	slFrame_ = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
 	boost::lock_guard<boost::mutex> guard(mtx_);
 	setTimeStamp();
 	incFrameNumber();
-	cvtColor(slMat2cvMat(slFrame_), frame_, CV_RGBA2RGB);
-	slMat2cvMat(slDepth_).copyTo(depthMat_);
+	cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
+	slMat2cvMat(slDepth).copyTo(depth_);
 
 	while (frame_.rows > 700)
 	{
 		pyrDown(frame_, frame_);
-		pyrDown(depthMat_, depthMat_);
+		pyrDown(depth_, depth_);
 	}
 
 	return true;
@@ -179,8 +179,9 @@ bool ZedCameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	if (!zed_)
 		return false;
 
-	// If input is paused, this will just re-use the
-	// previous frame.
+	// If input is not paused, copy data from the
+	// frame_/depth_ mats- these are the most recent
+	// data read from the cameras
 	if (!pause)
 	{
 		boost::lock_guard<boost::mutex> guard(mtx_);
@@ -188,7 +189,7 @@ bool ZedCameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		lockFrameNumber();
 
 		frame_.copyTo(pausedFrame_);
-		depthMat_.copyTo(pausedDepth_);
+		depth_.copyTo(pausedDepth_);
 	}
 	pausedFrame_.copyTo(frame);
 	pausedDepth_.copyTo(depth);

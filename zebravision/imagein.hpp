@@ -1,5 +1,4 @@
-#ifndef IMAGEIN_HPP__
-#define IMAGEIN_HPP__
+#pragma once
 
 #include <opencv2/core/core.hpp>
 
@@ -20,9 +19,9 @@ class ImageIn : public MediaIn
 		int frameCount(void) const;
 
 	private:
+		cv::Mat image_;
 		std::string outpath_;
 		std::string getClassName() const { return "ImageIn"; }
 		bool loadSettings(void) { return true; }
 		bool saveSettings(void) const { return true; }
 };
-#endif
