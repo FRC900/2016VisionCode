@@ -31,12 +31,6 @@ bool ImageIn::isOpened(void) const
 	return image_.empty();
 }
 
-bool ImageIn::update(void)
-{
-	usleep(250000);
-	return true;
-}
-
 bool ImageIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	(void)pause;

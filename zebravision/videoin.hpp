@@ -14,10 +14,9 @@ class VideoIn : public MediaIn
 {
 	public:
 		VideoIn(const char *inpath, ZvSettings *settings = NULL);
-		~VideoIn() {}
+		~VideoIn();
 
 		bool isOpened(void) const;
-		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		int  frameCount(void) const;
@@ -48,6 +47,10 @@ class VideoIn : public MediaIn
 		// frame is ready to use or needs to be read
 		boost::condition_variable condVar_;
 
+		// Thread object to track update() thread
+		boost::thread thread_;
+
+		void update(void);
 		bool loadSettings(void) { return true; }
 		bool saveSettings(void) const { return true; }
 		std::string getClassName() const { return "VideoIn"; }

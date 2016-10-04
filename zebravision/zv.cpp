@@ -170,27 +170,6 @@ void drawTrackingTopDown(Mat& frame, const vector<TrackedObjectDisplay>& display
     }
 }
 
-static void grabThread(MediaIn *cap)
-{
-	// this runs concurrently with the main while loop 
-	// If using a camera it will constantly grab frames
-	// in the background.  If input is an image or video,
-	// update() is a no-op so frames will only be read
-	// when getFrame is explicitly called in the main loop.
-	// That way all video frames are processed rather than 
-	// skipping some and repeating others since the update
-	// is out of sync with the main loop
-	while(1) 
-	{
-		if(!cap->update()) 
-		{
-			cerr << "Failed to capture" << endl;
-			isRunning = false;
-		}
-		boost::this_thread::interruption_point();
-	}
-}
-
 int main( int argc, const char** argv )
 {
 	// Flags for various UI features
@@ -241,9 +220,9 @@ int main( int argc, const char** argv )
 	//load an initial frame for stuff like optical flow which requires an initial
 	// frame to compute difference against
 	//also checks to make sure that the cap object works
-	if (!cap->update() || !cap->getFrame(frame, depth))
+	if (!cap->getFrame(frame, depth))
 	{
-		cerr << "Could not open input file " << args.inputName << endl;
+		cerr << "Could not open input " << args.inputName << endl;
 		return 0;
 	}
 	cout << "Welcome to Zebravision v" << VERSION_MAJOR << "." << VERSION_MINOR << " " << GitDesc << endl;
@@ -360,12 +339,6 @@ int main( int argc, const char** argv )
 
 	//Creating Goaldetection object
 	GoalDetector gd(camParams.fov, Size(cap->width(),cap->height()), !args.batchMode);
-
-	//Start the grab loop:
-	// --update the current frame
-	//this loop runs asynchronously with the main loop if the input is a camera
-	//and synchronously if the input is a video (i.e. one grab per process)
-	boost::thread g_thread(grabThread, cap);
 
 	// Start of the main loop
 	//  -- grab a frame
@@ -859,8 +832,6 @@ int main( int argc, const char** argv )
 		if (!cap->getFrame(frame, depth, pause))
 			break;
 	}
-  	g_thread.interrupt();
-  	g_thread.join();
 
 	cout << "Ball detect ground truth : " << endl;
 	groundTruth.print();

@@ -9,7 +9,8 @@ using namespace cv;
 VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
 	MediaIn(settings),
 	cap_(inpath),
-	frameReady_(false) // signal update() to load a new frame immediately
+	frameReady_(false), // signal update() to load a new frame immediately
+	thread_(boost::bind(&VideoIn::update, this))
 {
 	if (cap_.isOpened())
 	{
@@ -29,10 +30,19 @@ VideoIn::VideoIn(const char *inpath, ZvSettings *settings) :
 		std::cerr << "Could not open input video "<< inpath << std::endl;
 }
 
+
+VideoIn::~VideoIn()
+{
+	thread_.interrupt();
+	thread_.join();
+}
+
+
 bool VideoIn::isOpened(void) const
 {
 	return cap_.isOpened();
 }
+
 
 // Read the next frame from the input file.  Store the
 // read frame in frame_.
@@ -40,39 +50,38 @@ bool VideoIn::isOpened(void) const
 // so if the data stored in frame_ hasn't been read
 // in getFrame yet, update() will loop until it has
 // before overwriting it.
-bool VideoIn::update(void)
+void VideoIn::update(void)
 {
 	FPSmark();
 
-	// If the frame read from the last update()
-	// call hasn't been used yet, loop here
-	// until it has been. This will prevent
-	// the code from reading multiple frames
-	// in the time it takes to process one and
-	// skipping some video in the process
-	boost::mutex::scoped_lock guard(mtx_);
-	while (frameReady_)
-		condVar_.wait(guard);
+	// Loop until an empty frame is read - 
+	// this should identify EOF
+	do
+	{
+		// If the frame read from the last update()
+		// call hasn't been used yet, loop here
+		// until it has been. This will prevent
+		// the code from reading multiple frames
+		// in the time it takes to process one and
+		// skipping some video in the process
+		boost::mutex::scoped_lock guard(mtx_);
+		while (frameReady_)
+			condVar_.wait(guard);
 
-	cap_ >> frame_;
-	setTimeStamp();
-	incFrameNumber();
-	while (frame_.rows > 700)
-		pyrDown(frame_, frame_);
+		cap_ >> frame_;
+		setTimeStamp();
+		incFrameNumber();
+		while (frame_.rows > 700)
+			pyrDown(frame_, frame_);
 
-	// Let getFrame know that a frame is ready
-	// to be read / processed
-	frameReady_ = true;
-	condVar_.notify_all();
-
-	// Pass an empty frame to getFrame to
-	// signal that there was an error with
-	// the input (most likely EOF)
-	if (frame_.empty())
-		return false;
-
-	return true;
+		// Let getFrame know that a frame is ready
+		// to be read / processed
+		frameReady_ = true;
+		condVar_.notify_all();
+	}
+	while (!frame_.empty());
 }
+
 
 bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
@@ -113,10 +122,12 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	return true;
 }
 
+
 int VideoIn::frameCount(void) const
 {
 	return frames_;
 }
+
 
 void VideoIn::frameNumber(int frameNumber)
 {

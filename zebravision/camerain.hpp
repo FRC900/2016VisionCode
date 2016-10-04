@@ -21,7 +21,6 @@ class CameraIn : public MediaIn
 		~CameraIn();
 
 		bool isOpened(void) const;
-		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 	private:
@@ -42,8 +41,17 @@ class CameraIn : public MediaIn
 		// by multiple threads
 		boost::mutex      mtx_;
 
+		// Thread dedicated to update() loop
+		boost::thread thread_;
+
+		// Flag and condition variable to indicate
+		// update() has grabbed at least 1 frame
+		boost::condition_variable condVar_;
+		bool updateStarted_;
+
 		cv::VideoCapture cap_;
 
+		void update(void);
 		std::string getClassName() const { return "CameraIn"; } 
 		bool loadSettings(void);
 		bool saveSettings(void) const;

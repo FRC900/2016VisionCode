@@ -19,6 +19,7 @@ void zedGainCallback(int value, void *data);
 
 ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	ZedIn(settings),
+	updateStarted_(false),
 	brightness_(2),
 	contrast_(6),
 	hue_(7),
@@ -49,15 +50,6 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 		}
 		else
 		{
-			// Make sure there's at least one good frame read
-			// before kicking off the main capture thread
-			if (!update())
-			{
-				cerr << "********** TOO MANY BAD FRAMES, ABORTING" << endl;
-				delete zed_;
-				zed_ = NULL;
-				return;
-			}
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
@@ -84,6 +76,7 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 				cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
 				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
 			}
+			thread_ = boost::thread(&ZedCameraIn::update, this);
 		}
 	}
 
@@ -125,6 +118,8 @@ ZedCameraIn::~ZedCameraIn()
 {
 	if (!saveSettings())
 		cerr << "Failed to save ZedCameraIn settings to XML" << endl;
+	thread_.interrupt();
+	thread_.join();
 }
 
 
@@ -134,43 +129,44 @@ bool ZedCameraIn::isOpened(void) const
 }
 
 
-bool ZedCameraIn::update(bool left)
+void ZedCameraIn::update(void)
 {
+	// TODO : make this settable somehow?
+	const bool left = true;
 	if (!zed_)
-		return false;
+		return;
 
-	FPSmark();
-	int badReadCounter = 0;
-	while (zed_->grab(SENSING_MODE::STANDARD))
+	while (1)
 	{
-		cerr << "********---------GRAB RETURNED FALSE " << endl;
-		usleep(33333);
-		// If there is an existing frame and the
-		// grab fails, just return. This will
-		// cause the code to use the last good frame
-		if (!frame_.empty())
-			return true;
-		// Otherwise try to grab a bunch of times before
-		// bailing out and failing
-		if (++badReadCounter == 100)
-			return false;
+		boost::this_thread::interruption_point();
+		FPSmark();
+		int badReadCounter = 0;
+		while (zed_->grab(SENSING_MODE::STANDARD))
+		{
+			boost::this_thread::interruption_point();
+			// Try to grab a bunch of times before
+			// bailing out and failing
+			if (++badReadCounter == 100)
+				return;
+		}
+
+		sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+		sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+		boost::mutex::scoped_lock guard(mtx_);
+		setTimeStamp();
+		incFrameNumber();
+		cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
+		slMat2cvMat(slDepth).copyTo(depth_);
+
+		while (frame_.rows > 700)
+		{
+			pyrDown(frame_, frame_);
+			pyrDown(depth_, depth_);
+		}
+
+		updateStarted_= true;
+		condVar_.notify_all();
 	}
-
-	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
-	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
-	boost::lock_guard<boost::mutex> guard(mtx_);
-	setTimeStamp();
-	incFrameNumber();
-	cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
-	slMat2cvMat(slDepth).copyTo(depth_);
-
-	while (frame_.rows > 700)
-	{
-		pyrDown(frame_, frame_);
-		pyrDown(depth_, depth_);
-	}
-
-	return true;
 }
 
 
@@ -184,7 +180,10 @@ bool ZedCameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	// data read from the cameras
 	if (!pause)
 	{
-		boost::lock_guard<boost::mutex> guard(mtx_);
+		boost::mutex::scoped_lock guard(mtx_);
+		while (!updateStarted_)
+			condVar_.wait(guard);
+
 		lockTimeStamp();
 		lockFrameNumber();
 
@@ -195,12 +194,6 @@ bool ZedCameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	pausedDepth_.copyTo(depth);
 
 	return true;
-}
-
-
-bool ZedCameraIn::update(void)
-{
-	return update(true);
 }
 
 

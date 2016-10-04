@@ -3,12 +3,9 @@
 // to all of them - the real work is done in those derived classes
 #pragma once
 
-//opencv include
-#include <opencv2/core/core.hpp>
 #include "mediain.hpp"
 
 #ifdef ZED_SUPPORT
-//zed include
 #include <zed/Camera.hpp>
 #endif
 

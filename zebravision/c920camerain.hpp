@@ -23,12 +23,13 @@ class C920CameraIn : public MediaIn
 		
 #ifdef __linux__  // Special C920 support only works under linux
 		bool isOpened(void) const;
-		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		CameraParams getCameraParams(bool left) const;
 
 	private:
+		void update(void);
+
 		bool initCamera(bool gui);
 		bool loadSettings(void);
 		bool saveSettings(void) const;
@@ -62,6 +63,14 @@ class C920CameraIn : public MediaIn
 		// from simultaneous accesses 
 		// by multiple threads
 		boost::mutex      mtx_;
+
+		// Thread dedicated to update() loop
+		boost::thread thread_;
+
+		// Flag and condition variable to indicate
+		// update() has grabbed at least 1 frame
+		boost::condition_variable condVar_;
+		bool updateStarted_;
 
 		// Various camera settings
 		int               brightness_;

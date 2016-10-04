@@ -26,11 +26,10 @@ class ZedCameraIn : public ZedIn
 
 #ifdef ZED_SUPPORT
 		bool isOpened(void) const;
-		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 	private:
-		bool update(bool left);
+		void update(void);
 		bool loadSettings(void);
 		bool saveSettings(void) const;
 		std::string getClassName() const { return "ZedCameraIn"; }
@@ -52,6 +51,15 @@ class ZedCameraIn : public ZedIn
 		// from simultaneous accesses 
 		// by multiple threads
 		boost::mutex mtx_;
+
+		// Used to track update() thread
+		boost::thread thread_;
+
+		// Flag and condition variable to indicate
+		// update() has grabbed at least 1 frame
+		boost::condition_variable condVar_;
+		bool updateStarted_;
+
 
 		int brightness_;
 		int contrast_;

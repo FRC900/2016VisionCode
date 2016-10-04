@@ -45,7 +45,6 @@ class MediaIn
 
 		// These should be implemented by each derived class
 		virtual bool isOpened(void) const = 0;
-		virtual bool update(void) = 0;
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
 
 		// Image size

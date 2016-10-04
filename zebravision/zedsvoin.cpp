@@ -8,6 +8,7 @@ using namespace sl::zed;
 
 ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
 	ZedIn(settings),
+	thread_(boost::bind(&ZedSVOIn::update, this)),
 	frameReady_(false) // trigger an immediate read of 1st frame in update()
 {
 	zed_ = new Camera(inFileName);
@@ -47,6 +48,8 @@ ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
 
 ZedSVOIn::~ZedSVOIn()
 {
+	thread_.interrupt();
+	thread_.join();
 }
 
 bool ZedSVOIn::isOpened(void) const
@@ -55,54 +58,51 @@ bool ZedSVOIn::isOpened(void) const
 }
 
 
-bool ZedSVOIn::update(bool left)
+void ZedSVOIn::update(void)
 {
-	FPSmark();
-
+	const bool left = true;
 	if (!zed_)
-		return false;
+		return ;
 
-	// This can be done outside of the mutex
-	// since it doesn't update any shared buffers
-	if (zed_->grab())
-		return false;
-
-	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
-	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
-
-	// If the frame read from the last update()
-	// call hasn't been used yet, loop here
-	// until it has been. This will prevent
-	// the code from reading multiple frames
-	// in the time it takes to process one and
-	// skipping some video in the process
-	boost::mutex::scoped_lock guard(mtx_);
-	while (frameReady_)
-		condVar_.wait(guard);
-
-	setTimeStamp();
-	incFrameNumber();
-	cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
-	slMat2cvMat(slDepth).copyTo(depth_);
-
-	while (frame_.rows > 700)
+	do
 	{
-		pyrDown(frame_, frame_);
-		pyrDown(depth_, depth_);
+		FPSmark();
+
+		// This can be done outside of the mutex
+		// since it doesn't update any shared buffers
+		if (zed_->grab())
+			break;
+
+		sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+		sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+
+		// If the frame read from the last update()
+		// call hasn't been used yet, loop here
+		// until it has been. This will prevent
+		// the code from reading multiple frames
+		// in the time it takes to process one and
+		// skipping some video in the process
+		boost::mutex::scoped_lock guard(mtx_);
+		while (frameReady_)
+			condVar_.wait(guard);
+
+		setTimeStamp();
+		incFrameNumber();
+		cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
+		slMat2cvMat(slDepth).copyTo(depth_);
+
+		while (frame_.rows > 700)
+		{
+			pyrDown(frame_, frame_);
+			pyrDown(depth_, depth_);
+		}
+
+		// Let getFrame know that a frame is ready
+		// to be read / processed
+		frameReady_ = true;
+		condVar_.notify_all();
 	}
-
-	// Let getFrame know that a frame is ready
-	// to be read / processed
-	frameReady_ = true;
-	condVar_.notify_all();
-
-	// Pass an empty frame to getFrame to
-	// signal that there was an error with
-	// the input (most likely EOF)
-	if (frame_.empty())
-		return false;
-
-	return true;
+	while (!frame_.empty());
 }
 
 
@@ -142,12 +142,6 @@ bool ZedSVOIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	prevGetFrame_.copyTo(frame);
 	prevGetDepth_.copyTo(depth);
 	return true;
-}
-
-
-bool ZedSVOIn::update(void)
-{
-	return update(true);
 }
 
 

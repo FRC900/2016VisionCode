@@ -16,7 +16,6 @@ class ZedSVOIn : public ZedIn
 
 #ifdef ZED_SUPPORT
 		bool isOpened(void) const;
-		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
 		// How many frames?
@@ -27,7 +26,7 @@ class ZedSVOIn : public ZedIn
 		void   frameNumber(int frameNumber);
 
 	private:
-		bool update(bool left);
+		void update(void);
 		// Input is buffered several times
 		// RGB and depth are stored in separate cv::Mat objects
 		// frame_/depth_ is the most recent frame grabbed from 
@@ -50,6 +49,9 @@ class ZedSVOIn : public ZedIn
 		// update & getFrame - communicates when a 
 		// frame is ready to use or needs to be read
 		boost::condition_variable condVar_;
+
+		// Used to track update thread
+		boost::thread thread_;
 
 		// Flag used to syncronize between update and get calls
 		bool             frameReady_;

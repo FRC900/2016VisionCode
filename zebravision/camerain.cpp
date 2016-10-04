@@ -9,6 +9,7 @@ using namespace std;
 CameraIn::CameraIn(int stream, ZvSettings *settings) :
 	MediaIn(settings),
 	fps_(30.),
+	updateStarted_(false),
 	cap_(stream)
 {
 	if (cap_.isOpened())
@@ -33,6 +34,8 @@ CameraIn::CameraIn(int stream, ZvSettings *settings) :
 			width_ /= 2;
 			height_ /= 2;
 		}
+
+		thread_ = boost::thread(&CameraIn::update, this);
 	}
 	else
 		std::cerr << "Could not open camera" << std::endl;
@@ -41,6 +44,8 @@ CameraIn::CameraIn(int stream, ZvSettings *settings) :
 CameraIn::~CameraIn()
 {
 	saveSettings();
+	thread_.interrupt();
+	thread_.join();
 }
 
 bool CameraIn::loadSettings(void)
@@ -73,36 +78,49 @@ bool CameraIn::isOpened() const
 	return cap_.isOpened();
 }
 
-bool CameraIn::update(void)
+void CameraIn::update(void)
 {
-	FPSmark();
 	Mat localFrame;
-	if (!cap_.isOpened()  ||
-	    !cap_.grab() ||
-	    !cap_.retrieve(localFrame))
-		return false;
-	boost::lock_guard<boost::mutex> guard(mtx_);
-	setTimeStamp();
-	incFrameNumber();
-	localFrame.copyTo(frame_);
-	while (frame_.rows > 700)
-		pyrDown(frame_, frame_);
-	return true;
+	while (1)
+	{
+		boost::this_thread::interruption_point();
+		FPSmark();
+		if (!cap_.isOpened() ||
+			!cap_.grab() ||
+			!cap_.retrieve(localFrame))
+			break;
+
+		boost::lock_guard<boost::mutex> guard(mtx_);
+		setTimeStamp();
+		incFrameNumber();
+		localFrame.copyTo(frame_);
+
+		while (frame_.rows > 700)
+			pyrDown(frame_, frame_);
+
+		updateStarted_ = true;
+		condVar_.notify_all();
+	}
 }
 
 bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 {
 	if (!cap_.isOpened())
 		return false;
+	
 	if (!pause)
 	{
-		boost::lock_guard<boost::mutex> guard(mtx_);
+		boost::mutex::scoped_lock guard(mtx_);
+		while (!updateStarted_)
+			condVar_.wait(guard);
 		if (frame_.empty())
 			return false;
 		lockTimeStamp();
 		lockFrameNumber();
 		frame_.copyTo(pausedFrame_);
 	}
+	if (pausedFrame_.empty())
+		return false;
 	pausedFrame_.copyTo(frame);
 	depth = Mat();
 	return true;

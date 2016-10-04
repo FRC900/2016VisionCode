@@ -24,13 +24,14 @@ void focusCallback(int value, void *data);
 C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
 	MediaIn(settings), 
 	camera_(stream >= 0 ? stream : 0),
+	updateStarted_(false),
 	brightness_              (128),
 	contrast_                (128),
 	saturation_              (128),
 	sharpness_               (128),
 	gain_                    (1),
 	focus_                   (1),
-	autoExposure_            (1),
+	autoExposure_            (3),
 	backlightCompensation_   (0),
 	whiteBalanceTemperature_ (0),
 	captureSize_             (v4l2::CAPTURE_SIZE_1280x720),
@@ -43,6 +44,8 @@ C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
 		camera_.Close();
 		cerr << "Camera is not a C920" << endl;
 	}
+	else
+		thread_ = boost::thread(&C920CameraIn::update, this);
 }
 
 bool
@@ -94,6 +97,8 @@ C920CameraIn::saveSettings(void) const
 C920CameraIn::~C920CameraIn()
 {
 	saveSettings();
+	thread_.interrupt();
+	thread_.join();
 }
 
 bool C920CameraIn::initCamera(bool gui)
@@ -161,22 +166,34 @@ bool C920CameraIn::isOpened(void) const
 	return camera_.IsOpen();
 }
 
-bool C920CameraIn::update(void)
+// Separate update thread which constantly
+// grabs the latest frame and copies it
+// into the frame_ member var.
+void C920CameraIn::update(void)
 {
-	FPSmark();
 	Mat localFrame;
-	if (!camera_.IsOpen() ||
-	    !camera_.GrabFrame() ||
-	    !camera_.RetrieveMat(localFrame))
-		return false;
-	boost::lock_guard<boost::mutex> guard(mtx_);
-	setTimeStamp();
-	incFrameNumber();
-	localFrame.copyTo(frame_);
-	while (frame_.rows > 700)
-		pyrDown(frame_, frame_);
-	return true;
+	while (1)
+	{
+		boost::this_thread::interruption_point();
+		FPSmark();
+		if (!camera_.IsOpen() ||
+			!camera_.GrabFrame() ||
+			!camera_.RetrieveMat(localFrame))
+			break;
+
+		boost::lock_guard<boost::mutex> guard(mtx_);
+		setTimeStamp();
+		incFrameNumber();
+		localFrame.copyTo(frame_);
+
+		while (frame_.rows > 700)
+			pyrDown(frame_, frame_);
+
+		updateStarted_ = true;
+		condVar_.notify_all();
+	}
 }
+
 
 bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 {
@@ -185,7 +202,9 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		return false;
 	if (!pause)
 	{
-		boost::lock_guard<boost::mutex> guard(mtx_);
+		boost::mutex::scoped_lock guard(mtx_);
+		while (!updateStarted_)
+			condVar_.wait(guard);
 		if (frame_.empty())
 			return false;
 		frame_.copyTo(pausedFrame_);

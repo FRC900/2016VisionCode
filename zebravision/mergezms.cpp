@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 	{
 		ZMSIn in(argv[i]);
 
-		while (in.update() && in.getFrame(image, depth))
+		while (in.getFrame(image, depth))
 		{
 			out.sync();
 			out.saveFrame(image, depth);
