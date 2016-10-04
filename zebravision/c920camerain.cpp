@@ -143,6 +143,16 @@ bool C920CameraIn::initCamera(bool gui)
 		cv::createTrackbar("Focus", "Adjustments", &focus_, 256, focusCallback, this);
 	}
 
+	v4l2::GetCaptureSize(captureSize_, width_, height_);
+
+	// getNextFrame sizes down large images
+	// adjust width and height to match that
+	while (height_ > 700)
+	{
+		width_ /= 2;
+		height_ /= 2;
+	}
+
 	return true;
 }
 
@@ -185,42 +195,6 @@ bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	depth = Mat();
 
 	return true;
-}
-
-int C920CameraIn::width(void) const
-{
-	unsigned int width;
-	unsigned int height;
-
-	v4l2::GetCaptureSize(captureSize_, width, height);
-
-	// getNextFrame sizes down large images
-	// adjust width and height to match that
-	while (height > 700)
-	{
-		width /= 2;
-		height /= 2;
-	}
-
-	return width;
-}
-
-int C920CameraIn::height(void) const
-{
-	unsigned int width;
-	unsigned int height;
-
-	v4l2::GetCaptureSize(captureSize_, width, height);
-
-	// getNextFrame sizes down large images
-	// adjust width and height to match that
-	while (height > 700)
-	{
-		width /= 2;
-		height /= 2;
-	}
-
-	return height;
 }
 
 CameraParams C920CameraIn::getCameraParams(bool left) const

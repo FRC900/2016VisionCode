@@ -9,8 +9,6 @@ using namespace sl::zed;
 ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
 	ZedIn(settings)
 {
-	width_  = 0;
-	height_ = 0;
 	zed_ = new Camera(inFileName);
 
 	if (zed_)

@@ -40,11 +40,11 @@ class MediaIn
 		virtual bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false) = 0;
 
 		// Image size
-		virtual int  width() const = 0;
-		virtual int  height() const = 0;
+		unsigned int width() const;
+		unsigned int height() const;
 
 		// How many frames?
-		virtual int  frameCount(void) const;
+		virtual int frameCount(void) const;
 
 		// Get and set current frame number
 		virtual void frameNumber(int frameNumber);
@@ -58,6 +58,8 @@ class MediaIn
 		virtual CameraParams getCameraParams(bool left) const;
 
 	protected:
+		unsigned int width_;
+		unsigned int height_;
 		cv::Mat frame_;
 		boost::mutex mtx_;
 		ZvSettings *settings_;

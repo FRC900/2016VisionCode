@@ -25,9 +25,6 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	saturation_(4),
 	gain_(1)
 {
-	width_  = 0;
-	height_ = 0;
-
 	if (Camera::isZEDconnected()) // Open an actual camera for input
 		zed_ = new Camera(HD720, 30);
 
@@ -267,8 +264,6 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	MediaIn(settings)
 {
 	(void)gui;
-	width_  = 0;
-	height_ = 0;
 	cerr << "Zed support not compiled in" << endl;
 }
 

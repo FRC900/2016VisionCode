@@ -19,9 +19,6 @@ class ImageIn : public MediaIn
 
 		int frameCount(void) const;
 
-		int width() const;
-		int height() const;
-
 	private:
 		std::string outpath_;
 		std::string getClassName() const { return "ImageIn"; }

@@ -24,11 +24,5 @@ class ZedSVOIn : public ZedIn
 
 	private:
 		bool update(bool left);
-
-		sl::zed::Mat slDepth_;
-		sl::zed::Mat slFrame_;
-		cv::Mat pausedFrame_;
-		cv::Mat pausedDepth_;
-		cv::Mat depthMat_;
 #endif
 };

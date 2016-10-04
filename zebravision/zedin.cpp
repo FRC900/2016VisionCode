@@ -11,11 +11,10 @@ using namespace sl::zed;
 
 ZedIn::ZedIn(ZvSettings *settings) :
 	MediaIn(settings),
-	zed_(NULL),
-	width_(0),
-	height_(0)
+	zed_(NULL)
 {
 }
+
 
 ZedIn::~ZedIn()
 {
@@ -23,17 +22,6 @@ ZedIn::~ZedIn()
 		delete zed_;
 }
 
-
-int ZedIn::width(void) const
-{
-	return width_;
-}
-
-
-int ZedIn::height(void) const
-{
-	return height_;
-}
 
 CameraParams ZedIn::getCameraParams(bool left) const
 {
@@ -116,16 +104,5 @@ ZedIn::~ZedIn()
 {
 }
 
-
-int ZedIn::width(void) const
-{
-	return 0;
-}
-
-
-int ZedIn::height(void) const
-{
-	return 0;
-}
 
 #endif

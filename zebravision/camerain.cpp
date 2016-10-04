@@ -103,13 +103,3 @@ bool CameraIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	return true;
 }
 
-int CameraIn::width(void) const
-{
-   return width_;
-}
-
-int CameraIn::height(void) const
-{
-   return height_;
-}
-

@@ -28,13 +28,6 @@ class ZedCameraIn : public ZedIn
 		bool saveSettings(void) const;
 		std::string getClassName() const { return "ZedCameraIn"; }
 
-		sl::zed::Camera* zed_;
-		sl::zed::Mat slDepth_;
-		sl::zed::Mat slFrame_;
-		cv::Mat pausedFrame_;
-		cv::Mat pausedDepth_;
-		cv::Mat depthMat_;
-
 		int brightness_;
 		int contrast_;
 		int hue_;

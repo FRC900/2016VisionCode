@@ -19,9 +19,6 @@ class ZedIn : public MediaIn
 		ZedIn(ZvSettings *settings = NULL);
 		~ZedIn(void);
 
-		int width(void) const;
-		int height(void) const;
-
 #ifdef ZED_SUPPORT
 		CameraParams getCameraParams(bool left) const;
 

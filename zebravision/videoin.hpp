@@ -21,12 +21,9 @@ class VideoIn : public MediaIn
 
 	private:
 		cv::VideoCapture cap_;
-		int              width_;
-		int              height_;
 		int              frames_;
 		bool             frameReady_;
 		boost::condition_variable condVar_;
-
 
 		bool loadSettings(void) { return true; }
 		bool saveSettings(void) const { return true; }

@@ -14,12 +14,8 @@ class CameraIn : public MediaIn
 		bool isOpened(void) const;
 		bool update(void);
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
-		int  width(void) const;
-		int  height(void) const;
 
 	private:
-		int              width_;
-		int              height_;
 		int              saveWidth_;
 		int              saveHeight_;
 		double           fps_;

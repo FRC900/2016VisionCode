@@ -6,6 +6,8 @@
 using namespace cv;
 
 MediaIn::MediaIn(ZvSettings *settings) :
+	width_(0),
+	height_(0),
 	settings_(settings),
 	frameNumber_(0),
 	lockedFrameNumber_(0),
@@ -14,17 +16,32 @@ MediaIn::MediaIn(ZvSettings *settings) :
 {
 }
 
+
 bool MediaIn::loadSettings()
 {
 	// MediaIn has no settings to load currently
 	return true;
 }
 
+
 bool MediaIn::saveSettings() const
 {
 	// MediaIn has no settings to save currently
 	return true;
 }
+
+
+unsigned int MediaIn::width(void) const
+{
+   return width_;
+}
+
+
+unsigned int MediaIn::height(void) const
+{
+   return height_;
+}
+
 
 bool MediaIn::isOpened(void) const
 {

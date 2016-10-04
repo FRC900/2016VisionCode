@@ -25,9 +25,6 @@ class C920CameraIn : public MediaIn
 	   bool update(void);
 	   bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
 
-	   int width(void) const;
-	   int height(void) const;
-
 #ifdef __linux__
 	   CameraParams getCameraParams(bool left) const;
 #endif

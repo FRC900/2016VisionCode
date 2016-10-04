@@ -94,16 +94,6 @@ bool VideoIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	return true;
 }
 
-int VideoIn::width(void) const
-{
-	return width_;
-}
-
-int VideoIn::height(void) const
-{
-	return height_;
-}
-
 int VideoIn::frameCount(void) const
 {
 	return frames_;

@@ -15,8 +15,11 @@ ImageIn::ImageIn(const char *inpath, ZvSettings *settings) :
 		std::cerr << "Could not open image file " << inpath << std::endl;
 		return;
 	}
-	while (frame_.rows > 800)
+	while (frame_.rows > 700)
 		pyrDown(frame_, frame_);
+
+	width_ = frame_.cols;
+	height_ = frame_.rows;
 }
 
 bool ImageIn::isOpened(void) const
@@ -38,16 +41,6 @@ bool ImageIn::getFrame(Mat &frame, Mat &depth, bool pause)
 	frame = frame_.clone();
 	depth = Mat();
 	return true;
-}
-
-int ImageIn::width(void) const
-{
-	return frame_.cols;
-}
-
-int ImageIn::height(void) const
-{
-	return frame_.rows;
 }
 
 // Images have only 1 "frame"
