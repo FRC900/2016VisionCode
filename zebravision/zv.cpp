@@ -965,13 +965,9 @@ bool openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		    (ext == ".PNG") || (ext == ".JPG"))
 			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
 		else if ((ext ==  ".svo") || (ext ==  ".SVO"))
-		{
 			cap = new ZedSVOIn(readFileName.c_str(), zvSettings);
-		}
 		else if ((ext == ".zms") || (ext == ".ZMS"))
-		{
 			cap = new ZMSIn(readFileName.c_str(), zvSettings);
-		}
 		else
 			cap = new VideoIn(readFileName.c_str(), zvSettings);
 

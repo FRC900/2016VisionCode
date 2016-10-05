@@ -262,10 +262,9 @@ void zedGainCallback(int value, void *data)
 #else
 
 ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
-	MediaIn(settings)
+	ZedIn(settings)
 {
 	(void)gui;
-	cerr << "Zed support not compiled in" << endl;
 }
 
 ZedCameraIn::~ZedCameraIn()

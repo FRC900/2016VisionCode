@@ -85,7 +85,7 @@ void ZedIn::initCameraParams(bool left)
 		}
 	}
 	float hFovDegrees;
-	if (height_ == 480) // can't work based on width, since 1/2 of 720P is 640, as is 640x480
+	if (height_ == 480) // can't work based on width, since 1/2 of 1280x720 is 640, as is full sized 640x480
 		hFovDegrees = 51.3;
 	else
 		hFovDegrees = 105.; // hope all the HD & 2k res are the same
@@ -101,11 +101,10 @@ void ZedIn::initCameraParams(bool left)
 #else
 
 
-ZedIn::ZedIn(bool gui, ZvSettings *settings) :
+ZedIn::ZedIn(ZvSettings *settings) :
 	MediaIn(settings)
 {
-	(void)gui;
-	cerr << "Zed support not compiled in" << endl;
+	cerr << "ZED support not compiled in" << endl;
 }
 
 ZedIn::~ZedIn()

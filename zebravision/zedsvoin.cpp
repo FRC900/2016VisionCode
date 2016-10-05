@@ -192,10 +192,9 @@ void ZedSVOIn::frameNumber(int frameNumber)
 
 #else
 ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
-	MediaIn(settings)
+	ZedIn(settings)
 {
 	(void)inFileName;
-	cerr << "Zed support not compiled in" << endl;
 }
 
 

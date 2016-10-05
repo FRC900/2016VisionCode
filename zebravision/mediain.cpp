@@ -42,6 +42,13 @@ unsigned int MediaIn::height(void) const
    return height_;
 }
 
+bool MediaIn::getFrame(Mat &frame, Mat &depth, bool pause)
+{
+	(void)pause;
+	frame = Mat();
+	depth = Mat();
+	return false;
+}
 
 bool MediaIn::isOpened(void) const
 {

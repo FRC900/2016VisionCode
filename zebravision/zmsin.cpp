@@ -10,6 +10,8 @@
 #include "zmsin.hpp"
 using namespace std;
 
+// TODO : this should really be usable even if ZED support
+// isn't found.
 #ifdef ZED_SUPPORT
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
@@ -20,13 +22,6 @@ using namespace std;
 
 using namespace cv;
 using namespace boost::filesystem;
-using namespace sl::zed;
-
-void zedBrightnessCallback(int value, void *data);
-void zedContrastCallback(int value, void *data);
-void zedHueCallback(int value, void *data);
-void zedSaturationCallback(int value, void *data);
-void zedGainCallback(int value, void *data);
 
 ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
 	ZedIn(settings),
@@ -279,10 +274,9 @@ bool ZMSIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 #else
 
 ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
-	MediaIn(settings)
+	ZedIn(settings)
 {
 	(void)inFileName;
-	cerr << "Zed support not compiled in" << endl;
 }
 
 
