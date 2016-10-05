@@ -72,16 +72,6 @@ void ZedSVOIn::update(void)
 
 	do
 	{
-		// This can be done outside of the mutex
-		// since it doesn't update any shared buffers
-		bool res = zed_->grab(SENSING_MODE::FILL, true, true, true);
-
-		if (!res)
-		{
-			slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
-			slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
-		}
-
 		// If the frame read from the last update()
 		// call hasn't been used yet, loop here
 		// until it has been. This will prevent
@@ -91,6 +81,16 @@ void ZedSVOIn::update(void)
 		boost::mutex::scoped_lock guard(mtx_);
 		while (frameReady_)
 			condVar_.wait(guard);
+
+		// This can be done outside of the mutex
+		// since it doesn't update any shared buffers
+		bool res = zed_->grab(SENSING_MODE::STANDARD, true, true, true);
+
+		if (!res)
+		{
+			slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+			slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+		}
 
 		if (res)
 			frame_ = cv::Mat();
@@ -171,13 +171,22 @@ int ZedSVOIn::frameCount(void) const
 }
 
 
-// Seek to a given frame number. This is possible if the
-// input is a video. If reading live camera data it will
-// fail, but nothing we can do about that so fail silently
+// Seek to a given frame number. 
+// Since the update code is running in a 
+// different thread, need to mutex lock this since
+// it could change the state of the zed object
+// After setting the frame, set frameReady to false
+// to force a new frame needs to be read
 void ZedSVOIn::frameNumber(int frameNumber)
 {
-	if (zed_ && zed_->setSVOPosition(frameNumber))
-		setFrameNumber(frameNumber);
+	if (!zed_)
+		return;
+
+	boost::mutex::scoped_lock guard(mtx_);
+	if (zed_->setSVOPosition(frameNumber))
+		setFrameNumber(frameNumber - 1);
+	frameReady_ = false;
+	condVar_.notify_all();
 }
 
 

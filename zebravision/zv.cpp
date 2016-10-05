@@ -501,7 +501,7 @@ int main( int argc, const char** argv )
 			{
 				if (printFrames)
 					putText(frame, frameStr.str(),
-							Point(frame.cols - 14 * frameStr.str().length(), 45),
+							Point(frame.cols - 15 * frameStr.str().length(), 45),
 							FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 				putText(frame, fpsStr.str(), Point(frame.cols - 14 * fpsStr.str().length(), 20), FONT_HERSHEY_PLAIN, 1.5, Scalar(0,0,255));
 			}
@@ -629,6 +629,13 @@ int main( int argc, const char** argv )
 					// Otherwise, if not paused, move to the next frame
 					//TODO I don't think this will work as intended. Check it.
 					cap->frameNumber(frame);
+				}
+				else if (args.skip > 1)
+				{
+					// Exit if the next skip puts the frame beyond the end of the video
+					if ((cap->frameNumber() + args.skip) >= cap->frameCount())
+						break;
+					cap->frameNumber(cap->frameNumber() + args.skip);
 				}
 
 				// Force read of next frame
@@ -821,7 +828,7 @@ int main( int argc, const char** argv )
 			// Exit if the next skip puts the frame beyond the end of the video
 			if ((cap->frameNumber() + args.skip) >= cap->frameCount())
 				break;
-			cap->frameNumber(cap->frameNumber() + args.skip - 1);
+			cap->frameNumber(cap->frameNumber() + args.skip);
 		}
 
 		// Check for running still images in batch mode - only
@@ -833,8 +840,11 @@ int main( int argc, const char** argv )
 			break;
 	}
 
-	cout << "Ball detect ground truth : " << endl;
-	groundTruth.print();
+	if (detectState)
+	{
+		cout << "Ball detect ground truth : " << endl;
+		groundTruth.print();
+	}
 	cout << endl << "Goal detect ground truth : " << endl;
 	goalTruth.print();
 

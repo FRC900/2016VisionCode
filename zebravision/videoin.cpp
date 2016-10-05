@@ -126,13 +126,19 @@ int VideoIn::frameCount(void) const
 	return frames_;
 }
 
-
+// Since the update code is running in a 
+// different thread, need to mutex lock this since
+// it could change the state of the VideoCapture object
+// After setting the frame, set frameReady to false
+// to force a new frame needs to be read
 void VideoIn::frameNumber(int frameNumber)
 {
 	if (frameNumber < frames_)
 	{
+		boost::mutex::scoped_lock guard(mtx_);
 		cap_.set(CV_CAP_PROP_POS_FRAMES, frameNumber);
-		setFrameNumber(frameNumber);
+		setFrameNumber(frameNumber-1);
 		frameReady_ = false; // force update to read this frame
+		condVar_.notify_all();
 	}
 }
