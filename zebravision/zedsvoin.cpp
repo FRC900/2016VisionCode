@@ -63,6 +63,8 @@ bool ZedSVOIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 	if (!zed_)
 		return false;
 
+	if (zed_->grab())
+		return false;
 	const bool left = true;
 	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
 	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
