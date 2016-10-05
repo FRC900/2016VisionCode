@@ -373,7 +373,7 @@ int main( int argc, const char** argv )
         {
             vector<Rect> goalDetects;
             goalDetects.push_back(gd.goal_rect());
-            goalTruthHitList = goalTruth.processFrame(cap->frameNumber() - 1, goalDetects);
+            goalTruthHitList = goalTruth.processFrame(cap->frameNumber(), goalDetects);
         }
 
 		//compute optical flow
@@ -471,7 +471,7 @@ int main( int argc, const char** argv )
 		// but not on camera input
 		vector<Rect> groundTruthHitList;
 		if (cap->frameCount() >= 0)
-			groundTruthHitList = groundTruth.processFrame(cap->frameNumber() - 1, detectRects);
+			groundTruthHitList = groundTruth.processFrame(cap->frameNumber(), detectRects);
 
 		// For interactive mode, update the FPS as soon as we have
 		// a complete array of frame time entries
