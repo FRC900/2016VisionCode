@@ -63,9 +63,9 @@ static void WarpPerspective( const cv::Mat &src, cv::Mat &dst, double quad[4][2]
 		outputQuad[i] = cv::Point2f(quad[i][0], quad[i][1]);
 
 	inputQuad[0] = cv::Point2f(0, 0);
-	inputQuad[1] = cv::Point2f(src.cols- 1, 0);
-	inputQuad[2] = cv::Point2f(src.cols- 1, src.rows- 1);
-	inputQuad[3] = cv::Point2f(0, src.rows- 1);
+	inputQuad[1] = cv::Point2f(src.cols - 1, 0);
+	inputQuad[2] = cv::Point2f(src.cols - 1, src.rows - 1);
+	inputQuad[3] = cv::Point2f(0, src.rows - 1);
 
 	cv::Mat lambda = cv::getPerspectiveTransform( inputQuad, outputQuad );
 
@@ -193,9 +193,9 @@ int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthresh
             for( c = 0; c < data->mask->cols; c++ )
             {
 				if (hsv)
-					psrc  =  (uchar*) hsvImage.data + r * hsvImage.step + c * hsvImage.elemSize();
+					psrc = (uchar*) hsvImage.data + r * hsvImage.step + c * hsvImage.elemSize();
 				else
-					psrc  =  (uchar*) (data->src->imageData + r * data->src->widthStep)
+					psrc = (uchar*) (data->src->imageData + r * data->src->widthStep)
 							 + c * data->src->nChannels;
 
 				/* Assume sample will be masked off. If any of the channels
@@ -375,9 +375,8 @@ void icvPlaceDistortedSample( CvArr* background,
 	{
 		for( c = 0; c < img.cols; c++ )
 		{
-			pimg   = (uchar*) img.data + r * img.step + c * img.elemSize();
-
-			pbg = (uchar*) bgimg->data.ptr + r * bgimg->step + c * img.channels();
+			pimg = (uchar*) img.data + r * img.step + c * img.elemSize();
+			pbg  = (uchar*) bgimg->data.ptr + r * bgimg->step + c * img.channels();
 			for ( int n = 0; n < img.channels(); n++ )
 			{
 				uchar chartmp = (uchar) MAX( 0, MIN( 255, forecolordev + pimg[n] ) );
