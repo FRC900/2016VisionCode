@@ -179,6 +179,7 @@ int main( int argc, const char** argv )
 
 	//int64 stepTimer;
 
+	cout << "Welcome to Zebravision v" << VERSION_MAJOR << "." << VERSION_MINOR << " " << GitDesc << endl;
 	if (!args.processArgs(argc, argv))
 		return -2;
 
@@ -221,7 +222,6 @@ int main( int argc, const char** argv )
 		cerr << "Could not open input " << args.inputName << endl;
 		return 0;
 	}
-	cout << "Welcome to Zebravision v" << VERSION_MAJOR << "." << VERSION_MINOR << " " << GitDesc << endl;
 
 	GroundTruth groundTruth("ground_truth.txt", args.inputName);
 	GroundTruth goalTruth("goal_truth.txt", args.inputName);
