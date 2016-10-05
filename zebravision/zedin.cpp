@@ -65,15 +65,15 @@ void ZedIn::initCameraParams(bool left)
 		{
 			zedp.fx = 1401.88;
 			zedp.fy = 1401.88;
-			zedp.cx = 977.193 / (1920 / width_); // Is this correct - downsized
-			zedp.cy = 540.036 / (1920 / width_); // image needs downsized cx?
+			zedp.cx = 977.193; // Is this correct - downsized
+			zedp.cy = 540.036; // image needs downsized cx?
 		}
 		else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
 		{
 			zedp.fx = 1385.4;
 			zedp.fy = 1385.4;
-			zedp.cx = 1124.74 / (2208 / width_);
-			zedp.cy = 1124.74 / (2208 / width_);
+			zedp.cx = 1124.74;
+			zedp.cy = 1124.74;
 		}
 		else
 		{
@@ -94,8 +94,8 @@ void ZedIn::initCameraParams(bool left)
 	params_.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
 	params_.fx = zedp.fx;
 	params_.fy = zedp.fy;
-	params_.cx = zedp.cx;
-	params_.cy = zedp.cy;
+	params_.cx = zedp.cx / ((float)zed_->getImageSize().width / width_);
+	params_.cy = zedp.cy / ((float)zed_->getImageSize().width / width_);
 }
 
 

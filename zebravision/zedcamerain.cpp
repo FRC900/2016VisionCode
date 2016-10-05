@@ -53,8 +53,6 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
-			initCameraParams(true);
-
 			if (!loadSettings())
 				cerr << "Failed to load ZedCameraIn settings from XML" << endl;
 
@@ -78,6 +76,7 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 				cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
 				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
 			}
+			initCameraParams(true);
 			thread_ = boost::thread(&ZedCameraIn::update, this);
 		}
 	}
