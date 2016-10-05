@@ -17,10 +17,11 @@ class ZedSVOIn : public SyncIn
 		~ZedSVOIn();
 
 #ifdef ZED_SUPPORT
-		bool isOpened(void) const;
+		bool         isOpened(void) const;
 
 		// How many frames?
-		int    frameCount(void) const;
+		int          frameCount(void) const;
+		CameraParams getCameraParams(void) const;
 
 	protected:
 		// Defined in derived classes to handle the nuts

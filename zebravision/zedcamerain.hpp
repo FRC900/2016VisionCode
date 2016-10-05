@@ -26,8 +26,8 @@ class ZedCameraIn : public AsyncIn
 		~ZedCameraIn();
 
 #ifdef ZED_SUPPORT
-		bool isOpened(void) const;
-		CameraParams getCameraParams(bool left) const;
+		bool         isOpened(void) const;
+		CameraParams getCameraParams(void) const;
 
 	protected:
 		// Defined in derived classes to handle the nuts

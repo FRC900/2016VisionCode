@@ -136,9 +136,8 @@ bool ZedCameraIn::isOpened(void) const
 }
 
 
-CameraParams ZedCameraIn::getCameraParams(bool left) const
+CameraParams ZedCameraIn::getCameraParams(void) const
 {
-	(void)left;
 	return params_.get();
 }
 
@@ -159,9 +158,10 @@ bool ZedCameraIn::preLockUpdate(void)
 			return false;
 	}
 
-	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
 	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
-	slMat2cvMat(slFrame).copyTo(localFrame_);
+	cvtColor(slMat2cvMat(slFrame), localFrame_, CV_RGBA2RGB);
+
+	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
 	slMat2cvMat(slDepth).copyTo(localDepth_);
 
 	return true;

@@ -58,6 +58,12 @@ bool ZedSVOIn::isOpened(void) const
 }
 
 
+CameraParams ZedSVOIn::getCameraParams(void) const
+{
+	return params_.get();
+}
+
+
 bool ZedSVOIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 {
 	if (!zed_)
@@ -67,8 +73,9 @@ bool ZedSVOIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 		return false;
 	const bool left = true;
 	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+	cvtColor(slMat2cvMat(slFrame), frame, CV_RGBA2RGB);
+
 	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
-	slMat2cvMat(slFrame).copyTo(frame);
 	slMat2cvMat(slDepth).copyTo(depth);
 
 	return true;
