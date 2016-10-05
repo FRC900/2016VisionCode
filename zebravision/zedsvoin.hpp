@@ -35,10 +35,10 @@ class ZedSVOIn : public ZedIn
 		// from a call to getFrame. If video is paused, this
 		// frame is returned multiple times until the
 		// GUI is unpaused
-		cv::Mat      frame_;
-		cv::Mat      depth_;
-		cv::Mat      prevGetFrame_;
-		cv::Mat      prevGetDepth_;
+		cv::Mat frame_;
+		cv::Mat depth_;
+		cv::Mat prevGetFrame_;
+		cv::Mat prevGetDepth_;
 
 		// Mutex used to protect frame_
 		// from simultaneous accesses 
@@ -54,6 +54,6 @@ class ZedSVOIn : public ZedIn
 		boost::thread thread_;
 
 		// Flag used to syncronize between update and get calls
-		bool             frameReady_;
+		bool frameReady_;
 #endif
 };

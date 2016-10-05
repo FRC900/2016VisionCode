@@ -62,6 +62,7 @@ ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
 	{
 		width_  = frame_.cols;
 		height_ = frame_.rows;
+		initCameraParams(true);
 
 		// Reopen the file so callers can get the first frame
 		if (!openSerializeInput(inFileName, archiveIn_ == NULL))

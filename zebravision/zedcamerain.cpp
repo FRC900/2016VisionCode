@@ -53,6 +53,8 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
 
+			initCameraParams(true);
+
 			if (!loadSettings())
 				cerr << "Failed to load ZedCameraIn settings from XML" << endl;
 
@@ -144,10 +146,16 @@ void ZedCameraIn::update(void)
 		while (zed_->grab(SENSING_MODE::STANDARD))
 		{
 			boost::this_thread::interruption_point();
+			// Wait a bit to see if the next
+			// frame shows up
+			usleep(5000);
 			// Try to grab a bunch of times before
 			// bailing out and failing
 			if (++badReadCounter == 100)
+			{
+				frame_ = cv::Mat();
 				return;
+			}
 		}
 
 		sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);

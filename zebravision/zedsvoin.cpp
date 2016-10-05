@@ -8,7 +8,6 @@ using namespace sl::zed;
 
 ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
 	ZedIn(settings),
-	thread_(boost::bind(&ZedSVOIn::update, this)),
 	frameReady_(false) // trigger an immediate read of 1st frame in update()
 {
 	zed_ = new Camera(inFileName);
@@ -36,6 +35,10 @@ ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
 
 			width_  = zed_->getImageSize().width;
 			height_ = zed_->getImageSize().height;
+
+			initCameraParams(true);
+
+			thread_ = boost::thread(&ZedSVOIn::update, this);
 		}
 	}
 
@@ -62,17 +65,22 @@ void ZedSVOIn::update(void)
 {
 	const bool left = true;
 	if (!zed_)
-		return ;
+		return;
+
+	sl::zed::Mat slFrame;
+	sl::zed::Mat slDepth;
 
 	do
 	{
 		// This can be done outside of the mutex
 		// since it doesn't update any shared buffers
-		if (zed_->grab())
-			break;
+		bool res = zed_->grab(SENSING_MODE::FILL, true, true, true);
 
-		sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
-		sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+		if (!res)
+		{
+			slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+			slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+		}
 
 		// If the frame read from the last update()
 		// call hasn't been used yet, loop here
@@ -84,10 +92,15 @@ void ZedSVOIn::update(void)
 		while (frameReady_)
 			condVar_.wait(guard);
 
-		setTimeStamp();
-		incFrameNumber();
-		cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
-		slMat2cvMat(slDepth).copyTo(depth_);
+		if (res)
+			frame_ = cv::Mat();
+		else
+		{
+			setTimeStamp();
+			incFrameNumber();
+			cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
+			slMat2cvMat(slDepth).copyTo(depth_);
+		}
 
 		while (frame_.rows > 700)
 		{
@@ -115,6 +128,7 @@ bool ZedSVOIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 		boost::mutex::scoped_lock guard(mtx_);
 		while (!frameReady_)
 			condVar_.wait(guard);
+
 		if (frame_.empty())
 			return false;
 
@@ -139,6 +153,7 @@ bool ZedSVOIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 
 	prevGetFrame_.copyTo(frame);
 	prevGetDepth_.copyTo(depth);
+	
 	return true;
 }
 

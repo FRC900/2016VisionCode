@@ -18,9 +18,12 @@ class ZedIn : public MediaIn
 		~ZedIn(void);
 
 #ifdef ZED_SUPPORT
-		CameraParams getCameraParams(bool left) const;
+		CameraParams getCameraParams(void) const;
 
 	protected:
 		sl::zed::Camera* zed_;
+		CameraParams params_;
+
+		void initCameraParams(bool left);
 #endif
 };

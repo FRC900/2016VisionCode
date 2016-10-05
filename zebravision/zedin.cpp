@@ -23,12 +23,23 @@ ZedIn::~ZedIn()
 }
 
 
-CameraParams ZedIn::getCameraParams(bool left) const
+CameraParams ZedIn::getCameraParams(void) const
+{
+	return params_;
+}
+
+// For whatever reason, getParameters calls grab()
+// This causes problems with the update() thread
+// Could mutex protect this, but the easier way
+// is to just set it once in the constructor once
+// a Zed object is opened and then from there on return
+// the results 
+void ZedIn::initCameraParams(bool left)
 {
 	CamParameters zedp;
 	if (zed_)
 	{
-		if(left)
+		if (left)
 			zedp = zed_->getParameters()->LeftCam;
 		else
 			zedp = zed_->getParameters()->RightCam;
@@ -80,13 +91,11 @@ CameraParams ZedIn::getCameraParams(bool left) const
 		hFovDegrees = 105.; // hope all the HD & 2k res are the same
 	float hFovRadians = hFovDegrees * M_PI / 180.0;
 
-	CameraParams params;
-	params.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
-	params.fx = zedp.fx;
-	params.fy = zedp.fy;
-	params.cx = zedp.cx;
-	params.cy = zedp.cy;
-	return params;
+	params_.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
+	params_.fx = zedp.fx;
+	params_.fy = zedp.fy;
+	params_.cx = zedp.cx;
+	params_.cy = zedp.cy;
 }
 
 
