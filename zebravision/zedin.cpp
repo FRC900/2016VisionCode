@@ -92,7 +92,6 @@ void ZedIn::initCameraParams(bool left)
 	float hFovRadians = hFovDegrees * M_PI / 180.0;
 
 	params_.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
-	cout << height_ << "X" << width_ << endl;
 	params_.fx = zedp.fx;
 	params_.fy = zedp.fy;
 	params_.cx = zedp.cx;
