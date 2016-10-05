@@ -76,7 +76,6 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 				cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
 				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
 			}
-			initCameraParams(true);
 			thread_ = boost::thread(&ZedCameraIn::update, this);
 		}
 	}
@@ -86,6 +85,7 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 		width_  /= 2;
 		height_ /= 2;
 	}
+	initCameraParams(true);
 }
 
 bool ZedCameraIn::loadSettings(void)
