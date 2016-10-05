@@ -8,7 +8,8 @@ using namespace std;
 // Nothing interesting here, just pass settings through
 // to the base class
 AsyncIn::AsyncIn(ZvSettings *settings) :
-	MediaIn(settings)
+	MediaIn(settings),
+	updateStarted_(false)
 {
 }
 

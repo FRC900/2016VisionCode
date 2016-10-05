@@ -34,7 +34,6 @@ CameraIn::CameraIn(int stream, ZvSettings *settings) :
 			height_ /= 2;
 		}
 		startThread();
-
 	}
 	else
 		std::cerr << "Could not open camera" << std::endl;
