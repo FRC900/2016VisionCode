@@ -7,12 +7,9 @@
 // on both ARM and x86.  Handle loading both types,
 // at least for the time being
 #include <iostream>
+#include <fstream>
 #include "zmsin.hpp"
-using namespace std;
 
-// TODO : this should really be usable even if ZED support
-// isn't found.
-#ifdef ZED_SUPPORT
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -20,11 +17,12 @@ using namespace std;
 #include "cvMatSerialize.hpp"
 #include "ZvSettings.hpp"
 
+using namespace std;
 using namespace cv;
 using namespace boost::filesystem;
 
 ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
-	ZedIn(settings),
+	MediaIn(settings),
 	frameReady_(false),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
@@ -57,7 +55,6 @@ ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
 	{
 		width_  = frame_.cols;
 		height_ = frame_.rows;
-		initCameraParams(true);
 
 		// Reopen the file so callers can get the first frame
 		if (!openSerializeInput(inFileName, archiveIn_ == NULL))
@@ -270,18 +267,54 @@ bool ZMSIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
 	return true;
 }
 
-
-#else
-
-ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
-	ZedIn(settings)
+// Use hard-coded values takes from SN*.conf files
+CameraParams ZMSIn::getCameraParams(void) const
 {
-	(void)inFileName;
+	float hFovDegrees;
+	if (height_ == 480) // can't work based on width, since 1/2 of 1280x720 is 640, as is full sized 640x480
+		hFovDegrees = 51.3;
+	else
+		hFovDegrees = 105.; // hope all the HD & 2k res are the same
+	float hFovRadians = hFovDegrees * M_PI / 180.0;
+
+	CameraParams params;
+	params.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
+	// Take a guess based on acutal values from one of our cameras
+	if (height_ == 480)
+	{
+		params.fx = 705.768;
+		params.fy = 705.768;
+		params.cx = 326.848;
+		params.cy = 240.039;
+	}
+	else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
+	{
+		params.fx = 686.07;
+		params.fy = 686.07;
+		params.cx = 662.955 / (1280 / width_);;
+		params.cy = 361.614 / (1280 / width_);;
+	}
+	else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
+	{
+		params.fx = 1401.88;
+		params.fy = 1401.88;
+		params.cx = 977.193 / (1920 / width_);; // Is this correct - downsized
+		params.cy = 540.036 / (1920 / width_);; // image needs downsized cx?
+	}
+	else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
+	{
+		params.fx = 1385.4;
+		params.fy = 1385.4;
+		params.cx = 1124.74 / (2208 / width_);;
+		params.cy = 1124.74 / (2208 / width_);;
+	}
+	else
+	{
+		// This should never happen
+		params.fx = 0;
+		params.fy = 0;
+		params.cx = 0;
+		params.cy = 0;
+	}
+	return params;
 }
-
-
-ZMSIn::~ZMSIn()
-{
-}
-
-#endif

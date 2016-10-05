@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	string ext = boost::filesystem::extension(argv[1]);
-	ZedIn *in;
+	MediaIn *in;
 
 	if ((ext == ".svo") || (ext ==  ".SVO"))
 		in = new ZedSVOIn(argv[1]);

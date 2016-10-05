@@ -36,54 +36,16 @@ CameraParams ZedIn::getCameraParams(void) const
 // the results 
 void ZedIn::initCameraParams(bool left)
 {
+	if (!zed_)
+		return;
+
 	CamParameters zedp;
-	if (zed_)
-	{
-		if (left)
-			zedp = zed_->getParameters()->LeftCam;
-		else
-			zedp = zed_->getParameters()->RightCam;
-	}
+
+	if (left)
+		zedp = zed_->getParameters()->LeftCam;
 	else
-	{
-		// Take a guess based on acutal values from one of our cameras
-		if (height_ == 480)
-		{
-			zedp.fx = 705.768;
-			zedp.fy = 705.768;
-			zedp.cx = 326.848;
-			zedp.cy = 240.039;
-		}
-		else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
-		{
-			zedp.fx = 686.07;
-			zedp.fy = 686.07;
-			zedp.cx = 662.955 / (1280 / width_);;
-			zedp.cy = 361.614 / (1280 / width_);;
-		}
-		else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
-		{
-			zedp.fx = 1401.88;
-			zedp.fy = 1401.88;
-			zedp.cx = 977.193 / (1920 / width_);; // Is this correct - downsized
-			zedp.cy = 540.036 / (1920 / width_);; // image needs downsized cx?
-		}
-		else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
-		{
-			zedp.fx = 1385.4;
-			zedp.fy = 1385.4;
-			zedp.cx = 1124.74 / (2208 / width_);;
-			zedp.cy = 1124.74 / (2208 / width_);;
-		}
-		else
-		{
-			// This should never happen
-			zedp.fx = 0;
-			zedp.fy = 0;
-			zedp.cx = 0;
-			zedp.cy = 0;
-		}
-	}
+		zedp = zed_->getParameters()->RightCam;
+
 	float hFovDegrees;
 	if (height_ == 480) // can't work based on width, since 1/2 of 1280x720 is 640, as is full sized 640x480
 		hFovDegrees = 51.3;
@@ -91,6 +53,8 @@ void ZedIn::initCameraParams(bool left)
 		hFovDegrees = 105.; // hope all the HD & 2k res are the same
 	float hFovRadians = hFovDegrees * M_PI / 180.0;
 
+	// Convert from ZED-specific to generic
+	// params data type
 	params_.fov = Point2f(hFovRadians, hFovRadians * (float)height_ / (float)width_);
 	params_.fx = zedp.fx;
 	params_.fy = zedp.fy;

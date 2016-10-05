@@ -2,22 +2,24 @@
 
 //opencv include
 #include <opencv2/core/core.hpp>
-#include "zedin.hpp"
+#include "mediain.hpp"
 
 #include <boost/thread.hpp>
 #include <boost/archive/binary_iarchive.hpp>
-#include <portable_binary_iarchive.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 
-class ZMSIn : public ZedIn
+#include "portable_binary_iarchive.hpp"
+
+class ZMSIn : public MediaIn
 {
 	public:
 		ZMSIn(const char *inFileName = NULL, ZvSettings *settings = NULL);
 		~ZMSIn();
 
-#ifdef ZED_SUPPORT
 		bool isOpened(void) const;
 		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
+
+		CameraParams getCameraParams(void) const;
 
 	private:
 		void deleteInputPointers(void);
@@ -56,5 +58,4 @@ class ZMSIn : public ZedIn
 		boost::iostreams::filtering_streambuf<boost::iostreams::input> *filtSBIn_;
 		boost::archive::binary_iarchive *archiveIn_;
 		portable_binary_iarchive *portableArchiveIn_;
-#endif
 };
