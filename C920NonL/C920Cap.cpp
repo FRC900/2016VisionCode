@@ -37,9 +37,7 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-		vidIn.update();
-        vidIn.getFrame(frame, depth, false);
-        if (!frame.empty())
+        if (vidIn.getFrame(frame, depth, false) && !frame.empty())
         {
             outputVideo << frame;
         }

@@ -2,7 +2,9 @@
 #include <opencv2/opencv.hpp>
 #include <zmq.hpp>
 
-#include "zedin.hpp"
+#include "zedcamerain.hpp"
+#include "zedsvoin.hpp"
+#include "zmsin.hpp"
 #include "GoalDetector.hpp"
 #include "Utilities.hpp"
 #include "track3d.hpp"
@@ -13,11 +15,15 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-	ZedIn cap(argc == 2 ? argv[1] : NULL, NULL);
+	ZedIn *cap;
+	if (argc == 2)
+		cap = new ZMSIn(argv[1]);
+	else
+		cap = new ZedCameraIn(false);
 
-	GoalDetector gd(Point2f(cap.getCameraParams(left).fov.x, 
-				            cap.getCameraParams(left).fov.y), 
-			        Size(cap.width(),cap.height()), true);
+	GoalDetector gd(Point2f(cap->getCameraParams().fov.x, 
+				            cap->getCameraParams().fov.y), 
+			        Size(cap->width(),cap->height()), true);
 
 	zmq::context_t context(1);
 	zmq::socket_t publisher(context, ZMQ_PUB);
@@ -27,11 +33,10 @@ int main(int argc, char **argv)
 
 	Mat image;
 	Mat depth;
-	Mat depthNorm;
+	//Mat depthNorm;
 	Rect bound;
 	FrameTicker frameTicker;
-	while  (cap.update() &&
-		    cap.getFrame(image, depth) )
+	while (cap->getFrame(image, depth))
 	{
 		frameTicker.mark();
 		//imshow ("Normalized Depth", depthNorm);

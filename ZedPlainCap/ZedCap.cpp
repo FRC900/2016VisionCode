@@ -1,24 +1,23 @@
-/*
- * Main.cpp
- *
- * Created on: Dec 31, 2014
- * Author: jrparks
- */
 #include <opencv2/opencv.hpp>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
 #include <stdio.h>
-#include "zedin.hpp"
+#include "zedcamerain.hpp"
+#include "zmsin.hpp"
+#include "zmsout.hpp"
 
 using namespace std;
 using namespace cv;
 
 int main(int argc, char *argv[])
 {
-	ZedIn camera(argc >= 2 ? argv[1] : NULL, argc == 3 ? argv[2] : NULL);
-	//ZedIn camera(NULL, argc == 2 ? argv[1] : NULL);
+	ZedIn *camera;
+	if (argc == 2)
+		camera = new ZMSIn(argv[1]);
+	else
+		camera = new ZedCameraIn(true);
 
 	VideoWriter outputVideo;
 	if (argc < 3)
@@ -29,18 +28,16 @@ int main(int argc, char *argv[])
 		struct stat statbuf;
 		do
 		{
-			sprintf(name, "cap%d.avi", index++);
+			sprintf(name, "camera%d.avi", index++);
 			rc = stat(name, &statbuf);
 		} while (rc == 0);
-		outputVideo = VideoWriter(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(camera.width(), camera.height()), true);
+		outputVideo = VideoWriter(name, CV_FOURCC('M', 'J', 'P', 'G'), 30, Size(camera->width(), camera->height()), true);
 	}
 	Mat frame, depth;
 
 	while (true)
 	{
-		camera.update();
-		camera.getFrame(frame, depth);
-		if (!frame.empty())
+		if (camera->getFrame(frame, depth) && !frame.empty())
 		{
 			if (argc < 3)
 			{
