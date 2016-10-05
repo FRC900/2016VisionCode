@@ -236,7 +236,7 @@ int main( int argc, const char** argv )
 
 	Mat top_frame; // top-down view of tracked objects
 
-	CameraParams camParams = cap->getCameraParams(true);
+	CameraParams camParams = cap->getCameraParams();
 
 	//we need to detect from a maximum of 25 feet
 	//use trigonometry to predict how big in pixels the object will be and set minDetectSize to that
@@ -332,7 +332,7 @@ int main( int argc, const char** argv )
 			processedOut = new AVIOut(getVideoOutName(false, ".avi").c_str(), frame.size(), args.saveVideoSkip);
 	}
 
-	//FovisLocalizer fvlc(cap->getCameraParams(true), frame);
+	//FovisLocalizer fvlc(cap->getCameraParams(), frame);
 
 	//Creating optical flow computation object
 	FlowLocalizer fllc(frame);

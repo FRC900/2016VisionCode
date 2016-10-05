@@ -124,8 +124,7 @@ float MediaIn::FPS(void) const
 	return frameTicker.getFPS();
 }
 
-CameraParams MediaIn::getCameraParams(bool left) const
+CameraParams MediaIn::getCameraParams(void) const
 {
-	(void)left;
 	return CameraParams();
 }

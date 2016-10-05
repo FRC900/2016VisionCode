@@ -67,7 +67,7 @@ class MediaIn
 		virtual float FPS(void) const;
 
 		// Camera parameters - fov, focal length, etc.
-		virtual CameraParams getCameraParams(bool left) const;
+		virtual CameraParams getCameraParams(void) const;
 
 	protected:
 		// Width and height of input frame
