@@ -22,9 +22,8 @@ void focusCallback(int value, void *data);
 
 // Constructor
 C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
-	MediaIn(settings), 
+	AsyncIn(settings), 
 	camera_(stream >= 0 ? stream : 0),
-	updateStarted_(false),
 	brightness_              (128),
 	contrast_                (128),
 	saturation_              (128),
@@ -45,7 +44,7 @@ C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
 		cerr << "Camera is not a C920" << endl;
 	}
 	else
-		thread_ = boost::thread(&C920CameraIn::update, this);
+		startThread();
 }
 
 bool
@@ -97,8 +96,7 @@ C920CameraIn::saveSettings(void) const
 C920CameraIn::~C920CameraIn()
 {
 	saveSettings();
-	thread_.interrupt();
-	thread_.join();
+	stopThread();
 }
 
 bool C920CameraIn::initCamera(bool gui)
@@ -166,56 +164,20 @@ bool C920CameraIn::isOpened(void) const
 	return camera_.IsOpen();
 }
 
-// Separate update thread which constantly
-// grabs the latest frame and copies it
-// into the frame_ member var.
-void C920CameraIn::update(void)
+
+bool C920CameraIn::preLockUpdate(void)
 {
-	Mat localFrame;
-	while (1)
-	{
-		boost::this_thread::interruption_point();
-		FPSmark();
-		if (!camera_.IsOpen() ||
-			!camera_.GrabFrame() ||
-			!camera_.RetrieveMat(localFrame))
-			break;
-
-		boost::lock_guard<boost::mutex> guard(mtx_);
-		setTimeStamp();
-		incFrameNumber();
-		localFrame.copyTo(frame_);
-
-		while (frame_.rows > 700)
-			pyrDown(frame_, frame_);
-
-		updateStarted_ = true;
-		condVar_.notify_all();
-	}
+	return camera_.GrabFrame() && camera_.RetrieveMat(localFrame_);
 }
 
 
-bool C920CameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
+bool C920CameraIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 {
-	(void)pause;
-	if (!camera_.IsOpen())
-		return false;
-	if (!pause)
-	{
-		boost::mutex::scoped_lock guard(mtx_);
-		while (!updateStarted_)
-			condVar_.wait(guard);
-		if (frame_.empty())
-			return false;
-		frame_.copyTo(pausedFrame_);
-		lockFrameNumber();
-		lockTimeStamp();
-	}
-	pausedFrame_.copyTo(frame);
+	localFrame_.copyTo(frame);
 	depth = Mat();
-
 	return true;
 }
+
 
 CameraParams C920CameraIn::getCameraParams(bool left) const
 {
@@ -309,7 +271,8 @@ void focusCallback(int value, void *data)
 
 #else
 
-C920CameraIn::C920CameraIn(int stream, bool gui)
+C920CameraIn::C920CameraIn(int stream, bool gui, ZvSettings *settings) :
+	AsyncIn(settings)
 {
 	(void)_stream;
 	(void)gui;

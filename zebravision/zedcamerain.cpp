@@ -18,66 +18,66 @@ void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
 
 ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
-	ZedIn(settings),
-	updateStarted_(false),
+	AsyncIn(settings),
+	zed_(NULL),
 	brightness_(2),
 	contrast_(6),
 	hue_(7),
 	saturation_(4),
 	gain_(1)
 {
-	if (Camera::isZEDconnected()) // Open an actual camera for input
-		zed_ = new Camera(HD720, 30);
+	if (!Camera::isZEDconnected()) // Open an actual camera for input
+		return;
 
-	if (zed_)
+	zed_ = new Camera(HD720, 30);
+
+	if (!zed_)
+		return;
+
+	InitParams parameters;
+	parameters.mode = PERFORMANCE;
+	parameters.unit = MILLIMETER;
+	parameters.verbose = 1;
+
+	// init computation mode of the zed
+	ERRCODE err = zed_->init(parameters);
+	// Quit if an error occurred
+	if (err != SUCCESS)
 	{
-		InitParams parameters;
-		parameters.mode = PERFORMANCE;
-		parameters.unit = MILLIMETER;
-		parameters.verbose = 1;
-		// init computation mode of the zed
-		ERRCODE err = zed_->init(parameters);
+		cout << errcode2str(err) << endl;
+		delete zed_;
+		zed_ = NULL;
+		return;
+	}
 
-		//only for Jetson K1/X1 - see if it helps
-		Camera::sticktoCPUCore(2);
+	//only for Jetson K1/X1 - see if it helps
+	Camera::sticktoCPUCore(2);
 
-		// Quit if an error occurred
-		if (err != SUCCESS)
-		{
-			cout << errcode2str(err) << endl;
-			delete zed_;
-			zed_ = NULL;
-		}
-		else
-		{
-			width_  = zed_->getImageSize().width;
-			height_ = zed_->getImageSize().height;
+	width_  = zed_->getImageSize().width;
+	height_ = zed_->getImageSize().height;
 
-			if (!loadSettings())
-				cerr << "Failed to load ZedCameraIn settings from XML" << endl;
+	if (!loadSettings())
+		cerr << "Failed to load ULLZedCameraIn settings from XML" << endl;
 
-			zedBrightnessCallback(brightness_, this);
-			zedContrastCallback(contrast_, this);
-			zedHueCallback(hue_, this);
-			zedSaturationCallback(saturation_, this);
-			zedGainCallback(gain_, this);
+	zedBrightnessCallback(brightness_, this);
+	zedContrastCallback(contrast_, this);
+	zedHueCallback(hue_, this);
+	zedSaturationCallback(saturation_, this);
+	zedGainCallback(gain_, this);
 
-			cout << "brightness_ = " << zed_->getCameraSettingsValue(ZED_BRIGHTNESS) << endl;
-			cout << "contrast_ = " << zed_->getCameraSettingsValue(ZED_CONTRAST) << endl;
-			cout << "hue_ = " << zed_->getCameraSettingsValue(ZED_HUE) << endl;
-			cout << "saturation_ = " << zed_->getCameraSettingsValue(ZED_SATURATION) << endl;
-			cout << "gain_ = " << zed_->getCameraSettingsValue(ZED_GAIN) << endl;
-			if (gui)
-			{
-				cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
-				cv::createTrackbar("Brightness", "Adjustments", &brightness_, 9, zedBrightnessCallback, this);
-				cv::createTrackbar("Contrast", "Adjustments", &contrast_, 9, zedContrastCallback, this);
-				cv::createTrackbar("Hue", "Adjustments", &hue_, 12, zedHueCallback, this);
-				cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
-				cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
-			}
-			thread_ = boost::thread(&ZedCameraIn::update, this);
-		}
+	cout << "brightness_ = " << zed_->getCameraSettingsValue(ZED_BRIGHTNESS) << endl;
+	cout << "contrast_ = " << zed_->getCameraSettingsValue(ZED_CONTRAST) << endl;
+	cout << "hue_ = " << zed_->getCameraSettingsValue(ZED_HUE) << endl;
+	cout << "saturation_ = " << zed_->getCameraSettingsValue(ZED_SATURATION) << endl;
+	cout << "gain_ = " << zed_->getCameraSettingsValue(ZED_GAIN) << endl;
+	if (gui)
+	{
+		cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
+		cv::createTrackbar("Brightness", "Adjustments", &brightness_, 9, zedBrightnessCallback, this);
+		cv::createTrackbar("Contrast", "Adjustments", &contrast_, 9, zedContrastCallback, this);
+		cv::createTrackbar("Hue", "Adjustments", &hue_, 12, zedHueCallback, this);
+		cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
+		cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
 	}
 
 	while (height_ > 700)
@@ -85,8 +85,21 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 		width_  /= 2;
 		height_ /= 2;
 	}
-	initCameraParams(true);
+
+	params_.init(zed_, true);
+	startThread();
 }
+
+
+ZedCameraIn::~ZedCameraIn()
+{
+	if (!saveSettings())
+		cerr << "Failed to save ZedCameraIn settings to XML" << endl;
+	stopThread();
+	if (zed_)
+		delete zed_;
+}
+
 
 bool ZedCameraIn::loadSettings(void)
 {
@@ -100,6 +113,7 @@ bool ZedCameraIn::loadSettings(void)
 	}
 	return false;
 }
+
 
 bool ZedCameraIn::saveSettings(void) const
 {
@@ -115,14 +129,6 @@ bool ZedCameraIn::saveSettings(void) const
 	return false;
 }
 
-ZedCameraIn::~ZedCameraIn()
-{
-	if (!saveSettings())
-		cerr << "Failed to save ZedCameraIn settings to XML" << endl;
-	thread_.interrupt();
-	thread_.join();
-}
-
 
 bool ZedCameraIn::isOpened(void) const
 {
@@ -130,76 +136,42 @@ bool ZedCameraIn::isOpened(void) const
 }
 
 
-void ZedCameraIn::update(void)
+CameraParams ZedCameraIn::getCameraParams(bool left) const
 {
-	// TODO : make this settable somehow?
-	const bool left = true;
-	if (!zed_)
-		return;
-
-	while (1)
-	{
-		boost::this_thread::interruption_point();
-		FPSmark();
-		int badReadCounter = 0;
-		while (zed_->grab(SENSING_MODE::STANDARD))
-		{
-			boost::this_thread::interruption_point();
-			// Wait a bit to see if the next
-			// frame shows up
-			usleep(5000);
-			// Try to grab a bunch of times before
-			// bailing out and failing
-			if (++badReadCounter == 100)
-			{
-				frame_ = cv::Mat();
-				return;
-			}
-		}
-
-		sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
-		sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
-		boost::mutex::scoped_lock guard(mtx_);
-		setTimeStamp();
-		incFrameNumber();
-		cvtColor(slMat2cvMat(slFrame), frame_, CV_RGBA2RGB);
-		slMat2cvMat(slDepth).copyTo(depth_);
-
-		while (frame_.rows > 700)
-		{
-			pyrDown(frame_, frame_);
-			pyrDown(depth_, depth_);
-		}
-
-		updateStarted_= true;
-		condVar_.notify_all();
-	}
+	(void)left;
+	return params_.get();
 }
 
 
-bool ZedCameraIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
+bool ZedCameraIn::preLockUpdate(void)
 {
-	if (!zed_)
-		return false;
-
-	// If input is not paused, copy data from the
-	// frame_/depth_ mats- these are the most recent
-	// data read from the cameras
-	if (!pause)
+	const bool left = true;
+	int badReadCounter = 0;
+	while (zed_->grab(SENSING_MODE::STANDARD))
 	{
-		boost::mutex::scoped_lock guard(mtx_);
-		while (!updateStarted_)
-			condVar_.wait(guard);
-
-		lockTimeStamp();
-		lockFrameNumber();
-
-		frame_.copyTo(pausedFrame_);
-		depth_.copyTo(pausedDepth_);
+		boost::this_thread::interruption_point();
+		// Wait a bit to see if the next
+		// frame shows up
+		usleep(5000);
+		// Try to grab a bunch of times before
+		// bailing out and failing
+		if (++badReadCounter == 100)
+			return false;
 	}
-	pausedFrame_.copyTo(frame);
-	pausedDepth_.copyTo(depth);
 
+	sl::zed::Mat slDepth = zed_->retrieveMeasure(MEASURE::DEPTH);
+	sl::zed::Mat slFrame = zed_->retrieveImage(left ? SIDE::LEFT : SIDE::RIGHT);
+	slMat2cvMat(slFrame).copyTo(localFrame_);
+	slMat2cvMat(slDepth).copyTo(localDepth_);
+
+	return true;
+}
+
+
+bool ZedCameraIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
+{
+	localFrame_.copyTo(frame);
+	localDepth_.copyTo(depth);
 	return true;
 }
 

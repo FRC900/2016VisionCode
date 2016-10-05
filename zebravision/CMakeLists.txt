@@ -1,8 +1,8 @@
 CMake_minimum_required(VERSION 2.8)
 project(zv)
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) # Remove when CMake >= 2.8.4 is required
-set(CMAKE_BUILD_TYPE Release)
-add_definitions(-std=c++11 -Wall -Wextra)
+set(CMAKE_BUILD_TYPE Relase)
+add_definitions(-std=c++11 -Wall -Wextra -Wno-switch)
 # Without -fno-finite-math-only, NaN checks are optimized away
 # This is bad since the Zed outputs NaN for invalid depth data
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -flto -fno-finite-math-only")
@@ -85,46 +85,49 @@ LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
 LIST(APPEND CUDA_NVCC_FLAGS -O3 --default-stream per-thread)
 
 CUDA_ADD_EXECUTABLE(zv
-	objdetect.cpp
-	GoalDetector.cpp
-	detect.cpp
-	depth_threshold.cu
+	zca.cpp
+	zca.cu
+	cuda_utils.cpp
 	Classifier.cpp
 	CaffeClassifier.cpp
 	GIEClassifier.cpp
-	fast_nms.cpp
-	scalefactor.cpp
+	classifierio.cpp
 	detectstate.cpp
+	objdetect.cpp
+	scalefactor.cpp
+	fast_nms.cpp
+	depth_threshold.cu
+	detect.cpp
+	GoalDetector.cpp
+	objtype.cpp
+	track3d.cpp
 	mediain.cpp
+	asyncin.cpp
+	syncin.cpp
 	videoin.cpp
 	camerain.cpp
 	C920Camera.cpp
 	c920camerain.cpp
+	zedcamerain.cpp
+	zedsvoin.cpp
+	zmsin.cpp
 	imagein.cpp
+	cameraparams.cpp
+	zedparams.cpp
 	mediaout.cpp
 	aviout.cpp
 	pngout.cpp
 	zmsout.cpp
 	portable_binary_iarchive.cpp
 	portable_binary_oarchive.cpp
-	classifierio.cpp
 	Args.cpp
 	WriteOnFrame.cpp
-	zedin.cpp
-	zedcamerain.cpp
-	zedsvoin.cpp
-	zmsin.cpp
 	groundtruth.cpp
 	Utilities.cpp
-	track3d.cpp
-	objtype.cpp
 	#../fovis/FovisLocalizer.cpp
 	FlowLocalizer.cpp
 	kalman.cpp
 	hungarian.cpp
-	zca.cpp
-	zca.cu
-	cuda_utils.cpp
 	ZvSettings.cpp
 	zv.cpp 
 	${CMAKE_CURRENT_BINARY_DIR}/version.cpp)
@@ -154,9 +157,9 @@ target_link_libraries( zv
 	)
 CUDA_ADD_CUBLAS_TO_TARGET(zv)
 
-add_executable(convertzms convertzms.cpp mediain.cpp zedin.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+add_executable(convertzms convertzms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
-add_executable(mergezms mergezms.cpp mediain.cpp zedin.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+add_executable(mergezms mergezms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp cuda_utils.cpp)
 target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${MKL_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})

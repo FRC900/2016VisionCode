@@ -22,8 +22,7 @@ using namespace cv;
 using namespace boost::filesystem;
 
 ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
-	MediaIn(settings),
-	frameReady_(false),
+	SyncIn(settings),
 	serializeIn_(NULL),
 	filtSBIn_(NULL),
 	archiveIn_(NULL),
@@ -51,21 +50,21 @@ ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
 		}
 	}
 
-	if (loaded)
-	{
-		width_  = frame_.cols;
-		height_ = frame_.rows;
-
-		// Reopen the file so callers can get the first frame
-		if (!openSerializeInput(inFileName, archiveIn_ == NULL))
-			cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
-		else
-			thread_ = boost::thread(&ZMSIn::update, this);
-	}
-	else
+	if (!loaded)
 	{
 		cerr << "Zed init : Could not open " << inFileName << " for reading" << endl;
 		deleteInputPointers();
+		return;
+	}
+
+	width_  = frame_.cols;
+	height_ = frame_.rows;
+
+	// Reopen the file so callers can get the first frame
+	if (!openSerializeInput(inFileName, archiveIn_ == NULL))
+	{
+		cerr << "Zed init : Could not reopen " << inFileName << " for reading" << endl;
+		return;
 	}
 
 	while (height_ > 700)
@@ -73,6 +72,7 @@ ZMSIn::ZMSIn(const char *inFileName, ZvSettings *settings) :
 		width_  /= 2;
 		height_ /= 2;
 	}
+	startThread();
 }
 
 // Input needs 3 things. First is a standard ifstream to read from
@@ -166,8 +166,7 @@ void ZMSIn::deleteInputPointers(void)
 
 ZMSIn::~ZMSIn()
 {
-	thread_.interrupt();
-	thread_.join();
+	stopThread();
 	deleteInputPointers();
 }
 
@@ -178,94 +177,36 @@ bool ZMSIn::isOpened(void) const
 }
 
 
-// Read the next frame from the input file.  Store the
-// read frame in frame_ & depth_.
-// The code is designed not to skip any input frames,
-// so if the data stored in frame_&depth_ hasn't been read
-// in getFrame yet, update() will loop until it has
-// before overwriting it.
-void ZMSIn::update(void)
+bool ZMSIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 {
-	if (!archiveIn_ && !portableArchiveIn_)
-		return;
-
-	while (1)
+	// Ugly try-catch to detect EOF
+	try
 	{
-		// If the frame read from the last update()
-		// call hasn't been used yet, loop here
-		// until it has been. This will prevent
-		// the code from reading multiple frames
-		// in the time it takes to process one and
-		// skipping some video in the process
-		boost::mutex::scoped_lock guard(mtx_);
-		while (frameReady_)
-			condVar_.wait(guard);
-
-		// Ugly try-catch to detect EOF
-		try
-		{
-			if (archiveIn_)
-				*archiveIn_ >> frame_ >> depth_;
-			else
-				*portableArchiveIn_ >> frame_ >> depth_;
-		}
-		catch (const std::exception &e)
-		{
-			// EOF reached.  Signal this by sending
-			// an empty frame to getFrame.
-			frame_ = cv::Mat();
-			frameReady_ = true;
-			condVar_.notify_all();
-			break;
-		}
-
-		setTimeStamp(); // TODO : maybe store & read this from the ZMS file instead - this will break the format, though
-		incFrameNumber();
-
-		while (frame_.rows > 700)
-		{
-			pyrDown(frame_, frame_);
-			pyrDown(depth_, depth_);
-		}
-
-		frameReady_ = true;
-		condVar_.notify_all();
+		if (archiveIn_)
+			*archiveIn_ >> frame >> depth;
+		else
+			*portableArchiveIn_ >> frame >> depth;
 	}
-}
-
-
-bool ZMSIn::getFrame(cv::Mat &frame, cv::Mat &depth, bool pause)
-{
-	if (!archiveIn_ && !portableArchiveIn_)
-		return false;
-
-	// If reading from a file and not paused, grab
-	// the next frame.
-	if (!pause)
+	catch (const std::exception &e)
 	{
-		// Wait until a valid frame is in frame_
-		boost::mutex::scoped_lock guard(mtx_);
-		while (!frameReady_)
-			condVar_.wait(guard);
-		if (frame_.empty())
-			return false;
-		frame_.copyTo(prevGetFrame_);
-		depth_.copyTo(prevGetDepth_);
-		lockTimeStamp();
-		lockFrameNumber();
-
-		frameReady_ = false;
-		condVar_.notify_all();
-	}
-
-	if (prevGetFrame_.empty())
+		// EOF reached.  Signal this by sending
+		// an empty frame to getFrame.
 		return false;
-
-	prevGetFrame_.copyTo(frame);
-	prevGetDepth_.copyTo(depth);
-
+	}
 	return true;
 }
+
+
+// Can't randomly seek in ZMS yet
+// TOOD : if moving forward, read frames sequentially?
+//        if moving backwards, reopen then read forward sequentially?
+bool ZMSIn::postLockFrameNumber(int framenumber)
+{
+	(void) framenumber;
+	return false;
+
+}
+
 
 // Use hard-coded values takes from SN*.conf files
 CameraParams ZMSIn::getCameraParams(void) const

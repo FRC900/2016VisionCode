@@ -8,50 +8,31 @@
 // the last frame called with pause==false is returned)
 #pragma once
 
-#include <boost/thread.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include "mediain.hpp"
+#include "asyncin.hpp"
 
 class ZvSettings;
 
-class CameraIn : public MediaIn
+class CameraIn : public AsyncIn
 {
 	public:
 		CameraIn(int stream = -1, ZvSettings *settings = NULL);
 		~CameraIn();
 
 		bool isOpened(void) const;
-		bool getFrame(cv::Mat &frame, cv::Mat &depth, bool pause = false);
+
+	protected:
+		// Defined in derived classes to handle the nuts
+		// and bolts of grabbing a frame from a given
+		// source.  preLock happens before the mutex
+		// while postLock happens inside it
+		bool preLockUpdate(void);
+		bool postLockUpdate(cv::Mat &frame, cv::Mat &depth);
 
 	private:
-		double           fps_;
+		double           fps_;  // FPS requested/set for camera
+		cv::VideoCapture cap_;  // the input camera object
+		cv::Mat          localFrame_; // local frame buffer
 
-		// Input is buffered several times
-		// frame_ is the most recent frame grabbed from 
-		// the camera
-		// pausedFrame_ is the most recent frame returned
-		// from a call to getFrame. If video is paused, this
-		// frame is returned multiple times until the
-		// GUI is unpaused
-		cv::Mat           frame_;
-		cv::Mat           pausedFrame_;
-
-		// Mutex used to protect frame_
-		// from simultaneous accesses 
-		// by multiple threads
-		boost::mutex      mtx_;
-
-		// Thread dedicated to update() loop
-		boost::thread thread_;
-
-		// Flag and condition variable to indicate
-		// update() has grabbed at least 1 frame
-		boost::condition_variable condVar_;
-		bool updateStarted_;
-
-		cv::VideoCapture cap_;
-
-		void update(void);
 		std::string getClassName() const { return "CameraIn"; } 
 		bool loadSettings(void);
 		bool saveSettings(void) const;
