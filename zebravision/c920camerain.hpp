@@ -23,7 +23,7 @@ class C920CameraIn : public AsyncIn
 #ifdef __linux__  // Special C920 support only works under linux
 		bool isOpened(void) const;
 
-		CameraParams getCameraParams(bool left) const;
+		CameraParams getCameraParams(void) const;
 
 	protected:
 		// Defined in derived classes to handle the nuts

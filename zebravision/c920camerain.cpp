@@ -179,15 +179,10 @@ bool C920CameraIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 }
 
 
-CameraParams C920CameraIn::getCameraParams(bool left) const
+CameraParams C920CameraIn::getCameraParams(void) const
 {
-	(void)left;
-	unsigned int width;
-	unsigned int height;
-
-	v4l2::GetCaptureSize(captureSize_, width, height);
 	CameraParams cp;
-	if (height == 480)
+	if (height_ == 480)
 		cp.fov = Point2f(69.0 * M_PI / 180., 69.0 * 480 / 640. * M_PI / 180.); // need VFOV, other resolutions
 	else
 		//cp.fov = Point2f(77. * M_PI / 180., 77. * 720. / 1280. * M_PI / 180.);
