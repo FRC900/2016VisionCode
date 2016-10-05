@@ -7,10 +7,10 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include "opencv2_3_shim.hpp"
-
+#include <boost/filesystem.hpp>
 #include <zmq.hpp>
 
+#include "opencv2_3_shim.hpp"
 #include "detectstate.hpp"
 #include "frameticker.hpp"
 #include "groundtruth.hpp"
@@ -33,10 +33,6 @@
 #include "FlowLocalizer.hpp"
 #include "ZvSettings.hpp"
 #include "version.hpp"
-
-#include <boost/thread.hpp>
-#include <boost/interprocess/sync/interprocess_mutex.hpp>
-#include <boost/interprocess/managed_shared_memory.hpp>
 
 using namespace std;
 using namespace cv;
@@ -926,13 +922,6 @@ string getDateTimeString(void)
 }
 
 
-bool hasSuffix(const std::string& str, const std::string& suffix)
-{
-    return str.size() >= suffix.size() &&
-           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-
 // Open video capture object. Figure out if input is camera, video, image, etc
 bool openMedia(const string &readFileName, bool gui, const string &xmlFilename, MediaIn *&cap, string &capPath, string &windowName)
 {
@@ -945,14 +934,10 @@ bool openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 		stringstream ss;
 		int camera = readFileName.length() ? atoi(readFileName.c_str()) : 0;
 
-#ifdef ZED_SUPPORT
 		cap = new ZedCameraIn(gui, zvSettings);
 		if (!cap->isOpened())
-#endif
 		{
-#ifdef ZED_SUPPORT
 			delete cap;
-#endif
 			cap = new C920CameraIn(camera, gui, zvSettings);
 			if (!cap->isOpened())
 			{
@@ -965,38 +950,27 @@ bool openMedia(const string &readFileName, bool gui, const string &xmlFilename, 
 				ss << "C920 Camera ";
 			}
 		}
-#ifdef ZED_SUPPORT
 		else
 		{
 			ss << "Zed Camera ";
 		}
-#endif
 		ss << camera;
 		windowName = ss.str();
 		capPath    = getDateTimeString();
 	}
 	else // has to be a file name, we hope
 	{
-		if (hasSuffix(readFileName, ".png") || hasSuffix(readFileName, ".jpg") ||
-		    hasSuffix(readFileName, ".PNG") || hasSuffix(readFileName, ".JPG"))
+		string ext = boost::filesystem::extension(readFileName);
+		if ((ext == ".png") || (ext == ".jpg") ||
+		    (ext == ".PNG") || (ext == ".JPG"))
 			cap = new ImageIn((char*)readFileName.c_str(), zvSettings);
-		else if (hasSuffix(readFileName, ".svo") || hasSuffix(readFileName, ".SVO"))
+		else if ((ext ==  ".svo") || (ext ==  ".SVO"))
 		{
-#ifdef ZED_SUPPORT
 			cap = new ZedSVOIn(readFileName.c_str(), zvSettings);
-#else
-			cerr << "ZED support not enabled for this build " << endl;
-			return false;
-#endif
 		}
-		else if ( hasSuffix(readFileName, ".zms") || hasSuffix(readFileName, ".ZMS"))
+		else if ((ext == ".zms") || (ext == ".ZMS"))
 		{
-#ifdef ZED_SUPPORT
 			cap = new ZMSIn(readFileName.c_str(), zvSettings);
-#else
-			cerr << "ZED support not enabled for this build " << endl;
-			return false
-#endif
 		}
 		else
 			cap = new VideoIn(readFileName.c_str(), zvSettings);
