@@ -30,7 +30,7 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	if (!Camera::isZEDconnected()) // Open an actual camera for input
 		return;
 
-	zed_ = new Camera(VGA, 30);
+	zed_ = new Camera(HD720, 30);
 
 	if (!zed_)
 		return;
