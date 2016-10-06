@@ -24,12 +24,13 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	contrast_(6),
 	hue_(7),
 	saturation_(4),
-	gain_(1)
+	gain_(1),
+	exposure_(1) // Should set exposure = -1 => auto exposure/auto-gain
 {
 	if (!Camera::isZEDconnected()) // Open an actual camera for input
 		return;
 
-	zed_ = new Camera(HD720, 30);
+	zed_ = new Camera(VGA, 30);
 
 	if (!zed_)
 		return;
@@ -64,12 +65,14 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	zedHueCallback(hue_, this);
 	zedSaturationCallback(saturation_, this);
 	zedGainCallback(gain_, this);
+	zedExposureCallback(exposure_, this);
 
 	cout << "brightness_ = " << zed_->getCameraSettingsValue(ZED_BRIGHTNESS) << endl;
 	cout << "contrast_ = " << zed_->getCameraSettingsValue(ZED_CONTRAST) << endl;
 	cout << "hue_ = " << zed_->getCameraSettingsValue(ZED_HUE) << endl;
 	cout << "saturation_ = " << zed_->getCameraSettingsValue(ZED_SATURATION) << endl;
 	cout << "gain_ = " << zed_->getCameraSettingsValue(ZED_GAIN) << endl;
+	cout << "exposure_ = " << zed_->getCameraSettingsValue(ZED_EXPOSURE) << endl;
 	if (gui)
 	{
 		cv::namedWindow("Adjustments", CV_WINDOW_NORMAL);
@@ -77,7 +80,8 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 		cv::createTrackbar("Contrast", "Adjustments", &contrast_, 9, zedContrastCallback, this);
 		cv::createTrackbar("Hue", "Adjustments", &hue_, 12, zedHueCallback, this);
 		cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
-		cv::createTrackbar("Gain", "Adjustments", &gain_, 9, zedGainCallback, this);
+		cv::createTrackbar("Gain", "Adjustments", &gain_, 101, zedGainCallback, this);
+		cv::createTrackbar("Exposure", "Adjustments", &exposure_, 102, zedGainCallback, this);
 	}
 
 	while (height_ > 700)
@@ -181,9 +185,7 @@ void zedBrightnessCallback(int value, void *data)
     ZedCameraIn *zedPtr = static_cast<ZedCameraIn *>(data);
 	zedPtr->brightness_ = value;
 	if (zedPtr->zed_)
-	{
 		zedPtr->zed_->setCameraSettingsValue(ZED_BRIGHTNESS, value - 1, value == 0);
-	}
 }
 
 
@@ -192,9 +194,7 @@ void zedContrastCallback(int value, void *data)
     ZedCameraIn *zedPtr = static_cast<ZedCameraIn *>(data);
 	zedPtr->contrast_ = value;
 	if (zedPtr->zed_)
-	{
 		zedPtr->zed_->setCameraSettingsValue(ZED_CONTRAST, value - 1, value == 0);
-	}
 }
 
 
@@ -203,9 +203,7 @@ void zedHueCallback(int value, void *data)
     ZedCameraIn *zedPtr = static_cast<ZedCameraIn *>(data);
 	zedPtr->hue_ = value;
 	if (zedPtr->zed_)
-	{
 		zedPtr->zed_->setCameraSettingsValue(ZED_HUE, value - 1, value == 0);
-	}
 }
 
 
@@ -214,9 +212,7 @@ void zedSaturationCallback(int value, void *data)
     ZedCameraIn *zedPtr = static_cast<ZedCameraIn *>(data);
 	zedPtr->saturation_ = value;
 	if (zedPtr->zed_)
-	{
 		zedPtr->zed_->setCameraSettingsValue(ZED_SATURATION, value - 1, value == 0);
-	}
 }
 
 
@@ -225,9 +221,15 @@ void zedGainCallback(int value, void *data)
     ZedCameraIn *zedPtr = static_cast<ZedCameraIn *>(data);
 	zedPtr->gain_ = value;
 	if (zedPtr->zed_)
-	{
 		zedPtr->zed_->setCameraSettingsValue(ZED_GAIN, value - 1, value == 0);
-	}
+}
+
+void zedExposureCallback(int value, void *data)
+{
+    ZedCameraIn *zedPtr = static_cast<ZedCameraIn *>(data);
+	zedPtr->gain_ = value;
+	if (zedPtr->zed_)
+		zedPtr->zed_->setCameraSettingsValue(ZED_EXPOSURE, value - 2, value == 0);
 }
 
 

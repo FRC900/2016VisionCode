@@ -212,7 +212,7 @@ bool ZMSIn::postLockFrameNumber(int framenumber)
 CameraParams ZMSIn::getCameraParams(void) const
 {
 	float hFovDegrees;
-	if (height_ == 480) // can't work based on width, since 1/2 of 1280x720 is 640, as is full sized 640x480
+	if (height_ == 480) // redo this now that VGA is widescreen VGA instead
 		hFovDegrees = 51.3;
 	else
 		hFovDegrees = 105.; // hope all the HD & 2k res are the same
@@ -223,31 +223,31 @@ CameraParams ZMSIn::getCameraParams(void) const
 	// Take a guess based on acutal values from one of our cameras
 	if (height_ == 480)
 	{
-		params.fx = 705.768;
-		params.fy = 705.768;
-		params.cx = 326.848;
-		params.cy = 240.039;
+		params.fx = 350.075;
+		params.fy = 350.075;
+		params.cx = 332.289;
+		params.cy = 186.061;
 	}
 	else if ((width_ == 1280) || (width_ == 640)) // 720P normal or pyrDown 1x
 	{
-		params.fx = 686.07;
-		params.fy = 686.07;
-		params.cx = 662.955 / (1280 / width_);;
-		params.cy = 361.614 / (1280 / width_);;
+		params.fx = 700.548;
+		params.fy = 700.548;
+		params.cx = 647.35  / (1280 / width_);;
+		params.cy = 369.472 / (1280 / width_);;
 	}
 	else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
 	{
-		params.fx = 1401.88;
-		params.fy = 1401.88;
-		params.cx = 977.193 / (1920 / width_);; // Is this correct - downsized
-		params.cy = 540.036 / (1920 / width_);; // image needs downsized cx?
+		params.fx = 1401.1;
+		params.fy = 1401.1;
+		params.cx = 977.701 / (1920 / width_);; // Is this correct - downsized
+		params.cy = 561.944 / (1920 / width_);; // image needs downsized cx?
 	}
 	else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
 	{
-		params.fx = 1385.4;
-		params.fy = 1385.4;
-		params.cx = 1124.74 / (2208 / width_);;
-		params.cy = 1124.74 / (2208 / width_);;
+		params.fx = 1401.1;
+		params.fy = 1401.14;
+		params.cx = 1121.74 / (2208 / width_);;
+		params.cy = 642.944 / (2208 / width_);;
 	}
 	else
 	{

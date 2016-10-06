@@ -47,6 +47,7 @@ class ZedCameraIn : public AsyncIn
 		int              hue_;
 		int              saturation_;
 		int              gain_;
+		int              exposure_;
 		ZedParams        params_;
 
 		// Helpers to save and load settings in XML file
@@ -60,5 +61,6 @@ class ZedCameraIn : public AsyncIn
 		friend void zedHueCallback(int value, void *data);
 		friend void zedSaturationCallback(int value, void *data);
 		friend void zedGainCallback(int value, void *data);
+		friend void zedExposureCallback(int value, void *data);
 #endif
 };
