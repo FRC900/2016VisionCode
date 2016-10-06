@@ -80,7 +80,7 @@ Args::Args(void)
 	c24BaseDir         = "/home/ubuntu/2016VisionCode/zebravision/c24";
 	c24DirNum          = -1;
 	c24StageNum        = -1;
-	c24Threshold       = 5;
+	c24Threshold       = 21;
 	frameStart         = 0.0;
 	groundTruth        = false;
 	xmlFilename        = "/home/ubuntu/2016VisionCode/zebravision/settings.xml";
