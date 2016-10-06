@@ -111,7 +111,6 @@ namespace v4l2 {
 		return this->InitializeCapture(this->capture);
 	}
 	/* Setters for camera properties */
-	//TODO shouldn't be int & arguments
 	bool C920Camera::SetBrightness(int value) {
 		this->capture->V4L2Control.id = V4L2_CID_BRIGHTNESS;
 		this->capture->V4L2Control.value = value;
