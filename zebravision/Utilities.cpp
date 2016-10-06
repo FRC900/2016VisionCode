@@ -78,7 +78,16 @@ namespace utils {
 		        }
 		    }
 		}
-		return std::make_pair(sum_min / (num_pix_min * 1000.), sum_max / (num_pix_max * 1000.));
+		// Need to debug this more but for now fix it 
+		// by returning a negative number (i.e. failure)
+		// if it happens
+		float min_dist = sum_min / (num_pix_min * 1000.);
+		if (isinf(min_dist))
+			min_dist = -4;
+		float max_dist = sum_max / (num_pix_max * 1000.);
+		if (isinf(max_dist))
+			max_dist = -4;
+		return std::make_pair(min_dist, max_dist);
 	}
 
 	void shrinkRect(cv::Rect &rect_in, float shrink_factor) {
