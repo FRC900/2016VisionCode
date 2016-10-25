@@ -146,9 +146,9 @@ void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRo
 					imshow("Final", final);
 					waitKey(0);
 #else
-					// 24x24 is the largest size we'll need from here on out,
+					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resize (final, final, Size(24,24));
+					resize (final, final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.
@@ -250,9 +250,9 @@ void doShifts(const Mat &src, const Mat &mask, RNG &rng, RandomSubImage &rsi, co
 					imshow("Final", final);
 					waitKey(0);
 #else
-					// 24x24 is the largest size we'll need from here on out,
+					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resize (final, final, Size(24,24));
+					resize (final, final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.
