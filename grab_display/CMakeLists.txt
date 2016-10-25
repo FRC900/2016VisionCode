@@ -33,9 +33,9 @@ target_link_libraries( rotate_from_imageclipper ${OpenCV_LIBS} ${Boost_LIBRARIES
 add_executable( shift_from_imageclipper shift_from_imageclipper.cpp chroma_key.cpp image_warp.cpp imageShift.cpp imageclipper_read.cpp random_subimage.cpp)
 target_link_libraries( shift_from_imageclipper ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
-CUDA_ADD_EXECUTABLE ( zcacalc zcacalc.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../framegrabber/utilities_common.cpp random_subimage.cpp )
+CUDA_ADD_EXECUTABLE ( zcacalc zcacalc.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../framegrabber/utilities_common.cpp random_subimage.cpp )
 target_link_libraries( zcacalc ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 CUDA_ADD_CUBLAS_TO_TARGET(zcacalc)
-CUDA_ADD_EXECUTABLE ( zcarun zcarun.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../framegrabber/utilities_common.cpp )
+CUDA_ADD_EXECUTABLE ( zcarun zcarun.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../framegrabber/utilities_common.cpp )
 target_link_libraries( zcarun ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 CUDA_ADD_CUBLAS_TO_TARGET(zcarun)
