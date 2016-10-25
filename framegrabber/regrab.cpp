@@ -5,24 +5,24 @@
 // Optionally created resized versions of the output as well
 #include <sys/types.h>
 #include <dirent.h>
-#include "opencv2/objdetect/objdetect.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/opencv.hpp"
 
+#include <cstdio>
+#include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <string>
-#include <stdio.h>
 #include <vector>
 
 #include "cv.h"
 #include "cvaux.h"
 #include "cxcore.h"
 #include "highgui.h"
-using namespace std;
 #include "opencvx/cvrect32f.h"
 #include "opencvx/cvdrawrectangle.h"
 #include "opencvx/cvcropimageroi.h"
 #include "opencvx/cvpointnorm.h"
+using namespace std;
 using namespace cv;
 
 vector<string> &split(const string &s, char delim, vector<string> &elems) {
@@ -144,7 +144,11 @@ int main(void)
 
 			for (int j = 0; j < 2; j++)
 			{
+#if CV_MAJOR_VERSION == 2
 				Mat mat(crop, true);
+#else
+				Mat mat = cvarrToMat(crop);
+#endif
 
 				Mat noise(mat.size(), CV_64FC1);
 				Mat splitMat[3];
