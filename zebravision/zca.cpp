@@ -56,17 +56,6 @@
 #include "cuda_utils.hpp"
 #include "zca.hpp"
 
-//#define DEBUG_TIME
-#ifdef DEBUG_TIME
-#include <sys/time.h>
-double gtod_wrapper(void)
-{
-    struct timeval tv;
-
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
-#endif
 
 using namespace std;
 using namespace cv;
@@ -151,6 +140,7 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	Mat svdVT;
 	svd.compute(sigma, svdW, svdU, svdVT, SVD::FULL_UV);
 	
+	//cout << "svdU" << endl << svdU << endl;
 	//cout << "svdW" << endl << svdW << endl;
 	// Add small epsilon to prevent sqrt(small number)
 	// numerical instability. Larger epsilons have a
@@ -260,9 +250,6 @@ Mat ZCA::Transform32FC3(const Mat &input)
 // when this object was initialized
 vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 {
-#ifdef DEBUG_TIME
-	double start = gtod_wrapper();
-#endif
 	Mat output;
 	Mat work;
 	// Create a large mat holding all of the pixels
@@ -309,11 +296,6 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		// Push that row into the bottom of work
 		work.push_back(output.reshape(1,1));
 	}
-#ifdef DEBUG_TIME
-	double end = gtod_wrapper();
-	cout << "create work " << end - start << endl;
-	start = gtod_wrapper();
-#endif
 
 	// Apply ZCA transform matrix
 	// Math here is weights * images = output images
@@ -325,36 +307,16 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	// Since we want to pull images apart in the same transposed
 	// order, this saves a few transposes and gives a
 	// slight performance bump.
-
-	// GPU is faster so use it if it exists.
-#if 0
-	if (!weightsGPU_.empty())
-	{
-		gm_.upload(work);
-		gemm(gm_, weightsGPU_, 1.0, buf_, 0.0, gmOut_);
-
-		gmOut_.download(output);
-	}
-	else if (!weights_.empty())
-#endif
-	{
 #ifdef USE_MKL
-		const size_t m = work.rows;
-		const size_t n = weights_.rows;
-		const size_t k = weights_.cols;
+	const size_t m = work.rows;
+	const size_t n = weights_.rows;
+	const size_t k = weights_.cols;
 
-		output = Mat(work.rows, work.cols, CV_32FC1);
-		cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
-                m, n, k, 1.0, (const float *)work.data, k, (const float *)weights_.data, n, 0.0, (float *)output.data, n);
+	output = Mat(work.rows, work.cols, CV_32FC1);
+	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
+			m, n, k, 1.0, (const float *)work.data, k, (const float *)weights_.data, n, 0.0, (float *)output.data, n);
 #else
-		gemm(work, weights_, 1.0, Mat(), 0.0, output);
-#endif
-	}
-
-#ifdef DEBUG_TIME
-	end = gtod_wrapper();
-	cout << "gemm " << end - start << endl;
-	start = gtod_wrapper();
+	gemm(work, weights_, 1.0, Mat(), 0.0, output);
 #endif
 
 	// Matrix comes out transposed - instead
@@ -372,10 +334,6 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		ret.push_back(output.row(i).reshape(input[i].channels(), size_.height));
 	}
 
-#ifdef DEBUG_TIME
-	end = gtod_wrapper();
-	cout << "Create ret" << end - start << endl;
-#endif
 	return ret;
 }
 
