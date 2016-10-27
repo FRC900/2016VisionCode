@@ -236,7 +236,7 @@ void zedExposureCallback(int value, void *data)
 #else
 
 ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
-	ZedIn(settings)
+	AsyncIn(settings)
 {
 	(void)gui;
 }
@@ -246,5 +246,15 @@ ZedCameraIn::~ZedCameraIn()
 }
 
 
+bool ZedCameraIn::preLockUpdate(void)
+{
+	return true;
+}
+
+
+bool ZedCameraIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
+{
+	return false;
+}
 #endif
 

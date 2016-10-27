@@ -28,7 +28,7 @@ class ZedCameraIn : public AsyncIn
 #ifdef ZED_SUPPORT
 		bool         isOpened(void) const;
 		CameraParams getCameraParams(void) const;
-
+#endif
 	protected:
 		// Defined in derived classes to handle the nuts
 		// and bolts of grabbing a frame from a given
@@ -36,7 +36,7 @@ class ZedCameraIn : public AsyncIn
 		// while postLock happens inside it
 		bool preLockUpdate(void);
 		bool postLockUpdate(cv::Mat &frame, cv::Mat &depth);
-
+#ifdef ZED_SUPPORT
 	private:
 		sl::zed::Camera *zed_;
 		cv::Mat          localFrame_;
