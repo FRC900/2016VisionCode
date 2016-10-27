@@ -60,11 +60,13 @@ CVAPI(void) cvCropImageROI( IplImage* img, IplImage* dst, CvRect32f rect32f, CvP
 {
     CvRect rect = cvRectFromRect32f( rect32f );
     float angle = rect32f.angle;
+#if CV_MAJOR_VERSION == 2
     CV_FUNCNAME( "cvCropImageROI" );
     __BEGIN__;
     CV_ASSERT( rect.width > 0 && rect.height > 0 );
     CV_ASSERT( dst->width == rect.width );
     CV_ASSERT( dst->height == rect.height );
+#endif
 
     if( angle == 0 && shear.x == 0 && shear.y == 0 && 
         rect.x >= 0 && rect.y >= 0 && 
@@ -132,7 +134,9 @@ CVAPI(void) cvCropImageROI( IplImage* img, IplImage* dst, CvRect32f rect32f, CvP
         cvReleaseMat( &xy );
         cvReleaseMat( &xyp );
     }
+#if CV_MAJOR_VERSION == 2
     __END__;
+#endif
 }
 
 /**

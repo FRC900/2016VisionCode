@@ -58,10 +58,12 @@ CVAPI(void) cvCreateAffine( CvMat* affine, CvRect32f rect, CvPoint2D32f shear )
 {
     double c, s;
     CvMat *R, *S, *A, hdr;
+#if CV_MAJOR_VERSION == 2
     CV_FUNCNAME( "cvCreateAffine" );
     __BEGIN__;
     CV_ASSERT( rect.width > 0 && rect.height > 0 );
     CV_ASSERT( affine->rows == 2 && affine->cols == 3 );
+#endif
 
     // affine = [ A T ]
     // A = [ a b; c d ]
@@ -93,7 +95,10 @@ CVAPI(void) cvCreateAffine( CvMat* affine, CvRect32f rect, CvPoint2D32f shear )
 
     cvReleaseMat( &R );
     cvReleaseMat( &S );
+
+#if CV_MAJOR_VERSION == 2
     __END__;
+#endif
 }
 
 

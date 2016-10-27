@@ -50,7 +50,7 @@ int main(void)
     for (int nDone = 0; nDone < nImgs; ) 
 	{
 		img = rsi.get(1.0, 0.05);
-		resize(img, patch, Size(24,24));
+		resize(img, patch, Size(48,48));
 		// There are grayscale images in the 
 		// negatives, but we'll never see one
 		// in real life. Exclude those for now

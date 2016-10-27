@@ -80,9 +80,11 @@ CVAPI(void) cvDrawRectangle( IplImage* img,
 {
     CvRect rect = cvRectFromRect32f( rect32f );
     float angle = rect32f.angle;
+#if CV_MAJOR_VERSON == 2
     CV_FUNCNAME( "cvDrawRectangle" );
     __BEGIN__;
     CV_ASSERT( rect.width > 0 && rect.height > 0 );
+#endif
 
     if( angle == 0 && shear.x == 0 && shear.y == 0 )
     {
@@ -103,7 +105,7 @@ CVAPI(void) cvDrawRectangle( IplImage* img,
 
         for( x = 0; x < rect.width; x++ )
         {
-            for( y = 0; y < rect.height; y += max(1, rect.height - 1) )
+            for( y = 0; y < rect.height; y += std::max(1, rect.height - 1) )
             {
                 xp = (int)( c * x + -s * y + 0.5 ) + rect.x;
                 yp = (int)( s * x + c * y + 0.5 ) + rect.y;
@@ -117,7 +119,7 @@ CVAPI(void) cvDrawRectangle( IplImage* img,
 
         for( y = 0; y < rect.height; y++ )
         {
-            for( x = 0; x < rect.width; x += max( 1, rect.width - 1) )
+            for( x = 0; x < rect.width; x += std::max( 1, rect.width - 1) )
             {
                 xp = (int)( c * x + -s * y + 0.5 ) + rect.x;
                 yp = (int)( s * x + c * y + 0.5 ) + rect.y;
@@ -141,7 +143,7 @@ CVAPI(void) cvDrawRectangle( IplImage* img,
         for( x = 0; x < rect.width; x++ )
         {
             cvmSet( xy, 0, 0, x / rect32f.width );
-            for( y = 0; y < rect.height; y += max(1, rect.height - 1) )
+            for( y = 0; y < rect.height; y += std::max(1, rect.height - 1) )
             {
                 cvmSet( xy, 1, 0, y / rect32f.height );
                 cvMatMul( affine, xy, xyp );
@@ -157,7 +159,7 @@ CVAPI(void) cvDrawRectangle( IplImage* img,
         for( y = 0; y < rect.height; y++ )
         {
             cvmSet( xy, 1, 0, y / rect32f.height );
-            for( x = 0; x < rect.width; x += max( 1, rect.width - 1) )
+            for( x = 0; x < rect.width; x += std::max( 1, rect.width - 1) )
             {
                 cvmSet( xy, 0, 0, x / rect32f.width );
                 cvMatMul( affine, xy, xyp );
@@ -174,7 +176,9 @@ CVAPI(void) cvDrawRectangle( IplImage* img,
         cvReleaseMat( &xy );
         cvReleaseMat( &xyp );
     }
+#if CV_MAJOR_VERSON == 2
     __END__;
+#endif
 }
 
 /**

@@ -1,5 +1,9 @@
 #include <iostream>
 #include <iomanip>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cerrno>
 #include <opencv2/opencv.hpp>
 #include "utilities_common.h"
 
@@ -9,18 +13,26 @@ using namespace cv;
 int main(int argc, const char* argv[])
 {
 	// Output folder name
-    const string oFolder = "/home/kjaget/CNN/negative/generic2";
+    const string oFolder = "/home/kjaget/CNN_DEMO/negative/generic";
+	if (mkdir(oFolder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
+	{
+		if (errno != EEXIST)
+		{
+			cerr << "Could not create " << oFolder.c_str() << ":";
+			perror("");
+			return -1;
+		}
+	}
     
 	// Input folders to grab negatives from
     vector<string> filePaths;
-    GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/framegrabber", ".png", filePaths);
-    GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/Framegrabber2", ".png", filePaths, true);
-    GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/generic", ".png", filePaths, true);
+    GetFilePaths("/media/kjaget/disk/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/framegrabber", ".png", filePaths);
+    GetFilePaths("/media/kjaget/disk/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/Framegrabber2", ".png", filePaths, true);
+    GetFilePaths("/media/kjaget/disk/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/generic", ".png", filePaths, true);
     cout << filePaths.size() << " images!" << endl;
 
     RNG rng( time (NULL) );
-    rng.uniform( 0, 100 );
-    const int nNegs = 300000;
+    const int nNegs = 50000;
 
     Mat img;    // the full image
     Mat rsz;    // the randomly picked subimage

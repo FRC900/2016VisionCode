@@ -569,7 +569,7 @@ int main(int argc, char *argv[])
 #endif
 						bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
 						chromaImg = doChromaKey(rotImg, bgImg, rotMask);
-						resize(chromaImg, chromaImg, Size(24,24));
+						resize(chromaImg, chromaImg, Size(48,48));
 
                         stringstream write_name;
                         write_name << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;
