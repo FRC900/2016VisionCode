@@ -33,6 +33,7 @@
 #include "FlowLocalizer.hpp"
 #include "ZvSettings.hpp"
 #include "version.hpp"
+#include "colormap.cpp"
 
 using namespace std;
 using namespace cv;
@@ -103,8 +104,11 @@ void drawTrackingInfo(Mat& frame, const vector<TrackedObjectDisplay>& displayLis
 			// Scaled ratio changes from [minRatio,1.0] -> [0,1] so we see the full
 			// range of colors 
 			const double scaledRatio = (it->ratio - minRatio) / (1.0 - minRatio);
-            const Scalar rectColor(0, 255 * scaledRatio, 255 * (1.0 - scaledRatio));
-            // Highlight detected target
+            const int scaledRatioInt = 255 * scaledRatio;
+	    //read from the array viridis defined in colormap.cpp
+	    const Scalar rectColor(viridis[scaledRatioInt * 3] * 255, viridis[scaledRatioInt * 3 + 1] * 255, viridis[scaledRatioInt * 3 + 2] * 255);
+            cout << scaledRatioInt << rectColor << endl;
+	    // Highlight detected target
             rectangle(frame, it->rect, rectColor, 3);
             // Write detect ID, distance and angle data
             putText(frame, it->id, Point(it->rect.x + 25, it->rect.y + 30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
