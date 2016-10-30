@@ -39,10 +39,11 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 			dist_to_center.x / frame_size.width,
 			dist_to_center.y / frame_size.height);
 
-// TODO : replace with formula from http://www.chiefdelphi.com/forums/showpost.php?p=1571187&postcount=4
-// need focal length from camera information
-	float azimuth = percent_fov.x * fov_size.x;
-	float inclination = percent_fov.y * fov_size.y - cameraElevation;
+	
+
+// This uses formula from http://www.chiefdelphi.com/forums/showpost.php?p=1571187&postcount=4
+	float azimuth = atan(dist_to_center.x / (.5 * frame_size.width / tan(fov_size.x / 2)));
+	float inclination = atan(dist_to_center.y / (.5 * frame_size.height / tan(fov_size.y / 2))) - cameraElevation;
 
 	Point3f retPt(
 			avg_depth * cosf(inclination) * sinf(azimuth),
