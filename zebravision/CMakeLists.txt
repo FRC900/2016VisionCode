@@ -19,11 +19,11 @@ elseif (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "aarch64-linux-gnu")
   #find_library (LibNVInfer nvinfer /home/ubuntu/GIE/lib)
   #add_definitions(-DUSE_GIE=1)
 else()
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -march=native")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native -mtune=native")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -march=native -mtune=native")
 endif()
 find_package(ZED)
-if (${ZED_FOUND})
+if ($ZED_FOUND)
   add_definitions(-DZED_SUPPORT)
 endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -32,8 +32,8 @@ find_package(Boost COMPONENTS filesystem system serialization iostreams thread R
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(ZMQ REQUIRED)
-find_package(MKL)
-if (${MKL_FOUND})
+find_package(MKL QUIET)
+if (MKL_FOUND)
 	add_definitions(-DUSE_MKL=1)
 endif()
 
@@ -45,10 +45,17 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/version.cpp.in" "${CMAKE_CURRENT_BIN
 set (CAFFE_BASE_DIR "/home/ubuntu/caffe")
 
 # Caffe headers change the size of various
-# objects based on these defines. Best to match
+# objects based on these defines. Try to match
 # how caffe itself was compiled
-#add_definitions(-DCPU_ONLY=1)
-add_definitions(-DUSE_CUDNN=1)
+# Not sure how best to detect CPU-only builds
+# but this should handle a lot of common cases
+if (CUDNN_FOUND AND ZED_FOUND)
+	add_definitions(-DUSE_CUDNN=1)
+	MESSAGE("-- Using GPU-accelerated Caffe build")
+else()
+	add_definitions(-DCPU_ONLY=1)
+	MESSAGE("-- Using CPU-only Caffe build")
+endif()
 
 include_directories(
 	${OpenCV_INCLUDE_DIRS}
@@ -65,12 +72,12 @@ include_directories(
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
 	../../GIE/include)
 
-if (${MKL_FOUND})
+if ($MKL_FOUND)
 	include_directories (${MKL_INCLUDE_DIR})
 endif()
 
 #link_directories(/home/ubuntu/GIE/lib)
-link_directories(/opt/intel//ipp90legacy/linux/lib/intel64/threaded)
+link_directories(/opt/intel/ipp90legacy/linux/lib/intel64/threaded)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
@@ -157,8 +164,13 @@ target_link_libraries( zv
 	)
 CUDA_ADD_CUBLAS_TO_TARGET(zv)
 
-add_executable(convertzms convertzms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
-target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
+# Only build this if ZED libs are available - it converts
+# from ZED's SVO format to our home-brewed ZMS video file
+# format.
+if ($ZED_FOUND)
+  add_executable(convertzms convertzms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+  target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
+endif()
 add_executable(mergezms mergezms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
 target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp cuda_utils.cpp portable_binary_iarchive.cpp portable_binary_oarchive.cpp)
