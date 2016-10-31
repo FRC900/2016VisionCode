@@ -528,6 +528,8 @@ void ZCA::load(Archive &ar, const unsigned int version)
 	Mat weights;
 	ar & weights;
 	weightsT_ = weights.t();
+	if (!weightsT_.empty() && (getCudaEnabledDeviceCount() > 0))
+		weightsTGPU_.upload(weightsT_);
 	ar & epsilon_;
 	ar & overallMax_;
 	ar & overallMin_;
