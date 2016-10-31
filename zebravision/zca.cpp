@@ -53,9 +53,17 @@
 #ifdef USE_MKL
 #include <mkl.h>
 #endif
+
+#include <fstream>
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include "portable_binary_oarchive.hpp"
+#include "portable_binary_iarchive.hpp"
+#include "cvMatSerialize.hpp"
+#include "cvSizeSerialize.hpp"
+
 #include "cuda_utils.hpp"
 #include "zca.hpp"
-
 
 using namespace std;
 using namespace cv;
@@ -73,13 +81,14 @@ using namespace cv::cuda;
 // to the magnitude of principal components before taking the
 // square root of them - since many of these values are quite
 // small the square root of them becomes numerically unstable.
-ZCA::ZCA(const vector<Mat> &images, const Size &size, 
-		 float epsilon, bool globalContrastNorm) :
+ZCA::ZCA(const vector<Mat> &images, 
+		 const Size &size, 
+		 float epsilon) :
 	size_(size),
+	dPssIn_(NULL),
 	epsilon_(epsilon),
 	overallMin_(numeric_limits<double>::max()),
-	overallMax_(numeric_limits<double>::min()),
-	globalContrastNorm_(globalContrastNorm)
+	overallMax_(numeric_limits<double>::min())
 {
 	if (images.size() == 0)
 		return;
@@ -111,19 +120,13 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 		resize(resizeImg, tmpImg, size_);
 		meanStdDev(tmpImg, mean, stddev);
 		subtract(tmpImg, mean, tmpImg);
-		if (globalContrastNorm_)
-			divide(tmpImg, stddev, tmpImg);
-		else
-			divide(tmpImg, Scalar(255., 255., 255.), tmpImg); // TODO : remove this, or use uniform scaling for everything?
-		tmpImg = tmpImg.reshape(1, 1);
-		workingMatT.push_back(tmpImg.clone());
+		divide(tmpImg, stddev, tmpImg);
+		workingMatT.push_back(tmpImg.reshape(1,1).clone());
 	}
-	resizeImg.release();
-	tmpImg.release();
 
 	// Transpose so each image is its own column 
 	// rather than its own row 
-	Mat workingMat = workingMatT.t();
+	Mat workingMat(workingMatT.t());
 
 	// sigma is the covariance matrix of the 
 	// input data
@@ -134,27 +137,35 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 
 	workingMatT.release();
 
-	SVD svd;
-	Mat svdW; // eigenValues - magnitude of each principal component
-	Mat svdU; // eigenVectors - where each pricipal component points
-	Mat svdVT;
-	svd.compute(sigma, svdW, svdU, svdVT, SVD::FULL_UV);
+	// Put this in a local scope so svd gets freed
+	// after it isn't needed.
+	{
+		SVD svd;
+		//Mat svdW; // eigenValues - magnitude of each principal component
+		//Mat svdU; // eigenVectors - where each pricipal component points
+		Mat svdVT;
+		svd.compute(sigma, svdW_, svdU_, svdVT, SVD::FULL_UV);
+	}
 	
-	//cout << "svdU" << endl << svdU << endl;
-	//cout << "svdW" << endl << svdW << endl;
+	//cout << "svdU" << endl << svdU_ << endl;
+	//cout << "svdW" << endl << svdW_ << endl;
+
 	// Add small epsilon to prevent sqrt(small number)
 	// numerical instability. Larger epsilons have a
 	// bigger smoothing effect
 	// Take square root of each element, convert
 	// from vector into diagonal array
-	svdW += epsilon;
+	// Do the math on a local copy of svdW - save the original
+	// in case we later want to re-do the calc using a differen
+	// epsilon or whatever
+	Mat svdW(svdW_.clone());
+	svdW += epsilon_;
 	sqrt(svdW, svdW);
 	svdW = 1.0 / svdW;
-	Mat svdS = Mat::diag(svdW);
+	Mat svdS(Mat::diag(svdW));
 
 	// Weights are U * S * U'
-	weights_ = svdU * svdS * svdU.t();
-	weightsGPU_.upload(weights_);
+	Mat weights = svdU_ * svdS * svdU_.t();
 
 	// Transform the input images. Grab
 	// a range of pixel values and use this
@@ -166,7 +177,7 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	// Instead use the mean +/- 2.25 std deviations
 	// This should allow full range representation of
 	// > 96% of the pixels
-	Mat transformedImgs = weights_ * workingMat;
+	Mat transformedImgs = weights * workingMat;
 	meanStdDev(transformedImgs, mean, stddev);
 	cout << "transformedImgs mean/stddev " << mean(0) << " " << stddev(0) << endl;
 	overallMax_ = mean(0) + 2.25*stddev(0);
@@ -177,6 +188,10 @@ ZCA::ZCA(const vector<Mat> &images, const Size &size,
 	// point values into a 0-255 range that fits
 	// into a normal 8UC3 mat without saturating
 	cout << "Alpha / beta " << alpha() << " "<< beta() << endl;
+
+	weightsT_ = weights.t();
+	if (getCudaEnabledDeviceCount() > 0)
+		weightsTGPU_.upload(weightsT_);
 }
 
 // Transform a typical 8 bit image as read from file
@@ -276,20 +291,12 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 		Scalar stddev;
 		meanStdDev(output, mean, stddev);
 
-		// If GCN is disabled, just scale the values into
-		// a range from 0-1.  
-		if (!globalContrastNorm_)
-			stddev = Scalar(255., 255., 255., 255.);
-
 		for (int r = 0; r < output.rows; r++)
 		{
 			Vec3f *p = output.ptr<Vec3f>(r);
 			for (int c = 0; c < output.cols; c++)
-			{
-				p[c][0] = (p[c][0] - mean[0]) / stddev[0];
-				p[c][1] = (p[c][1] - mean[1]) / stddev[1];
-				p[c][2] = (p[c][2] - mean[2]) / stddev[2];
-			}
+				for (int ch = 0; ch < 3; ch++)
+					p[c][ch] = (p[c][ch] - mean[ch]) / stddev[ch];
 		}
 
 		// Reshape flattens the image to 1 channel, 1 row.
@@ -309,14 +316,14 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	// slight performance bump.
 #ifdef USE_MKL
 	const size_t m = work.rows;
-	const size_t n = weights_.rows;
-	const size_t k = weights_.cols;
+	const size_t n = weightsT_.rows;
+	const size_t k = weightsT_.cols;
 
 	output = Mat(work.rows, work.cols, CV_32FC1);
 	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
-			m, n, k, 1.0, (const float *)work.data, k, (const float *)weights_.data, n, 0.0, (float *)output.data, n);
+			m, n, k, 1.0, (const float *)work.data, k, (const float *)weightsT_.data, n, 0.0, (float *)output.data, n);
 #else
-	gemm(work, weights_, 1.0, Mat(), 0.0, output);
+	gemm(work, weightsT_, 1.0, Mat(), 0.0, output);
 #endif
 
 	// Matrix comes out transposed - instead
@@ -338,7 +345,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 }
 
 void cudaZCATransform(const vector<GpuMat> &input, 
-		const GpuMat &weights, 
+		const GpuMat &weightsT, 
 		PtrStepSz<float> *dPssIn,
 		GpuMat &gm,
 		GpuMat &gmOut,
@@ -365,40 +372,64 @@ void ZCA::Transform32FC3(const vector<GpuMat> &input, float *dest)
 			foo.push_back(*it);
 		}
 	}
-	cudaZCATransform(foo, weightsGPU_, dPssIn_, gm_, gmOut_, dest);
+	cudaZCATransform(foo, weightsTGPU_, dPssIn_, gm_, gmOut_, dest);
 }
 
 // Load a previously calcuated set of weights from file
-ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
+ZCA::ZCA(const string &fileName, size_t batchSize) :
 	dPssIn_(NULL)
 {
-	try 
+	string ext = boost::filesystem::extension(fileName);
+	// .zca files are a binary, compressed version of the
+	// weights.  Load these if they exist since it is
+	// quicker than loading the test-based XML file below
+	if ((ext == ".zca") || (ext == ".ZCA"))
 	{
-		FileStorage fs(xmlFilename, FileStorage::READ);
-		if (fs.isOpened())
+		using namespace boost::iostreams;
+		
+		ifstream serializeIn(fileName, ios::in | ios::binary);
+		if (!serializeIn.good())
 		{
-			fs["ZCASize"] >> size_;
-			fs["ZCAWeights"] >> weights_;
-	
-			// Transpose these once here to save doing
-			// it every time in the calcuation step
-			weights_ = weights_.t();
-			if (!weights_.empty() && (getCudaEnabledDeviceCount() > 0))
-				weightsGPU_.upload(weights_);
-
-			fs["ZCAEpsilon"] >> epsilon_;
-			fs["OverallMin"] >> overallMin_;
-			fs["OverallMax"] >> overallMax_;
-			fs["GlobalContrastNorm"] >> globalContrastNorm_;
+			cerr << "Could not open ifstream(" << fileName << ") for reading" << endl;
+			return;
 		}
-		fs.release();
+
+		filtering_streambuf<input> filtSBIn;
+		filtSBIn.push(zlib_decompressor());
+		filtSBIn.push(serializeIn);
+		portable_binary_iarchive portableArchiveIn(filtSBIn);
+		portableArchiveIn >> *this;
 	}
-	catch (const std::exception &e)
+	else if ((ext == ".xml") || (ext == ".XML"))
 	{
-		return;
+		try 
+		{
+			FileStorage fs(fileName, FileStorage::READ);
+			if (fs.isOpened())
+			{
+				fs["ZCASize"] >> size_;
+				fs["SVDU"] >> svdU_;
+				fs["SVDW"] >> svdW_;
+				Mat weights;
+				fs["ZCAWeights"] >> weights;
+
+				weightsT_ = weights.t();
+				if (!weightsT_.empty() && (getCudaEnabledDeviceCount() > 0))
+					weightsTGPU_.upload(weightsT_);
+
+				fs["ZCAEpsilon"] >> epsilon_;
+				fs["OverallMin"] >> overallMin_;
+				fs["OverallMax"] >> overallMax_;
+			}
+			fs.release();
+		}
+		catch (const std::exception &e)
+		{
+			return;
+		}
 	}
 
-	if (!weightsGPU_.empty())
+	if (!weightsTGPU_.empty())
 	{
 		setDevice(0);
 		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
@@ -409,17 +440,18 @@ ZCA::ZCA(const char *xmlFilename, size_t batchSize) :
 
 ZCA::ZCA(const ZCA &zca) :
 	size_(zca.size_),
-	weights_(zca.weights_),
+	svdU_(zca.svdU_),
+	svdW_(zca.svdW_),
+	weightsT_(zca.weightsT_),
 	dPssIn_(NULL),
 	epsilon_(zca.epsilon_),
 	overallMin_(zca.overallMin_),
-	overallMax_(zca.overallMax_),
-	globalContrastNorm_(zca.globalContrastNorm_)
+	overallMax_(zca.overallMax_)
 {
-	if (!weights_.empty() && (getCudaEnabledDeviceCount() > 0))
+	if (!weightsT_.empty() && (getCudaEnabledDeviceCount() > 0))
 	{
 		size_t batchSize = zca.gm_.rows;
-		weightsGPU_.upload(weights_);
+		weightsTGPU_.upload(weightsT_);
 		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = zca.gm_.clone();
 		gmOut_ = zca.gm_.clone();
@@ -432,19 +464,100 @@ ZCA::~ZCA()
 		cudaSafeCall(cudaFree(dPssIn_), "cudaFree dPssIn");
 }
 
+// Remove the ZCA weights / eigenvectors with
+// the lowest weights
+void ZCA::Resize(int size)
+{	
+	Mat weights(weightsT_.clone());
 
-// Save calculated weights to a file
-void ZCA::Write(const char *xmlFilename) const
+	Mat svdW(svdW_(Rect(0,0,1,size)).clone());
+	cout << "svdW_" << svdW_.size() << endl;
+	cout << "svdW" << svdW.size() << endl;
+	svdW += epsilon_;
+	sqrt(svdW, svdW);
+	svdW = 1.0 / svdW;
+	Mat svdS(Mat::diag(svdW));
+	cout << "svdS" << svdS.size() << endl;
+
+	cout << "svdU_" << svdU_.size() << endl;
+	Mat svdU(svdU_(Rect(0,0,size,svdU_.rows)).clone());
+	cout << "svdU" << svdU.size() << endl;
+
+	// Weights are U * S * U'
+	weights = svdU * svdS * svdU.t();
+	weightsT_ = weights.t();
+	if (getCudaEnabledDeviceCount() > 0)
+		weightsTGPU_.upload(weightsT_);
+}
+
+// Save calculated weights to a human-readble XML file
+void ZCA::Write(const string &fileName) const
 {
-	FileStorage fs(xmlFilename, FileStorage::WRITE);
+	FileStorage fs(fileName, FileStorage::WRITE);
 	fs << "ZCASize" << size_;
-	fs << "ZCAWeights" << weights_;
+	fs << "SVDU" << svdU_;
+	fs << "SVDW" << svdW_;
+	fs << "ZCAWeights" << weightsT_.t();
 	fs << "ZCAEpsilon" << epsilon_;
 	fs << "OverallMin" << overallMin_;
 	fs << "OverallMax" << overallMax_;
-	fs << "GlobalContrastNorm" << globalContrastNorm_;
-	fs.release();
 }
+
+//Serialization support for ZCA class
+template <class Archive>
+void ZCA::save(Archive &ar, const unsigned int version) const
+{
+	(void)version;
+	ar & size_;
+	ar & svdU_;
+	ar & svdW_;
+	Mat weights(weightsT_.t());
+	ar & weights;
+	ar & epsilon_;
+	ar & overallMax_;
+	ar & overallMin_;
+}
+
+template <class Archive>
+void ZCA::load(Archive &ar, const unsigned int version)
+{
+	(void)version;
+	ar & size_;
+	ar & svdU_;
+	ar & svdW_;
+	Mat weights;
+	ar & weights;
+	weightsT_ = weights.t();
+	ar & epsilon_;
+	ar & overallMax_;
+	ar & overallMin_;
+}
+
+// Save calculated weights to a compressed binary file
+void ZCA::WriteCompressed(const string &fileName) const
+{
+	using namespace boost::iostreams;
+
+	ofstream serializeOut(fileName, ios::out | ios::binary);
+	if (!serializeOut.is_open())
+	{
+		cerr << "Could not open ofstream(" << fileName << ") for writing" << endl;
+		return;
+	}
+
+	// Create a pipeline which takes a stream and compresses
+	// it before writing it out to a file
+	filtering_streambuf<output> filtSBOut;
+
+	filtSBOut.push(zlib_compressor(zlib::best_speed));
+	filtSBOut.push(serializeOut);
+
+	// Create an output archive which writes to the previously
+	// created output chain (zlib->output file path)
+	portable_binary_oarchive archiveOut(filtSBOut);
+	archiveOut << *this;
+}
+
 
 // Generate constants to convert from float
 // mat back to 8UC3 one.  

@@ -25,7 +25,7 @@ Classifier<MatT>::Classifier(const string& modelFile,
       const string& labelFile,
       const size_t  batchSize) :
 	batchSize_(batchSize),
-	zca_(zcaWeightFile.c_str(), batchSize)
+	zca_(zcaWeightFile, batchSize)
 {
 	(void)modelFile;
 	(void)trainedFile;
