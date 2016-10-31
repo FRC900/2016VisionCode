@@ -104,7 +104,7 @@ int ZedSVOIn::frameCount(void) const
 #else
 
 ZedSVOIn::ZedSVOIn(const char *inFileName, ZvSettings *settings) :
-	ZedIn(settings)
+	SyncIn(settings)
 {
 	(void)inFileName;
 }
@@ -114,4 +114,15 @@ ZedSVOIn::~ZedSVOIn()
 {
 }
 
+
+bool ZedSVOIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
+{
+	return true;
+}
+
+
+bool ZedSVOIn::postLockFrameNumber(int framenumber) 
+{
+	return 0;
+}
 #endif

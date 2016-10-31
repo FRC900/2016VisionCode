@@ -5,8 +5,9 @@
 
 #include <boost/thread.hpp>
 #include <opencv2/core/core.hpp>
+#ifdef ZED_SUPPORT
 #include <zed/Camera.hpp>
-
+#endif
 #include "syncin.hpp"
 #include "zedparams.hpp"
 
@@ -22,7 +23,7 @@ class ZedSVOIn : public SyncIn
 		// How many frames?
 		int          frameCount(void) const;
 		CameraParams getCameraParams(void) const;
-
+#endif
 	protected:
 		// Defined in derived classes to handle the nuts
 		// and bolts of grabbing a frame from a given
@@ -30,7 +31,7 @@ class ZedSVOIn : public SyncIn
 		// while postLock happens inside it
 		bool postLockUpdate(cv::Mat &frame, cv::Mat &depth);
 		bool postLockFrameNumber(int framenumber);
-
+#ifdef ZED_SUPPORT
 	private:
 		sl::zed::Camera *zed_;
 		ZedParams        params_;
