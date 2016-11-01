@@ -144,7 +144,7 @@ vector<string> ClassifierIO::getClassifierFiles() const
 		{
 			output.push_back(outputString);
 
-			if (createFullPath("zcaWeights.xml", outputString))
+			if (createFullPath("zcaWeights.zca", outputString))
 			{
 				output.push_back(outputString);
 

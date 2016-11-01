@@ -10,7 +10,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Ofast -fl
 
 find_package( CUDA REQUIRED )
 find_package( OpenCV REQUIRED )
-find_package( Boost COMPONENTS filesystem system thread program_options REQUIRED )
+find_package( Boost COMPONENTS filesystem system thread program_options serialization iostreams REQUIRED )
 
 include_directories(/home/ubuntu/opencv-2.4.13/build/include)
 include_directories(../framegrabber)
@@ -33,9 +33,13 @@ target_link_libraries( rotate_from_imageclipper ${OpenCV_LIBS} ${Boost_LIBRARIES
 add_executable( shift_from_imageclipper shift_from_imageclipper.cpp chroma_key.cpp image_warp.cpp imageShift.cpp imageclipper_read.cpp random_subimage.cpp)
 target_link_libraries( shift_from_imageclipper ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
-CUDA_ADD_EXECUTABLE ( zcacalc zcacalc.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../framegrabber/utilities_common.cpp random_subimage.cpp )
+CUDA_ADD_EXECUTABLE ( zcacalc zcacalc.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../framegrabber/utilities_common.cpp random_subimage.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp )
 target_link_libraries( zcacalc ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 CUDA_ADD_CUBLAS_TO_TARGET(zcacalc)
-CUDA_ADD_EXECUTABLE ( zcarun zcarun.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../framegrabber/utilities_common.cpp )
+CUDA_ADD_EXECUTABLE ( zcarun zcarun.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../framegrabber/utilities_common.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
 target_link_libraries( zcarun ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 CUDA_ADD_CUBLAS_TO_TARGET(zcarun)
+
+CUDA_ADD_EXECUTABLE ( zcashrink zcashrink.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
+target_link_libraries( zcashrink ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+CUDA_ADD_CUBLAS_TO_TARGET(zcashrink)

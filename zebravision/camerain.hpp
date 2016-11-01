@@ -36,4 +36,8 @@ class CameraIn : public AsyncIn
 		std::string getClassName() const { return "CameraIn"; } 
 		bool loadSettings(void);
 		bool saveSettings(void) const;
+
+		// Input size before scaling down
+		int realWidth_;
+		int realHeight_;
 };

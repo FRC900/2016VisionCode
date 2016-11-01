@@ -15,8 +15,8 @@ CameraIn::CameraIn(int stream, ZvSettings *settings) :
 	{
 		// Defaults, might be overridden by saved 
 		// setting
-		width_ = 1280;
-		height_ = 720;
+		realWidth_  = width_ = 1280;
+		realHeight_ = height_ = 720;
 
 		if (!loadSettings()) {
 			cerr << "Failed to load CameraIn settings" << endl;
@@ -51,6 +51,8 @@ bool CameraIn::loadSettings(void)
 		settings_->getDouble(getClassName(), "fps", fps_);
 		settings_->getUnsignedInt(getClassName(), "width", width_);
 		settings_->getUnsignedInt(getClassName(), "height", height_);
+		realWidth_ = width_;
+		realHeight_ = height_;
 		return true;
 	}
 	return false;
@@ -60,10 +62,8 @@ bool CameraIn::saveSettings(void) const
 {
 	if (settings_) {
 		settings_->setDouble(getClassName(), "fps", fps_);
-		settings_->setInt(getClassName(), "width", 
-				cap_.get(CV_CAP_PROP_FRAME_WIDTH));
-		settings_->setInt(getClassName(), "height", 
-				cap_.get(CV_CAP_PROP_FRAME_HEIGHT));
+		settings_->setInt(getClassName(), "width", realWidth_);
+		settings_->setInt(getClassName(), "height", realHeight_);
 		settings_->save();
 		return true;
 	}
