@@ -254,6 +254,8 @@ bool ZedCameraIn::preLockUpdate(void)
 
 bool ZedCameraIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 {
+	(void)frame;
+	(void)depth;
 	return false;
 }
 #endif

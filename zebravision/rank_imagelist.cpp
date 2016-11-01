@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 		//cout << "Read " << filename << endl;
 		filenames.push_back(filename);
 		img = imread(filename);
-		resize(img, rsz, c.getInputGeometry()); 
+		cv::resize(img, rsz, c.getInputGeometry()); 
 		rsz.convertTo(f32, CV_32FC3);
 		imgs.push_back(GpuMat(f32).clone());
 		if (imgs.size() == c.batchSize())

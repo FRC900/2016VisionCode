@@ -117,12 +117,15 @@ ZedSVOIn::~ZedSVOIn()
 
 bool ZedSVOIn::postLockUpdate(cv::Mat &frame, cv::Mat &depth)
 {
+	(void)frame;
+	(void)depth;
 	return true;
 }
 
 
 bool ZedSVOIn::postLockFrameNumber(int framenumber) 
 {
+	(void)framenumber;
 	return 0;
 }
 #endif

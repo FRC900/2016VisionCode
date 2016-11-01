@@ -117,10 +117,10 @@ ZCA::ZCA(const vector<Mat> &images,
 	for (auto it = images.cbegin(); it != images.cend(); ++it)
 	{
 		it->convertTo(resizeImg, CV_32FC3);
-		resize(resizeImg, tmpImg, size_);
+		cv::resize(resizeImg, tmpImg, size_);
 		meanStdDev(tmpImg, mean, stddev);
-		subtract(tmpImg, mean, tmpImg);
-		divide(tmpImg, stddev, tmpImg);
+		cv::subtract(tmpImg, mean, tmpImg);
+		cv::divide(tmpImg, stddev, tmpImg);
 		workingMatT.push_back(tmpImg.reshape(1,1).clone());
 	}
 
@@ -160,7 +160,7 @@ ZCA::ZCA(const vector<Mat> &images,
 	// epsilon or whatever
 	Mat svdW(svdW_.clone());
 	svdW += epsilon_;
-	sqrt(svdW, svdW);
+	cv::sqrt(svdW, svdW);
 	svdW = 1.0 / svdW;
 	Mat svdS(Mat::diag(svdW));
 
@@ -281,7 +281,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	for (auto it = input.cbegin(); it != input.cend(); ++it)
 	{
 		if (it->size() != size_)
-			resize(*it, output, size_);
+			cv::resize(*it, output, size_);
 		else 
 			// need clone so mat is contiguous - 
 			// reshape won't work otherwise
@@ -323,7 +323,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
 			m, n, k, 1.0, (const float *)work.data, k, (const float *)weightsT_.data, n, 0.0, (float *)output.data, n);
 #else
-	gemm(work, weightsT_, 1.0, Mat(), 0.0, output);
+	cv::gemm(work, weightsT_, 1.0, Mat(), 0.0, output);
 #endif
 
 	// Matrix comes out transposed - instead
@@ -474,7 +474,7 @@ void ZCA::Resize(int size)
 	cout << "svdW_" << svdW_.size() << endl;
 	cout << "svdW" << svdW.size() << endl;
 	svdW += epsilon_;
-	sqrt(svdW, svdW);
+	cv::sqrt(svdW, svdW);
 	svdW = 1.0 / svdW;
 	Mat svdS(Mat::diag(svdW));
 	cout << "svdS" << svdS.size() << endl;
