@@ -12,6 +12,12 @@
 #include "chroma_key.hpp"
 #include "image_warp.hpp"
 #include "random_subimage.hpp"
+#include "opencv2_3_shim.hpp"
+#if CV_MAJOR_VERSION == 2
+using namespace cv::gpu;
+#elif CV_MAJOR_VERSION == 3
+using namespace cv::cuda;
+#endif
 
 using namespace std;
 using namespace cv;
@@ -65,20 +71,33 @@ bool createShiftDirs(const string &outputDir)
 	return true;
 }
 
+bool imwriteStub(const string &fileName, const Mat &mat)
+{
+	return imwrite(fileName,mat);
+}
+
+bool imwriteStub(const string &fileName, const GpuMat &gpuMat)
+{
+	Mat mat;
+	gpuMat.download(mat);
+	return imwrite(fileName,mat);
+}
 
 // Given a src image and an object ROI within that image,
 // generate shifted versions of the object
-void doShifts(const Mat &src,   // source image
+template <class MatT>
+static void doShiftsInternal(const MatT &src,   // source image
 			const Rect &objROI, // ROI of object within that image
+			const Scalar &fillColor, // color to fill in on new pixels
 			RNG &rng,           // random num generator
 			const Point3f &maxRot, // max rotation in XYZ in radians
 			int copiesPerShift,    // number of randomly rotated copies to make
 			const string &outputDir, // base output dir
 			const string &fileName)  // base out filename
 {
-	Mat rotImg;  // randomly rotated input
-	Mat rotMask; // and mask
-	Mat final;   // final output
+	MatT rotImg;  // randomly rotated input
+	MatT rotMask; // and mask
+	MatT final;   // final output
 
 	if (src.empty())
 	{
@@ -99,7 +118,6 @@ void doShifts(const Mat &src,   // source image
 	}
 	cout << fn << endl;
 
-	const Scalar fillColor = Scalar(src(objROI).at<Vec3b>(0,0));
 	// create another rect expanded to the limits of the input
 	// image size with the object still in the center.
 	// This will allow us to save the pixels from a corner as
@@ -139,10 +157,10 @@ void doShifts(const Mat &src,   // source image
 
 					// Rotate the image a random amount.  Mask isn't used
 					// since there's no chroma-keying going on.
-					rotateImageAndMask(src(largeRect), Mat(), fillColor, maxRot, rng, rotImg, rotMask);
+					rotateImageAndMask(src(largeRect), MatT(), fillColor, maxRot, rng, rotImg, rotMask);
 
-					rotImg(thisROI).copyTo(final);
 #if 0
+					rotImg(thisROI).copyTo(final);
 					imshow("src", src);
 					imshow("src(objROI)", src(objROI));
 					imshow("src twice ROI", src(twiceObjROI));
@@ -155,14 +173,14 @@ void doShifts(const Mat &src,   // source image
 #else
 					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resize (final, final, Size(48,48));
+					resize(rotImg(thisROI), final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.
 					// 1 per permutation of x,y shift plus resize
 					string dir_name = to_string(is*9 + ix*3 + iy);
 					string write_file = outputDir + "/" + dir_name + "/" + fn + "_" + to_string(c) + ".png";
-					if (imwrite(write_file, final) == false)
+					if (imwriteStub(write_file, final) == false)
 					{
 						cout << "Error! Could not write file "<<  write_file << endl;
 					}
@@ -172,9 +190,10 @@ void doShifts(const Mat &src,   // source image
 	}
 }
 
-
-void doShifts(const Mat &src,  // tightly cropped image of object
-			const Mat &mask,   // binary mask of object/not-object pixels
+template <class MatT>
+static void doShiftsInternal(const MatT &src,  // tightly cropped image of object
+			const MatT &mask,   // binary mask of object/not-object pixels
+			const Scalar &fillColor, // used to fill in new pixels
 			RNG &rng,          // random number generator
 			RandomSubImage &rsi, // random background image class
 			const Point3f &maxRot, // max rotation in XYZ in radians
@@ -182,13 +201,13 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 			const string &outputDir, // base output dir
 			const string &fileName)  // base filename
 {
-	Mat original;
-	Mat objMask;
-	Mat bgImg;    // random background image to superimpose each input onto 
-	Mat chromaImg; // combined input plus bg
-	Mat rotImg;  // randomly rotated input
-	Mat rotMask; // and mask
-	Mat final;   // final output
+	MatT original;
+	MatT objMask;
+	MatT bgImg;    // random background image to superimpose each input onto 
+	MatT rotImg;  // randomly rotated input
+	MatT rotMask; // and mask
+	Mat  chromaImg; // combined input plus bg
+	MatT final;   // final output
 
 	if (src.empty() || mask.empty())
 	{
@@ -208,14 +227,6 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 		fn.erase(pos);
 	}
 	cout << fn << endl;
-
-	// Use color at 0,0 to fill in expanded rect assuming that
-	// location is the chroma-key color for that given image
-	// Probably want to pass this in instead for cases
-	// where we're working from a list of files captured from live
-	// video rather than video shot against a fixed background - can't
-	// guarantee the border color there is safe to use
-	const Scalar fillColor = Scalar(src.at<Vec3b>(0,0));
 
 	// Enlarge the original image.  Since we're shifting the region
 	// of interest need to do this to make sure we don't end up 
@@ -242,14 +253,17 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 
 					// Get a random background image, superimpose
 					// the object on top of that image
-					bgImg = rsi.get((double)original.cols / original.rows, 0.05);
+					bgImg = MatT(rsi.get((double)original.cols / original.rows, 0.05));
+					// TODO:: see if it is worth doing a
+					// CUDA chroma-key implementation.
+					// Would save 3 downloads and a re-upload
 					chromaImg = doChromaKey(rotImg, bgImg, rotMask);
 
 					// Shift/rescale the region of interest based on
 					// which permuation of the shifts/rescales we're at
 					const Rect ROI = shiftRect(origROI, ds[is], (ix-1)*dx, (iy-1)*dy);
-					chromaImg(ROI).copyTo(final);
 #if 0
+					chromaImg(ROI).copyTo(final);
 					imshow("original", original);
 					imshow("bgImg", bgImg);
 					imshow("rotImg", rotImg);
@@ -261,14 +275,14 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 #else
 					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resize (final, final, Size(48,48));
+					resize(MatT(chromaImg(ROI)), final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.
 					// 1 per permutation of x,y shift plus resize
 					string dir_name = to_string(is*9 + ix*3 + iy);
 					string write_file = outputDir + "/" + dir_name + "/" + fn + "_" + to_string(c) + ".png";
-					if (imwrite(write_file, final) == false)
+					if (imwriteStub(write_file, final) == false)
 					{
 						cout << "Error! Could not write file "<<  write_file << endl;
 					}
@@ -277,3 +291,54 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 		}
 	}
 }
+
+void doShifts(const Mat &src,   // source image
+			const Rect &objROI, // ROI of object within that image
+			RNG &rng,           // random num generator
+			const Point3f &maxRot, // max rotation in XYZ in radians
+			int copiesPerShift,    // number of randomly rotated copies to make
+			const string &outputDir, // base output dir
+			const string &fileName)  // base out filename
+{
+	const Scalar fillColor = Scalar(src(objROI).at<Vec3b>(0,0));
+	if (getCudaEnabledDeviceCount() > 0)
+	{
+		GpuMat srcGPU(src);
+		doShiftsInternal(srcGPU, objROI, fillColor, rng, maxRot, copiesPerShift, outputDir, fileName);
+	}
+	else
+		doShiftsInternal(src, objROI, fillColor, rng, maxRot, copiesPerShift, outputDir, fileName);
+}
+
+void doShifts(const Mat &src,  // tightly cropped image of object
+			const Mat &mask,   // binary mask of object/not-object pixels
+			RNG &rng,          // random number generator
+			RandomSubImage &rsi, // random background image class
+			const Point3f &maxRot, // max rotation in XYZ in radians
+			int copiesPerShift,    // number of randomly rotated images 
+			const string &outputDir, // base output dir
+			const string &fileName)  // base filename
+{
+	// Use color at 0,0 to fill in expanded rect assuming that
+	// location is the chroma-key color for that given image
+	// Probably want to pass this in instead for cases
+	// where we're working from a list of files captured from live
+	// video rather than video shot against a fixed background - can't
+	// guarantee the border color there is safe to use
+	const Scalar fillColor = Scalar(src.at<Vec3b>(0,0));
+
+	if (getCudaEnabledDeviceCount() > 0)
+	{
+		GpuMat srcGPU(src);
+		GpuMat maskGPU(mask);
+doShiftsInternal(srcGPU, maskGPU, fillColor, rng, rsi, maxRot, copiesPerShift, outputDir, fileName);
+	}
+	else
+		doShiftsInternal(src, mask, fillColor, rng, rsi, maxRot, copiesPerShift, outputDir, fileName);
+}
+
+
+template static void doShiftsInternal(const Mat &src, const Rect &objROI, const Scalar &fillColor, RNG &rng, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName);
+template static void doShiftsInternal(const GpuMat &src, const Rect &objROI, const Scalar &fillColor, RNG &rng, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName);
+template static void doShiftsInternal(const Mat &src,  const Mat &mask, const Scalar &fillColor, RNG &rng, RandomSubImage &rsi, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName);
+template static void doShiftsInternal(const GpuMat &src,  const GpuMat &mask, const Scalar &fillColor, RNG &rng, RandomSubImage &rsi, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName);

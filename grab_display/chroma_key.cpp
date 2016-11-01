@@ -1,5 +1,7 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include "chroma_key.hpp"
+#include "opencv2_3_shim.hpp"
 
 //#define DEBUG
 using namespace std;
@@ -102,6 +104,18 @@ bool getMask(const Mat &frame, const Scalar &rangeMin, const Scalar &rangeMax, M
 	imshow("erode objMask", objMask);
 #endif
 	return true;
+}
+
+Mat doChromaKey(const GpuMat &fgImage, const GpuMat &bgImage, const GpuMat &mask)
+{
+	Mat fgImageCPU;
+	Mat bgImageCPU;
+	Mat maskCPU;
+
+	fgImage.download(fgImageCPU);
+	bgImage.download(bgImageCPU);
+	mask.download(maskCPU);
+	return doChromaKey(fgImageCPU, bgImageCPU, maskCPU);
 }
 
 // Modified from https://gist.github.com/enpe/8634ce7f200fb554f0e5

@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include "opencv2_3_shim.hpp"
 
 using namespace std;
 using namespace cv;
@@ -51,8 +52,12 @@ bool RescaleRect(const Rect& inRect, Rect& outRect, const Size& imageSize, const
     }
     return true;
 }
+
 // Warps source into destination by a perspective transform
-static void warpPerspective(const Mat &src, Mat &dst, const Point2f outputQuad[4], const Scalar &bgColor)
+template <class MatT>
+static void warpPerspective(const MatT &src, MatT &dst, 
+							const Point2f outputQuad[4], 
+							const Scalar &bgColor)
 {
 	Point2f inputQuad[4];  // Input Quadilateral or Image plane coordinates
 
@@ -133,9 +138,10 @@ static void randomQuad(const Size &size, const Point3d &maxAngle,
 // Given an inputimage and chroma-key mask, rotate both
 // by up to the angles (in radians) given in maxAngle.
 // Fill in space created due to the rotation with bgColor
-void rotateImageAndMask(const Mat &srcImg, const Mat &srcMask,
+template <class MatT>
+void rotateImageAndMask(const MatT &srcImg, const MatT &srcMask,
 						const Scalar &bgColor, const Point3f &maxAngle,
-						RNG &rng, Mat &outImg, Mat &outMask)
+						RNG &rng, MatT &outImg, MatT &outMask)
 {
 	if (maxAngle == Point3f(0,0,0))
 	{
@@ -153,8 +159,8 @@ void rotateImageAndMask(const Mat &srcImg, const Mat &srcMask,
 
 	// Create larger tmp Mats to hold rotated outputs
 	const Size dbl(srcImg.cols * 2, srcImg.rows * 2);
-	Mat imgTmp(dbl, srcImg.type()); 
-	Mat maskTmp(dbl, srcMask.type());  // should always be CV_8UC1
+	MatT imgTmp(dbl, srcImg.type()); 
+	MatT maskTmp(dbl, srcMask.type());  // should always be CV_8UC1
 
 	warpPerspective(srcImg, imgTmp, quad, bgColor);
 	if (!srcMask.empty())
@@ -169,3 +175,11 @@ void rotateImageAndMask(const Mat &srcImg, const Mat &srcMask,
 	imgTmp(cr).copyTo(outImg);
 	maskTmp(cr).copyTo(outMask);
 }
+
+
+template void rotateImageAndMask(const Mat &srcImg, const Mat &srcMask,
+						const Scalar &bgColor, const Point3f &maxAngle,
+						RNG &rng, Mat &outImg, Mat &outMask);
+template void rotateImageAndMask(const GpuMat &srcImg, const GpuMat &srcMask,
+						const Scalar &bgColor, const Point3f &maxAngle,
+						RNG &rng, GpuMat &outImg, GpuMat &outMask);
