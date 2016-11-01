@@ -99,17 +99,15 @@ void drawTrackingInfo(Mat& frame, const vector<TrackedObjectDisplay>& displayLis
         if (it->ratio >= minRatio)
         {
             const int roundPosTo = 2;
-            // Color moves from red to green (via brown, yuck)
-            // as the detected ratio goes up
-			// Scaled ratio changes from [minRatio,1.0] -> [0,1] so we see the full
-			// range of colors 
+			// Scaled ratio changes from [minRatio,1.0] -> [0,1] so we 
+			// see the full range of colors 
 			const double scaledRatio = (it->ratio - minRatio) / (1.0 - minRatio);
-            const int scaledRatioInt = 255 * scaledRatio;
-	    //read from the array viridis defined in colormap.cpp
-	    const Scalar rectColor(viridis[scaledRatioInt * 3] * 255, viridis[scaledRatioInt * 3 + 1] * 255, viridis[scaledRatioInt * 3 + 2] * 255);
-            cout << scaledRatioInt << rectColor << endl;
-	    // Highlight detected target
-            rectangle(frame, it->rect, rectColor, 3);
+			const int scaledRatioInt = 255 * scaledRatio;
+			//read from the array viridis defined in colormap.cpp
+			const Scalar rectColor(viridis[scaledRatioInt * 3 + 2] * 255, viridis[scaledRatioInt * 3 + 1] * 255, viridis[scaledRatioInt * 3 + 0] * 255);
+			//cout << scaledRatioInt << rectColor << endl;
+			// Highlight detected target
+			rectangle(frame, it->rect, rectColor, 3);
             // Write detect ID, distance and angle data
             putText(frame, it->id, Point(it->rect.x + 25, it->rect.y + 30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
             stringstream label;
