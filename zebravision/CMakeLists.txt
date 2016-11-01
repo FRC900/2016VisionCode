@@ -184,7 +184,7 @@ CUDA_ADD_CUBLAS_TO_TARGET(zv)
 # Only build this if ZED libs are available - it converts
 # from ZED's SVO format to our home-brewed ZMS video file
 # format.
-if ($ZED_FOUND)
+if (ZED_FOUND)
   add_executable(convertzms convertzms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
   target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 endif()
