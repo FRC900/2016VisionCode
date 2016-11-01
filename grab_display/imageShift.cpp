@@ -16,6 +16,11 @@
 using namespace std;
 using namespace cv;
 
+// x, y and size shift values
+static const float dx = .17;
+static const float dy = .17;
+static const float ds[5] = {.83, .91, 1.0, 1.10, 1.21};
+
 static Rect shiftRect(const Rect rectIn, float ds, float dx, float dy)
 {
 	return Rect(cvRound(rectIn.tl().x - (dx*rectIn.width /ds)), 
@@ -26,15 +31,15 @@ static Rect shiftRect(const Rect rectIn, float ds, float dx, float dy)
 
 // Create the various output dirs - the base shift
 // directory and directories numbered 0 - 44.
-void createShiftDirs(const string &outputDir)
+bool createShiftDirs(const string &outputDir)
 {
-	if (mkdir((outputDir).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
+	if (mkdir(outputDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
 	{
 		if (errno != EEXIST)
 		{
 			cerr << "Could not create " << outputDir.c_str() << ":";
 			perror("");
-			return;
+			return false;
 		}
 	}
 	// Create output directories
@@ -51,27 +56,29 @@ void createShiftDirs(const string &outputDir)
 					{
 						cerr << "Could not create " << (outputDir+"/"+dir_name).c_str() << ":";
 						perror("");
+						return false;
 					}
 				}
 			}
 		}
 	}
+	return true;
 }
 
 
 // Given a src image and an object ROI within that image,
 // generate shifted versions of the object
-// maxRot is in radians.
-void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName)
+void doShifts(const Mat &src,   // source image
+			const Rect &objROI, // ROI of object within that image
+			RNG &rng,           // random num generator
+			const Point3f &maxRot, // max rotation in XYZ in radians
+			int copiesPerShift,    // number of randomly rotated copies to make
+			const string &outputDir, // base output dir
+			const string &fileName)  // base out filename
 {
 	Mat rotImg;  // randomly rotated input
 	Mat rotMask; // and mask
 	Mat final;   // final output
-
-	// x, y and size shift values
-	const float dx = .17;
-	const float dy = .17;
-	const float ds[5] = {.83, .91, 1.0, 1.10, 1.21};
 
 	if (src.empty())
 	{
@@ -166,7 +173,14 @@ void doShifts(const Mat &src, const Rect &objROI, RNG &rng, const Point3f &maxRo
 }
 
 
-void doShifts(const Mat &src, const Mat &mask, RNG &rng, RandomSubImage &rsi, const Point3f &maxRot, int copiesPerShift, const string &outputDir, const string &fileName)
+void doShifts(const Mat &src,  // tightly cropped image of object
+			const Mat &mask,   // binary mask of object/not-object pixels
+			RNG &rng,          // random number generator
+			RandomSubImage &rsi, // random background image class
+			const Point3f &maxRot, // max rotation in XYZ in radians
+			int copiesPerShift,    // number of randomly rotated images 
+			const string &outputDir, // base output dir
+			const string &fileName)  // base filename
 {
 	Mat original;
 	Mat objMask;
@@ -175,11 +189,6 @@ void doShifts(const Mat &src, const Mat &mask, RNG &rng, RandomSubImage &rsi, co
 	Mat rotImg;  // randomly rotated input
 	Mat rotMask; // and mask
 	Mat final;   // final output
-
-	// x, y and size shift values
-	const float dx = .17;
-	const float dy = .17;
-	const float ds[5] = {.83, .91, 1.0, 1.10, 1.21};
 
 	if (src.empty() || mask.empty())
 	{

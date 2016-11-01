@@ -1,6 +1,7 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
+//#define DEBUG
 using namespace std;
 using namespace cv;
 const static int min_area = 7000;

@@ -316,7 +316,7 @@ void readVideoFrames(const string &vidName, int &frameCounter, vector<Blur_Entry
 	Mat gframe;
 	Mat variancem;
 
-#ifndef DEBUG
+#ifndef DEBUG_FOO
 	// Grab a list of frames which have an identifiable
 	// object in them.  For each frame, compute a
 	// blur score indicating how clear each frame is
@@ -385,9 +385,21 @@ int main(int argc, char *argv[])
 	}
 	RandomSubImage rsi(rng, bgFileList);
 
-	if (g_do_shifts)
-		createShiftDirs(g_outputdir + "/shifts");
+	// Create output directories
+	if (mkdir(g_outputdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
+	{
+		if (errno != EEXIST)
+		{
+			cerr << "Could not create " << g_outputdir.c_str() << ":";
+			perror("");
+			return -1;
+		}
+	}
 
+	if (g_do_shifts && !createShiftDirs(g_outputdir + "/shifts"))
+		return -1;
+
+	// Iterate through each input video
     for (auto vidName = vid_names.cbegin(); vidName != vid_names.cend(); ++vidName)
     {
         cout << *vidName << endl;
@@ -403,8 +415,7 @@ int main(int argc, char *argv[])
 
         int   frame_counter;
 
-		// Grab an array of frames sorted by how clear they
-		// are.
+		// Grab an array of frames sorted by how clear they are
         vector<Blur_Entry> lblur;
 		readVideoFrames(*vidName, frame_counter, lblur);
 		if (lblur.empty())
@@ -441,28 +452,54 @@ int main(int argc, char *argv[])
 
             frame_video.set(CV_CAP_PROP_POS_FRAMES, this_frame);
             frame_video >> frame;
-            cvtColor(frame, hsvframe, CV_BGR2HSV);
+			Mat hsvframeIn;
+            cvtColor(frame, hsvframeIn, CV_BGR2HSV);
+
 #ifdef DEBUG
 			imshow("Frame at read", frame);
-			imshow("HSV Frame at read", hsvframe);
+			imshow("HSV Frame at read", hsvframeIn);
 #endif
 
 			// Get a mask image. Pixels for the object in question
 			// will be set to 255, others to 0
-			if (!getMask(hsvframe, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), objMask, bounding_rect))
+			Mat mask;
+			if (!getMask(hsvframeIn, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), mask, bounding_rect))
 			{
 				continue;
 			}
             bounding_rect = AdjustRect(bounding_rect, 1.0);
-			Rect frame_rect(Point(0,0), frame.size());
+
+			// Expand the input image, padding it with pixels
+			// set to the chroma key color.  Do the same for the
+			// mask, but fill with 0 (non-object) pixels and 
+			// update the bounding_rect coords to match.
+			// This adds extra
+			// border for cases where grabbing a larger rect
+			// around the object would have gone off the edge
+			// of the original input image
+			const int expand = max(hsvframeIn.rows, hsvframeIn.cols) * 2;
+			copyMakeBorder(hsvframeIn, hsvframe, expand, expand, expand, expand, BORDER_CONSTANT, mid);
+			copyMakeBorder(mask, objMask, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0));
+			bounding_rect = Rect(expand+bounding_rect.x, expand+bounding_rect.y, bounding_rect.width, bounding_rect.height);
+#ifdef DEBUG
+			imshow("Original size mask", mask);
+			imshow("Resized HSV image", hsvframe);
+			imshow("Resized mask", objMask);
+#endif
+			// This shouldn't happen
+			Rect frame_rect(Point(0,0), hsvframe.size());
 			if ((bounding_rect & frame_rect) != bounding_rect)
 			{
-				cout << "Rectangle out of bounds" << endl;
+				cout << "Rectangle " << bounding_rect << "out of bounds of frame " << hsvframe.size() << endl;
 				continue;
 			}
 
 			// Fill non-mask pixels with midpoint
-			// of chroma-key color
+			// of chroma-key color.  This will set pixels 
+			// at the edge of the image to the chroma key
+			// color even if we happen to shoot video where
+			// the egde of the image goes a bit beyond the
+			// green screen
             for (int k = 0; k < objMask.rows; k++)
             {
                 for (int l = 0; l < objMask.cols; l++)
@@ -478,22 +515,11 @@ int main(int argc, char *argv[])
             imshow("objMask returned from getMask", objMask);
             imshow("HSV frame after fill with mid", hsvframe);
 #endif
-            /*hsvframe.convertTo(hsvframe, CV_16UC3);
-             *add(hsvframe, Scalar(hueAdjust, 0, 0), hsvframe, objMask);
-             * for (int l = 0; l < hsvframe.rows; l++)
-             * {
-             *  for (int m = 0; m < hsvframe.cols; m++)
-             *  {
-             *      hsvframe.at<Vec<short,3>>(l, m)[0] = hsvframe.at<Vec<short,3>>(l, m)[0] % 180;
-             *  }
-             * }*/
             hsvframe.convertTo(hsvframe, CV_32FC3);
             Mat splitMat[3];
-            /*Possible alt method of adjusting hue
-            split(hsvframe, splitMat);
-            double min, max;
-            minMaxLoc(splitMat[0], &min, &max, NULL, NULL, objMask);
-            int step = (179 - max + min) / 8.;*/
+
+			// Randomly adjust the hue - this will hopefully
+			// simulate an object reflecting colored light
             for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 30)
             {
 				int rndHueAdjust = hueAdjust + rng.uniform(-10,10);
@@ -515,12 +541,19 @@ int main(int argc, char *argv[])
 						}
                     }
                 }
+				// Make sure this value is positive when
+				// used to print filename
 				if (rndHueAdjust < 0)
 					rndHueAdjust += 180;
+
+				// Add gaussian noise to the image
+				// S and V channels.
+				// TODO : should this generate a different
+				// set of noise values for S and V?
                 Mat noise = Mat::zeros(hsvframe.size(), CV_32F);
                 randn(noise, 0.0, g_noise);
                 split(hsvframe, splitMat);
-                //subtract(splitMat[0], Scalar(min - hueAdjust), splitMat[0], objMask);
+
                 for (int i = 1; i <= 2; i++)
                 {
                     double min, max;
@@ -528,6 +561,10 @@ int main(int argc, char *argv[])
                     add(splitMat[i], noise, splitMat[i], objMask);
                     normalize(splitMat[i], splitMat[i], min, max, NORM_MINMAX, -1, objMask);
                 }
+
+				// Convert back to 8 bit BGR value
+				// to prepare for final steps and
+				// then saving as a normal image file
                 Mat hsv_final;
                 merge(splitMat, 3, hsv_final);
                 hsv_final.convertTo(hsv_final, CV_8UC3);
@@ -537,6 +574,8 @@ int main(int argc, char *argv[])
                 imshow("Final RGB", frame);
                 waitKey(0);
 #endif
+				// Generate shifted inputs for training
+				// calibration networks
 				if (g_do_shifts)
 				{
 					stringstream shift_fn;
@@ -547,22 +586,31 @@ int main(int argc, char *argv[])
 					shift_fn << "_" << setw(4) << bounding_rect.height;
 					shift_fn << "_" << setw(3) << rndHueAdjust;
 					shift_fn << ".png";
-					doShifts(frame(bounding_rect), objMask(bounding_rect), rng, rsi, g_maxrot, 4, g_outputdir + "/shifts", shift_fn.str());
+					doShifts(frame(bounding_rect), objMask(bounding_rect), 
+							 rng, rsi, g_maxrot, 4, 
+							 g_outputdir + "/shifts", shift_fn.str());
 				}
 
+				// Generate g_files_per randomly resized and rotated
+				// copies of this input frame, each superimposed onto
+				// a random background image (or random RGB values if
+				// no list of background images were specified)
 				int fail_count = 0;
                 for (int i = 0; (i < g_files_per) && (fail_count < 100); )
                 {
 					double scale_up = rng.uniform((double)g_min_resize, (double)g_max_resize);
 					Rect final_rect;
+					// This will be true if the rescaled rect fits inside the 
+					// input frame
+					// Since earlier code expands the input frame to 5x the 
+					// input size this should never fail
                     if (RescaleRect(bounding_rect, final_rect, frame.size(), scale_up))
                     {
 						rotateImageAndMask(frame(final_rect), objMask(final_rect), Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rotImg, rotMask);
 
 #ifdef DEBUG
-						imshow("frame", frame);
-						imshow("frame(final_rect)", frame(final_rect));
-						imshow("objMask(final_rect)", objMask(final_rect));
+						imshow("FinalRGB(final_rect)", frame(final_rect));
+						imshow("Mask(final_rect)", objMask(final_rect));
 						imshow("rotImg", rotImg);
 						imshow("rotMask", rotMask);
 						waitKey(0);
@@ -597,18 +645,12 @@ int main(int argc, char *argv[])
             }
             frame_count += 1;
         }
-
-        /*for(int j = 0; j < g_num_frames; j++)
-         * {
-         *  cout << lblur[j] << ",";
-         * }
-         * cout << endl;
-         * for(int j = 0; j < g_num_frames; j++)
-         * {
-         *  cout << frame_holder[j] << ",";
-         * }
-         * cout << endl;*/
     }
+	// Display range and midpoint of chroma key values used
+	// to mask off object.  Used to be needed for old image
+	// generation toolchain, not so much anymore now that 
+	// chroma-keying and rotation were combined into this
+	// program.
     cout << "0x" << IntToHex((g_h_min + g_h_max) / 2) << IntToHex((g_s_min + g_s_max) / 2) << IntToHex((g_v_min + g_v_max) / 2);
     cout << " 0x" << IntToHex((g_h_min + g_h_max) / 2 - g_h_min) << IntToHex((g_s_min + g_s_max) / 2 - g_s_min) << IntToHex((g_v_min + g_v_max) / 2 - g_v_min) << endl;
     return 0;
