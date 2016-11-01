@@ -33,7 +33,7 @@
 #include "FlowLocalizer.hpp"
 #include "ZvSettings.hpp"
 #include "version.hpp"
-#include "colormap.cpp"
+#include "colormap.hpp"
 
 using namespace std;
 using namespace cv;

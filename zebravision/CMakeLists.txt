@@ -129,6 +129,7 @@ CUDA_ADD_EXECUTABLE(zv
 	kalman.cpp
 	hungarian.cpp
 	ZvSettings.cpp
+	colormap.cpp
 	zv.cpp 
 	${CMAKE_CURRENT_BINARY_DIR}/version.cpp)
 
