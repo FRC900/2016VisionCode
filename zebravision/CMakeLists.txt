@@ -92,11 +92,18 @@ link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 # it breaks builds for some reason
 set (CUDA_PROPAGATE_HOST_FLAGS off)
 LIST(APPEND CUDA_NVCC_FLAGS --compiler-options -fno-strict-aliasing -lineinfo -use_fast_math -Xptxas -dlcm=cg)
-LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_52,code=sm_52)
-LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
-if (CUDA_VERSION_MAJOR GREATER 7)
-  MESSAGE("-- CUDA8 support detected, including Pascal target")
-  LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_61,code=sm_61)
+
+# Target appropriate GPU family when generating code
+if (${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "arm-linux-gnueabihf" OR
+    ${CMAKE_LIBRARY_ARCHITECTURE} STREQUAL "aarch64-linux-gnu")
+  LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
+else()
+  LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_52,code=sm_52)
+
+  if (CUDA_VERSION_MAJOR GREATER 7)
+    MESSAGE("-- CUDA8 support detected, including Pascal target")
+    LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_61,code=sm_61)
+  endif()
 endif()
 LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
 LIST(APPEND CUDA_NVCC_FLAGS -O3 --default-stream per-thread)
