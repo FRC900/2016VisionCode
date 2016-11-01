@@ -1,3 +1,5 @@
+#include "colormap.hpp"
+
 /*
 # New matplotlib colormaps by Nathaniel J. Smith, Stefan van der Walt,
 # and (in the case of viridis) Eric Firing.
@@ -14,7 +16,8 @@
 # work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 */
 
-float viridis[256*3] = {
+const float viridis[256*3] = {
+
 0.267004,0.004874,0.329415,
 0.268510,0.009605,0.335427,
 0.269944,0.014625,0.341379,
@@ -273,7 +276,7 @@ float viridis[256*3] = {
 0.993248,0.906157,0.143936
 };
 
-float magma[256*3] {
+const float magma[256*3] {
 0.001462,0.000466,0.013866,
 0.002258,0.001295,0.018331,
 0.003279,0.002305,0.023708,
