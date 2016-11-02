@@ -2,6 +2,9 @@
 #include <opencv2/opencv.hpp>
 #include "chroma_key.hpp"
 #include "opencv2_3_shim.hpp"
+#if CV_MAJOR_VERSION == 2
+#define cuda gpu
+#endif
 
 //#define DEBUG
 using namespace std;

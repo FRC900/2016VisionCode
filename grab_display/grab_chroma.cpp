@@ -17,8 +17,7 @@
 #include "imageShift.hpp"
 #include "opencv2_3_shim.hpp"
 #if CV_MAJOR_VERSION == 2
-#define cuda:: gpu::
-#elif CV_MAJOR_VERSION == 3
+#define cuda gpu
 #endif
 
 using namespace std;
@@ -475,7 +474,7 @@ int main(int argc, char *argv[])
 			{
 				continue;
 			}
-            bounding_rect = AdjustRect(bounding_rect, 1.0);
+			bounding_rect = AdjustRect(bounding_rect, 1.0);
 
 			// Expand the input image, padding it with pixels
 			// set to the chroma key color.  Do the same for the
@@ -486,7 +485,7 @@ int main(int argc, char *argv[])
 			// around the object would have gone off the edge
 			// of the original input image
 			const int expand = max(hsvframeIn.rows, hsvframeIn.cols) * 2;
-			copyMakeBorder(hsvframeIn, hsvframe, expand, expand, expand, expand, BORDER_CONSTANT, mid);
+			copyMakeBorder(hsvframeIn, hsvframe, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(mid));
 			copyMakeBorder(mask, objMask, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0));
 			bounding_rect = Rect(expand+bounding_rect.x, expand+bounding_rect.y, bounding_rect.width, bounding_rect.height);
 #ifdef DEBUG
@@ -509,7 +508,7 @@ int main(int argc, char *argv[])
 			// the egde of the image goes a bit beyond the
 			// green screen
 			Mat chromaFill(hsvframe.size(), CV_8UC3);
-			chromaFill = mid;
+			chromaFill = Scalar(mid);
 			bitwise_not(objMask, objMaskInv);
 			chromaFill.copyTo(hsvframe, objMaskInv);
 

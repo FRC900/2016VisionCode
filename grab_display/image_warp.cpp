@@ -1,5 +1,8 @@
 #include <opencv2/opencv.hpp>
 #include "opencv2_3_shim.hpp"
+#if CV_MAJOR_VERSION == 2
+#define cuda gpu
+#endif
 
 using namespace std;
 using namespace cv;

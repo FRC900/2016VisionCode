@@ -15,6 +15,7 @@
 #include "opencv2_3_shim.hpp"
 #if CV_MAJOR_VERSION == 2
 using namespace cv::gpu;
+#define cuda gpu
 #elif CV_MAJOR_VERSION == 3
 using namespace cv::cuda;
 #endif
