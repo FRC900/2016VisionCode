@@ -61,7 +61,7 @@ void FlowLocalizer::processFrame(const Mat &frame)
 
 		T.push_back(Tpad);
 		
-		cout << "Optical Flow Transformation Matrix: " << T << endl;
+		//cout << "Optical Flow Transformation Matrix: " << T << endl;
 
 		_transform_mat = T.clone();
 	}
