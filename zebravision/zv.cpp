@@ -420,7 +420,7 @@ int main( int argc, const char** argv )
 		const float depthRectScale = 0.2;
 		for(auto it = detectRects.cbegin(); it != detectRects.cend(); ++it)
 		{
-			cout << "Detected object at: " << *it;
+			//cout << "Detected object at: " << *it;
 			Rect depthRect = *it;
 
 			//when we use optical flow to adjust we need to recompute the depth based on the new locations.
@@ -441,7 +441,7 @@ int main( int argc, const char** argv )
 				// ball is 9.75 inches, convert to metric
 				objectDepth = (9.75 * 2.54 / 100.) / (2.0 * tanf(size_fov / 2.0));
 			}
-			cout << " Depth: " << objectDepth << endl;
+			//cout << " Depth: " << objectDepth << endl;
 			if (objectDepth > 0)
 			{
 				depthFilteredDetectRects.push_back(*it);
@@ -539,15 +539,28 @@ int main( int argc, const char** argv )
 			// Put an A on the screen if capture-all is enabled so
 			// users can keep track of that toggle's mode
 			if (args.captureAll)
-				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 255, 255));
+				putText(frame, "A", Point(25,25), FONT_HERSHEY_PLAIN, 2, Scalar(0, 255, 255));
 			if (filterUsingDepth)
-				putText(frame, "D", Point(50,25), FONT_HERSHEY_PLAIN, 2.5, Scalar(0, 0, 255));
+				putText(frame, "D", Point(50,25), FONT_HERSHEY_PLAIN, 2, Scalar(0, 0, 255));
 
 			// Display current classifier infomation
 			if (detectState)
-				putText(frame, detectState->print(),
-						Point(0, frame.rows - 30), FONT_HERSHEY_PLAIN,
+			{
+				stringstream s;
+				vector<size_t> debugInfo = detectState->detector()->DebugInfo();
+				for (auto it = debugInfo.cbegin(); it != debugInfo.cend(); ++it)
+				{
+					s << *it;
+					if ((it + 1) != debugInfo.cend())
+						s << " / ";
+				}
+				putText(frame, s.str(),
+						Point(0, frame.rows - 28), FONT_HERSHEY_PLAIN,
 						1.5, Scalar(0,0,255));
+				putText(frame, detectState->print(),
+						Point(0, frame.rows - 8), FONT_HERSHEY_PLAIN,
+						1.5, Scalar(0,0,255));
+			}
 
 			// Display crosshairs so we can line up the camera
 			if (args.calibrate)

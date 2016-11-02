@@ -67,6 +67,19 @@ void ObjDetectNNet<MatT, ClassifierT>::Detect(const Mat &frameInput, const Mat &
 			uncalibImageRects);
 }
 
+template <class MatT, class ClassifierT>
+vector<size_t> ObjDetectNNet<MatT, ClassifierT>::DebugInfo(void) const
+{
+	vector<size_t> ret;
+	NNDetectDebugInfo debug = classifier_.DebugInfo();
+	ret.push_back(debug.initialWindows);
+	ret.push_back(debug.d12In);
+	ret.push_back(debug.d12DetectOut);
+	ret.push_back(debug.d12NMSOut);
+	ret.push_back(debug.d24DetectOut);
+	return ret;
+}
+
 #ifndef USE_GIE 
 template class ObjDetectNNet<Mat, CaffeClassifier<Mat>>;
 template class ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>;

@@ -22,6 +22,16 @@
 //        See the top of the loop in runDetection for an example
 //
 
+struct NNDetectDebugInfo
+{
+	size_t initialWindows; // # of d12 sliding windows
+	size_t d12In;          // # of windows passing depth test
+	size_t d12DetectOut;   // # of windows passing d12 detectnet
+	size_t d12NMSOut;      // # of windows passing d12 NMS == # input to d24
+	size_t d24DetectOut;   // # of windows passing d24 detectnet
+};
+
+
 template <class MatT, class ClassifierT>
 class NNDetect
 {
@@ -52,6 +62,7 @@ class NNDetect
 
 		bool initialized(void) const;
 
+		NNDetectDebugInfo DebugInfo(void) const;
 	private:
 		typedef std::pair<cv::Rect, size_t> Window;
 		ClassifierT d12_;
@@ -59,6 +70,7 @@ class NNDetect
 		ClassifierT c12_;
 		ClassifierT c24_;
 		float hfov_;
+		NNDetectDebugInfo debug_;
 		void doBatchPrediction(ClassifierT &classifier,
 				const std::vector<MatT> &imgs,
 				const float threshold,

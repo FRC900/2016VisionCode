@@ -31,6 +31,10 @@ class ObjDetect
 			imageRects.clear();
 			uncalibImageRects.clear();
 		}
+		virtual std::vector<size_t> DebugInfo(void) const
+		{
+			return std::vector<size_t>();
+		}
 		bool initialized(void)
 		{
 			return init_;
@@ -93,6 +97,7 @@ class ObjDetectNNet : public ObjDetect
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
 					std::vector<cv::Rect> &uncalibImageRects);
+		std::vector<size_t> DebugInfo(void) const;
 	private :
 		NNDetect<MatT, ClassifierT> classifier_;
 };

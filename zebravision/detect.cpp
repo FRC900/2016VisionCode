@@ -101,9 +101,8 @@ void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputIm
     // Do 1st level of detection. This takes the initial list of windows
     // and returns the list which have a score for "ball" above the
     // threshold listed.
-    cout << "d12 windows in = " << windowsIn.size() << endl;
     runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
-    cout << "d12 windows out = " << windowsMid.size() << endl;
+	debug_.d12DetectOut = windowsMid.size();
     if ((detectThreshold.size() == 1) || (detectThreshold[1] <= 0.0))
 	{
 		runLocalNMS(windowsMid, scores, nmsThreshold[0], uncalibWindowsOut);
@@ -112,7 +111,7 @@ void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputIm
 	// If not running d24/c24, use the d12 output as the
 	// uncalibrated results
     runLocalNMS(windowsOut, scores, nmsThreshold[0], windowsIn);
-    cout << "d12 nms windows out / d24 windows in = " << windowsIn.size() << endl;
+	debug_.d12NMSOut = windowsIn.size();
 
     // Double the size of the rects to get from a 12x12 to 24x24
     // detection window.  Use scaledImages24 for the detection call
@@ -127,14 +126,13 @@ void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputIm
     {
         //cout << "d24 windows in = " << windowsIn.size() << endl;
         runDetection(d24_, scaledImages24, windowsIn, detectThreshold[1], "ball", windowsMid, scores);
-        cout << "d24 windows out = " << windowsMid.size() << endl;
+		debug_.d24DetectOut = windowsMid.size();
 		// Save uncalibrated results for debugging
 		runGlobalNMS(windowsMid, scores, scaledImages24, nmsThreshold[1], uncalibWindowsOut);
 		// Use calibration nets to try and better align the 
 		// detection rectangle
         runCalibration(windowsMid, scaledImages24, c24_, calibrationThreshold[1], windowsOut);
         runGlobalNMS(windowsOut, scores, scaledImages24, nmsThreshold[1], windowsIn);
-        cout << "d24 nms windows out = " << windowsIn.size() << endl;
     }
 
     // Final result - scale the output rectangles back to the
@@ -304,7 +302,7 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
     vector<Window>& windows)
 {
     windows.clear();
-    size_t windowsChecked = 0;
+    debug_.initialWindows = 0;
 
     // How many pixels to move the window for each step
     // We use 4 - the calibration step can adjust +/- 2 pixels
@@ -352,7 +350,7 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
 				unfilteredWindows.push_back(Window(rect, scale));
             }
         }
-        windowsChecked += thisWindowsChecked;
+        debug_.initialWindows += thisWindowsChecked;
 		vector<bool> validList;
 
 		// If there is depth data, filter using it :
@@ -386,7 +384,7 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
         cout << " Windows Passed:" << thisWindowsPassed << "/" << thisWindowsChecked << endl;
 #endif
     }
-    //cout << "generateInitialWindows checked " << windowsChecked << " windows and passed " << windows.size() << endl;
+	debug_.d12In = windows.size();
 }
 
 
@@ -771,6 +769,11 @@ bool NNDetect<MatT, ClassifierT>::initialized(void) const
 	return false;
 }
 
+template<class MatT, class ClassifierT>
+NNDetectDebugInfo NNDetect<MatT, ClassifierT>::DebugInfo(void) const
+{
+	return debug_;
+}
 
 // Explicitly instatiate classes used elsewhere
 #ifndef USE_GIE
