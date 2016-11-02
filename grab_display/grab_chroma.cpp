@@ -420,7 +420,7 @@ int main(int argc, char *argv[])
 		readVideoFrames(*vidName, frame_counter, lblur);
 		if (lblur.empty())
         {
-            cout << "Capture not open; invalid video" << endl;
+            cout << "Capture not open; invalid video " << *vidName << endl;
             continue;
         }
 

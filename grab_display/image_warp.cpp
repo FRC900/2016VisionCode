@@ -53,6 +53,16 @@ bool RescaleRect(const Rect& inRect, Rect& outRect, const Size& imageSize, const
     return true;
 }
 
+static void warpPerspectiveStub(const Mat &src, Mat &dst, const Mat &M, Size dsize, int flags, int borderMode, const Scalar &borderValue)
+{
+	cv::warpPerspective(src, dst, M, dsize, flags, borderMode, borderValue);
+}
+
+static void warpPerspectiveStub(const GpuMat &src, GpuMat &dst, const Mat &M, Size dsize, int flags, int borderMode, const Scalar &borderValue)
+{
+	cuda::warpPerspective(src, dst, M, dsize, flags, borderMode, borderValue);
+}
+
 // Warps source into destination by a perspective transform
 template <class MatT>
 static void warpPerspective(const MatT &src, MatT &dst, 
@@ -68,7 +78,7 @@ static void warpPerspective(const MatT &src, MatT &dst,
 
 	Mat lambda = getPerspectiveTransform( inputQuad, outputQuad );
 
-	warpPerspective(src, dst, lambda, dst.size(), 
+	warpPerspectiveStub(src, dst, lambda, dst.size(), 
 					INTER_LINEAR, BORDER_CONSTANT, bgColor);
 }
 
@@ -133,7 +143,6 @@ static void randomQuad(const Size &size, const Point3d &maxAngle,
         */
     }
 }
-
 
 // Given an inputimage and chroma-key mask, rotate both
 // by up to the angles (in radians) given in maxAngle.

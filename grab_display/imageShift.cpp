@@ -70,7 +70,9 @@ bool createShiftDirs(const string &outputDir)
 	}
 	return true;
 }
-
+// For some reason the code can't figure out Mat vs. GpuMat
+// versions of these. Hard-code Mat vs. GpuMat ones to call
+// the cv:: vs. cuda:: versions manually
 bool imwriteStub(const string &fileName, const Mat &mat)
 {
 	return imwrite(fileName,mat);
@@ -81,6 +83,41 @@ bool imwriteStub(const string &fileName, const GpuMat &gpuMat)
 	Mat mat;
 	gpuMat.download(mat);
 	return imwrite(fileName,mat);
+}
+static void resizeStub(const Mat &src, Mat &dest, const Size &size, const double fx = 0., const double fy = 0.)
+{
+	cv::resize(src, dest, size, fx, fy);
+}
+
+static void resizeStub(const GpuMat &src, GpuMat &dest, const Size &size, const double fx = 0., const double fy = 0.)
+{
+	cuda::resize(src, dest, size, fx, fy);
+}
+
+static void copyMakeBorderStub(const Mat &src, Mat &dst, int top, int bottom, int left, int right, int borderType, const Scalar &value = Scalar() )
+{
+	cv::copyMakeBorder(src, dst, top, bottom, left, right, borderType, value);
+}
+
+static void copyMakeBorderStub(const GpuMat &src, GpuMat &dst, int top, int bottom, int left, int right, int borderType, const Scalar &value = Scalar() )
+{
+	// cuda copyMakeBorder only handles 1 or 4 channel uchar 
+	// images. Add a bogus alpha channel here to convert
+	// 3-channel inputs to 4 channels
+	GpuMat localSrc;
+	if (src.type() == CV_8UC3)
+		cuda::cvtColor(src, localSrc, COLOR_BGR2BGRA);
+	else
+		localSrc = src;
+
+	cuda::copyMakeBorder(localSrc, dst, top, bottom, left, right, borderType, value);
+
+	if (src.type() == CV_8UC3)
+	{
+		GpuMat m;
+		cuda::cvtColor(dst, m, COLOR_BGRA2BGR);
+		m.copyTo(dst);
+	}
 }
 
 // Given a src image and an object ROI within that image,
@@ -173,7 +210,7 @@ static void doShiftsInternal(const MatT &src,   // source image
 #else
 					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resize(rotImg(thisROI), final, Size(48,48));
+					resizeStub(rotImg(thisROI), final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.
@@ -233,8 +270,8 @@ static void doShiftsInternal(const MatT &src,  // tightly cropped image of objec
 	// outside the mat boundries
 	const int expand = max(src.rows, src.cols) / 2;
 	const Rect origROI(expand, expand, src.cols, src.rows);
-	copyMakeBorder(src, original, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(fillColor));
-	copyMakeBorder(mask, objMask, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0));
+	copyMakeBorderStub(src, original, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(fillColor));
+	copyMakeBorderStub(mask, objMask, expand, expand, expand, expand, BORDER_CONSTANT, Scalar(0));
 	
 	// Generate copiesPerShift images per shift/scale permutation
 	// So each call will end up with 5 * 3 * 3 * copiesPerShift
@@ -275,7 +312,7 @@ static void doShiftsInternal(const MatT &src,  // tightly cropped image of objec
 #else
 					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resize(MatT(chromaImg(ROI)), final, Size(48,48));
+					resizeStub(MatT(chromaImg(ROI)), final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.
@@ -301,7 +338,7 @@ void doShifts(const Mat &src,   // source image
 			const string &fileName)  // base out filename
 {
 	const Scalar fillColor = Scalar(src(objROI).at<Vec3b>(0,0));
-	if (getCudaEnabledDeviceCount() > 0)
+	if (getCudaEnabledDeviceCount() > 5)
 	{
 		GpuMat srcGPU(src);
 		doShiftsInternal(srcGPU, objROI, fillColor, rng, maxRot, copiesPerShift, outputDir, fileName);
@@ -327,7 +364,7 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 	// guarantee the border color there is safe to use
 	const Scalar fillColor = Scalar(src.at<Vec3b>(0,0));
 
-	if (getCudaEnabledDeviceCount() > 0)
+	if (getCudaEnabledDeviceCount() > 5)
 	{
 		GpuMat srcGPU(src);
 		GpuMat maskGPU(mask);
