@@ -1,4 +1,9 @@
 #include "objdetect.hpp"
+#if CV_MAJOR_VERSION == 2
+//#define cuda gpu
+#else
+#include <opencv2/cudaimgproc.hpp>
+#endif
 
 int scale         =  10;
 int d12NmsThreshold = 40;
@@ -9,6 +14,7 @@ int d12Threshold  = 45; // overridden in main()
 int d24Threshold  = 98; // overridden in main()
 int c12Threshold  = 17; // overridden in main()
 int c24Threshold  = 5; // overridden in main()
+int neighbors = 4;
 
 // TODO : make this a parameter to the detect code
 // so that we can detect objects with different aspect ratios
@@ -17,22 +23,48 @@ const double DETECT_ASPECT_RATIO = 1.0;
 using namespace std;
 using namespace cv;
 
-/*void CPU_CascadeDetect::Detect (const Mat &frame, vector<Rect> &imageRects)
+void ObjDetectCascadeClassifierCPU::Detect(const Mat &frame, 
+										   const Mat &depthIn, 
+										   vector<Rect> &imageRects, 
+										   vector<Rect> &uncalibImageRects)
 {
-  Mat frameGray;
-  Mat frameEq;
-  cvtColor( frame, frameGray, CV_BGR2GRAY );
-  equalizeHist( frameGray, frameEq);
+	(void)depthIn;
+	uncalibImageRects.clear();
+	Mat frameGray;
+	Mat frameEq;
+	cvtColor(frame, frameGray, CV_BGR2GRAY);
+	equalizeHist(frameGray, frameEq);
 
-  classifier_.detectMultiScale(frameEq,
-	imageRects,
-	1.01 + scale/100.,
-	neighbors,
-	0|CV_HAAR_SCALE_IMAGE,
-	Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
-	Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
+	classifier_.detectMultiScale(frameEq,
+			imageRects,
+			1.01 + scale/100.,
+			neighbors,
+			CV_HAAR_SCALE_IMAGE,
+			Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
+			Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
-*/
+
+void ObjDetectCascadeClassifierGPU::Detect(const Mat &frame, 
+										   const Mat &depthIn, 
+										   vector<Rect> &imageRects, 
+										   vector<Rect> &uncalibImageRects)
+{
+	(void)depthIn;
+	uncalibImageRects.clear();
+	GpuMat frameGPU(frame);
+	GpuMat frameGray;
+	GpuMat frameEq;
+	GpuMat resultGPU;
+	cuda::cvtColor(frameGPU, frameGray, CV_BGR2GRAY);
+	cuda::equalizeHist(frameGray, frameEq);
+
+	classifier_->setMinObjectSize(Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize));
+	classifier_->setMaxObjectSize(Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize));
+	classifier_->setScaleFactor(1.01 + scale/100.);
+	classifier_->setMinNeighbors(neighbors);
+	classifier_->detectMultiScale(frameEq, resultGPU);
+	classifier_->convert(resultGPU, imageRects);
+}
 
 // Basic version of detection used for all derived
 // neural-net based classes.  Detection code is the 

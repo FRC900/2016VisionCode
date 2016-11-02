@@ -5,6 +5,11 @@
 #include <sys/stat.h>
 #include "opencv2_3_shim.hpp"
 #include "detect.hpp"
+#if CV_MAJOR_VERSION == 2
+#define cuda gpu
+#else
+#include <opencv2/cudaobjdetect.hpp>
+#endif
 #ifndef GIE
 #include "CaffeClassifier.hpp"
 #else
@@ -18,9 +23,12 @@
 class ObjDetect
 {
 	public :
-		ObjDetect() : init_(false) {} //pass in value of false to cascadeLoadedGPU_CascadeDetect
-		virtual ~ObjDetect() {}       //empty destructor
-		// virtual void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects) = 0; //pure virtual function, must be defined by CPU and GPU detect
+		ObjDetect() : init_(false) {} // just clear init_ flag
+		virtual ~ObjDetect() {}
+		// Call to detect objects.  Takes frameInput as RGB
+		// image and optional depthIn which holds matching
+		// depth data for each RGB pixel.
+		// Returns a set of detected rectangles.
 		virtual void Detect(const cv::Mat &frameInput, 
 				const cv::Mat &depthIn, 
 				std::vector<cv::Rect> &imageRects, 
@@ -44,31 +52,56 @@ class ObjDetect
 		bool init_;
 };
 
-// CPU version of cascade classifier
-/*class CPU_CascadeDetect : public ObjDetect
+class ObjDetectCascadeClassifierCPU: public ObjDetect
 {
-   public :
-      CPU_CascadeDetect(const char *cascadeName) : ObjDetect() // call default constructor of base class
-      {
-	 struct stat statbuf;
-	 if (stat(cascadeName, &statbuf) != 0)
-	 {
-	    std::cerr << "Can not open classifier input " << cascadeName << std::endl;
-	    std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
-	    return;
-	 }
-
-	 init_ = classifier_.load(cascadeName);
-      }
-      ~CPU_CascadeDetect(void)
-      {
-      }
-      void Detect(const cv::Mat &frame, std::vector<cv::Rect> &imageRects); //defined elsewhere
-
-   private :
-      cv::CascadeClassifier classifier_;
+	public : 
+		ObjDetectCascadeClassifierCPU(const std::string &cascadeName) :
+			ObjDetect()
+		{ 
+			struct stat statbuf;
+			if (stat(cascadeName.c_str(), &statbuf) != 0)
+			{
+				std::cerr << "Can not open classifier input " << cascadeName << std::endl;
+				std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
+				return;
+			}
+			init_ = classifier_.load(cascadeName);
+		}
+		~ObjDetectCascadeClassifierCPU() { }
+		void Detect(const cv::Mat &frameIn, 
+					const cv::Mat &depthIn, 
+					std::vector<cv::Rect> &imageRects, 
+					std::vector<cv::Rect> &uncalibImageRects);
+	private:
+		cv::CascadeClassifier classifier_;
 };
-*/
+
+class ObjDetectCascadeClassifierGPU : public ObjDetect
+{
+	public : 
+		ObjDetectCascadeClassifierGPU(const std::string &cascadeName) :
+			ObjDetect()
+		{ 
+			struct stat statbuf;
+			if (stat(cascadeName.c_str(), &statbuf) != 0)
+			{
+				std::cerr << "Can not open classifier input " << cascadeName << std::endl;
+				std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
+				return;
+			}
+			classifier_ = cv::cuda::CascadeClassifier::create(cascadeName);
+		}
+		~ObjDetectCascadeClassifierGPU() 
+		{ 
+			delete classifier_;
+		}
+		void Detect(const cv::Mat &frameIn, 
+					const cv::Mat &depthIn, 
+					std::vector<cv::Rect> &imageRects, 
+					std::vector<cv::Rect> &uncalibImageRects);
+	private:
+		cv::Ptr<cv::cuda::CascadeClassifier> classifier_;
+};
 
 // Class to handle detections for all NNet based
 // detectors. Detect code is the same for all of
@@ -90,9 +123,7 @@ class ObjDetectNNet : public ObjDetect
 		{
 			init_ = classifier_.initialized();
 		}
-		virtual ~ObjDetectNNet()
-		{
-		}
+		virtual ~ObjDetectNNet() { }
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -113,12 +144,8 @@ class ObjDetectCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>
 							 std::vector<std::string> &c24Files,
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-		}
-
-		~ObjDetectCaffeCPU(void)
-		{
-		}
+		{ }
+		~ObjDetectCaffeCPU(void) { }
 
 };
 
@@ -132,12 +159,8 @@ class ObjDetectCaffeGPU : public ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>
 							 std::vector<std::string> &c24Files,
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-		}
-
-		~ObjDetectCaffeGPU(void)
-		{
-		}
+		{ }
+		~ObjDetectCaffeGPU(void) { }
 
 };
 #else
@@ -153,17 +176,13 @@ class ObjDetectTensorRTCPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat
 							 std::vector<std::string> &c24Files,
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-		}
-
-		~ObjDetectTensorRTCPU(void)
-		{
-		}
+		{ }
+		~ObjDetectTensorRTCPU(void) { }
 
 };
 
 // Both detector and GIE run on the GPU
-class ObjDetectTensorRTCPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
+class ObjDetectTensorRTGPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
 {
 	public :
 		ObjDetectTensorRTGPU(std::vector<std::string> &d12Files,
@@ -172,12 +191,8 @@ class ObjDetectTensorRTCPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
 							 std::vector<std::string> &c24Files,
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-		}
-
-		~ObjDetectTensorRTGPU(void)
-		{
-		}
+		{ }
+		~ObjDetectTensorRTGPU(void) { }
 
 };
 #endif

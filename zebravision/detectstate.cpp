@@ -106,9 +106,6 @@ bool DetectState::update(void)
 	// occurs
 	ObjDetect *oldDetector = detector_;
 
-	// Decision tree on which detector and classifier
-	// to run.  Some of these combinations might not make
-	// sense to maybe prune them down after some testing?
 #ifndef USE_TensorRT
 	//if (!tensorRT_)
 	{
@@ -120,9 +117,8 @@ bool DetectState::update(void)
 #else
 	//else
 	{
-		// TensorRT implies GPU detection - CPU doesn't make sense there
 		if (!gpu_)
-			detector_ = new ObjDetectTensorRTGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+			detector_ = new ObjDetectTensorRTCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 		else
 			detector_ = new ObjDetectTensorRTGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
 	}
