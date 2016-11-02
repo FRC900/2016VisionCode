@@ -15,6 +15,11 @@
 #include "chroma_key.hpp"
 #include "image_warp.hpp"
 #include "imageShift.hpp"
+#include "opencv2_3_shim.hpp"
+#if CV_MAJOR_VERSION == 2
+#define cuda:: gpu::
+#elif CV_MAJOR_VERSION == 3
+#endif
 
 using namespace std;
 using namespace cv;
@@ -405,12 +410,17 @@ int main(int argc, char *argv[])
         cout << *vidName << endl;
 
         Mat frame;
-        Mat hsvframe;
-		Mat objMask;
+		Mat hsvframeIn; 
+		Mat mask;
+        Mat hsvframe; // hsv version of input frame padded with empty pixels
+		Mat objMask;  // mask padded to size of hsvframe
+		Mat objMaskInv;
 		Mat bgImg;    // random background image to superimpose each input onto 
 		Mat chromaImg; // combined input plus bg
 		Mat rotImg;  // randomly rotated input
 		Mat rotMask; // and mask
+		Mat hsv_final; // final processed data in HSV format
+		Mat splitMat[3];
 		Rect bounding_rect;
 
         int   frame_counter;
@@ -452,7 +462,6 @@ int main(int argc, char *argv[])
 
             frame_video.set(CV_CAP_PROP_POS_FRAMES, this_frame);
             frame_video >> frame;
-			Mat hsvframeIn;
             cvtColor(frame, hsvframeIn, CV_BGR2HSV);
 
 #ifdef DEBUG
@@ -462,7 +471,6 @@ int main(int argc, char *argv[])
 
 			// Get a mask image. Pixels for the object in question
 			// will be set to 255, others to 0
-			Mat mask;
 			if (!getMask(hsvframeIn, Scalar(g_h_min, g_s_min, g_v_min), Scalar(g_h_max, g_s_max, g_v_max), mask, bounding_rect))
 			{
 				continue;
@@ -500,26 +508,19 @@ int main(int argc, char *argv[])
 			// color even if we happen to shoot video where
 			// the egde of the image goes a bit beyond the
 			// green screen
-            for (int k = 0; k < objMask.rows; k++)
-            {
-                for (int l = 0; l < objMask.cols; l++)
-                {
-                    uchar point = objMask.at<uchar>(k, l);
-                    if (point == 0)
-                    {
-                        hsvframe.at<Vec3b>(k, l) = mid;
-                    }
-                }
-            }
+			Mat chromaFill(hsvframe.size(), CV_8UC3);
+			chromaFill = mid;
+			bitwise_not(objMask, objMaskInv);
+			chromaFill.copyTo(hsvframe, objMaskInv);
+
 #ifdef DEBUG
             imshow("objMask returned from getMask", objMask);
             imshow("HSV frame after fill with mid", hsvframe);
 #endif
-            hsvframe.convertTo(hsvframe, CV_32FC3);
-            Mat splitMat[3];
 
 			// Randomly adjust the hue - this will hopefully
 			// simulate an object reflecting colored light
+            hsvframe.convertTo(hsvframe, CV_32FC3);
             for (int hueAdjust = 0; hueAdjust <= 160; hueAdjust += 30)
             {
 				int rndHueAdjust = hueAdjust + rng.uniform(-10,10);
@@ -565,7 +566,6 @@ int main(int argc, char *argv[])
 				// Convert back to 8 bit BGR value
 				// to prepare for final steps and
 				// then saving as a normal image file
-                Mat hsv_final;
                 merge(splitMat, 3, hsv_final);
                 hsv_final.convertTo(hsv_final, CV_8UC3);
                 cvtColor(hsv_final, frame, CV_HSV2BGR);
@@ -606,18 +606,35 @@ int main(int argc, char *argv[])
 					// input size this should never fail
                     if (RescaleRect(bounding_rect, final_rect, frame.size(), scale_up))
                     {
-						rotateImageAndMask(frame(final_rect), objMask(final_rect), Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rotImg, rotMask);
-
+						// Probably faster to do this outside loop - make
+						// 2 versions of code for GPU vs CPU?
+						if (cuda::getCudaEnabledDeviceCount() > 0)
+						{
+							GpuMat f(frame(final_rect));
+							GpuMat m(objMask(final_rect));
+							GpuMat rI;
+							GpuMat rM;
+							rotateImageAndMask(f, m, Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rI, rM);
+							bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
+							GpuMat cI = doChromaKey(rI, GpuMat(bgImg), rM);
+							GpuMat out;
+							cuda::resize(cI, out, Size(48,48));
+							out.download(chromaImg);
+						}
+						else
+						{
+							rotateImageAndMask(frame(final_rect), objMask(final_rect), Scalar(frame(final_rect).at<Vec3b>(0,0)), g_maxrot, rng, rotImg, rotMask);
 #ifdef DEBUG
-						imshow("FinalRGB(final_rect)", frame(final_rect));
-						imshow("Mask(final_rect)", objMask(final_rect));
-						imshow("rotImg", rotImg);
-						imshow("rotMask", rotMask);
-						waitKey(0);
+							imshow("FinalRGB(final_rect)", frame(final_rect));
+							imshow("Mask(final_rect)", objMask(final_rect));
+							imshow("rotImg", rotImg);
+							imshow("rotMask", rotMask);
+							waitKey(0);
 #endif
-						bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
-						chromaImg = doChromaKey(rotImg, bgImg, rotMask);
-						resize(chromaImg, chromaImg, Size(48,48));
+							bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
+							chromaImg = doChromaKey(rotImg, bgImg, rotMask);
+							resize(chromaImg, chromaImg, Size(48,48));
+						}
 
                         stringstream write_name;
                         write_name << g_outputdir << "/" + Behead(*vidName) << "_" << setw(5) << setfill('0') << this_frame;

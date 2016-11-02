@@ -243,7 +243,7 @@ static void doShiftsInternal(const MatT &src,  // tightly cropped image of objec
 	MatT bgImg;    // random background image to superimpose each input onto 
 	MatT rotImg;  // randomly rotated input
 	MatT rotMask; // and mask
-	Mat  chromaImg; // combined input plus bg
+	MatT chromaImg; // combined input plus bg
 	MatT final;   // final output
 
 	if (src.empty() || mask.empty())
@@ -291,9 +291,7 @@ static void doShiftsInternal(const MatT &src,  // tightly cropped image of objec
 					// Get a random background image, superimpose
 					// the object on top of that image
 					bgImg = MatT(rsi.get((double)original.cols / original.rows, 0.05));
-					// TODO:: see if it is worth doing a
-					// CUDA chroma-key implementation.
-					// Would save 3 downloads and a re-upload
+
 					chromaImg = doChromaKey(rotImg, bgImg, rotMask);
 
 					// Shift/rescale the region of interest based on
@@ -312,7 +310,7 @@ static void doShiftsInternal(const MatT &src,  // tightly cropped image of objec
 #else
 					// 48x48 is the largest size we'll need from here on out,
 					// so resize to that to save disk space
-					resizeStub(MatT(chromaImg(ROI)), final, Size(48,48));
+					resizeStub(chromaImg(ROI), final, Size(48,48));
 #endif
 
 					// Dir name is a number from 0 - 44.

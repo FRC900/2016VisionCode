@@ -106,16 +106,31 @@ bool getMask(const Mat &frame, const Scalar &rangeMin, const Scalar &rangeMax, M
 	return true;
 }
 
-Mat doChromaKey(const GpuMat &fgImage, const GpuMat &bgImage, const GpuMat &mask)
+GpuMat doChromaKey(const GpuMat &fgImage, const GpuMat &bgImage, const GpuMat &mask)
 {
-	Mat fgImageCPU;
-	Mat bgImageCPU;
-	Mat maskCPU;
+	vector<GpuMat> channels;
 
-	fgImage.download(fgImageCPU);
-	bgImage.download(bgImageCPU);
-	mask.download(maskCPU);
-	return doChromaKey(fgImageCPU, bgImageCPU, maskCPU);
+	// Add mask as 4th alpha (transparency) channel to fgImage
+	GpuMat fgRGBA;
+	cuda::split(fgImage, channels);
+	channels.push_back(mask);
+	cuda::merge(channels, fgRGBA);
+
+	// Add inverse of mask as 4th alpha (transparency) channel to bgImage
+	GpuMat bgRGBA;
+	cuda::resize(bgImage, bgRGBA, fgImage.size());
+	cuda::split(bgRGBA, channels);
+	GpuMat maskInv;
+	cuda::bitwise_not(mask, maskInv);
+	channels.push_back(maskInv);
+	cuda::merge(channels, bgRGBA);
+
+	GpuMat dst;
+
+	// Do alpha composition with fg on top of background
+	alphaComp(fgRGBA, bgRGBA, dst, cuda::ALPHA_OVER);
+
+	return dst;
 }
 
 // Modified from https://gist.github.com/enpe/8634ce7f200fb554f0e5
