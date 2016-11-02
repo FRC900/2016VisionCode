@@ -116,6 +116,7 @@ CUDA_ADD_EXECUTABLE(zv
 	CaffeClassifier.cpp
 	GIEClassifier.cpp
 	classifierio.cpp
+	cascadeclassifierio.cpp
 	detectstate.cpp
 	objdetect.cpp
 	scalefactor.cpp

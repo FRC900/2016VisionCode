@@ -2,6 +2,7 @@
 #define DETECT_STATE_HPP__
 
 #include "classifierio.hpp"
+#include "cascadeclassifierio.hpp"
 #include "objdetect.hpp"
 
 // A class to manage the currently loaded detector plus the state loaded
@@ -14,6 +15,7 @@ class DetectState
 		bool update(void);
 		void toggleGPU(void);
 		void toggleTensorRT(void);
+		void toggleCascade(void);
 		void changeD12Model(bool increment);
 		void changeD12SubModel(bool increment);
 		void changeD24Model(bool increment);
@@ -36,14 +38,17 @@ class DetectState
 		ClassifierIO  d24IO_;
 		ClassifierIO  c12IO_;
 		ClassifierIO  c24IO_;
+		CascadeClassifierIO casIO_;
 		float         hfov_;
 		bool          gpu_;
 		bool          tensorRT_;
+		bool          cascade_;
 		// Settings from previous frame - used
 		// to undo changes if the selected state
 		// doesn't work
 		bool          oldGpu_;
 		bool          oldTensorRT_;
+		bool          oldCascade_;
 		bool          reload_;
 };
 

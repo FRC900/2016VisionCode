@@ -52,22 +52,11 @@ class ObjDetect
 		bool init_;
 };
 
-class ObjDetectCascadeClassifierCPU: public ObjDetect
+class ObjDetectCascadeCPU: public ObjDetect
 {
 	public : 
-		ObjDetectCascadeClassifierCPU(const std::string &cascadeName) :
-			ObjDetect()
-		{ 
-			struct stat statbuf;
-			if (stat(cascadeName.c_str(), &statbuf) != 0)
-			{
-				std::cerr << "Can not open classifier input " << cascadeName << std::endl;
-				std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
-				return;
-			}
-			init_ = classifier_.load(cascadeName);
-		}
-		~ObjDetectCascadeClassifierCPU() { }
+		ObjDetectCascadeCPU(const std::string &cascadeName);
+		~ObjDetectCascadeCPU() { }
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -76,22 +65,11 @@ class ObjDetectCascadeClassifierCPU: public ObjDetect
 		cv::CascadeClassifier classifier_;
 };
 
-class ObjDetectCascadeClassifierGPU : public ObjDetect
+class ObjDetectCascadeGPU : public ObjDetect
 {
 	public : 
-		ObjDetectCascadeClassifierGPU(const std::string &cascadeName) :
-			ObjDetect()
-		{ 
-			struct stat statbuf;
-			if (stat(cascadeName.c_str(), &statbuf) != 0)
-			{
-				std::cerr << "Can not open classifier input " << cascadeName << std::endl;
-				std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
-				return;
-			}
-			classifier_ = cv::cuda::CascadeClassifier::create(cascadeName);
-		}
-		~ObjDetectCascadeClassifierGPU() 
+		ObjDetectCascadeGPU(const std::string &cascadeName);
+		~ObjDetectCascadeGPU() 
 		{ 
 			delete classifier_;
 		}

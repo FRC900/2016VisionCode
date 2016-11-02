@@ -23,10 +23,24 @@ const double DETECT_ASPECT_RATIO = 1.0;
 using namespace std;
 using namespace cv;
 
-void ObjDetectCascadeClassifierCPU::Detect(const Mat &frame, 
-										   const Mat &depthIn, 
-										   vector<Rect> &imageRects, 
-										   vector<Rect> &uncalibImageRects)
+ObjDetectCascadeCPU::ObjDetectCascadeCPU(const std::string &cascadeName) :
+	ObjDetect()
+{ 
+	struct stat statbuf;
+	if (stat(cascadeName.c_str(), &statbuf) != 0)
+	{
+		std::cerr << "Can not open classifier input " << cascadeName << std::endl;
+		std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
+		return;
+	}
+	std::cout << "loading classifier " << cascadeName << std::endl;
+	init_ = classifier_.load(cascadeName);
+}
+
+void ObjDetectCascadeCPU::Detect(const Mat &frame, 
+								const Mat &depthIn, 
+								vector<Rect> &imageRects, 
+								vector<Rect> &uncalibImageRects)
 {
 	(void)depthIn;
 	uncalibImageRects.clear();
@@ -44,10 +58,26 @@ void ObjDetectCascadeClassifierCPU::Detect(const Mat &frame,
 			Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize) );
 }
 
-void ObjDetectCascadeClassifierGPU::Detect(const Mat &frame, 
-										   const Mat &depthIn, 
-										   vector<Rect> &imageRects, 
-										   vector<Rect> &uncalibImageRects)
+
+ObjDetectCascadeGPU::ObjDetectCascadeGPU(const std::string &cascadeName) :
+	ObjDetect()
+{ 
+	struct stat statbuf;
+	if (stat(cascadeName.c_str(), &statbuf) != 0)
+	{
+		std::cerr << "Can not open classifier input " << cascadeName << std::endl;
+		std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
+		return;
+	}
+	classifier_ = cv::cuda::CascadeClassifier::create(cascadeName);
+	if (classifier_ != NULL)
+		init_ = true;
+}
+
+void ObjDetectCascadeGPU::Detect(const Mat &frame, 
+								const Mat &depthIn, 
+								vector<Rect> &imageRects, 
+								vector<Rect> &uncalibImageRects)
 {
 	(void)depthIn;
 	uncalibImageRects.clear();

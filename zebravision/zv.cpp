@@ -718,7 +718,7 @@ int main( int argc, const char** argv )
 			else if (c == 'C') // toggle GIE mode
 			{
 				if (detectState)
-					detectState->toggleTensorRT();
+					detectState->toggleCascade();
 			}
 			else if (c == 'G') // toggle GPU/CPU detection mode
 			{
