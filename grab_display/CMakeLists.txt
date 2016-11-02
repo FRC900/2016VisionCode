@@ -40,6 +40,6 @@ CUDA_ADD_EXECUTABLE ( zcarun zcarun.cpp ../zebravision/zca.cpp ../zebravision/zc
 target_link_libraries( zcarun ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 CUDA_ADD_CUBLAS_TO_TARGET(zcarun)
 
-CUDA_ADD_EXECUTABLE ( zcashrink zcashrink.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
-target_link_libraries( zcashrink ${OpenCV_LIBS} ${Boost_LIBRARIES} )
-CUDA_ADD_CUBLAS_TO_TARGET(zcashrink)
+#CUDA_ADD_EXECUTABLE ( zcashrink zcashrink.cpp ../zebravision/zca.cpp ../zebravision/zca.cu ../zebravision/cuda_utils.cpp ../zebravision/portable_binary_iarchive.cpp ../zebravision/portable_binary_oarchive.cpp)
+#target_link_libraries( zcashrink ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+#CUDA_ADD_CUBLAS_TO_TARGET(zcashrink)
