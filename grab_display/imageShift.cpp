@@ -338,7 +338,7 @@ void doShifts(const Mat &src,   // source image
 			const string &fileName)  // base out filename
 {
 	const Scalar fillColor = Scalar(src(objROI).at<Vec3b>(0,0));
-	if (getCudaEnabledDeviceCount() > 5)
+	if (getCudaEnabledDeviceCount() > 0)
 	{
 		GpuMat srcGPU(src);
 		doShiftsInternal(srcGPU, objROI, fillColor, rng, maxRot, copiesPerShift, outputDir, fileName);
@@ -364,7 +364,7 @@ void doShifts(const Mat &src,  // tightly cropped image of object
 	// guarantee the border color there is safe to use
 	const Scalar fillColor = Scalar(src.at<Vec3b>(0,0));
 
-	if (getCudaEnabledDeviceCount() > 5)
+	if (getCudaEnabledDeviceCount() > 0)
 	{
 		GpuMat srcGPU(src);
 		GpuMat maskGPU(mask);
