@@ -17,6 +17,9 @@
 using namespace cv::gpu;
 #define cuda gpu
 #elif CV_MAJOR_VERSION == 3
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudawarping.hpp>
+#include <opencv2/cudaarithm.hpp>
 using namespace cv::cuda;
 #endif
 

@@ -2,6 +2,8 @@
 #include "opencv2_3_shim.hpp"
 #if CV_MAJOR_VERSION == 2
 #define cuda gpu
+#else
+#include <opencv2/cudawarping.hpp>
 #endif
 
 using namespace std;
