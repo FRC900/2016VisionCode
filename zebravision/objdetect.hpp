@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <sys/stat.h>
 #include "opencv2_3_shim.hpp"
 #include "detect.hpp"
 #if CV_MAJOR_VERSION == 2

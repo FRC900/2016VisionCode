@@ -1,7 +1,8 @@
+#include <iostream>
+#include <sys/stat.h>
+
 #include "objdetect.hpp"
-#if CV_MAJOR_VERSION == 2
-//#define cuda gpu
-#else
+#if CV_MAJOR_VERSION == 3
 #include <opencv2/cudaimgproc.hpp>
 #endif
 
