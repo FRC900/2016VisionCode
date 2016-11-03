@@ -2,9 +2,7 @@
 
 #include "opencv2_3_shim.hpp"
 #include "detect.hpp"
-#if CV_MAJOR_VERSION == 2
-#define cuda gpu
-#else
+#if CV_MAJOR_VERSION == 3
 #include <opencv2/cudaobjdetect.hpp>
 #endif
 #ifndef GIE
@@ -52,6 +50,9 @@ class ObjDetectCascadeCPU: public ObjDetect
 };
 
 
+#if CV_MAJOR_VERSION == 2
+#define CascadeClassifier CascadeClassifier_GPU
+#endif
 // Class for GPU version of cascade classifier
 class ObjDetectCascadeGPU : public ObjDetect
 {
@@ -62,7 +63,11 @@ class ObjDetectCascadeGPU : public ObjDetect
 					std::vector<cv::Rect> &imageRects, 
 					std::vector<cv::Rect> &uncalibImageRects);
 	private:
+#if CV_MAJOR_VERSION == 2
+		cv::gpu::CascadeClassifier_GPU classifier_;
+#else
 		cv::Ptr<cv::cuda::CascadeClassifier> classifier_;
+#endif
 };
 
 // Class to handle detections for all NNet based

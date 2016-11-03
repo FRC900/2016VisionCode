@@ -2,7 +2,9 @@
 #include <sys/stat.h>
 
 #include "objdetect.hpp"
-#if CV_MAJOR_VERSION == 3
+#if CV_MAJOR_VERSION == 2
+#define cuda gpu
+#elif CV_MAJOR_VERSION == 3
 #include <opencv2/cudaimgproc.hpp>
 #endif
 
@@ -93,9 +95,13 @@ ObjDetectCascadeGPU::ObjDetectCascadeGPU(const std::string &cascadeName) :
 		std::cerr << "Try to point to a different one with --classifierBase= ?" << std::endl;
 		return;
 	}
-	classifier_ = cv::cuda::CascadeClassifier::create(cascadeName);
+#if CV_MAJOR_VERSION == 2
+	 init_ = classifier_.load(cascadeName);
+#else
+	classifier_ = cuda::CascadeClassifier::create(cascadeName);
 	if (classifier_ != NULL)
 		init_ = true;
+#endif
 }
 
 void ObjDetectCascadeGPU::Detect(const Mat &frame, 
@@ -112,12 +118,28 @@ void ObjDetectCascadeGPU::Detect(const Mat &frame,
 	cuda::cvtColor(frameGPU, frameGray, CV_BGR2GRAY);
 	cuda::equalizeHist(frameGray, frameEq);
 
+#if CV_MAJOR_VERSION == 2
+	int detectCount = classifier_.detectMultiScale(frameEq, 
+					resultGPU,
+					Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize),
+					Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize),
+					1.01 + scale/100., 
+					neighbors); 
+	Mat result;
+	resultGPU.colRange(0, detectCount).download(result);
+
+	imageRects.clear();
+	Rect *rects = result.ptr<Rect>();
+	for(int i = 0; i < detectCount; ++i)
+		imageRects.push_back(rects[i]);
+#else
 	classifier_->setMinObjectSize(Size(minDetectSize * DETECT_ASPECT_RATIO, minDetectSize));
 	classifier_->setMaxObjectSize(Size(maxDetectSize * DETECT_ASPECT_RATIO, maxDetectSize));
 	classifier_->setScaleFactor(1.01 + scale/100.);
 	classifier_->setMinNeighbors(neighbors);
 	classifier_->detectMultiScale(frameEq, resultGPU);
 	classifier_->convert(resultGPU, imageRects);
+#endif
 }
 
 // Base class for NNet-based sliding window
