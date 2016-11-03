@@ -289,7 +289,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 
 		Scalar mean;
 		Scalar stddev;
-		meanStdDev(output, mean, stddev);
+		cv::meanStdDev(output, mean, stddev);
 
 		for (int r = 0; r < output.rows; r++)
 		{
