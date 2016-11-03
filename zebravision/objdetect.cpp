@@ -23,6 +23,28 @@ const double DETECT_ASPECT_RATIO = 1.0;
 using namespace std;
 using namespace cv;
 
+// Base class for object detection. Doesn't do much - derived 
+// classes need to implement the important stuff
+ObjDetect::ObjDetect(void) :
+	init_(false)
+{
+}
+
+ObjDetect::~ObjDetect()
+{
+}
+
+std::vector<size_t> ObjDetect::DebugInfo(void) const
+{
+	return std::vector<size_t>();
+}
+
+bool ObjDetect::initialized(void) const
+{
+	return init_;
+}
+
+// OpenCV CPU CascadeClassifier
 ObjDetectCascadeCPU::ObjDetectCascadeCPU(const std::string &cascadeName) :
 	ObjDetect()
 { 
@@ -59,6 +81,7 @@ void ObjDetectCascadeCPU::Detect(const Mat &frame,
 }
 
 
+// OpenCV GPU CascadeClassifier
 ObjDetectCascadeGPU::ObjDetectCascadeGPU(const std::string &cascadeName) :
 	ObjDetect()
 { 
@@ -96,12 +119,34 @@ void ObjDetectCascadeGPU::Detect(const Mat &frame,
 	classifier_->convert(resultGPU, imageRects);
 }
 
+// Base class for NNet-based sliding window
+// classifier. Can process sliding windows in either 
+// MatT = Mat or GpuMat.  ClassifierT can be Mat or GpuMat
+// based Caffe or eventually Gpu-based TensorRT
+template <class MatT, class ClassifierT>
+ObjDetectNNet<MatT, ClassifierT>::ObjDetectNNet(
+		std::vector<std::string> &d12Files,
+		std::vector<std::string> &d24Files,
+		std::vector<std::string> &c12Files,
+		std::vector<std::string> &c24Files,
+		float hfov) :
+	ObjDetect(),
+	classifier_(d12Files, d24Files, c12Files, c24Files, hfov)
+{
+	init_ = classifier_.initialized();
+}
+
+
 // Basic version of detection used for all derived
 // neural-net based classes.  Detection code is the 
 // same for all even though they use different types
 // of detectors and classifiers (GPU vs. CPU, GIE vs. Caffe, etc)
 template <class MatT, class ClassifierT>
-void ObjDetectNNet<MatT, ClassifierT>::Detect(const Mat &frameInput, const Mat &depthIn, vector<Rect> &imageRects, vector<Rect> &uncalibImageRects)
+void ObjDetectNNet<MatT, ClassifierT>::Detect(
+		const Mat &frameInput, 
+		const Mat &depthIn, 
+		vector<Rect> &imageRects, 
+		vector<Rect> &uncalibImageRects)
 {
 	// Control detect threshold via sliders.
 	// Hack - set D24 to 0 to bypass running it

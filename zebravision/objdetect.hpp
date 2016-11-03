@@ -1,5 +1,4 @@
-#ifndef INC_OBJDETECT_HPP__
-#define INC_OBJDETECT_HPP__
+#pragma once
 
 #include <iostream>
 #include <sys/stat.h>
@@ -23,40 +22,29 @@
 class ObjDetect
 {
 	public :
-		ObjDetect() : init_(false) {} // just clear init_ flag
-		virtual ~ObjDetect() {}
+		ObjDetect(void);
+		virtual ~ObjDetect();
 		// Call to detect objects.  Takes frameInput as RGB
 		// image and optional depthIn which holds matching
 		// depth data for each RGB pixel.
 		// Returns a set of detected rectangles.
 		virtual void Detect(const cv::Mat &frameInput, 
-				const cv::Mat &depthIn, 
-				std::vector<cv::Rect> &imageRects, 
-				std::vector<cv::Rect> &uncalibImageRects)
-		{
-			(void)frameInput;
-			(void)depthIn;
-			imageRects.clear();
-			uncalibImageRects.clear();
-		}
-		virtual std::vector<size_t> DebugInfo(void) const
-		{
-			return std::vector<size_t>();
-		}
-		bool initialized(void)
-		{
-			return init_;
-		}
+							const cv::Mat &depthIn, 
+							std::vector<cv::Rect> &imageRects, 
+							std::vector<cv::Rect> &uncalibImageRects) = 0;
+		virtual std::vector<size_t> DebugInfo(void) const;
+		bool initialized(void) const;
 
 	protected:
 		bool init_;
 };
 
+// Code for calling LBP/HAAR cascade classifier
+// Mainly for backwards compatibility with 2015 vision code
 class ObjDetectCascadeCPU: public ObjDetect
 {
 	public : 
 		ObjDetectCascadeCPU(const std::string &cascadeName);
-		~ObjDetectCascadeCPU() { }
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -65,14 +53,12 @@ class ObjDetectCascadeCPU: public ObjDetect
 		cv::CascadeClassifier classifier_;
 };
 
+
+// Class for GPU version of cascade classifier
 class ObjDetectCascadeGPU : public ObjDetect
 {
 	public : 
 		ObjDetectCascadeGPU(const std::string &cascadeName);
-		~ObjDetectCascadeGPU() 
-		{ 
-			delete classifier_;
-		}
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -95,13 +81,7 @@ class ObjDetectNNet : public ObjDetect
 					  std::vector<std::string> &d24Files,
 					  std::vector<std::string> &c12Files,
 					  std::vector<std::string> &c24Files,
-					  float hfov) :
-			ObjDetect(),
-			classifier_(d12Files, d24Files, c12Files, c24Files, hfov)
-		{
-			init_ = classifier_.initialized();
-		}
-		virtual ~ObjDetectNNet() { }
+					  float hfov);
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -123,8 +103,6 @@ class ObjDetectCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
 		{ }
-		~ObjDetectCaffeCPU(void) { }
-
 };
 
 // Both detector and Caffe run on the GPU
@@ -138,11 +116,8 @@ class ObjDetectCaffeGPU : public ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
 		{ }
-		~ObjDetectCaffeGPU(void) { }
-
 };
 #else
-
 // Detector does resizing, sliding windows and so on
 // in CPU.  GIE run on GPU
 class ObjDetectTensorRTCPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat>>
@@ -155,8 +130,6 @@ class ObjDetectTensorRTCPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
 		{ }
-		~ObjDetectTensorRTCPU(void) { }
-
 };
 
 // Both detector and GIE run on the GPU
@@ -170,8 +143,6 @@ class ObjDetectTensorRTGPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
 							 float hfov) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
 		{ }
-		~ObjDetectTensorRTGPU(void) { }
-
 };
 #endif
 
@@ -185,5 +156,3 @@ extern int d12Threshold;
 extern int d24Threshold;
 extern int c12Threshold;
 extern int c24Threshold;
-
-#endif
