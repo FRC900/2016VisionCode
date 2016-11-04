@@ -120,9 +120,7 @@ rm ./$ext
 #wget --no-check-certificate https://github.com/FFmpeg/FFmpeg/archive/n3.1.3.zip
 #unzip n3.1.3.zip
 #cd FFmpeg-n3.1.3
-# configure gets confused with 64-bit kernel + 32-bit userspace
-# and tries to build aarch64 :
-#./configure --arch=arm --enable-shared
+#./configure --enable-shared
 #make -j4
 #sudo make install
 #cd ..
@@ -134,12 +132,12 @@ rm ./$ext
 # OpenCV3.1 install should be similar, just download the
 # correct version of the code
 #cd
-#wget --no-check-certificate https://github.com/Itseez/opencv/archive/3.1.0.zip
-#unzip 3.1.0.zip
-#cd opencv-3.1.0
+# git clone https://github.com/opencv/opencv.git
+# git clone https://github.com/opencv/opencv_contrib.git
+#cd opencv
 #mkdir build
 #cd build
-#cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2 6.1" -DCUDA_ARCH_PTX="5.2 6.1" ..
+#cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2 6.1" -DCUDA_ARCH_PTX="5.2 6.1" -DOPENCV_EXTRA_MODULES_PATH=/home/ubuntu/opencv_contrib/modules ..
 #make -j4
 #sudo make install
 
@@ -164,6 +162,9 @@ if [ "$jetson" = true ] ; then
 	sudo mkdir /mnt/900_2
 	sudo cp ~/2016VisionCode/zv.conf /etc/init
 	sudo chmod 755 /usr/local/zed/settings
-	#sudo cp ~/2016VisionCode/
+	sudo cp ~/2016VisionCode/calibration_files/*.conf /usr/local/zed/setings
+	sudo chmod 644 /usr/local/zed/settings/*
 fi
 
+cp .vimrc .gvimrc ~
+sudo cp kjaget.vim /usr/share/vim/vim74/colors
