@@ -19,9 +19,11 @@ done
 
 #install basic dependencies
 
-sudo apt-get install libeigen3-dev build-essential gfortran git cmake libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev v4l-conf v4l-utils libgtk2.0-dev pkg-config exfat-fuse exfat-utils libprotobuf-dev protobuf-compiler unzip python-numpy python-scipy
+sudo apt-get update
+sudo apt-get -y upgrade
+sudo apt-get install -y libeigen3-dev build-essential gfortran git cmake libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev v4l-conf v4l-utils libgtk2.0-dev pkg-config exfat-fuse exfat-utils libprotobuf-dev protobuf-compiler unzip python-numpy python-scipy python-opencv python-matplotlib chromium-browser wget unzip
 
-sudo apt-get install --no-install-recommends libboost-all-dev
+sudo apt-get install --no-install-recommends -y libboost-all-dev
 
 # Installation script for Cuda and drivers on Ubuntu 14.04, by Roelof Pieters (@graphific)
 # BSD License
@@ -59,9 +61,9 @@ else
 fi
 
 make -j4 all
-make test
-make runtest
-make install
+#make test
+#make runtest
+make -j4 install
 
 # Install libsodium - this is a prereq for zeromq
 cd
@@ -101,13 +103,13 @@ rm -rf tinyxml2
 
 #install zed sdk
 if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
-	ext = "ZED_SDK_Linux_JTK1_v1.1.0.run"
+	ext="ZED_SDK_Linux_JTK1_v1.1.0.run"
 elif [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
-	#ext = "ZED_SDK_Linux_JTX1_v1.1.0_32b_JP21.run"
+	#ext="ZED_SDK_Linux_JTX1_v1.1.0_32b_JP21.run"
 	# Default to 64bit Jetpack23 install
-	ext = "ZED_SDK_Linux_JTX1_v1.1.1_64b_JetPack23.run"
+	ext="ZED_SDK_Linux_JTX1_v1.1.1_64b_JetPack23.run"
 else
-	ext = "ZED_SDK_Linux_x86_64_v1.1.0.run" 
+	ext="ZED_SDK_Linux_x86_64_v1.1.0.run" 
 fi
 wget --no-check-certificate https://www.stereolabs.com/download_327af3/$ext
 chmod 755 $ext

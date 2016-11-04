@@ -35,9 +35,6 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 	Point2f dist_to_center(
 			rect_center.x - (frame_size.width / 2.0),
 			-rect_center.y + (frame_size.height / 2.0));
-	Point2f percent_fov(
-			dist_to_center.x / frame_size.width,
-			dist_to_center.y / frame_size.height);
 
 	
 
@@ -69,10 +66,12 @@ static Rect worldToScreenCoords(const Point3f &_position, const ObjectType &_typ
 	float azimuth = asinf(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asinf( _position.z / r ) + cameraElevation;
 
-	Point2f percent_fov(azimuth / fov_size.x, inclination / fov_size.y);
-	Point2f dist_to_center(percent_fov.x * frame_size.width,
-			                   percent_fov.y * frame_size.height);
-
+	//inverse of formula in screenToWorldCoords()
+	Point2f dist_to_center(
+			tan(azimuth) * (0.5 * frame_size.width / tan(fov_size.x / 2)),
+			tan(inclination) * (0.5 * frame_size.height / tan(fov_size.y / 2)));
+	
+	cout << "Distance to center: " << dist_to_center << endl;
 	Point2f rect_center(
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
@@ -420,6 +419,7 @@ void TrackedObjectList::getDisplay(vector<TrackedObjectDisplay> &displayList) co
 
 const double dist_thresh_ = 1.0; // FIX ME!
 //#define VERBOSE_TRACK
+
 
 // Process a set of detected rectangles
 // Each will either match a previously detected object or
