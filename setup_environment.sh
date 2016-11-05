@@ -156,7 +156,7 @@ cmake ..
 make -j4
 cd ../..
 cd zebravision
-cmake .
+cmake -DCUDA_USE_STATIC_CUDA_RUNTIME=OFF .
 make -j4
 
 #mount and setup autostart script
@@ -168,5 +168,8 @@ if [ "$jetson" = true ] ; then
 	sudo chmod 644 /usr/local/zed/settings/*
 fi
 
-cp .vimrc .gvimrc ~
-sudo cp kjaget.vim /usr/share/vim/vim74/colors
+cp ~/2016VisionCode/.vimrc ~/2016VisionCode/.gvimrc ~
+sudo cp ~/2016VisionCode/kjaget.vim /usr/share/vim/vim74/colors
+
+git config --global user.email "progammers@team900.org"
+git config --global user.name "Team900 Jetson TX1"
