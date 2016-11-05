@@ -165,7 +165,7 @@ if [ "$jetson" = true ] ; then
 	sudo cp ~/2016VisionCode/zv.conf /etc/init
 	sudo mkdir -p /usr/local/zed/settings
 	sudo chmod 755 /usr/local/zed/settings
-	sudo cp ~/2016VisionCode/calibration_files/*.conf /usr/local/zed/setings
+	sudo cp ~/2016VisionCode/calibration_files/*.conf /usr/local/zed/settings
 	sudo chmod 644 /usr/local/zed/settings/*
 fi
 
