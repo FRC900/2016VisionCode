@@ -61,6 +61,7 @@ if (CUDNN_FOUND)
 else()
 	add_definitions(-DCPU_ONLY=1)
 	MESSAGE("-- Using CPU-only Caffe build")
+	link_directories(/usr/local/cuda/lib64/stubs)
 endif()
 
 include_directories(
