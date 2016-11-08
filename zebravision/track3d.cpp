@@ -71,7 +71,7 @@ static Rect worldToScreenCoords(const Point3f &_position, const ObjectType &_typ
 			tan(azimuth) * (0.5 * frame_size.width / tan(fov_size.x / 2)),
 			tan(inclination) * (0.5 * frame_size.height / tan(fov_size.y / 2)));
 	
-	cout << "Distance to center: " << dist_to_center << endl;
+	//cout << "Distance to center: " << dist_to_center << endl;
 	Point2f rect_center(
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
