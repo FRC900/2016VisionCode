@@ -211,6 +211,71 @@ Mat ZCA::Transform8UC3(const Mat &input)
 // Return the same 8UC3 type
 vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 {
+	// If GPU is present do the transform
+	// on the GPU
+	if (cuda::getCudaEnabledDeviceCount() > 0)
+	{
+		GpuMat tmp;
+		vector<GpuMat> f32List;
+		for (auto it = input.cbegin(); it != input.cend(); ++it)
+		{
+			// Upload to GpuMat, convert to float array
+			GpuMat(*it).convertTo(tmp, CV_32FC3);
+			f32List.push_back(tmp.clone());
+		}
+
+		// Create result array in GPU memory
+		float *dResult;
+		const size_t resultSize = f32List.size() *           // # of images
+								  f32List[0].size().area() * // pixels / image channel
+								  sizeof(float) * 	   	     // bytes / pixel
+							  	  3;                         // channels
+		cudaSafeCall(cudaMalloc(&dResult, resultSize), "Transform8UC3 cudaMalloc");
+		// Do the transform
+		Transform32FC3(f32List, dResult);
+
+		// Create space for results on CPU and copy
+		// data from device into it
+		float hResult[f32List.size() * f32List[0].size().area() * 3];
+		cudaSafeCall(cudaMemcpy(hResult, dResult, resultSize, cudaMemcpyDeviceToHost), "Transform8UC3 cudaMemcpy");
+
+		// Free device memory
+		cudaSafeCall(cudaFree(dResult), "Transform8UC3 cudaFree");
+
+		// Output is in order expected by Caffe code - 
+		// each channel is contiguous.  3-channel images
+		// are expected to have color channels interleaved
+		// Rearrange things here :
+		float *hPtr = hResult;
+
+		Mat ml[3];  // separate channels
+		Mat mF32;   // 3-channel float mat
+		Mat mU8;    // 3-channel uint8 mat
+		vector <Mat> result;
+		for (size_t i = 0; i < f32List.size(); i++)
+		{
+			// Create a Mat wrapping the data from
+			// each channel.  Then update the pointer to
+			// move one image channel ahead (width * height
+			// pixels) to get to the start of the
+			// next color channel
+			for (size_t j = 0; j < 3; j++)
+			{
+				ml[j] = Mat(size_, CV_32FC1, hPtr);
+				hPtr += size_.area();
+			}
+			// Merge into a 3-channel mat
+			merge(ml, 3, mF32);
+
+			// See comment below about the need for
+			// alpha and beta adjustments
+			mF32.convertTo(mU8, CV_8UC3, alpha(), beta());
+			result.push_back(mU8);
+		}
+		return result;
+	}
+
+	// Non GPU-code
 	vector<Mat> f32List;
 	Mat tmp;
 
@@ -221,7 +286,6 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 		it->convertTo(tmp, CV_32FC3);
 		f32List.push_back(tmp.clone());
 	}
-
 	// Do the transform 
 	vector <Mat> f32Ret = Transform32FC3(f32List);
 
@@ -230,7 +294,7 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 	// can be processed and visualized using typical
 	// tools
 	// The float version will have values in a range which
-	// can't be exactly represented by the uchar version 
+	// can't be exactly represented by the uchar version
 	// (e.g. negative numbers, numbers larger than 255, etc).
 	// Scaling by alpha/beta will shift the range of
 	// float values to 0-255 (techinally, it'll move ~96%
@@ -314,7 +378,7 @@ vector<Mat> ZCA::Transform32FC3(const vector<Mat> &input)
 	// Since we want to pull images apart in the same transposed
 	// order, this saves a few transposes and gives a
 	// slight performance bump.
-#ifdef USE_MKL
+#ifdef USE_MKL // Intel MKL libs speed up matrix math on Intel CPUs
 	const size_t m = work.rows;
 	const size_t n = weightsT_.rows;
 	const size_t k = weightsT_.cols;
