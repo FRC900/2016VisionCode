@@ -271,7 +271,7 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 			// See comment below about the need for
 			// alpha and beta adjustments
 			mF32.convertTo(mU8, CV_8UC3, alpha(), beta());
-			result.push_back(mU8);
+			result.push_back(mU8.clone());
 		}
 		return result;
 	}
