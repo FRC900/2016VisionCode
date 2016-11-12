@@ -213,7 +213,7 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 {
 	// If GPU is present do the transform
 	// on the GPU
-	if (cuda::getCudaEnabledDeviceCount() > 0)
+	if (getCudaEnabledDeviceCount() > 0)
 	{
 		GpuMat tmp;
 		vector<GpuMat> f32List;
@@ -226,18 +226,19 @@ vector<Mat> ZCA::Transform8UC3(const vector<Mat> &input)
 
 		// Create result array in GPU memory
 		float *dResult;
-		const size_t resultSize = f32List.size() *           // # of images
-								  f32List[0].size().area() * // pixels / image channel
-								  sizeof(float) * 	   	     // bytes / pixel
-							  	  3;                         // channels
+		const size_t resultSize = gm_.rows      *   // # of images per batch
+								  size_.area()  *   // pixels / image channel
+								  sizeof(float) *   // bytes / pixel
+							  	  3;                // channels
 		cudaSafeCall(cudaMalloc(&dResult, resultSize), "Transform8UC3 cudaMalloc");
 		// Do the transform
 		Transform32FC3(f32List, dResult);
 
 		// Create space for results on CPU and copy
 		// data from device into it
-		float hResult[f32List.size() * f32List[0].size().area() * 3];
-		cudaSafeCall(cudaMemcpy(hResult, dResult, resultSize, cudaMemcpyDeviceToHost), "Transform8UC3 cudaMemcpy");
+		float hResult[resultSize / sizeof(float)];
+		cudaSafeCall(cudaMemcpy(hResult, dResult, resultSize, cudaMemcpyDeviceToHost), 
+				     "Transform8UC3 cudaMemcpy");
 
 		// Free device memory
 		cudaSafeCall(cudaFree(dResult), "Transform8UC3 cudaFree");
@@ -444,6 +445,8 @@ ZCA::ZCA(const string &fileName, size_t batchSize) :
 	dPssIn_(NULL)
 {
 	string ext = boost::filesystem::extension(fileName);
+	if (getCudaEnabledDeviceCount() > 0)
+		setDevice(0);
 	// .zca files are a binary, compressed version of the
 	// weights.  Load these if they exist since it is
 	// quicker than loading the test-based XML file below
@@ -495,7 +498,6 @@ ZCA::ZCA(const string &fileName, size_t batchSize) :
 
 	if (!weightsTGPU_.empty())
 	{
-		setDevice(0);
 		cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
 		gm_ = GpuMat(batchSize, size_.area() * 3, CV_32FC1);
 		gmOut_ = GpuMat(gm_.size(), gm_.type());
