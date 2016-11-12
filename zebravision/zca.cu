@@ -322,17 +322,10 @@ __host__ void cudaZCATransform(const std::vector<GpuMat> &input,
     const float alpha = 1.0;
     const float beta = 0.0;
 
-	//Launch the first reduction kernel
-	// this will output an array of intermediate values
-	// in M1 (running average) and M2 (variance * number 
-	// of values seen). n is number of values corresponding
-	// to each M1 and M2 value.
+	// Find the stddev and mean of each channel in each image
+	// Then subtract the mean and divide by the stddev for each pixel
 	mean_stddev_reduction_kernel<<<grid,block,0,stream>>>(dPssIn, dFlattenedImages);
-	//cudaSafeCall(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
-
-
-	// Todo : do this once in ZCA constructor?
-	//zcaOut.create(dFlattenedImages.size(), dFlattenedImages.type());
+	cudaSafeCall(cudaGetLastError(), "mean_stddev_reduction_kernel");
 
 	// Multiply images by weights to get the ZCA-whitened output
 	cublasSafeCall(cublasSgemm_v2(handle, CUBLAS_OP_N, CUBLAS_OP_N, weights.cols, dFlattenedImages.rows, weights.rows,
@@ -346,6 +339,7 @@ __host__ void cudaZCATransform(const std::vector<GpuMat> &input,
 	// Copy to output buffer in the order expected by
 	// neural net input
 	split_image_channels<<<grid,block,0,stream>>>(zcaOut, input[0].rows, input[0].cols, output);
+	cudaSafeCall(cudaGetLastError(), "split_image_channels kernel");
 
 	cudaSafeCall(cudaStreamSynchronize(stream),"ZCA cudaStreamSynchronize failed");
 	cublasSafeCall(cublasDestroy_v2(handle), "cublasDestroy");
