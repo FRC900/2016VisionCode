@@ -289,7 +289,7 @@ int main( int argc, const char** argv )
 				ClassifierIO(args.d24BaseDir, args.d24DirNum, args.d24StageNum),
 				ClassifierIO(args.c12BaseDir, args.c12DirNum, args.c12StageNum),
 				ClassifierIO(args.c24BaseDir, args.c24DirNum, args.c24StageNum),
-				camParams.fov.x, hasGPU);
+				camParams.fov.x, hasGPU, false, ObjectType(1));
 	}
 
 	// Find the first frame number which has ground truth data

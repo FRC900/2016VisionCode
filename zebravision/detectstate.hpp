@@ -10,7 +10,7 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false, bool tensorRT = false);
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false, bool tensorRT = false, ObjectType objToDetect = ObjectType(1));
 		~DetectState();
 		bool update(void);
 		void toggleGPU(void);
@@ -39,6 +39,7 @@ class DetectState
 		ClassifierIO  c12IO_;
 		ClassifierIO  c24IO_;
 		CascadeClassifierIO casIO_;
+		ObjectType objToDetect_;
 		float         hfov_;
 		bool          gpu_;
 		bool          tensorRT_;

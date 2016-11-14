@@ -37,7 +37,8 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 		const ClassifierIO &c24IO, 
 		float hfov, 
 		bool gpu,
-	   	bool tensorRT) :
+	   	bool tensorRT,
+		ObjectType objToDetect) :
     detector_(NULL),
 	d12IO_(d12IO),
 	d24IO_(d24IO),
@@ -51,7 +52,8 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	oldGpu_(gpu),
 	oldTensorRT_(tensorRT),
 	oldCascade_(false),
-	reload_(true)
+	reload_(true),
+	objToDetect_(objToDetect)
 {
 	update();
 }
@@ -111,17 +113,17 @@ bool DetectState::update(void)
 		//if (!tensorRT_)
 		{
 			if (!gpu_)
-				detector_ = new ObjDetectCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+				detector_ = new ObjDetectCaffeCPU(d12Files, d24Files, c12Files, c24Files, hfov_, objToDetect_);
 			else
-				detector_ = new ObjDetectCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+				detector_ = new ObjDetectCaffeGPU(d12Files, d24Files, c12Files, c24Files, hfov_, objToDetect_);
 		}
 #else
 		//else
 		{
 			if (!gpu_)
-				detector_ = new ObjDetectTensorRTCPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+				detector_ = new ObjDetectTensorRTCPU(d12Files, d24Files, c12Files, c24Files, hfov_, objToDetect_);
 			else
-				detector_ = new ObjDetectTensorRTGPU(d12Files, d24Files, c12Files, c24Files, hfov_);
+				detector_ = new ObjDetectTensorRTGPU(d12Files, d24Files, c12Files, c24Files, hfov_, objToDetect_);
 		}
 #endif
 	}

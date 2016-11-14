@@ -1,7 +1,7 @@
 #pragma once
 
 #include "opencv2_3_shim.hpp"
-
+#include "objtype.hpp"
 // Turn Window from a typedef into a class :
 //   Private members are the rect, index from Window plus maybe a score?
 //   Constructor takes Rect, size_t index
@@ -40,12 +40,14 @@ class NNDetect
 			     const std::vector<std::string> &d24Files, 
 	   		     const std::vector<std::string> &c12Files,
 			     const std::vector<std::string> &c24Files, 
-			     float hfov) :
+			     float hfov,
+			     ObjectType objToDetect) :
 			d12_(d12Files[0], d12Files[1], d12Files[2], d12Files[3], 192),
 			d24_(d24Files[0], d24Files[1], d24Files[2], d24Files[3], 64),
 			c12_(c12Files[0], c12Files[1], c12Files[2], c12Files[3], 64),
 			c24_(c24Files[0], c24Files[1], c24Files[2], c24Files[3], 64),
-			hfov_(hfov)
+			hfov_(hfov),
+			objToDetect_(objToDetect)
 		{
 		}
 
@@ -64,6 +66,7 @@ class NNDetect
 
 		NNDetectDebugInfo DebugInfo(void) const;
 	private:
+		ObjectType objToDetect_;
 		typedef std::pair<cv::Rect, size_t> Window;
 		ClassifierT d12_;
 		ClassifierT d24_;

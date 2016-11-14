@@ -2,6 +2,7 @@
 
 #include "opencv2_3_shim.hpp"
 #include "detect.hpp"
+#include "objtype.hpp"
 #if CV_MAJOR_VERSION == 3
 #include <opencv2/cudaobjdetect.hpp>
 #endif
@@ -84,7 +85,8 @@ class ObjDetectNNet : public ObjDetect
 					  std::vector<std::string> &d24Files,
 					  std::vector<std::string> &c12Files,
 					  std::vector<std::string> &c24Files,
-					  float hfov);
+					  float hfov,
+					  ObjectType objToDetect);
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -103,8 +105,9 @@ class ObjDetectCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
-							 float hfov) :
-						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+							 float hfov,
+							 ObjectType objToDetect) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
 
@@ -116,8 +119,9 @@ class ObjDetectCaffeGPU : public ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
-							 float hfov) :
-						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+							 float hfov,
+							 ObjectType objToDetect  ) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
 #else
@@ -130,8 +134,9 @@ class ObjDetectTensorRTCPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
-							 float hfov) :
-						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+							 float hfov,
+							 ObjectType objToDetect ) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
 
@@ -143,8 +148,9 @@ class ObjDetectTensorRTGPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
 							 std::vector<std::string> &d24Files,
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
-							 float hfov) :
-						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov)
+							 float hfov,
+							 ObjectType objToDetect ) :
+						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
 #endif
