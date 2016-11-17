@@ -11,10 +11,10 @@ using namespace cv;
 // it is erased 
 const int missedFrameCountMax = 10;
 
-
+/*
 static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth, const Point2f &fov_size, const Size &frame_size, float cameraElevation)
 {
-	/*
+	TODO COMMENT THIS
 	Method:
 		find the center of the rect
 		compute the distance from the center of the rect to center of image (pixels)
@@ -27,7 +27,7 @@ static Point3f screenToWorldCoords(const Rect &screen_position, double avg_depth
 	Notes:
 		Z is up, X is left-right, and Y is forward
 		(0,0,0) = (r,0,0) = right in front of you
-	*/
+	
 
 	Point2f rect_center(
 			screen_position.tl().x + (screen_position.width  / 2.0),
@@ -86,7 +86,7 @@ static Rect worldToScreenCoords(const Point3f &_position, const ObjectType &_typ
 			cvRound(rect_center.y - (screen_size.y / 2.0)));
 			return Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
-
+*/
 TrackedObject::TrackedObject(int               id,
 							 const ObjectType &type_in,
 							 const Rect       &screen_position,
@@ -100,7 +100,7 @@ TrackedObject::TrackedObject(int               id,
 		type_(type_in),
 		detectHistory_(historyLength),
 		positionHistory_(historyLength),
-		KF_(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation),
+		KF_(type_.screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, camera_elevation),
 			dt, accel_noise_mag),
 		missedFrameCount_(0),
 		cameraElevation_(camera_elevation)
@@ -137,7 +137,7 @@ void TrackedObject::setPosition(const Point3f &new_position)
 void TrackedObject::setPosition(const Rect &screen_position, double avg_depth,
 		                        const Point2f &fov_size, const Size &frame_size)
 {
-	setPosition(screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, cameraElevation_));
+	setPosition(type_.screenToWorldCoords(screen_position, avg_depth, fov_size, frame_size, cameraElevation_));
 }
 
 #if 0
@@ -181,7 +181,7 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 	//update the history
 	for (auto it = positionHistory_.begin(); it != positionHistory_.end(); ++it)
 	{
-		screen_rect = worldToScreenCoords(*it,type_,fov_size,frame_size, cameraElevation_);
+		screen_rect = type_.worldToScreenCoords(*it,fov_size,frame_size, cameraElevation_);
 		screen_pos = Point(screen_rect.tl().x + screen_rect.width / 2, screen_rect.tl().y + screen_rect.height / 2);
 		pos_mat.at<double>(0,0) = screen_pos.x;
 		pos_mat.at<double>(0,1) = screen_pos.y;
@@ -189,7 +189,7 @@ void TrackedObject::adjustPosition(const Mat &transform_mat, float depth, const 
 		Mat new_screen_pos_mat = transform_mat * pos_mat;
 		Point new_screen_pos(new_screen_pos_mat.at<double>(0),new_screen_pos_mat.at<double>(1));
 		Rect new_screen_rect(new_screen_pos.x,new_screen_pos.y,0,0);
-		*it = screenToWorldCoords(new_screen_rect, depth, fov_size, frame_size, cameraElevation_);
+		*it = type_.screenToWorldCoords(new_screen_rect, depth, fov_size, frame_size, cameraElevation_);
 	}
 }
 
@@ -246,7 +246,7 @@ vector <Point> TrackedObject::getScreenPositionHistory(const Point2f &fov_size, 
 
 	for (auto it = positionHistory_.begin(); it != positionHistory_.end(); ++it)
 	{
-		Rect screen_rect(worldToScreenCoords(*it,type_,fov_size,frame_size, cameraElevation_));
+		Rect screen_rect(type_.worldToScreenCoords(*it,fov_size,frame_size, cameraElevation_));
 		ret.push_back(Point(cvRound(screen_rect.x + screen_rect.width / 2.),cvRound( screen_rect.y + screen_rect.height / 2.)));
 	}
 	return ret;
@@ -301,7 +301,7 @@ double TrackedObject::getDetectedRatio(void) const
 
 Rect TrackedObject::getScreenPosition(const Point2f &fov_size, const Size &frame_size) const
 {
-	return worldToScreenCoords(position_, type_, fov_size, frame_size, cameraElevation_);
+	return type_.worldToScreenCoords(position_, fov_size, frame_size, cameraElevation_);
 }
 
 
@@ -439,7 +439,7 @@ void TrackedObjectList::processDetect(const vector<Rect> &detectedRects,
 	for (size_t i = 0; i < detectedRects.size(); i++)
 	{
 		detectedPositions.push_back(
-				screenToWorldCoords(detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
+				types[i].screenToWorldCoords(detectedRects[i], depths[i], fovSize_, imageSize_, cameraElevation_));
 #ifdef VERBOSE_TRACK
 		cout << "Detected rect [" << i << "] = " << detectedRects[i] << " positions[" << detectedPositions.size() - 1 << "]:" << detectedPositions[detectedPositions.size()-1] << endl;
 #endif

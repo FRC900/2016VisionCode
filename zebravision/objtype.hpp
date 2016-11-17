@@ -33,6 +33,12 @@ class ObjectType
 		//comparison operator overload just checks if the contours are equal
 		bool operator== (const ObjectType &t1) const;
 
+		//coordinate conversions
+		cv::Point3f screenToWorldCoords(const cv::Rect &screen_position, double avg_depth, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation) const;
+		
+		cv::Rect worldToScreenCoords(const cv::Point3f &_position, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation) const;
+
+
 	private:
 		std::vector< cv::Point2f > contour_;
 

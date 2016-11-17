@@ -90,6 +90,83 @@ void ObjectType::computeProperties()
 	com_ = Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00);
 }
 
+Point3f ObjectType::screenToWorldCoords(const Rect &screen_position, double avg_depth, const Point2f &fov_size, const Size &frame_size, float cameraElevation) const
+{
+	/*
+	Method:
+		find the center of the rect
+		compute the distance from the center of the rect to center of image (pixels)
+		convert to degrees based on fov and image size
+		do a polar to cartesian cordinate conversion to find x,y,z of object
+	Equations:
+		x=rsin(inclination) * cos(azimuth)
+		y=rsin(inclination) * sin(azimuth)
+		z=rcos(inclination)
+	Notes:
+		Z is up, X is left-right, and Y is forward
+		(0,0,0) = (r,0,0) = right in front of you
+	*/
+
+	Point2f rect_center(
+			screen_position.tl().x + (screen_position.width  / 2.0),
+			screen_position.tl().y + (screen_position.height / 2.0));
+	Point2f dist_to_center(
+			rect_center.x - (frame_size.width / 2.0),
+			-rect_center.y + (frame_size.height / 2.0));
+
+	
+
+// This uses formula from http://www.chiefdelphi.com/forums/showpost.php?p=1571187&postcount=4
+	float azimuth = atan(dist_to_center.x / (.5 * frame_size.width / tan(fov_size.x / 2)));
+	float inclination = atan(dist_to_center.y / (.5 * frame_size.height / tan(fov_size.y / 2))) - cameraElevation;
+
+	Point3f retPt(
+			avg_depth * cosf(inclination) * sinf(azimuth),
+			avg_depth * cosf(inclination) * cosf(azimuth),
+			avg_depth * sinf(inclination));
+
+	//cout << "Distance to center: " << dist_to_center << endl;
+	//cout << "Actual Inclination: " << inclination << endl;
+	//cout << "Actual Azimuth: " << azimuth << endl;
+	//cout << "Actual location: " << retPt << endl;
+
+	return retPt;
+}
+
+Rect ObjectType::worldToScreenCoords(const Point3f &_position, const Point2f &fov_size, const Size &frame_size, float cameraElevation) const
+{
+	// TODO : replace magic numbers with an object depth property
+	// This constant is half a ball diameter (9.75-ish inches), converted to meters
+	// For example, goals will have 0 depth since we're just shooting at
+	// a plane. 3d objects will have depth, though, so we track the center of the
+	// rather than the front.
+	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z); // - (4.572 * 25.4)/1000.0;
+	float azimuth = asinf(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
+	float inclination = asinf( _position.z / r ) + cameraElevation;
+
+	//inverse of formula in screenToWorldCoords()
+	Point2f dist_to_center(
+			tan(azimuth) * (0.5 * frame_size.width / tan(fov_size.x / 2)),
+			tan(inclination) * (0.5 * frame_size.height / tan(fov_size.y / 2)));
+	
+	//cout << "Distance to center: " << dist_to_center << endl;
+	Point2f rect_center(
+			dist_to_center.x + (frame_size.width / 2.0),
+			-dist_to_center.y + (frame_size.height / 2.0));
+
+	Point2f angular_size( 2.0 * atan2f(width_, (2.0*r)), 2.0 * atan2f(height_, (2.0*r)));
+	Point2f screen_size(
+			angular_size.x * (frame_size.width / fov_size.x),
+			angular_size.y * (frame_size.height / fov_size.y));
+
+	Point topLeft(
+			cvRound(rect_center.x - (screen_size.x / 2.0)),
+			cvRound(rect_center.y - (screen_size.y / 2.0)));
+			return Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
+}
+
+
+
 bool ObjectType::operator== (const ObjectType &t1) const 
 {
 	return this->shape() == t1.shape();
