@@ -8,9 +8,10 @@ do
     case "$1" in
         -jx) jetson=true;;
 	-jk) jetson=true; version=tk;;
+	-amd64) jetson=false;;
 	-g) gpu=true;;
 	-h) echo >&2 \
-	    "usage: $0 [-jx or -jk] [-g] [-h]"
+	    "usage: $0 [-jx or -jk or -amd64] [-g] [-h]"
 	    exit 1;;
 	*)  break;;	# terminate while loop
     esac
@@ -24,28 +25,6 @@ sudo apt-get -y upgrade
 sudo apt-get install -y libeigen3-dev build-essential gfortran git cmake libleveldb-dev libsnappy-dev libhdf5-dev libhdf5-serial-dev liblmdb-dev vim-gtk libgflags-dev libgoogle-glog-dev libatlas-base-dev python-dev python-pip libtinyxml2-dev v4l-conf v4l-utils libgtk2.0-dev pkg-config exfat-fuse exfat-utils libprotobuf-dev protobuf-compiler unzip python-numpy python-scipy python-opencv python-matplotlib chromium-browser wget unzip
 
 sudo apt-get install --no-install-recommends -y libboost-all-dev
-
-# Installation script for Cuda and drivers on Ubuntu 14.04, by Roelof Pieters (@graphific)
-# BSD License
-
-#export DEBIAN_FRONTEND=noninteractive
-
-#sudo apt-get update -y
-#sudo apt-get install -y git wget linux-image-generic unzip
-
-# FIXME : Only need this for x86, and should be using the
-# newest CUDA release
-# Cuda 7.0
-# instead we install the nvidia driver 352 from the cuda repo
-# which makes it easier than stopping lightdm and installing in terminal
-
-#cd /tmp
-#wget http://developer.download.nvidia.com/compute/cuda/7.5/Prod/local_installers/cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb
-#sudo dpkg -i cuda-repo-ubuntu1404-7-5-local_7.5-18_amd64.deb
-#sudo apt-get update && sudo apt-get install cuda-toolkit-7-5
-
-#echo -e "\nexport CUDA_HOME=/usr/local/cuda\nexport CUDA_ROOT=/usr/local/cuda" >> ~/.bashrc
-#echo -e "\nexport PATH=/usr/local/cuda/bin:\$PATH\nexport LD_LIBRARY_PATH=/usr/local/cuda/lib64:\$LD_LIBRARY_PATH" >> ~/.bashrc
 
 #install caffe
 cd
@@ -105,45 +84,18 @@ rm -rf tinyxml2
 if [ "$version" = tk1 ] && [ "$jetson" = true ] ; then
 	ext="ZED_SDK_Linux_JTK1_v1.1.0.run"
 elif [ "$version" = tx1 ] && [ "$jetson" = true ] ; then
-	#ext="ZED_SDK_Linux_JTX1_v1.1.0_32b_JP21.run"
-	# Default to 64bit Jetpack23 install
 	ext="ZED_SDK_Linux_JTX1_v1.1.1_64b_JetPack23.run"
 else
-	ext="ZED_SDK_Linux_x86_64_v1.1.0.run" 
+	ext="ZED_SDK_Linux_Ubuntu16_CUDA80_v1.1.1.run"
 fi
 wget --no-check-certificate https://www.stereolabs.com/download_327af3/$ext
 chmod 755 $ext
 ./$ext
 rm ./$ext
 
-# Install ffmpeg. This is a prereq for OpenCV, so 
-# unless you're installing that skip this as well.
-#cd
-#wget --no-check-certificate https://github.com/FFmpeg/FFmpeg/archive/n3.1.3.zip
-#unzip n3.1.3.zip
-#cd FFmpeg-n3.1.3
-#./configure --enable-shared
-#make -j4
-#sudo make install
-#cd ..
-#rm -rf FFmpeg-n3.1.3 n3.1.3.zip
-
-# OpenCV build info. Not needed for Jetson, might be
-# needed for x86 PCs to enable CUDA support 
-# Note that the latest ZED drivers for x86_64 require
-# OpenCV3.1 install should be similar, just download the
-# correct version of the code
-#cd
-# git clone https://github.com/opencv/opencv.git
-# git clone https://github.com/opencv/opencv_contrib.git
-#cd opencv
-#mkdir build
-#cd build
-#cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2 6.1" -DCUDA_ARCH_PTX="5.2 6.1" -DOPENCV_EXTRA_MODULES_PATH=/home/ubuntu/opencv_contrib/modules ..
-#make -j4
-#sudo make install
-
 #clone repo
+#TODO : rethink this - how are we getting the script if the
+#       repo isn't there in the first place?
 cd
 git clone https://github.com/FRC900/2016VisionCode.git
 cd 2016VisionCode
