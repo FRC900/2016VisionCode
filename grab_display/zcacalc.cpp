@@ -37,11 +37,11 @@ vector<Mat> loadSubImages(const int seed, const int nImgs)
 {
 	vector<Mat> images;
 	vector<string> filePaths;
-	GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/framegrabber", ".png", filePaths);
-	GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/Framegrabber2", ".png", filePaths, true);
-	GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/generic", ".png", filePaths, true);
-	GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/20160210", ".png", filePaths, true);
-	GetFilePaths("/media/kjaget/84CA3305CA32F2D2/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/white_bg", ".png", filePaths, true);
+	GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/framegrabber", ".png", filePaths);
+	GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/Framegrabber2", ".png", filePaths, true);
+	GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/generic", ".png", filePaths, true);
+	GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/20160210", ".png", filePaths, true);
+	GetFilePaths("/media/kjaget/AC8612CF86129A42/cygwin64/home/ubuntu/2015VisionCode/cascade_training/negative_images/white_bg", ".png", filePaths, true);
 	cout << filePaths.size() << " images!" << endl;
 	RandomSubImage rsi(RNG(seed), filePaths);
 	Mat img; // full image data
@@ -68,17 +68,7 @@ int main(void)
 	const int seed = 12345;
 	vector<Mat> images = loadSubImages(seed, 20000);
 
-	//doZCA(images, Size(12,12), 1, "nograysepchannelsE10", seed);
-	//doZCA(images, Size(24,24), 1, "nograysepchannelsE10", seed);
-	//doZCA(images, Size(12,12), 0.1, "nograysepchannelsE1", seed);
-	//doZCA(images, Size(24,24), 0.1, "nograysepchannelsE1", seed);
-	doZCA(images, Size(12,12), 0.01, "nograysepchannelsE01", seed);
-	doZCA(images, Size(24,24), 0.01, "nograysepchannelsE01", seed);
-	doZCA(images, Size(48,48), 0.01, "nograysepchannelsE01", seed);
-	//doZCA(images, Size(12,12), 0.001, "nograysepchannelsE001", seed);
-	//doZCA(images, Size(24,24), 0.001, "nograysepchannelsE001", seed);
-	//doZCA(images, Size(12,12), 0.0001, "nograysepchannelsE0001", seed);
-	//doZCA(images, Size(24,24), 0.0001, "nograysepchannelsE0001", seed);
-	//doZCA(images, Size(12,12), 0.00001, "nograysepchannelsE00001", seed);
-	//doZCA(images, Size(24,24), 0.00001, "nograysepchannelsE00001", seed);
+	doZCA(images, Size(12,12), 0.001, "_newE001", seed);
+	doZCA(images, Size(24,24), 0.001, "_newE001", seed);
+	//doZCA(images, Size(48,48), 0.001, "_newE001", seed);
 }
