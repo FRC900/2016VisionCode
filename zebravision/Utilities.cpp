@@ -1,5 +1,4 @@
 #include "Utilities.hpp"
-
 using namespace std;
 
 namespace utils {
@@ -106,6 +105,46 @@ namespace utils {
 		
 	}
 #endif
+
+	//gets the slope that the masked area is facing away from the camera
+	//useful when used with a contour to find the angle that an object is faciing
+
+	double slope_list(const std::vector<double>& x, const std::vector<double>& y) {
+	    const auto n    = x.size();
+	    const auto s_x  = std::accumulate(x.begin(), x.end(), 0.0);
+	    const auto s_y  = std::accumulate(y.begin(), y.end(), 0.0);
+	    const auto s_xx = std::inner_product(x.begin(), x.end(), x.begin(), 0.0);
+	    const auto s_xy = std::inner_product(x.begin(), x.end(), y.begin(), 0.0);
+	    const auto a    = (n * s_xy - s_x * s_y) / (n * s_xx - s_x * s_x);
+	    return a;
+	}
+
+	std::pair<double,double> slopeOfMasked(ObjectType ot, const cv::Mat &depth, const cv::Mat &mask, cv::Point2f fov) {
+
+		CV_Assert(mask.depth() == CV_8U);
+		vector<double> slope_x_values;
+		vector<double> slope_y_values;
+		vector<double> slope_z_values;
+
+		for (size_t j = 0; j < depth.rows; j++) {
+
+			const float *ptr_depth = depth.ptr<float>(j);
+			const uchar *ptr_mask = mask.ptr<uchar>(j);
+
+			for (size_t i = 0; i < depth.cols; i++) {
+				if(ptr_mask[i] == 255 && ptr_depth[i] > 0) {
+					cv::Point3f pos = ot.screenToWorldCoords(cv::Rect(i,j,0,0), ptr_depth[i], fov, depth.size(), 0);
+					slope_x_values.push_back(pos.x);
+					slope_y_values.push_back(pos.y);
+					slope_z_values.push_back(pos.z);
+				}
+			}
+		}
+
+		return std::make_pair<double,double>(slope_list(slope_x_values, slope_y_values), slope_list(slope_z_values, slope_y_values));
+
+	}
+	
 	double normalCFD(const pair<double,double> &meanAndStddev, double value)
 	{
 		double z_score = (value - meanAndStddev.first) / meanAndStddev.second;

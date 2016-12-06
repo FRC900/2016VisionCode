@@ -31,6 +31,7 @@ class GoalDetector
 		void drawOnFrame(cv::Mat &image) const;
 
 	private:
+		bool _general = false;
 		ObjectType _goal_shape;
 		cv::Point2f _fov_size;
 		cv::Size _frame_size;

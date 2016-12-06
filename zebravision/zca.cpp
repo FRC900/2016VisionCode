@@ -118,7 +118,7 @@ ZCA::ZCA(const vector<Mat> &images,
 	{
 		it->convertTo(resizeImg, CV_32FC3);
 		cv::resize(resizeImg, tmpImg, size_);
-		meanStdDev(tmpImg, mean, stddev);
+		cv::meanStdDev(tmpImg, mean, stddev);
 		cv::subtract(tmpImg, mean, tmpImg);
 		cv::divide(tmpImg, stddev, tmpImg);
 		workingMatT.push_back(tmpImg.reshape(1,1).clone());
@@ -178,7 +178,7 @@ ZCA::ZCA(const vector<Mat> &images,
 	// This should allow full range representation of
 	// > 96% of the pixels
 	Mat transformedImgs = weights * workingMat;
-	meanStdDev(transformedImgs, mean, stddev);
+	cv::meanStdDev(transformedImgs, mean, stddev);
 	cout << "transformedImgs mean/stddev " << mean(0) << " " << stddev(0) << endl;
 	overallMax_ = mean(0) + 2.25*stddev(0);
 	overallMin_ = mean(0) - 2.25*stddev(0);
