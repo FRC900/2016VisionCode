@@ -66,13 +66,13 @@ class NNDetect
 
 		NNDetectDebugInfo DebugInfo(void) const;
 	private:
-		ObjectType objToDetect_;
 		typedef std::pair<cv::Rect, size_t> Window;
 		ClassifierT d12_;
 		ClassifierT d24_;
 		ClassifierT c12_;
 		ClassifierT c24_;
 		float hfov_;
+		ObjectType objToDetect_;
 		NNDetectDebugInfo debug_;
 		void doBatchPrediction(ClassifierT &classifier,
 				const std::vector<MatT> &imgs,

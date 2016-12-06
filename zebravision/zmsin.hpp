@@ -15,6 +15,10 @@ class ZMSIn : public SyncIn
 		ZMSIn(const char *inFileName = NULL, ZvSettings *settings = NULL);
 		~ZMSIn();
 
+		// Make class non-copyable
+		ZMSIn(const ZMSIn& zmsin) = delete;
+		ZMSIn& operator=(const ZMSIn& zmsin) = delete;
+
 		bool isOpened(void) const;
 
 		CameraParams getCameraParams(void) const;

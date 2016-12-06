@@ -20,6 +20,10 @@ class MediaIn
 		MediaIn(ZvSettings *settings);
 		virtual ~MediaIn() {}
 
+		// Make class non-copyable
+		MediaIn(const MediaIn &mediain) = delete;
+		MediaIn &operator=(const MediaIn &mediain) = delete;
+
 		// These should be implemented by each derived class
 		// Include defaults here which return false just in case
 		virtual bool isOpened(void) const;

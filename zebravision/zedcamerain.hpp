@@ -26,6 +26,9 @@ class ZedCameraIn : public AsyncIn
 		~ZedCameraIn();
 
 #ifdef ZED_SUPPORT
+		ZedCameraIn(const ZedCameraIn &zedcamerain) = delete;
+		ZedCameraIn* operator=(const ZedCameraIn &zedcamerain) = delete;
+
 		bool         isOpened(void) const;
 		CameraParams getCameraParams(void) const;
 #endif

@@ -126,12 +126,12 @@ namespace utils {
 		vector<double> slope_y_values;
 		vector<double> slope_z_values;
 
-		for (size_t j = 0; j < depth.rows; j++) {
+		for (int j = 0; j < depth.rows; j++) {
 
 			const float *ptr_depth = depth.ptr<float>(j);
 			const uchar *ptr_mask = mask.ptr<uchar>(j);
 
-			for (size_t i = 0; i < depth.cols; i++) {
+			for (int i = 0; i < depth.cols; i++) {
 				if(ptr_mask[i] == 255 && ptr_depth[i] > 0) {
 					cv::Point3f pos = ot.screenToWorldCoords(cv::Rect(i,j,0,0), ptr_depth[i], fov, depth.size(), 0);
 					slope_x_values.push_back(pos.x);

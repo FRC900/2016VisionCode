@@ -22,6 +22,7 @@ class ZCA
 		// Copy constructor - needed since some pointers
 		// are allocated in constructor
 		ZCA(const ZCA &zca);
+		ZCA &operator=(const ZCA &zca);
 
 		~ZCA();
 

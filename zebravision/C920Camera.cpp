@@ -37,15 +37,18 @@ namespace v4l2 {
 		} while (-1 == r && EINTR == errno);
 		return r;
 	}
-	C920Camera::C920Camera() {
-		this->capture = NULL;
+	C920Camera::C920Camera() :
+		capture(NULL)
+	{
 	}
-	C920Camera::C920Camera(const char* __capture_file) {
-		this->capture = NULL;
+	C920Camera::C920Camera(const char* __capture_file) :
+		capture(NULL)
+	{
 		this->Open(__capture_file);
 	}
-	C920Camera::C920Camera(const int __capture_id) {
-		this->capture = NULL;
+	C920Camera::C920Camera(const int __capture_id) :
+		capture(NULL)
+	{
 		char __capture_file[PATH_MAX];
 		sprintf(__capture_file, "/dev/video%1d", __capture_id);
 		this->Open(__capture_file);

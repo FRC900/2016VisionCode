@@ -18,6 +18,10 @@ class ZedSVOIn : public SyncIn
 		~ZedSVOIn();
 
 #ifdef ZED_SUPPORT
+		// Make class non-copyable
+		ZedSVOIn(const ZedSVOIn &sedsvoin) = delete;
+		ZedSVOIn& operator=(const ZedSVOIn &sedsvoin) = delete;
+
 		bool         isOpened(void) const;
 
 		// How many frames?

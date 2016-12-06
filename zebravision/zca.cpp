@@ -524,6 +524,34 @@ ZCA::ZCA(const ZCA &zca) :
 	}
 }
 
+ZCA &ZCA::operator=(const ZCA &zca)
+{
+	if (this != &zca)
+	{
+		size_ = zca.size_;
+		svdU_ = zca.svdU_;
+		svdW_ = zca.svdW_;
+		weightsT_ = zca.weightsT_;
+		if (dPssIn_)
+		{
+			cudaSafeCall(cudaFree(dPssIn_), "cudaFreedPssIn");
+			dPssIn_ = NULL;
+		}
+		epsilon_ = zca.epsilon_;
+		overallMin_ = zca.overallMin_;
+		overallMax_ = zca.overallMax_;
+		if (!weightsT_.empty() && (getCudaEnabledDeviceCount() > 0))
+		{
+			size_t batchSize = zca.gm_.rows;
+			weightsTGPU_.upload(weightsT_);
+			cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
+			gm_ = zca.gm_.clone();
+			gmOut_ = zca.gm_.clone();
+		}
+	}
+	return *this;
+}
+
 ZCA::~ZCA()
 {
 	if (dPssIn_)
