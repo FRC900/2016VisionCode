@@ -626,6 +626,18 @@ void ZCA::WriteCompressed(const string &fileName) const
 	archiveOut << *this;
 }
 
+void ZCA::Print(void) const
+{
+	Mat weights(weightsT_.t());
+
+	for (int r = 0; r < weights.rows; r++)
+	{
+		const float *ptr = weights.ptr<float>(r);
+		for (int c = 0; c < weights.cols; c++)
+			cout << *ptr++ << " ";
+		cout << endl;
+	}
+}
 
 // Generate constants to convert from float
 // mat back to 8UC3 one.  

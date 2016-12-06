@@ -44,6 +44,8 @@ class ZCA
 		std::vector<GpuMat> Transform32FC3(const std::vector<GpuMat> &input);
 		void Transform32FC3(const std::vector<GpuMat> &input, float *dest);
 
+		void Print(void) const;
+
 		// a and b parameters for transforming
 		// float pixel values back to 0-255
 		// uchar data
