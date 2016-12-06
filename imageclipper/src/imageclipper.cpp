@@ -322,7 +322,8 @@ void key_callback( const ArgParam* arg, CvCallbackParam* param )
 				cvCropImageROI( thisParam.img, crop, 
 						cvRect32fFromRect( thisParam.rect, thisParam.rotate ), 
 						cvPointTo32f( thisParam.shear ) );
-				cvSaveImage( fs::realpath( output_path ).c_str(), crop );
+				int params[] = {CV_IMWRITE_PNG_COMPRESSION, 9};
+				cvSaveImage( fs::realpath( output_path ).c_str(), crop, params );
 				cout << fs::realpath( output_path ) << endl;
 				cvReleaseImage( &crop );
 			}
