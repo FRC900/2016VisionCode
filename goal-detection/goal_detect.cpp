@@ -15,11 +15,17 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-	ZedIn *cap;
+	MediaIn *cap = NULL;
 	if (argc == 2)
 		cap = new ZMSIn(argv[1]);
 	else
 		cap = new ZedCameraIn(false);
+
+	if (cap == NULL)
+	{
+		cerr << "Error creating input" << endl;
+		return -1;
+	}
 
 	GoalDetector gd(Point2f(cap->getCameraParams().fov.x, 
 				            cap->getCameraParams().fov.y), 
