@@ -18,18 +18,21 @@
 
 #include "FovisLocalizer.hpp"
 
+#include "zedsvoin.hpp"
+#include "zedcamerain.hpp"
+
 using namespace std;
 using namespace cv;
 
 int main(int argc, char **argv) {
 
-	ZedIn *cap = NULL;
+	MediaIn *cap = NULL;
 	if(argc == 2) {
-		cap = new ZedIn(argv[1]);
+		cap = new ZedSVOIn(argv[1]);
 		cerr << "Read SVO file" << endl;
 	}
 	else {
-		cap = new ZedIn();
+		cap = new ZedCameraIn();
 		cerr << "Initialized camera" << endl;
 	}
 
@@ -37,19 +40,15 @@ int main(int argc, char **argv) {
 
 	clock_t startTime;
 
-	cap->update();
-	cap->getFrame().copyTo(frame);
+	cap->getFrame(frame, depthFrame);
 	
-	FovisLocalizer fvlc(cap->getCameraParams(), cap->width(), cap->height(), frame);
+	FovisLocalizer fvlc(cap->getCameraParams(), frame);
 
 	while(1)
 	{
-
 		startTime = clock();
 
-		cap->update();
-		cap->getFrame().copyTo(frame); //pull frame from zed
-		cap->getDepth().copyTo(depthFrame);
+		cap->getFrame(frame, depthFrame);
 
 		fvlc.processFrame(frame,depthFrame);
 
