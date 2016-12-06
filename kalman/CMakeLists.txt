@@ -16,16 +16,29 @@ endif()
 
 
 find_package(OpenCV REQUIRED )
-find_package(ZED 0.8.2 REQUIRED)
-find_package(CUDA 6.5 REQUIRED)
-find_package(OpenMP REQUIRED)
+find_package(ZED REQUIRED)
+find_package(CUDA REQUIRED)
 find_package(Boost COMPONENTS system thread REQUIRED)
-find_package(Threads)
+find_package(Eigen3 REQUIRED)
 
-include_directories( ${OpenCV_INCLUDE_DIRS} /usr/local/include /usr/local/include/eigen3  ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} /home/ubuntu/2016VisionCode/libfovis/build/include/fovis ../fovis ../threading-test)
+include_directories( ${OpenCV_INCLUDE_DIRS} 
+	${EIGEN3_INCLUDE_DIR}
+	${ZED_INCLUDE_DIRS} 
+	${CUDA_INCLUDE_DIRS} 
+	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis 
+	../fovis 
+	../zebravision)
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(/home/ubuntu/2016VisionCode/libfovis/build/lib/)
 
-add_executable( kalman_testing kalman_testing.cpp ../fovis/FovisLocalizer.cpp ../threading-test/zedin.cpp PositionKF.cpp)
+add_executable( kalman_testing 
+	kalman_testing.cpp 
+	../fovis/FovisLocalizer.cpp 
+	../zebravision/asyncin.cpp 
+	../zebravision/syncin.cpp 
+	../zebravision/mediain.cpp 
+	../zebravision/zedsvoin.cpp 
+	../zebravision/zedcamerain.cpp 
+	PositionKF.cpp)
 target_link_libraries( kalman_testing ${OpenCV_LIBS} fovis ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY})
