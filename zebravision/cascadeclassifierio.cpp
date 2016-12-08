@@ -17,9 +17,6 @@ CascadeClassifierIO::CascadeClassifierIO(string baseDir,
 	dirNum_  (dirNum),
 	stageNum_(stageNum)
 {
-	cout << "baseDir_=" << baseDir_ << endl;
-	cout << "dirNum_=" << dirNum_<< endl;
-	cout << "stageNum_=" << stageNum_<< endl;
 }
 
 // using the current directory number, generate a filename for that dir
