@@ -39,7 +39,7 @@ rm -rf FFmpeg-n3.1.3 n3.1.3.zip
 # Note that the latest ZED drivers for x86_64 require
 # OpenCV3.1 install should be similar, just download the
 # correct version of the code
-sudo apt-get install libgtk2.0-dev libgtk-3-dev
+sudo apt-get install libgtk2.0-dev
 
 cd
 git clone https://github.com/opencv/opencv.git
