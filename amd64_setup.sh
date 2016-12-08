@@ -7,17 +7,17 @@ wget https://developer.nvidia.com/compute/cuda/8.0/prod/local_installers/cuda_8.
 chmod 755 cuda_8.0.44_linux-run
 sudo ./cuda_8.0.44_linux-run --silent --toolkit --samples --samplespath=/usr/local/cuda-8.0/NVIDIA_CUDA-8.0_Samples
 rm cuda_8.0.44_linux-run
-echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64" >> ~/.bashrc
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64"
+echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/cuda/lib64" >> ~/.bashrc
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 
 # This seems to fail - cuDNN download requires authentication?
-wget https://developer.nvidia.com/compute/machine-learning/cudnn/secure/v5.1/prod/8.0/cudnn-8.0-linux-x64-v5.1-tgz
+wget http://developer.nvidia.com/compute/machine-learning/cudnn/secure/v5.1/prod/8.0/cudnn-8.0-linux-x64-v5.1-tgz
 cd /usr/local
 sudo tar -xzvf ~/cudnn-8.0-linux-x64-v5.1-tgz
 rm ~/cudnn-8.0-linux-x64-v5.1-tgz
 
 cd
-wget https://www.stereolabs.com/download_327af3/ZED_SDK_Linux_Ubuntu16_CUDA80_v1.1.1.run
+wget https://www.stereolabs.com/download_327af3/ZED_SDK_Linux_Ubuntu16_CUDA80_v1.2.0.run
 chmod 755 ZED_SDK_Linux_Ubuntu16_CUDA80_v1.2.0.run
 ./ZED_SDK_Linux_Ubuntu16_CUDA80_v1.2.0.run
 
@@ -46,7 +46,7 @@ git clone https://github.com/opencv/opencv_contrib.git
 cd opencv
 mkdir build
 cd build
-cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2 6.1" -DCUDA_ARCH_PTX="5.2 6.1" -DOPENCV_EXTRA_MODULES_PATH=/home/ubuntu/opencv_contrib/modules -DBUILD_opencv+dnn=OFF ..
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D ENABLE_FAST_MATH=1 -D CUDA_FAST_MATH=1 -D WITH_CUBLAS=1 -DCUDA_ARCH_BIN="5.2 6.1" -DCUDA_ARCH_PTX="5.2 6.1" -DOPENCV_EXTRA_MODULES_PATH=/home/ubuntu/opencv_contrib/modules -DBUILD_opencv_dnn=OFF ..
 make -j4
 sudo make install
 
