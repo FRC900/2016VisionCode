@@ -110,6 +110,7 @@ void drawTrackingInfo(Mat& frame, const vector<TrackedObjectDisplay>& displayLis
 			rectangle(frame, it->rect, rectColor, 3);
             // Write detect ID, distance and angle data
             putText(frame, it->id, Point(it->rect.x + 25, it->rect.y + 30), FONT_HERSHEY_PLAIN, 2.0, rectColor);
+			putText(frame, it->name, Point(it->rect.x, it->rect.y + it->rect.height - 3), FONT_HERSHEY_PLAIN, 2.0, rectColor);
             stringstream label;
             label << fixed << setprecision(roundPosTo);
             label << "(" << it->position.x << "," << it->position.y << "," << it->position.z << ")";
@@ -487,8 +488,7 @@ int main( int argc, const char** argv )
 
 			stringstream fpsStr;
 			float inFPS = cap->FPS();
-			float outFPS = rawOut ? rawOut->FPS() : -1;
-			
+			float outFPS = rawOut ? rawOut->FPS(): -1;
 			if (inFPS > 0)
 				fpsStr << fixed << setprecision(1) << inFPS << "G ";
 			fpsStr << fixed << setprecision(2) << frameTicker.getFPS() << "M";

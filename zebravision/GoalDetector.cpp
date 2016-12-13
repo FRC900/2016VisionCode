@@ -208,7 +208,7 @@ void GoalDetector::processFrame(const Mat& image, const Mat& depth)
 
 		//create a trackedobject to get various statistics
 		//including area and x,y,z position of the goal
-		ObjectType goal_actual(_contours[i]);
+		ObjectType goal_actual(_contours[i], "Actual Goal", 0);
 		TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -((float)_camera_angle/10.) * M_PI / 180.0);
 		//TrackedObject goal_tracked_obj(0, _goal_shape, br, depth_z_max, _fov_size, _frame_size, -16 * M_PI / 180.0);
 

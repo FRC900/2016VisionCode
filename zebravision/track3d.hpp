@@ -111,6 +111,7 @@ struct TrackedObjectDisplay
 	cv::Rect rect;
 	double ratio;
 	cv::Point3f position;
+	std::string name;
 };
 
 // Tracked object array -

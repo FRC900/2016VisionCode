@@ -11,24 +11,26 @@ ObjectType::ObjectType(int contour_type_id=1) {
 		//loads one of the preset shapes into the
 
 		case 1: //a ball!
-			{
-				float ball_diameter = 0.2476; // meters
-				contour_.push_back(Point2f(0,0));
-				contour_.push_back(Point2f(0,ball_diameter));
-				contour_.push_back(Point2f(ball_diameter,ball_diameter));
-				contour_.push_back(Point2f(ball_diameter,0));
-			}
+			depth_ = 0.2476; // meters
+			contour_.push_back(Point2f(0,0));
+			contour_.push_back(Point2f(0, depth_));
+			contour_.push_back(Point2f(depth_, depth_));
+			contour_.push_back(Point2f(depth_,0));
+			name_="ball";
 			break;
 
 		case 2: //a bin (just because)
+			depth_ = 0.5588;
 			contour_.push_back(Point2f(0,0));
 			contour_.push_back(Point2f(0,0.5842));
 			contour_.push_back(Point2f(0.5842,0.5842));
 			contour_.push_back(Point2f(0.5842,0));
+			name_="bin";
 			break;
 
 		case 3: //the vision goal
 			{
+				depth_ = 0;
 				float max_y = .3048;
 				contour_.push_back(Point2f(0, max_y - 0));
 				contour_.push_back(Point2f(0, max_y - 0.3048));
@@ -38,6 +40,7 @@ ObjectType::ObjectType(int contour_type_id=1) {
 				contour_.push_back(Point2f(0.508-0.0508, max_y - 0.3048));
 				contour_.push_back(Point2f(0.508, max_y - 0.3048));
 				contour_.push_back(Point2f(0.508, max_y - 0));
+				name_="goal";
 			}
 			break;
 
@@ -49,13 +52,17 @@ ObjectType::ObjectType(int contour_type_id=1) {
 
 }
 
-ObjectType::ObjectType(const vector< Point2f > &contour_in) :
-	contour_(contour_in)
+ObjectType::ObjectType(const vector< Point2f > &contour_in, const string &name_in, const float &depth_in) :
+	contour_(contour_in),
+	depth_(depth_in),
+	name_(name_in)	
 {
 	computeProperties();
 }
 
-ObjectType::ObjectType(const vector< Point > &contour_in)
+ObjectType::ObjectType(const vector< Point > &contour_in, const string &name_in, const float &depth_in):
+depth_(depth_in),
+name_(name_in)
 {
 	for(size_t i = 0; i < contour_in.size(); i++)
 	{
