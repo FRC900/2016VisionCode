@@ -212,7 +212,7 @@ bool ZMSIn::postLockFrameNumber(int framenumber)
 CameraParams ZMSIn::getCameraParams(void) const
 {
 	float hFovDegrees;
-	if (height_ == 480) // redo this now that VGA is widescreen VGA instead
+	if (height_ == 480) // TODO : redo this now that VGA is widescreen VGA instead
 		hFovDegrees = 51.3;
 	else
 		hFovDegrees = 105.; // hope all the HD & 2k res are the same
@@ -232,22 +232,22 @@ CameraParams ZMSIn::getCameraParams(void) const
 	{
 		params.fx = 700.548;
 		params.fy = 700.548;
-		params.cx = 647.35  / (1280 / width_);;
-		params.cy = 369.472 / (1280 / width_);;
+		params.cx = 647.35  / (1280 / width_);
+		params.cy = 369.472 / (1280 / width_);
 	}
 	else if ((width_ == 1920) || (width_ == 960)) // 1920 downscaled
 	{
 		params.fx = 1401.1;
 		params.fy = 1401.1;
-		params.cx = 977.701 / (1920 / width_);; // Is this correct - downsized
-		params.cy = 561.944 / (1920 / width_);; // image needs downsized cx?
+		params.cx = 977.701 / (1920 / width_); // Is this correct - downsized
+		params.cy = 561.944 / (1920 / width_); // image needs downsized cx?
 	}
 	else if ((width_ == 2208) || (width_ == 1104)) // 2208 downscaled
 	{
 		params.fx = 1401.1;
 		params.fy = 1401.14;
-		params.cx = 1121.74 / (2208 / width_);;
-		params.cy = 642.944 / (2208 / width_);;
+		params.cx = 1121.74 / (2208 / width_);
+		params.cy = 642.944 / (2208 / width_);
 	}
 	else
 	{
