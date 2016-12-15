@@ -118,7 +118,7 @@ ZCA::ZCA(const vector<Mat> &images,
 	{
 		it->convertTo(resizeImg, CV_32FC3);
 		cv::resize(resizeImg, tmpImg, size_);
-		meanStdDev(tmpImg, mean, stddev);
+		cv::meanStdDev(tmpImg, mean, stddev);
 		cv::subtract(tmpImg, mean, tmpImg);
 		cv::divide(tmpImg, stddev, tmpImg);
 		workingMatT.push_back(tmpImg.reshape(1,1).clone());
@@ -178,7 +178,7 @@ ZCA::ZCA(const vector<Mat> &images,
 	// This should allow full range representation of
 	// > 96% of the pixels
 	Mat transformedImgs = weights * workingMat;
-	meanStdDev(transformedImgs, mean, stddev);
+	cv::meanStdDev(transformedImgs, mean, stddev);
 	cout << "transformedImgs mean/stddev " << mean(0) << " " << stddev(0) << endl;
 	overallMax_ = mean(0) + 2.25*stddev(0);
 	overallMin_ = mean(0) - 2.25*stddev(0);
@@ -524,6 +524,34 @@ ZCA::ZCA(const ZCA &zca) :
 	}
 }
 
+ZCA &ZCA::operator=(const ZCA &zca)
+{
+	if (this != &zca)
+	{
+		size_ = zca.size_;
+		svdU_ = zca.svdU_;
+		svdW_ = zca.svdW_;
+		weightsT_ = zca.weightsT_;
+		if (dPssIn_)
+		{
+			cudaSafeCall(cudaFree(dPssIn_), "cudaFreedPssIn");
+			dPssIn_ = NULL;
+		}
+		epsilon_ = zca.epsilon_;
+		overallMin_ = zca.overallMin_;
+		overallMax_ = zca.overallMax_;
+		if (!weightsT_.empty() && (getCudaEnabledDeviceCount() > 0))
+		{
+			size_t batchSize = zca.gm_.rows;
+			weightsTGPU_.upload(weightsT_);
+			cudaSafeCall(cudaMalloc(&dPssIn_, batchSize * sizeof(PtrStepSz<float>)), "cudaMalloc dPssIn");
+			gm_ = zca.gm_.clone();
+			gmOut_ = zca.gm_.clone();
+		}
+	}
+	return *this;
+}
+
 ZCA::~ZCA()
 {
 	if (dPssIn_)
@@ -626,6 +654,18 @@ void ZCA::WriteCompressed(const string &fileName) const
 	archiveOut << *this;
 }
 
+void ZCA::Print(void) const
+{
+	Mat weights(weightsT_.t());
+
+	for (int r = 0; r < weights.rows; r++)
+	{
+		const float *ptr = weights.ptr<float>(r);
+		for (int c = 0; c < weights.cols; c++)
+			cout << *ptr++ << " ";
+		cout << endl;
+	}
+}
 
 // Generate constants to convert from float
 // mat back to 8UC3 one.  

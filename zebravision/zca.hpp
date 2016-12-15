@@ -22,6 +22,7 @@ class ZCA
 		// Copy constructor - needed since some pointers
 		// are allocated in constructor
 		ZCA(const ZCA &zca);
+		ZCA &operator=(const ZCA &zca);
 
 		~ZCA();
 
@@ -43,6 +44,8 @@ class ZCA
 		std::vector<cv::Mat> Transform32FC3(const std::vector<cv::Mat> &input);
 		std::vector<GpuMat> Transform32FC3(const std::vector<GpuMat> &input);
 		void Transform32FC3(const std::vector<GpuMat> &input, float *dest);
+
+		void Print(void) const;
 
 		// a and b parameters for transforming
 		// float pixel values back to 0-255

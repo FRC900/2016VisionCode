@@ -8,6 +8,21 @@ using cv::gpu::PtrStepSz;
 using cv::cuda::PtrStepSz;
 #endif
 
+// Be conservative here - if any of the depth values in the
+// target rect are in the expected range, consider the entire
+// rect in range.  Also say that it is in range if any of the
+// depth values are negative or NaN (i.e. no depth info for those
+// pixels)
+__device__ bool depth_test_logic(const float depth, 
+								 const float depthMin,
+								 const float depthMax)
+{
+	if (isnan(depth) || (depth <= 0.0) || 
+		((depth > depthMin) && (depth < depthMax)))
+		return true;
+	return false;
+}
+
 // Given a depth map in input, see if any value is
 // in the range between depthMin and depthMax.  If
 // so, set answer to true. If all pixels fall outside
@@ -21,7 +36,6 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> * __restrict__ inp
 	const unsigned int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
 	__shared__ bool inRange[12*4];
-	bool myinRange = false;
 
 	// 2D pixel index of current thread
 	const int xIndex = threadIdx.x;
@@ -42,17 +56,10 @@ __global__ void depth_threshold_kernel(const PtrStepSz<float> * __restrict__ inp
 	// target rect are in the expected range, consider the entire 
 	// rect in range.  Also say that it is in range if any of the 
 	// depth values are negative (i.e. no depth info for those pixels)
-	float depth = input[imgIndex](yIndex, xIndex);
-	if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
-		myinRange = true;
-
-	depth = input[imgIndex](yIndex + blockDim.y, xIndex);
-	if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
-		myinRange = true;
-
-	depth = input[imgIndex](yIndex + 2*blockDim.y, xIndex);
-	if (isnan(depth) || (depth <= 0.0) || ((depth > depthMin) && (depth < depthMax)))
-		myinRange = true;
+	bool myinRange = 
+		depth_test_logic(input[imgIndex](yIndex, xIndex), depthMin, depthMax) ||
+		depth_test_logic(input[imgIndex](yIndex + blockDim.y, xIndex), depthMin, depthMax) ||
+		depth_test_logic(input[imgIndex](yIndex + 2*blockDim.y, xIndex), depthMin, depthMax);
 
 	inRange[tid] = myinRange;
 

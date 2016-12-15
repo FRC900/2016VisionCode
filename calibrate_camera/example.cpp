@@ -423,6 +423,9 @@ int main( int argc, char** argv )
     if( !capture.isOpened() && imageList.empty() )
         return fprintf( stderr, "Could not initialize video (%d) capture\n",cameraId ), -2;
 
+	capture.set(CV_CAP_PROP_FRAME_WIDTH, 320);
+	capture.set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+
     if( !imageList.empty() )
         nframes = (int)imageList.size();
 

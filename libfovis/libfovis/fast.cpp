@@ -1,6 +1,16 @@
 #include <stdint.h>
 #include "fast.hpp"
 
+#include <opencv2/opencv.hpp>
+using namespace cv;
+#if CV_MAJOR_VERSION == 2
+#include <opencv2/gpu/gpu.hpp>
+using namespace cv::gpu;
+#elif CV_MAJOR_VERSION == 3
+#include <opencv2/core/cuda.hpp>
+using namespace cv::cuda;
+#endif
+
 namespace fovis
 {
 
@@ -8,18 +18,24 @@ namespace fovis
 			std::vector<KeyPoint>* keypoints, int threshold, bool nonmax_suppression )
 	{
 		std::vector<cv::KeyPoint> cvKeypoints;
-		cv::Mat frameCPU(height,width,CV_8UC1,image);
-		if (cv::gpu::getCudaEnabledDeviceCount() > 0)
+		Mat frameCPU(height,width,CV_8UC1,image);
+		if (getCudaEnabledDeviceCount() > 0)
 		{
-			cv::gpu::GpuMat frameGPU(height,width,CV_8UC1); //initialize mats
+			GpuMat frameGPU(height,width,CV_8UC1); //initialize mats
 
 			frameGPU.upload(frameCPU); //copy frame from cpu to gpu
 
-			cv::gpu::GpuMat mask(height,width,CV_8UC1);
-			mask.setTo(cv::Scalar(255,255,255)); //create a mask to run the detection on the whole image
+			GpuMat mask(height,width,CV_8UC1);
+			mask.setTo(Scalar(255,255,255)); //create a mask to run the detection on the whole image
 
-			cv::gpu::FAST_GPU FASTObject(threshold,nonmax_suppression); //run the detection
+#if CV_MAJOR_VERSION == 2
+			FAST_GPU FASTObject(threshold,nonmax_suppression); //run the detection
 			FASTObject(frameGPU,mask,cvKeypoints);
+
+#elif CV_MAJOR_VERSION == 3
+			Ptr<cv::cuda::FastFeatureDetector> fast = cv::cuda::FastFeatureDetector::create(threshold, nonmax_suppression);
+			fast->detect(frameGPU, cvKeypoints, mask);
+#endif
 		}
 		else
 		{

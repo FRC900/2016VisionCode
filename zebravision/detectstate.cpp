@@ -52,8 +52,8 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	oldGpu_(gpu),
 	oldTensorRT_(tensorRT),
 	oldCascade_(false),
-	reload_(true),
-	objToDetect_(objToDetect)
+	objToDetect_(objToDetect),
+	reload_(true)
 {
 	update();
 }

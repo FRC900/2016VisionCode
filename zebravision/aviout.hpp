@@ -10,6 +10,10 @@ class AVIOut : public MediaOut
 		AVIOut(const char *outFile, const cv::Size &size, int frameSkip = 1);
 		~AVIOut();
 
+		// Make non-copyable
+		AVIOut(const AVIOut &aviout) = delete;
+		AVIOut& operator=(const AVIOut &aviout) = delete;
+
 	private :
 		bool openNext(int fileCounter);
 		bool write(const cv::Mat &frame, const cv::Mat &depth);

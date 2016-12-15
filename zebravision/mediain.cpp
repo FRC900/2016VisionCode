@@ -14,8 +14,14 @@ MediaIn::MediaIn(ZvSettings *settings) :
 	timeStamp_(0), // TODO : default to setTimeStamp() instead?
 	lockedTimeStamp_(0)
 {
+	InitNavX("/dev/ACM0");
 }
 
+vodi MediaIn::InitNavX(string dev)
+{
+	//Initalize NavX
+	NavXHandle = AHRS(dev);
+}
 
 bool MediaIn::loadSettings()
 {
@@ -81,6 +87,18 @@ void MediaIn::setTimeStamp(long long timeStamp)
 
 		timeStamp_ = (long long)tv.tv_sec * 1000000000ULL +
 					 (long long)tv.tv_usec * 1000ULL;
+	}
+}
+
+void MediaIn::setTimeStampNavX(long long timeStamp)
+{
+	if(timeStamp != -1)
+	{
+		timeStamp_ = timeStamp;
+	}
+	else
+	{
+		long long ts = NavX.getLastSensorTimestamp();
 	}
 }
 

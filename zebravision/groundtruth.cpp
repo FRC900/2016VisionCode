@@ -13,7 +13,12 @@ using namespace cv;
 //
 // Constructor - read from the file on disk truthFile, grabbing only
 // ground truth information for the input video videoFile.
-GroundTruth::GroundTruth(const string &truthFile, const string &videoFile)
+GroundTruth::GroundTruth(const string &truthFile, const string &videoFile) :
+	frameListIdx_(0),
+	count_(0),
+	found_(0),
+	falsePositives_(0),
+	framesSeen_(0)
 {
 	ifstream ifs(truthFile, ifstream::in);
 	Rect rect;
@@ -39,12 +44,6 @@ GroundTruth::GroundTruth(const string &truthFile, const string &videoFile)
 		frameList_.push_back(it->first);
 
 	sort(frameList_.begin(), frameList_.end());
-	frameListIdx_ = 0;
-
-	count_ = 0;
-	found_ = 0;
-	falsePositives_ = 0;
-	framesSeen_     = 0;
 }
 
 

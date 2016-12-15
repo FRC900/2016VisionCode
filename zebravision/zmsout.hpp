@@ -11,6 +11,9 @@ class ZMSOut : public MediaOut
 		ZMSOut(const char *outFile, int frameSkip = 0);
 		~ZMSOut();
 
+		// Make non-copyable
+		ZMSOut(const ZMSOut &zmsout) = delete;
+		ZMSOut &operator=(const ZMSOut &zmsout) = delete;
 	private :
 		bool openNext(int fileCounter);
 		void deleteOutputPointers(void);

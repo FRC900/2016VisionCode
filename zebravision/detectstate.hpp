@@ -12,6 +12,11 @@ class DetectState
 	public:
 		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false, bool tensorRT = false, ObjectType objToDetect = ObjectType(1));
 		~DetectState();
+
+		// Make non-copyable
+		DetectState(const DetectState &detectstate) = delete;
+		DetectState& operator=(const DetectState &detectstate) = delete;
+
 		bool update(void);
 		void toggleGPU(void);
 		void toggleTensorRT(void);

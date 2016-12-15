@@ -87,6 +87,8 @@ namespace v4l2 {
          C920Camera();
          C920Camera(const char *__capture_file);
          C920Camera(const int __capture_id);
+		 C920Camera(const C920Camera &c920camera) = delete;
+		 C920Camera& operator=(const C920Camera &c920camera) = delete;
          virtual ~C920Camera();
          int Open(const char *__capture_file);
          void Close();

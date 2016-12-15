@@ -12,6 +12,7 @@
 #include "cameraparams.hpp"
 #include "frameticker.hpp"
 #include "ZvSettings.hpp"
+#include <NavXTimeSync/AHRS.h>
 
 // Base class for input.  Derived classes are cameras, videos, etc
 class MediaIn
@@ -19,6 +20,10 @@ class MediaIn
 	public:
 		MediaIn(ZvSettings *settings);
 		virtual ~MediaIn() {}
+
+		// Make class non-copyable
+		MediaIn(const MediaIn &mediain) = delete;
+		MediaIn &operator=(const MediaIn &mediain) = delete;
 
 		// These should be implemented by each derived class
 		// Include defaults here which return false just in case
@@ -56,6 +61,7 @@ class MediaIn
 		ZvSettings *settings_;
 
 		void setTimeStamp(long long timeStamp = -1);
+		void setTimeStampNavX(long long timeStamp = -1);
 		void lockTimeStamp(void);
 		void setFrameNumber(int frameNumber);
 		void incFrameNumber(void);
@@ -65,6 +71,9 @@ class MediaIn
 		virtual bool loadSettings(void);
 		virtual bool saveSettings(void) const;
 		virtual std::string getClassName() const { return "MediaIn"; }
+
+                //Init NavX
+		void InitNavX(string dev);
 
 	private:
 		// Maintain two sets of frame numbers and time stamps.
@@ -81,4 +90,5 @@ class MediaIn
 		long long timeStamp_;
 		long long lockedTimeStamp_;
 		FrameTicker frameTicker;
+		AHRS NavXHandle;
 };
