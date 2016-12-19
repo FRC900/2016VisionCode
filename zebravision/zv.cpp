@@ -435,7 +435,7 @@ int main( int argc, const char** argv )
 			// location for the detected rectangle size
 			if (objectDepth < 0)
 			{
-				float objectDepth = ObjectType(1).expectedDepth(*it, frame.size(), camParams.fov.x);
+				objectDepth = ObjectType(1).expectedDepth(*it, frame.size(), camParams.fov.x);
 			}
 			//cout << " Depth: " << objectDepth << endl;
 			if (objectDepth > 0)
