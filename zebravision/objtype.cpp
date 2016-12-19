@@ -174,8 +174,8 @@ Rect ObjectType::worldToScreenCoords(const Point3f &_position, const Point2f &fo
 float ObjectType::expectedDepth(const Rect &screen_position, const Size &frame_size, const float hfov) const
 {
 	// TODO : use larger of width, height for slightly better resolution
-	float percent_image = (float)screen_position.x / frame_size.width;
-	float size_fov      = percent_image * hfov; //TODO fov size
+	float percent_image = (float)screen_position.width / frame_size.width;
+	float size_fov      = percent_image * hfov;
 	return width_ / (2.0 * tanf(size_fov / 2.0)) - depth_ / 2.;
 }
 

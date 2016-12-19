@@ -435,12 +435,7 @@ int main( int argc, const char** argv )
 			// location for the detected rectangle size
 			if (objectDepth < 0)
 			{
-				// TODO : calculate using object type rather
-				// than hard-coding for boulders
-				float percent_image = (float)it->width / frame.cols;
-				float size_fov = percent_image * camParams.fov.x; //TODO fov size
-				// ball is 9.75 inches, convert to metric
-				objectDepth = (9.75 * 2.54 / 100.) / (2.0 * tanf(size_fov / 2.0));
+				float objectDepth = ObjectType(1).expectedDepth(*it, frame.size(), camParams.fov.x);
 			}
 			//cout << " Depth: " << objectDepth << endl;
 			if (objectDepth > 0)
@@ -897,7 +892,7 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
 
     //Creates immutable strings for 0MQ Output
     stringstream goalString;
-    goalString << "G ";
+    goalString << "G : ";
     goalString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
     goalString << fixed << setprecision(2) << gd.angle_to_goal();
 
