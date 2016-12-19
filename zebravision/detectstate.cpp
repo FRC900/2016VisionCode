@@ -38,13 +38,14 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 		float hfov, 
 		bool gpu,
 	   	bool tensorRT,
-		ObjectType objToDetect) :
+		const ObjectType &objToDetect) :
     detector_(NULL),
 	d12IO_(d12IO),
 	d24IO_(d24IO),
 	c12IO_(c12IO),
 	c24IO_(c24IO),
 	casIO_("/home/ubuntu/2016VisionCode/zebravision/classifier_bin_", 14, 29),
+	objToDetect_(objToDetect),
 	hfov_(hfov),
 	gpu_(gpu),
 	tensorRT_(tensorRT),
@@ -52,7 +53,6 @@ DetectState::DetectState(const ClassifierIO &d12IO,
 	oldGpu_(gpu),
 	oldTensorRT_(tensorRT),
 	oldCascade_(false),
-	objToDetect_(objToDetect),
 	reload_(true)
 {
 	update();

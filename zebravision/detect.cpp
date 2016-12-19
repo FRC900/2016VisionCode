@@ -101,7 +101,7 @@ void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputIm
     // Do 1st level of detection. This takes the initial list of windows
     // and returns the list which have a score for "ball" above the
     // threshold listed.
-    runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], "ball", windowsMid, scores);
+    runDetection(d12_, scaledImages12, windowsIn, detectThreshold[0], objToDetect_.name(), windowsMid, scores);
 	debug_.d12DetectOut = windowsMid.size();
     if ((detectThreshold.size() == 1) || (detectThreshold[1] <= 0.0))
 	{

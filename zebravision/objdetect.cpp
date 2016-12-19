@@ -153,7 +153,7 @@ ObjDetectNNet<MatT, ClassifierT>::ObjDetectNNet(
 		std::vector<std::string> &c12Files,
 		std::vector<std::string> &c24Files,
 		float hfov,
-		ObjectType objToDetect  ) :
+		const ObjectType &objToDetect) :
 	ObjDetect(),
 	classifier_(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect )
 {
