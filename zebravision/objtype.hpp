@@ -41,6 +41,7 @@ class ObjectType
 		
 		cv::Rect worldToScreenCoords(const cv::Point3f &_position, const cv::Point2f &fov_size, const cv::Size &frame_size, float cameraElevation) const;
 
+		float expectedDepth(const cv::Rect &screen_position, const cv::Size &frame_size, const float hfov) const;
 
 	private:
 		std::vector< cv::Point2f > contour_;

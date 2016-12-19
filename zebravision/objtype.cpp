@@ -9,6 +9,7 @@ using namespace cv;
 ObjectType::ObjectType(int contour_type_id=1) {
 	switch(contour_type_id) {
 		//loads one of the preset shapes into the
+		//object
 
 		case 1: //a ball!
 			depth_ = 0.2476; // meters
@@ -61,8 +62,8 @@ ObjectType::ObjectType(const vector< Point2f > &contour_in, const string &name_i
 }
 
 ObjectType::ObjectType(const vector< Point > &contour_in, const string &name_in, const float &depth_in):
-depth_(depth_in),
-name_(name_in)
+	depth_(depth_in),
+	name_(name_in)
 {
 	for(size_t i = 0; i < contour_in.size(); i++)
 	{
@@ -114,19 +115,22 @@ Point3f ObjectType::screenToWorldCoords(const Rect &screen_position, double avg_
 		(0,0,0) = (r,0,0) = right in front of you
 	*/
 
+	// TODO : see about using camera params cx and cy here
+	// Those will be the actual optical center of the frame
 	Point2f rect_center(
-			screen_position.tl().x + (screen_position.width  / 2.0),
-			screen_position.tl().y + (screen_position.height / 2.0));
+			screen_position.x + (screen_position.width  / 2.0),
+			screen_position.y + (screen_position.height / 2.0));
 	Point2f dist_to_center(
 			rect_center.x - (frame_size.width / 2.0),
 			-rect_center.y + (frame_size.height / 2.0));
 
-	
-
 // This uses formula from http://www.chiefdelphi.com/forums/showpost.php?p=1571187&postcount=4
-	float azimuth = atan(dist_to_center.x / (.5 * frame_size.width / tan(fov_size.x / 2)));
-	float inclination = atan(dist_to_center.y / (.5 * frame_size.height / tan(fov_size.y / 2))) - cameraElevation;
+	float azimuth = atanf(dist_to_center.x / (.5 * frame_size.width / tanf(fov_size.x / 2)));
+	float inclination = atanf(dist_to_center.y / (.5 * frame_size.height / tanf(fov_size.y / 2))) - cameraElevation;
 
+	// avg_depth is to front of object.  Add in half the
+	// object's depth to move to the center of it
+	avg_depth += depth_ / 2.;
 	Point3f retPt(
 			avg_depth * cosf(inclination) * sinf(azimuth),
 			avg_depth * cosf(inclination) * cosf(azimuth),
@@ -136,32 +140,26 @@ Point3f ObjectType::screenToWorldCoords(const Rect &screen_position, double avg_
 	//cout << "Actual Inclination: " << inclination << endl;
 	//cout << "Actual Azimuth: " << azimuth << endl;
 	//cout << "Actual location: " << retPt << endl;
-
 	return retPt;
 }
 
 Rect ObjectType::worldToScreenCoords(const Point3f &_position, const Point2f &fov_size, const Size &frame_size, float cameraElevation) const
 {
-	// TODO : replace magic numbers with an object depth property
-	// This constant is half a ball diameter (9.75-ish inches), converted to meters
-	// For example, goals will have 0 depth since we're just shooting at
-	// a plane. 3d objects will have depth, though, so we track the center of the
-	// rather than the front.
-	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z); // - (4.572 * 25.4)/1000.0;
+	float r = sqrtf(_position.x * _position.x + _position.y * _position.y + _position.z * _position.z) - depth_ / 2.;
 	float azimuth = asinf(_position.x / sqrt(_position.x * _position.x + _position.y * _position.y));
 	float inclination = asinf( _position.z / r ) + cameraElevation;
 
 	//inverse of formula in screenToWorldCoords()
 	Point2f dist_to_center(
-			tan(azimuth) * (0.5 * frame_size.width / tan(fov_size.x / 2)),
-			tan(inclination) * (0.5 * frame_size.height / tan(fov_size.y / 2)));
+			tanf(azimuth) * (0.5 * frame_size.width / tanf(fov_size.x / 2)),
+			tanf(inclination) * (0.5 * frame_size.height / tanf(fov_size.y / 2)));
 	
 	//cout << "Distance to center: " << dist_to_center << endl;
 	Point2f rect_center(
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
 
-	Point2f angular_size( 2.0 * atan2f(width_, (2.0*r)), 2.0 * atan2f(height_, (2.0*r)));
+	Point2f angular_size( 2.0 * atan2f(width_, 2.0*r), 2.0 * atan2f(height_, 2.0*r));
 	Point2f screen_size(
 			angular_size.x * (frame_size.width / fov_size.x),
 			angular_size.y * (frame_size.height / fov_size.y));
@@ -169,14 +167,20 @@ Rect ObjectType::worldToScreenCoords(const Point3f &_position, const Point2f &fo
 	Point topLeft(
 			cvRound(rect_center.x - (screen_size.x / 2.0)),
 			cvRound(rect_center.y - (screen_size.y / 2.0)));
-			return Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
+
+	return Rect(topLeft.x, topLeft.y, cvRound(screen_size.x), cvRound(screen_size.y));
 }
 
-
+float ObjectType::expectedDepth(const Rect &screen_position, const Size &frame_size, const float hfov) const
+{
+	// TODO : use larger of width, height for slightly better resolution
+	float percent_image = (float)screen_position.x / frame_size.width;
+	float size_fov      = percent_image * hfov; //TODO fov size
+	return width_ / (2.0 * tanf(size_fov / 2.0)) - depth_ / 2.;
+}
 
 bool ObjectType::operator== (const ObjectType &t1) const 
 {
 	return this->shape() == t1.shape();
 }
-
 

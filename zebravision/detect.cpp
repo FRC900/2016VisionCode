@@ -16,8 +16,8 @@
 
 using namespace std;
 using namespace cv;
-//using namespace cv::gpu;
 
+#if 0
 static double gtod_wrapper(void)
 {
     struct timeval tv;
@@ -25,9 +25,9 @@ static double gtod_wrapper(void)
     gettimeofday(&tv, NULL);
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
 }
+#endif
 
 
-// TODO :: Make a call for GPU Mat input?
 // Simple multi-scale detect.  Take a single image, scale it into a number
 // of diffent sized images. Run a fixed-size detection window across each
 // of them.  Keep track of the scale of each scaled image to map the
@@ -51,7 +51,7 @@ void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputIm
 {
     // Size of the first level classifier. Others are an integer multiple
     // of this initial size (2x and maybe 4x if we need it)
-    int wsize = d12_.getInputGeometry().width;
+    const int wsize = d12_.getInputGeometry().width;
 
 	// The neural nets take a fixed size input.  To detect various
 	// different object sizes, pass in several different resizings
@@ -96,7 +96,7 @@ void NNDetect<MatT, ClassifierT>::detectMultiscale(const Mat&            inputIm
 	// the images for those at greater detail rather than just resizing
 	// a 12x12 image up to 24x24
     scalefactor(f32Img, scaledImages12, 2, scaledImages24);
-    // not yet - scalefactor(f32Img, Size(wsize*4,wsize*4), minSize, maxSize, scaleFactor, scaledImages48);
+    //scalefactor(f32Img, scaledImages12, 4, scaledImages48);
 
     // Do 1st level of detection. This takes the initial list of windows
     // and returns the list which have a score for "ball" above the
@@ -323,11 +323,14 @@ void NNDetect<MatT, ClassifierT>::generateInitialWindows(
     // Main loop.  Look at each scaled image in turn
     for (size_t scale = 0; scale < scaledImages.size(); ++scale)
     {
-        float depth_multiplier = 0.2;
+        const float depth_multiplier = 0.2;
         float obj_real_size   = objToDetect_.width() * 1000;                 
         float percent_image    = (float)wsize / scaledImages[scale].first.cols;
         float size_fov         = percent_image * hfov_; //TODO fov size
-        float depth_avg        = (obj_real_size / (2.0 * tanf(size_fov / 2.0))) - (4.572 * 25.4);
+        float depth_avg        = (obj_real_size / (2.0 * tanf(size_fov / 2.0))) - (objToDetect_.depth() / 2.);
+
+		float avg_depth_2 = objToDetect_.expectedDepth(Rect(0, 0, wsize, wsize), 
+				                                       scaledImages[scale].first.size(), hfov_) / 1000.;
 
         float depth_min = depth_avg - depth_avg * depth_multiplier;
         float depth_max = depth_avg + depth_avg * depth_multiplier;
@@ -486,21 +489,6 @@ void NNDetect<MatT, ClassifierT>::doBatchPrediction(ClassifierT &classifier,
 		// identifies the image passed in
         for (auto it = predictions[i].cbegin(); it != predictions[i].cend(); ++it)
         {
-
-#if 0
-			if (imgs[i].rows > 12)
-			{
-				cout << it->first << " " << it->second << " ";
-				Mat img = imgs[i].clone();
-				Mat wr;
-				img.convertTo(wr, CV_8UC3, 255);
-				stringstream s;
-				s << "debug_" << i << ".png";
-				imwrite(s.str(), wr);
-			}
-#endif
-
-
             if (it->first == label)
             {
                 if (it->second >= threshold)
@@ -508,10 +496,6 @@ void NNDetect<MatT, ClassifierT>::doBatchPrediction(ClassifierT &classifier,
                     detected.push_back(i);
                     scores.push_back(it->second);
                 }
-#if 0
-				if (imgs[0].rows > 12)
-					cout << endl;
-#endif
                 break;
             }
         }
@@ -763,10 +747,8 @@ void NNDetect<MatT, ClassifierT>::checkDepthList(const float depth_min, const fl
 template<class MatT, class ClassifierT>
 bool NNDetect<MatT, ClassifierT>::initialized(void) const
 {
-	if (d12_.initialized() && d24_.initialized() &&
-	    c12_.initialized() && c24_.initialized())
-		return true;
-	return false;
+	return d12_.initialized() && d24_.initialized() &&
+	        c12_.initialized() && c24_.initialized();
 }
 
 template<class MatT, class ClassifierT>
