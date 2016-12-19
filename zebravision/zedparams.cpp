@@ -27,13 +27,12 @@ void ZedParams::init(sl::zed::Camera *zed, bool left)
 	if (!zed)
 		return;
 
-	CamParameters zedp;
+	CamParameters zedp = left ?
+		zed->getParameters()->LeftCam :
+		zed->getParameters()->RightCam;
 
-	if (left)
-		zedp = zed->getParameters()->LeftCam;
-	else
-		zedp = zed->getParameters()->RightCam;
-
+	// TODO : ZED SDK added hFOV and vFOV fields to 
+	// CamParameters - use them
 	unsigned height = zed->getImageSize().height;
 	unsigned width  = zed->getImageSize().width;
 	// Pick FOV based on 4:3 or 16:9 aspect ratio
@@ -51,6 +50,8 @@ void ZedParams::init(sl::zed::Camera *zed, bool left)
 	params_.fy = zedp.fy;
 	params_.cx = zedp.cx;
 	params_.cy = zedp.cy;
+	for (size_t i = 0; i < 5; i++)
+		params_.disto[i] = zedp.disto[i];
 }
 
 #endif
