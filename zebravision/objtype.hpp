@@ -16,8 +16,9 @@ class ObjectType
 		ObjectType(int contour_type_id);
 
 		//this constructor takes a custom contour
-		ObjectType(const std::vector< cv::Point2f > &contour_in);
-		ObjectType(const std::vector< cv::Point > &contour_in);
+		ObjectType(const std::vector< cv::Point2f > &contour_in, const std::string &name_in, const float &depth_in);
+		ObjectType(const std::vector< cv::Point > &contour_in, const std::string &name_in, const float &depth_in);
+		
 
 		//get the contour associated with the object type. 
 		// Useful for shape comparison
@@ -27,8 +28,10 @@ class ObjectType
 		cv::Point2f com (void) const { return com_; }
 		float width (void) const {return width_; }
 		float height (void) const {return height_; }
+		float depth (void) const {return depth_; }
 		float area (void) const { return area_; }
 		float boundingArea (void) const { return width_ * height_; }
+		std::string name (void) const { return name_; }
 
 		//comparison operator overload just checks if the contours are equal
 		bool operator== (const ObjectType &t1) const;
@@ -46,7 +49,9 @@ class ObjectType
 		// don't have to be recomputed every time the get functions are called
 		float width_;
 		float height_;
+		float depth_;
 		float area_;
+		std::string name_;
 		cv::Point2f com_; //center of mass
 
 		//called by constructor to compute properties

@@ -409,10 +409,11 @@ void TrackedObjectList::getDisplay(vector<TrackedObjectDisplay> &displayList) co
 	TrackedObjectDisplay tod;
 	for (auto it = list_.cbegin(); it != list_.cend(); ++it)
 	{
-		tod.position = it->getPosition();
-		tod.rect     = it->getScreenPosition(fovSize_, imageSize_);
 		tod.id       = it->getId();
+		tod.rect     = it->getScreenPosition(fovSize_, imageSize_);
 		tod.ratio    = it->getDetectedRatio();
+		tod.position = it->getPosition();
+		tod.name	 = it->getType().name();
 		displayList.push_back(tod);
 	}
 }
