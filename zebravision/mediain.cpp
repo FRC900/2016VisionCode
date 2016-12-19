@@ -1,8 +1,10 @@
+#include <string>
 #include <sys/time.h>
 
 #include "mediain.hpp"
 #include "ZvSettings.hpp"
 
+using namespace std;
 using namespace cv;
 
 MediaIn::MediaIn(ZvSettings *settings) :
@@ -17,10 +19,10 @@ MediaIn::MediaIn(ZvSettings *settings) :
 	InitNavX("/dev/ACM0");
 }
 
-vodi MediaIn::InitNavX(string dev)
+void MediaIn::InitNavX(string dev)
 {
 	//Initalize NavX
-	NavXHandle = AHRS(dev);
+//	NavXHandle = AHRS(dev);
 }
 
 bool MediaIn::loadSettings()
@@ -98,7 +100,7 @@ void MediaIn::setTimeStampNavX(long long timeStamp)
 	}
 	else
 	{
-		long long ts = NavX.getLastSensorTimestamp();
+		//long long ts = NavXHandle.getLastSensorTimestamp();
 	}
 }
 

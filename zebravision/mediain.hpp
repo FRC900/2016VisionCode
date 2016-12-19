@@ -12,7 +12,7 @@
 #include "cameraparams.hpp"
 #include "frameticker.hpp"
 #include "ZvSettings.hpp"
-#include <NavXTimeSync/AHRS.h>
+#include <navXTimeSync/AHRS.h>
 
 // Base class for input.  Derived classes are cameras, videos, etc
 class MediaIn
@@ -73,7 +73,7 @@ class MediaIn
 		virtual std::string getClassName() const { return "MediaIn"; }
 
                 //Init NavX
-		void InitNavX(string dev);
+		void InitNavX(std::string dev);
 
 	private:
 		// Maintain two sets of frame numbers and time stamps.
@@ -90,5 +90,5 @@ class MediaIn
 		long long timeStamp_;
 		long long lockedTimeStamp_;
 		FrameTicker frameTicker;
-		AHRS NavXHandle;
+		//AHRS NavXHandle;
 };
