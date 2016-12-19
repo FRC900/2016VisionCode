@@ -10,7 +10,7 @@
 class DetectState
 {
 	public:
-		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false, bool tensorRT = false, ObjectType objToDetect = ObjectType(1));
+		DetectState(const ClassifierIO &d12IO, const ClassifierIO &d24IO, const ClassifierIO &c12IO, const ClassifierIO &c24IO, float hfov, bool gpu = false, bool tensorRT = false, const ObjectType &objToDetect = ObjectType(1));
 		~DetectState();
 
 		// Make non-copyable

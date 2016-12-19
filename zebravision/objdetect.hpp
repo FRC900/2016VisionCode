@@ -86,7 +86,7 @@ class ObjDetectNNet : public ObjDetect
 					  std::vector<std::string> &c12Files,
 					  std::vector<std::string> &c24Files,
 					  float hfov,
-					  ObjectType objToDetect);
+					  const ObjectType &objToDetect);
 		void Detect(const cv::Mat &frameIn, 
 					const cv::Mat &depthIn, 
 					std::vector<cv::Rect> &imageRects, 
@@ -106,7 +106,7 @@ class ObjDetectCaffeCPU : public ObjDetectNNet<cv::Mat, CaffeClassifier<cv::Mat>
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
 							 float hfov,
-							 ObjectType objToDetect) :
+							 const ObjectType &objToDetect) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
@@ -120,7 +120,7 @@ class ObjDetectCaffeGPU : public ObjDetectNNet<GpuMat, CaffeClassifier<GpuMat>>
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
 							 float hfov,
-							 ObjectType objToDetect  ) :
+							 const ObjectType &objToDetect  ) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
@@ -135,7 +135,7 @@ class ObjDetectTensorRTCPU : public ObjDetectNNet<cv::Mat, GIEClassifier<cv::Mat
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
 							 float hfov,
-							 ObjectType objToDetect ) :
+							 const ObjectType &objToDetect ) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
@@ -149,7 +149,7 @@ class ObjDetectTensorRTGPU : public ObjDetectNNet<GpuMat, GIEClassifier<GpuMat>>
 							 std::vector<std::string> &c12Files,
 							 std::vector<std::string> &c24Files,
 							 float hfov,
-							 ObjectType objToDetect ) :
+							 const ObjectType &objToDetect ) :
 						ObjDetectNNet(d12Files, d24Files, c12Files, c24Files, hfov, objToDetect)
 		{ }
 };
