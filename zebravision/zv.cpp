@@ -188,7 +188,7 @@ int main( int argc, const char** argv )
 
 	bool pause = !args.batchMode && args.pause;
 	bool calibRects = false;
-	bool filterUsingDepth = true;
+	bool filterUsingDepth = false;
 	bool showTrackingHistory = false;
 
 	//stuff to handle ctrl+c and escape gracefully
@@ -868,6 +868,9 @@ void sendZMQData(size_t objectCount, zmq::socket_t& publisher, const vector<Trac
 	{
 		stringstream objdetString;
 
+		// TODO : figure out if there should be a colon
+		// or not after the B/G character - it isn't 
+		// consistent right now
 		objdetString << "B ";
 		for (size_t i = 0; i < objectCount; i++)
 		{
