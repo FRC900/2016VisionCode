@@ -159,7 +159,7 @@ Rect ObjectType::worldToScreenCoords(const Point3f &_position, const Point2f &fo
 			dist_to_center.x + (frame_size.width / 2.0),
 			-dist_to_center.y + (frame_size.height / 2.0));
 
-	Point2f angular_size( 2.0 * atan2f(width_, 2.0*r), 2.0 * atan2f(height_, 2.0*r));
+	Point2f angular_size(2.0 * atan2f(width_, 2.0*r), 2.0 * atan2f(height_, 2.0*r));
 	Point2f screen_size(
 			angular_size.x * (frame_size.width / fov_size.x),
 			angular_size.y * (frame_size.height / fov_size.y));
