@@ -16,6 +16,7 @@ void zedContrastCallback(int value, void *data);
 void zedHueCallback(int value, void *data);
 void zedSaturationCallback(int value, void *data);
 void zedGainCallback(int value, void *data);
+void zedExposureCallback(int value, void *data);
 
 ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 	AsyncIn(settings),
@@ -81,7 +82,7 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 		cv::createTrackbar("Hue", "Adjustments", &hue_, 12, zedHueCallback, this);
 		cv::createTrackbar("Saturation", "Adjustments", &saturation_, 9, zedSaturationCallback, this);
 		cv::createTrackbar("Gain", "Adjustments", &gain_, 101, zedGainCallback, this);
-		cv::createTrackbar("Exposure", "Adjustments", &exposure_, 102, zedGainCallback, this);
+		cv::createTrackbar("Exposure", "Adjustments", &exposure_, 102, zedExposureCallback, this);
 	}
 
 	while (height_ > 700)
@@ -113,6 +114,7 @@ bool ZedCameraIn::loadSettings(void)
 		settings_->getInt(getClassName(), "hue",          hue_);
 		settings_->getInt(getClassName(), "saturation",   saturation_);
 		settings_->getInt(getClassName(), "gain",         gain_);
+		settings_->getInt(getClassName(), "exposure",     exposure_);
 		return true;
 	}
 	return false;
@@ -127,6 +129,7 @@ bool ZedCameraIn::saveSettings(void) const
 		settings_->setInt(getClassName(), "hue",          hue_);
 		settings_->setInt(getClassName(), "saturation",   saturation_);
 		settings_->setInt(getClassName(), "gain",         gain_);
+		settings_->setInt(getClassName(), "exposure",     exposure_);
 		settings_->save();
 		return true;
 	}
