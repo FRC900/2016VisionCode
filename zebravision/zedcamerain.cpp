@@ -52,9 +52,6 @@ ZedCameraIn::ZedCameraIn(bool gui, ZvSettings *settings) :
 		return;
 	}
 
-	//only for Jetson K1/X1 - see if it helps
-	Camera::sticktoCPUCore(2);
-
 	width_  = zed_->getImageSize().width;
 	height_ = zed_->getImageSize().height;
 
