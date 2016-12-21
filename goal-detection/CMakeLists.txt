@@ -8,7 +8,6 @@ find_package(ZED REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams thread REQUIRED)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../bindetection/cmake")
 find_package(ZMQ REQUIRED)
 find_library (LibTinyXML2 tinyxml2)
 
