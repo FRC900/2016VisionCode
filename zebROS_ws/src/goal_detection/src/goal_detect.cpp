@@ -10,6 +10,13 @@
 #include "track3d.hpp"
 #include "frameticker.hpp"
 
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+#include "std_msgs/Float64MultiArray.h"
+
+#include <sstream>
+
+
 using namespace cv;
 using namespace std;
 
@@ -31,18 +38,24 @@ int main(int argc, char **argv)
 				            cap->getCameraParams().fov.y), 
 			        Size(cap->width(),cap->height()), true);
 
-	zmq::context_t context(1);
-	zmq::socket_t publisher(context, ZMQ_PUB);
+	// zmq::context_t context(1);
+	// zmq::socket_t publisher(context, ZMQ_PUB);
+	
+	ros::init(argc, argv, "goal_tracker");
+	ros::NodeHandle n;
 
-	std::cout<< "Starting network publisher 5800" << std::endl;
-	publisher.bind("tcp://*:5800");
+	ros::Publisher goal_pub = n.advertise<std_msgs::String>("goal_data", 1000);
+	ros::Rate loop_rate(10);
+
+	// std::cout<< "Starting network publisher 5800" << std::endl;
+	// publisher.bind("tcp://*:5800");
 
 	Mat image;
 	Mat depth;
 	//Mat depthNorm;
 	Rect bound;
 	FrameTicker frameTicker;
-	while (cap->getFrame(image, depth))
+	while (cap->getFrame(image, depth) && ros::ok())
 	{
 		frameTicker.mark();
 		//imshow ("Normalized Depth", depthNorm);
@@ -56,15 +69,26 @@ int main(int argc, char **argv)
 		rectangle(image, gd.goal_rect(), Scalar(255,0,0), 2);
 		imshow ("Image", image);
 
+		std_msgs::String msg;
+
 		stringstream gString;
 		gString << "G ";
 		gString << fixed << setprecision(4) << gd.dist_to_goal() << " ";
 		gString << fixed << setprecision(2) << gd.angle_to_goal();
 
 		cout << "G : " << gString.str().length() << " : " << gString.str() << endl;
-		zmq::message_t grequest(gString.str().length() - 1);
-		memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
-		publisher.send(grequest);
+		
+		msg.data = gString.str();
+				
+		
+		// zmq::message_t grequest(gString.str().length() - 1);
+		// memcpy((void *)grequest.data(), gString.str().c_str(), gString.str().length() - 1);
+		// publisher.send(grequest);
+		goal_pub.publish(msg);
+		ros::spinOnce();
+
+		loop_rate.sleep();
+		
 
 		if ((uchar)waitKey(5) == 27)
 		{
