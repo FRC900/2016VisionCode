@@ -8,11 +8,10 @@ find_package(ZED REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost COMPONENTS filesystem system serialization iostreams thread REQUIRED)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../bindetection/cmake")
 find_package(ZMQ REQUIRED)
 find_library (LibTinyXML2 tinyxml2)
 
-include_directories( ${OpenCV_INCLUDE_DIRS} ${ZMQ_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ../zebravision )
+include_directories( ${OpenCV_INCLUDE_DIRS} ${ZMQ_INCLUDE_DIRS} ${ZED_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ../zebravision ..)
 
 link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS} /usr/local/cuda/lib64/stubs)
