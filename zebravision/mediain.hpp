@@ -46,6 +46,10 @@ class MediaIn
 		int frameNumber(void) const;
 		long long timeStamp(void) const;
 
+		//Function pointer to correct setTimeStamp
+		//Depends on precense of NavX
+		void *setTimeStamp(long long);
+
 		// Input FPS for live camera input
 		virtual float FPS(void) const;
 
