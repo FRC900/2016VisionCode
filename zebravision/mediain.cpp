@@ -7,6 +7,7 @@
 using namespace std;
 using namespace cv;
 
+
 MediaIn::MediaIn(ZvSettings *settings) :
 	width_(0),
 	height_(0),
@@ -22,7 +23,19 @@ MediaIn::MediaIn(ZvSettings *settings) :
 void MediaIn::InitNavX(string dev)
 {
 	//Initalize NavX
-//	NavXHandle = AHRS(dev);
+	//TODO: Autodetect port NavX is on
+	NavXHandle = AHRS(dev);
+
+	//TODO: Verify this works off the bat (might need to find some way to add delay?)
+
+	if(NavXHandle.IsConnected())
+	{
+		setTimeStamp = &setTimeStampNavX;
+	{
+	else
+	{
+		setTimeStamp = &setTImeStampSystem;
+	}
 }
 
 bool MediaIn::loadSettings()
@@ -76,7 +89,7 @@ int MediaIn::frameCount(void) const
 // gets updated when getFrame is called. That way the
 // timestamp returned outside the class always matches
 // up with the frame returned from getFrame()
-void MediaIn::setTimeStamp(long long timeStamp)
+void MediaIn::setTimeStampSystem(long long timeStamp)
 {
 	if (timeStamp != -1)
 	{
@@ -100,7 +113,7 @@ void MediaIn::setTimeStampNavX(long long timeStamp)
 	}
 	else
 	{
-		//long long ts = NavXHandle.getLastSensorTimestamp();
+		long long ts = NavXHandle.getLastSensorTimestamp();
 	}
 }
 
