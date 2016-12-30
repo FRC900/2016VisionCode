@@ -305,7 +305,7 @@ int main( int argc, const char** argv )
 	// Open file to save raw video into. If depth data
 	// is available, use a ZMS file since that can save
 	// both RGB and depth info. If there's no depth
-	// data write to and AVI instead.
+	// data write to an AVI instead.
 	MediaOut *rawOut = NULL;
 	if (args.writeVideo)
 	{
