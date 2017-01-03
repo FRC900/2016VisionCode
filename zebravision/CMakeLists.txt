@@ -80,7 +80,8 @@ include_directories(
 	../fovis
 	/home/ubuntu/2016VisionCode/libfovis/build/include/fovis
 	../../GIE/include
-	..)
+	..
+	../navXTimeSync)
 
 if ($MKL_FOUND)
 	include_directories (${MKL_INCLUDE_DIR})
@@ -115,6 +116,14 @@ else()
 endif()
 LIST(APPEND CUDA_NVCC_FLAGS -Xcompiler ,\"-O3\",\"-DNDEBUG\","-ffast-math")
 LIST(APPEND CUDA_NVCC_FLAGS -O3 --default-stream per-thread)
+
+set (NAVX_SRCS
+	../navXTimeSync/AHRS.cpp
+	../navXTimeSync/ContinuousAngleTracker.cpp
+	../navXTimeSync/InertialDataIntegrator.cpp
+	../navXTimeSync/OffsetTracker.cpp
+	../navXTimeSync/SerialIO.cpp
+	../navXTimeSync/SerialPort.cpp )
 
 CUDA_ADD_EXECUTABLE(zv
 	zca.cpp
@@ -164,6 +173,7 @@ CUDA_ADD_EXECUTABLE(zv
 	ZvSettings.cpp
 	colormap.cpp
 	zv.cpp 
+	${NAVX_SRCS} 
 	${CMAKE_CURRENT_BINARY_DIR}/version.cpp)
 
 find_library (LibCaffe caffe PATH ${CAFFE_BASE_DIR}/build/lib)
@@ -195,10 +205,10 @@ CUDA_ADD_CUBLAS_TO_TARGET(zv)
 # from ZED's SVO format to our home-brewed ZMS video file
 # format.
 if (ZED_FOUND)
-  add_executable(convertzms convertzms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+	add_executable(convertzms convertzms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp ${NAVX_SRCS})
   target_link_libraries( convertzms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 endif()
-add_executable(mergezms mergezms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp)
+add_executable(mergezms mergezms.cpp mediain.cpp syncin.cpp cameraparams.cpp zedparams.cpp zedsvoin.cpp zmsin.cpp mediaout.cpp zmsout.cpp portable_binary_oarchive.cpp portable_binary_iarchive.cpp ZvSettings.cpp ${NAVX_SRCS})
 target_link_libraries( mergezms ${Boost_LIBRARIES} ${OpenCV_LIBS} ${ZED_LIBRARIES} ${LibTinyXML2})
 CUDA_ADD_EXECUTABLE(predict_one predict_one.cpp CaffeClassifier.cpp GIEClassifier.cpp Classifier.cpp zca.cpp zca.cu classifierio.cpp cuda_utils.cpp portable_binary_iarchive.cpp portable_binary_oarchive.cpp)
 target_link_libraries( predict_one ${Boost_LIBRARIES} ${OpenCV_LIBS} ${LibCaffe} ${LibGLOG} ${LibProtobuf} ${MKL_LIBRARIES} ${LibNVCaffeParser} ${LibNVInfer})
