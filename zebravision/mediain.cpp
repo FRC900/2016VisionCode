@@ -16,7 +16,7 @@ MediaIn::MediaIn(ZvSettings *settings) :
 	lockedFrameNumber_(0),
 	timeStamp_(0), // TODO : default to setTimeStamp() instead?
 	lockedTimeStamp_(0),
-	NavXHandle("/dev/ACM0") // TODO : autodetect port NavX is on
+	NavXHandle("/dev/ttyACM0") // TODO : autodetect port NavX is on
 {
 }
 
@@ -81,6 +81,7 @@ void MediaIn::setTimeStamp(long long timeStamp)
 	else if(NavXHandle.IsConnected())
 	{
 		timeStamp_ = NavXHandle.GetLastSensorTimestamp();
+		cout << "NavX timestamp " << timeStamp_ << endl;
 	}
 	else
 	{
