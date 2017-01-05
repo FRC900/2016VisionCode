@@ -81,7 +81,6 @@ void MediaIn::setTimeStamp(long long timeStamp)
 	else if(NavXHandle.IsConnected())
 	{
 		timeStamp_ = NavXHandle.GetLastSensorTimestamp();
-		cout << "NavX timestamp " << timeStamp_ << endl;
 	}
 	else
 	{
