@@ -87,8 +87,8 @@ void MediaIn::setTimeStamp(long long timeStamp)
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
 
-		timeStamp_ = (long long)tv.tv_sec * 1000000000ULL +
-					 (long long)tv.tv_usec * 1000ULL;
+		timeStamp_ = (long long)tv.tv_sec * 1000000ULL +
+					 (long long)tv.tv_usec;
 	}
 }
 
