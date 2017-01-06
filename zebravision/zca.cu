@@ -141,7 +141,7 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> * __restrict
 	// will reduce the number of intermediate terms
 	// to a power of 2.
     unsigned int s = (blockDim.x * blockDim.y) / 3;
-	if (tid < s) 
+	if (tid < s)
 	{
 		// N is the same for all 3 channels of a
 		// given pixel. Re-use it when combining
@@ -174,7 +174,7 @@ __global__ void mean_stddev_reduction_kernel(const PtrStepSz<float> * __restrict
 	}
 	__syncthreads();
     s = (blockDim.x * blockDim.y) / 9;
-	if (tid < s) 
+	if (tid < s)
 	{
 		// N is the same for all 3 channels of a
 		// given pixel. Re-use it when combining
