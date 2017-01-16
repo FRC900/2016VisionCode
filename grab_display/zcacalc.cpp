@@ -49,13 +49,13 @@ vector<Mat> loadSubImages(const int seed, const int nImgs)
 	for (int nDone = 0; nDone < nImgs; ) 
 	{
 		img = rsi.get(1.0, 0.05);
-		resize(img, patch, Size(48,48));
+		resize(img, patch, Size(28,28));
 		// There are grayscale images in the 
 		// negatives, but we'll never see one
 		// in real life. Exclude those for now
 		if (isGrayImage(img))
 			continue;
-		images.push_back(patch.clone());
+		images.push_back(img.clone());
 		nDone++;
 		if (!(nDone % 1000))
 			cout << nDone << " image patches extracted" << endl;
@@ -66,9 +66,10 @@ vector<Mat> loadSubImages(const int seed, const int nImgs)
 int main(void)
 {
 	const int seed = 12345;
-	vector<Mat> images = loadSubImages(seed, 20000);
+	vector<Mat> images = loadSubImages(seed, 50000);
 
-	doZCA(images, Size(12,12), 0.001, "_newE001", seed);
-	doZCA(images, Size(24,24), 0.001, "_newE001", seed);
+	//doZCA(images, Size(12,12), 0.001, "_newE001", seed);
+	//doZCA(images, Size(24,24), 0.001, "_newE001", seed);
+	doZCA(images, Size(28,28), 0.001, "_E001_for_zcarun", seed);
 	//doZCA(images, Size(48,48), 0.001, "_newE001", seed);
 }

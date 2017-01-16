@@ -550,14 +550,12 @@ int main(int argc, char *argv[])
 
 				// Add gaussian noise to the image
 				// S and V channels.
-				// TODO : should this generate a different
-				// set of noise values for S and V?
-                Mat noise = Mat::zeros(hsvframe.size(), CV_32F);
-                randn(noise, 0.0, g_noise);
                 split(hsvframe, splitMat);
 
                 for (int i = 1; i <= 2; i++)
                 {
+					Mat noise(Mat::zeros(hsvframe.size(), CV_32F));
+					randn(noise, 0.0, g_noise);
                     double min, max;
                     minMaxLoc(splitMat[i], &min, &max, NULL, NULL, objMask);
                     add(splitMat[i], noise, splitMat[i], objMask);
@@ -619,7 +617,7 @@ int main(int argc, char *argv[])
 							bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
 							GpuMat cI = doChromaKey(rI, GpuMat(bgImg), rM);
 							GpuMat out;
-							cuda::resize(cI, out, Size(48,48));
+							cuda::resize(cI, out, Size(56,56));
 							out.download(chromaImg);
 						}
 						else
@@ -634,7 +632,7 @@ int main(int argc, char *argv[])
 #endif
 							bgImg = rsi.get((double)frame.cols / frame.rows, 0.05);
 							chromaImg = doChromaKey(rotImg, bgImg, rotMask);
-							resize(chromaImg, chromaImg, Size(48,48));
+							resize(chromaImg, chromaImg, Size(56,56));
 						}
 
                         stringstream write_name;
