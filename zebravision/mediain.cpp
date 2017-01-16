@@ -15,28 +15,11 @@ MediaIn::MediaIn(ZvSettings *settings) :
 	frameNumber_(0),
 	lockedFrameNumber_(0),
 	timeStamp_(0), // TODO : default to setTimeStamp() instead?
-	lockedTimeStamp_(0)
+	lockedTimeStamp_(0),
+	NavXHandle("/dev/ttyACM0") // TODO : autodetect port NavX is on
 {
-	InitNavX("/dev/ACM0");
 }
 
-void MediaIn::InitNavX(string dev)
-{
-	//Initalize NavX
-	//TODO: Autodetect port NavX is on
-	NavXHandle = AHRS(dev);
-
-	//TODO: Verify this works off the bat (might need to find some way to add delay?)
-
-	if(NavXHandle.IsConnected())
-	{
-		setTimeStamp = &setTimeStampNavX;
-	{
-	else
-	{
-		setTimeStamp = &setTImeStampSystem;
-	}
-}
 
 bool MediaIn::loadSettings()
 {
@@ -89,31 +72,23 @@ int MediaIn::frameCount(void) const
 // gets updated when getFrame is called. That way the
 // timestamp returned outside the class always matches
 // up with the frame returned from getFrame()
-void MediaIn::setTimeStampSystem(long long timeStamp)
+void MediaIn::setTimeStamp(long long timeStamp)
 {
 	if (timeStamp != -1)
 	{
 		timeStamp_ = timeStamp;
+	}
+	else if(NavXHandle.IsConnected())
+	{
+		timeStamp_ = NavXHandle.GetLastSensorTimestamp();
 	}
 	else
 	{
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
 
-		timeStamp_ = (long long)tv.tv_sec * 1000000000ULL +
-					 (long long)tv.tv_usec * 1000ULL;
-	}
-}
-
-void MediaIn::setTimeStampNavX(long long timeStamp)
-{
-	if(timeStamp != -1)
-	{
-		timeStamp_ = timeStamp;
-	}
-	else
-	{
-		long long ts = NavXHandle.getLastSensorTimestamp();
+		timeStamp_ = (long long)tv.tv_sec * 1000000ULL +
+					 (long long)tv.tv_usec;
 	}
 }
 

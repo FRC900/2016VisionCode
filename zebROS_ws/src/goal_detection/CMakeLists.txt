@@ -137,7 +137,7 @@ include_directories(
 #   src/${PROJECT_NAME}/goal_detection.cpp
 # )
 
-add_executable( goal_detection_node src/goal_detect.cpp ../../../zebravision/GoalDetector.cpp ../../../zebravision/mediain.cpp ../../../zebravision/syncin.cpp ../../../zebravision/asyncin.cpp ../../../zebravision/zedcamerain.cpp ../../../zebravision/zedsvoin.cpp ../../../zebravision/zmsin.cpp ../../../zebravision/cameraparams.cpp ../../../zebravision/zedparams.cpp ../../../zebravision/Utilities.cpp ../../../zebravision/objtype.cpp ../../../zebravision/track3d.cpp ../../../zebravision/kalman.cpp ../../../zebravision/hungarian.cpp ../../../zebravision/portable_binary_iarchive.cpp ../../../zebravision/portable_binary_oarchive.cpp ../../../zebravision/ZvSettings.cpp)
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -145,7 +145,7 @@ add_executable( goal_detection_node src/goal_detect.cpp ../../../zebravision/Goa
 # add_dependencies(goal_detection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(goal_detection_node src/goal_detection_node.cpp)
+add_executable( goal_detection_node src/goal_detect.cpp ../../../zebravision/GoalDetector.cpp ../../../zebravision/mediain.cpp ../../../zebravision/syncin.cpp ../../../zebravision/asyncin.cpp ../../../zebravision/zedcamerain.cpp ../../../zebravision/zedsvoin.cpp ../../../zebravision/zmsin.cpp ../../../zebravision/cameraparams.cpp ../../../zebravision/zedparams.cpp ../../../zebravision/Utilities.cpp ../../../zebravision/objtype.cpp ../../../zebravision/track3d.cpp ../../../zebravision/kalman.cpp ../../../zebravision/hungarian.cpp ../../../zebravision/portable_binary_iarchive.cpp ../../../zebravision/portable_binary_oarchive.cpp ../../../zebravision/ZvSettings.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -155,7 +155,6 @@ add_executable( goal_detection_node src/goal_detect.cpp ../../../zebravision/Goa
 target_link_libraries(goal_detection_node
   ${catkin_LIBRARIES}
 )
-
 target_link_libraries( goal_detection_node ${OpenCV_LIBS} ${ZED_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY} ${Boost_LIBRARIES} ${ZMQ_LIBRARIES} ${LibTinyXML2})
 
 #############
